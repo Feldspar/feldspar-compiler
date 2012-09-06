@@ -1,6 +1,6 @@
 name:           feldspar-compiler
 version:        0.6.0.1
-cabal-version:  >= 1.6
+cabal-version:  >= 1.8
 build-type:     Simple
 license:        BSD3
 license-file:   LICENSE
@@ -76,7 +76,7 @@ library
     Feldspar.NameExtractor
 
   build-depends:
-    feldspar-language == 0.6.*,
+    feldspar-language >= 0.6 && < 0.7,
     ansi-terminal,
     base >= 4 && < 4.6,
     containers,
@@ -140,18 +140,19 @@ executable feldspar
   main-is : ./Feldspar/Compiler/Frontend/CommandLine/Main.hs
 
   build-depends:
---    feldspar-language == 0.6.*,
---    syntactic >= 0.8.*,
-    ansi-terminal
---    base >= 4 && < 4.4,
---    mtl,
---    hint,
---    process,
---    filepath,
---    directory,
---    containers,
---    haskell-src-exts,
---    MonadCatchIO-mtl
+    feldspar-language >= 0.6 && < 0.7,
+    feldspar-compiler,
+    syntactic >= 0.9 && < 0.10,
+    base >= 4 && < 4.6,
+    hint,
+    MonadCatchIO-mtl,
+    mtl,
+    directory,
+    filepath,
+    process,
+    ansi-terminal,
+    containers,
+    haskell-src-exts >= 1.12
 
   extensions:
     CPP
