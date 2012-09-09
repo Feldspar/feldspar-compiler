@@ -46,24 +46,24 @@ import Feldspar.Core.Frontend
 import Feldspar.Compiler.Imperative.Representation (Module)
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
-import Feldspar.Compiler.Imperative.FromCore.Array
-import Feldspar.Compiler.Imperative.FromCore.Binding
-import Feldspar.Compiler.Imperative.FromCore.Condition
-import Feldspar.Compiler.Imperative.FromCore.ConditionM
-import Feldspar.Compiler.Imperative.FromCore.Error
-import Feldspar.Compiler.Imperative.FromCore.FFI
-import Feldspar.Compiler.Imperative.FromCore.Future
-import Feldspar.Compiler.Imperative.FromCore.Literal
-import Feldspar.Compiler.Imperative.FromCore.Loop
-import Feldspar.Compiler.Imperative.FromCore.Mutable
-import Feldspar.Compiler.Imperative.FromCore.MutableToPure
-import Feldspar.Compiler.Imperative.FromCore.NoInline
-import Feldspar.Compiler.Imperative.FromCore.Par
-import Feldspar.Compiler.Imperative.FromCore.Primitive
-import Feldspar.Compiler.Imperative.FromCore.Save
-import Feldspar.Compiler.Imperative.FromCore.SizeProp
-import Feldspar.Compiler.Imperative.FromCore.SourceInfo
-import Feldspar.Compiler.Imperative.FromCore.Tuple
+import Feldspar.Compiler.Imperative.FromCore.Array ()
+import Feldspar.Compiler.Imperative.FromCore.Binding ()
+import Feldspar.Compiler.Imperative.FromCore.Condition ()
+import Feldspar.Compiler.Imperative.FromCore.ConditionM ()
+import Feldspar.Compiler.Imperative.FromCore.Error ()
+import Feldspar.Compiler.Imperative.FromCore.FFI ()
+import Feldspar.Compiler.Imperative.FromCore.Future ()
+import Feldspar.Compiler.Imperative.FromCore.Literal ()
+import Feldspar.Compiler.Imperative.FromCore.Loop ()
+import Feldspar.Compiler.Imperative.FromCore.Mutable ()
+import Feldspar.Compiler.Imperative.FromCore.MutableToPure ()
+import Feldspar.Compiler.Imperative.FromCore.NoInline ()
+import Feldspar.Compiler.Imperative.FromCore.Par ()
+import Feldspar.Compiler.Imperative.FromCore.Primitive ()
+import Feldspar.Compiler.Imperative.FromCore.Save ()
+import Feldspar.Compiler.Imperative.FromCore.SizeProp ()
+import Feldspar.Compiler.Imperative.FromCore.SourceInfo ()
+import Feldspar.Compiler.Imperative.FromCore.Tuple ()
 
 instance Compile FeldDomain (Lambda TypeCtx :+: (Variable TypeCtx :+: FeldDomain))
   where
