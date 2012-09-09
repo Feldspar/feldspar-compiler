@@ -115,7 +115,7 @@ handleOptions descriptors startOptions helpHeader = do
 
     when (length args == 0) (do
         putStrLn $ usageInfo helpHeader descriptors
-        exitWith ExitSuccess)
+        exitSuccess)
 
     -- Parse options, getting a list of option actions
     let (actions, nonOptions, errors) = getOpt Permute descriptors args
