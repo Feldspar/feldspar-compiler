@@ -26,7 +26,11 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-{-# LANGUAGE TypeFamilies, UndecidableInstances, OverlappingInstances #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE RecordWildCards #-}
+
 module Feldspar.Compiler.Imperative.Representation where
 
 import Data.Typeable
@@ -346,24 +350,24 @@ class HasType a where
 
 instance HasType (Variable t) where
     type TypeOf (Variable t) = Type
-    typeof (Variable r t s _) = t
+    typeof Variable{..}      = varType
 
 instance (ShowLabel t) => HasType (Constant t) where
     type TypeOf (Constant t) = Type
-    typeof (IntConst _ t _ _) = t
-    typeof (FloatConst _ _ _) = FloatType
-    typeof (BoolConst _ _ _) = BoolType
-    typeof (ComplexConst r i _ _) = ComplexType (typeof r)
+    typeof IntConst{..}      = intType
+    typeof FloatConst{}      = FloatType
+    typeof BoolConst{}       = BoolType
+    typeof ComplexConst{..}  = ComplexType $ typeof realPartComplexValue
 
 instance (ShowLabel t) => HasType (Expression t) where
     type TypeOf (Expression t) = Type
-    typeof (VarExpr v _) = typeof v
-    typeof (ArrayElem n i _ _) = decrArrayDepth (typeof n)
+    typeof VarExpr{..}   = typeof var
+    typeof ArrayElem{..} = decrArrayDepth $ typeof array
       where
         decrArrayDepth :: Type -> Type
         decrArrayDepth (ArrayType _ t) = t
-        decrArrayDepth t = reprError InternalError $ "Non-array variable is indexed! " ++ show n ++ " :: " ++ show t
-    typeof (StructField s f _ _) = getStructFieldType f (typeof s)
+        decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
+    typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
         getStructFieldType :: String -> Type -> Type
         getStructFieldType f (StructType l) = case List.find (\(a,_) -> a == f) l of
@@ -373,18 +377,20 @@ instance (ShowLabel t) => HasType (Expression t) where
         getStructFieldType f t = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
         structFieldNotFound f = reprError InternalError $ "Not found struct field with this name: " ++ f
-    typeof (ConstExpr c _) = typeof c
-    typeof (FunctionCall f p _ _) = returnType f
-    typeof (Cast t e _ _) = t
-    typeof (SizeOf s _ _) = NumType Signed S32
+    typeof ConstExpr{..}    = typeof constExpr
+    typeof FunctionCall{..} = returnType function
+    typeof Cast{..}         = castType
+    typeof SizeOf{..}       = NumType Signed S32
 
 instance (ShowLabel t) => HasType (ActualParameter t) where
     type TypeOf (ActualParameter t) = Type
-    typeof (In e _) = typeof e
-    typeof (Out l _) = typeof l
-    typeof (TypeParameter t _ _) = t
-    typeof (FunParameter _ _ _) = VoidType
+    typeof In{..}            = typeof inParam
+    typeof Out{..}           = typeof outParam
+    typeof TypeParameter{..} = typeParam
+    typeof FunParameter{}    = VoidType
 
+
+reprError :: forall a. ErrorClass -> String -> a
 reprError = handleError "Feldspar.Compiler.Imperative.Representation"
 
 -- =====================
