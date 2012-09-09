@@ -22,6 +22,8 @@ category:       Compiler
 tested-with:    GHC==7.0.4, GHC==7.4.1
 
 library
+  hs-source-dirs: lib
+
   exposed-modules:
     Feldspar.Compiler.Imperative.Representation
     Feldspar.Compiler.Imperative.FromCore
@@ -63,10 +65,6 @@ library
     Feldspar.Compiler.Backend.C.Library
     Feldspar.Compiler.Backend.C.Options
     Feldspar.Compiler.Backend.C.Platforms
-    Feldspar.Compiler.Frontend.CommandLine.API.Library
-    Feldspar.Compiler.Frontend.CommandLine.API.Constants
-    Feldspar.Compiler.Frontend.CommandLine.API.Options
-    Feldspar.Compiler.Frontend.CommandLine.API
     Feldspar.Compiler.Frontend.Interactive.Interface
     Feldspar.Compiler.Compiler
     Feldspar.Compiler.Error
@@ -108,13 +106,13 @@ library
     ViewPatterns
 
   include-dirs:
-    ./Feldspar/C
+    ./lib/Feldspar/C
 
   c-sources:
-    ./Feldspar/C/feldspar_c99.c
-    ./Feldspar/C/feldspar_array.c
-    ./Feldspar/C/ivar.c
-    ./Feldspar/C/taskpool.c
+    lib/Feldspar/C/feldspar_c99.c
+    lib/Feldspar/C/feldspar_array.c
+    lib/Feldspar/C/ivar.c
+    lib/Feldspar/C/taskpool.c
 
   cc-options: -std=c99 -Wall
 
@@ -137,8 +135,16 @@ library
   cpp-options: -DRELEASE
 
 executable feldspar
-  main-is : ./Feldspar/Compiler/Frontend/CommandLine/Main.hs
+  hs-source-dirs: src
 
+  main-is : Feldspar/Compiler/Frontend/CommandLine/Main.hs
+
+  other-modules:
+    Feldspar.Compiler.Frontend.CommandLine.API.Library
+    Feldspar.Compiler.Frontend.CommandLine.API.Constants
+    Feldspar.Compiler.Frontend.CommandLine.API.Options
+    Feldspar.Compiler.Frontend.CommandLine.API
+  
   build-depends:
     feldspar-language >= 0.6 && < 0.7,
     feldspar-compiler,
