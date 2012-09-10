@@ -26,15 +26,11 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-{-# LANGUAGE EmptyDataDecls, TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler where
 
-import Data.List
 import Feldspar.Transformation
-import Feldspar.Compiler.Backend.C.CodeGeneration
-import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Error
 
 -- ===========================================================================
 --  == Type definition generator plugin
@@ -58,9 +54,9 @@ instance Transformation BlockProgramHandler where
 instance Transformable BlockProgramHandler Block where
         transform t s d b = tr
             { result = (result tr)
-                { locals = (locals $ result tr) ++ up tr
+                { locals = locals (result tr) ++ up tr
                 }
-            , up = ([])
+            , up = []
             }
             where
                 tr = defaultTransform t s d b
@@ -76,5 +72,5 @@ instance Transformable BlockProgramHandler Program where
 
 instance Plugin BlockProgramHandler where
     type ExternalInfo BlockProgramHandler = ()
-    executePlugin BlockProgramHandler externalInfo procedure = 
+    executePlugin BlockProgramHandler _ procedure = 
         result $ transform BlockProgramHandler ({-state-}) () procedure

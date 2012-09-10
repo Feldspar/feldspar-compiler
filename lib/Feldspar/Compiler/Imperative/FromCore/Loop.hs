@@ -31,8 +31,7 @@
 module Feldspar.Compiler.Imperative.FromCore.Loop where
 
 
-
-import Control.Monad.RWS
+import Prelude hiding (init)
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
@@ -57,8 +56,8 @@ instance ( Compile dom dom
         | Just (info1, Lambda ix)  <- prjDecorCtx typeCtx lam1
         , Just (info2, Lambda st)  <- prjDecorCtx typeCtx lam2
         = do
-            let ixvar@(Var _ name) = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
-            let stvar              = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
+            let (Var _ name) = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
+            let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len
             compileProg loc init
             (_, Bl ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
@@ -66,7 +65,7 @@ instance ( Compile dom dom
             tellProg [For name len' 1 (Block ds body)]
 
     compileProgSym WhileLoop _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
-        | Just (info1, Lambda cv) <- prjDecorCtx typeCtx lam1
+        | Just (_    , Lambda cv) <- prjDecorCtx typeCtx lam1
         , Just (info2, Lambda cb) <- prjDecorCtx typeCtx lam2
         = do
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
@@ -88,9 +87,9 @@ instance ( Compile dom dom
         = do
             let ta = argType $ infoType info
             let sa = defaultSize ta
-            let ix@(Var _ name) = mkVar (compileTypeRep ta sa) v
+            let (Var _ name) = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len
-            (e, Bl _ body) <- confiscateBlock $ compileProg loc ixf
+            (_, Bl _ body) <- confiscateBlock $ compileProg loc ixf
             tellProg [For name len' 1 body]
 
 -- TODO Missing While

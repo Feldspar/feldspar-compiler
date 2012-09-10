@@ -31,8 +31,6 @@
 module Feldspar.Compiler.Imperative.Plugin.Free where
 
 import Feldspar.Compiler.Imperative.Frontend (toInterface, fromInterface, isArray, freeArray)
-import qualified Feldspar.Compiler.Imperative.Frontend as Front
-import Feldspar.Compiler.Imperative.Representation (typeof)
 import Feldspar.Transformation
 
 data Free = Free
@@ -51,8 +49,8 @@ instance Plugin Free
     executePlugin _ _ = result . transform Free () ()
 
 instance Transformable Free Block where
-    transform t _ _ (Block locs b lab) = Result bl' () ()
+    transform _ _ _ (Block locs b _) = Result bl' () ()
       where
         arrays = filter (isArray . typeof) $ map (toInterface . declVar) locs
-        newBody = Sequence ([b] ++ map (fromInterface . freeArray) arrays) () ()
+        newBody = Sequence (b : map (fromInterface . freeArray) arrays) () ()
         bl' = Block locs newBody ()

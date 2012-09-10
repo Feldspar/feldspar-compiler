@@ -33,13 +33,11 @@ module Feldspar.Compiler
     , unrollOptions
     , noPrimitiveInstructionHandling
     , noMemoryInformation
-    , module Feldspar.Compiler.Frontend.Interactive.Interface
-    , module Feldspar.Compiler.Backend.C.Options
-    , module Feldspar.Compiler.Imperative.Frontend
+    , module Internal
     ) where
 
 import Feldspar.Compiler.Compiler
-import Feldspar.Compiler.Frontend.Interactive.Interface
-import Feldspar.Compiler.Backend.C.Options -- hiding (Var, Fun)
-import Feldspar.Compiler.Imperative.Frontend hiding (Type, spawn)
+import Feldspar.Compiler.Frontend.Interactive.Interface as Internal
+import Feldspar.Compiler.Backend.C.Options              as Internal
+import Feldspar.Compiler.Imperative.Frontend            as Internal hiding (Type, spawn)
 

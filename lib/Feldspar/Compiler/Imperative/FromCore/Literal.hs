@@ -54,34 +54,34 @@ instance Compile (Literal TypeCtx) dom
     compileProgSym (Literal a) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter Expr
-literal UnitType _          ()     = return $ LitI I32 0
-literal BoolType _          a      = return $ boolToExpr a
-literal trep@(IntType _ _) sz a    = return $ LitI (compileTypeRep trep sz) (toInteger a)
-literal FloatType _         a      = return $ LitF $ float2Double a
-literal (ComplexType t) sz  (r:+i) = do re <- literal t (defaultSize t) r
-                                        ie <- literal t (defaultSize t) i
-                                        return $ LitC re ie
+literal UnitType        _  ()     = return $ LitI I32 0
+literal BoolType        _  a      = return $ boolToExpr a
+literal trep@IntType{}  sz a      = return $ LitI (compileTypeRep trep sz) (toInteger a)
+literal FloatType       _  a      = return $ LitF $ float2Double a
+literal (ComplexType t) _  (r:+i) = do re <- literal t (defaultSize t) r
+                                       ie <- literal t (defaultSize t) i
+                                       return $ LitC re ie
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
 
 literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
-literalLoc loc ty@(ArrayType t) (rs :> es) e
+literalLoc loc (ArrayType t) (rs :> es) e
     = do
         tellProg [initArray loc $ LitI I32 $ toInteger $ upperBound rs]
-        zipWithM_ (writeElement loc t es) (map (LitI I32) [0..]) e
-  where writeElement :: Expr -> TypeRep a -> Size a -> Expr -> a -> CodeWriter ()
-        writeElement loc ty sz ix e = do
-            expr <- literal ty sz e
-            assign (loc :!: ix) expr                            
+        zipWithM_ (writeElement t es) (map (LitI I32) [0..]) e
+  where writeElement :: TypeRep a -> Size a -> Expr -> a -> CodeWriter ()
+        writeElement ty sz ix x = do
+            expr <- literal ty sz x
+            assign (loc :!: ix) expr
 
-literalLoc loc t@(Tup2Type ta tb) (sa,sb) (a,b) =
+literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
     do aExpr <- literal ta sa a
        bExpr <- literal tb sb b
        assign (loc :.: "member1") aExpr
        assign (loc :.: "member2") bExpr
 
-literalLoc loc t@(Tup3Type ta tb tc) (sa,sb,sc) (a,b,c) =
+literalLoc loc (Tup3Type ta tb tc) (sa,sb,sc) (a,b,c) =
     do aExpr <- literal ta sa a
        bExpr <- literal tb sb b
        cExpr <- literal tc sc c
@@ -89,7 +89,7 @@ literalLoc loc t@(Tup3Type ta tb tc) (sa,sb,sc) (a,b,c) =
        assign (loc :.: "member2") bExpr
        assign (loc :.: "member3") cExpr
        
-literalLoc loc t@(Tup4Type ta tb tc td) (sa,sb,sc,sd) (a,b,c,d) =
+literalLoc loc (Tup4Type ta tb tc td) (sa,sb,sc,sd) (a,b,c,d) =
     do aExpr <- literal ta sa a
        bExpr <- literal tb sb b
        cExpr <- literal tc sc c
@@ -99,7 +99,7 @@ literalLoc loc t@(Tup4Type ta tb tc td) (sa,sb,sc,sd) (a,b,c,d) =
        assign (loc :.: "member3") cExpr
        assign (loc :.: "member4") dExpr
        
-literalLoc loc t@(Tup5Type ta tb tc td te) (sa,sb,sc,sd,se) (a,b,c,d,e) =
+literalLoc loc (Tup5Type ta tb tc td te) (sa,sb,sc,sd,se) (a,b,c,d,e) =
     do aExpr <- literal ta sa a
        bExpr <- literal tb sb b
        cExpr <- literal tc sc c
@@ -111,7 +111,7 @@ literalLoc loc t@(Tup5Type ta tb tc td te) (sa,sb,sc,sd,se) (a,b,c,d,e) =
        assign (loc :.: "member4") dExpr
        assign (loc :.: "member5") eExpr
        
-literalLoc loc t@(Tup6Type ta tb tc td te tf) (sa,sb,sc,sd,se,sf) (a,b,c,d,e,f) =
+literalLoc loc (Tup6Type ta tb tc td te tf) (sa,sb,sc,sd,se,sf) (a,b,c,d,e,f) =
     do aExpr <- literal ta sa a
        bExpr <- literal tb sb b
        cExpr <- literal tc sc c
@@ -125,7 +125,7 @@ literalLoc loc t@(Tup6Type ta tb tc td te tf) (sa,sb,sc,sd,se,sf) (a,b,c,d,e,f) 
        assign (loc :.: "member5") eExpr
        assign (loc :.: "member6") fExpr
        
-literalLoc loc t@(Tup7Type ta tb tc td te tf tg) (sa,sb,sc,sd,se,sf,sg) (a,b,c,d,e,f,g) =
+literalLoc loc (Tup7Type ta tb tc td te tf tg) (sa,sb,sc,sd,se,sf,sg) (a,b,c,d,e,f,g) =
     do aExpr <- literal ta sa a
        bExpr <- literal tb sb b
        cExpr <- literal tc sc c

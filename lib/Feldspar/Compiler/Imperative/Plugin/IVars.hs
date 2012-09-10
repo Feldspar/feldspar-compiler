@@ -31,7 +31,8 @@
 module Feldspar.Compiler.Imperative.Plugin.IVars where
 
 import Feldspar.Transformation
-import Feldspar.Compiler.Imperative.Representation
+
+import Data.List (isPrefixOf)
 
 data IVarPlugin = IVarPlugin
 
@@ -49,13 +50,15 @@ instance Plugin IVarPlugin
     executePlugin _ _ = result . transform IVarPlugin () False
 
 instance Transformable IVarPlugin Entity where
-    transform t _ d p@(ProcDef _ _ _ _ _ _) = defaultTransform t () (isTask p) p
+    transform t _ _ p@ProcDef{} = defaultTransform t () (isTask p) p
       where
-        isTask p = take 4 (procName p) == "task"    -- TODO: this is hacky :)
+        isTask proc = "task" `isPrefixOf` procName proc    -- TODO: this is hacky :)
     transform t _ d p = defaultTransform t () d p
 
 instance Transformable IVarPlugin Program where
-    transform t _ d (ProcedureCall name@('i':'v':'a':'r':'_':'g':'e':'t':postfix) ps _ _) = Result pc' () ()
+    transform _ _ d (ProcedureCall name ps _ _)
+        | "ivar_get" `isPrefixOf` name
+        = Result pc' () ()
       where
         pc' = ProcedureCall name' ps () ()
         name' | d           = name
@@ -66,7 +69,7 @@ instance Transformable IVarPlugin Block where
     transform t _ d b = Result b{ blockBody = body' } () ()
       where
         body' = Sequence prg () ()
-        prg = [result $ transform t () d $ blockBody b] ++ destrs
+        prg = result (transform t () d $ blockBody b) : destrs
         iVars = filter isIVar $ map declVar $ locals b
         isIVar v = case varType v of
             IVarType _  -> True

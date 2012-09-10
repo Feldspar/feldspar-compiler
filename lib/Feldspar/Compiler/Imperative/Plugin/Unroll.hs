@@ -30,8 +30,6 @@
 
 module Feldspar.Compiler.Imperative.Plugin.Unroll where
 
-import Data.List (elem)
-
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Transformation
 
@@ -163,7 +161,7 @@ instance Plugin UnrollPlugin where
     type ExternalInfo UnrollPlugin = UnrollStrategy
     executePlugin UnrollPlugin ei p = case ei of
         NoUnroll -> p
-        Unroll unrollCount -> result $ transform Unroll_2 () Nothing $ result $ transform Unroll_1 () unrollCount p
+        Unroll unrollCount -> result $ transform Unroll2 () Nothing $ result $ transform Unroll1 () unrollCount p
     
 data UnrollPlugin = UnrollPlugin
 instance Transformation UnrollPlugin where
@@ -173,17 +171,18 @@ instance Transformation UnrollPlugin where
     type Up UnrollPlugin        = ()
     type State UnrollPlugin     = ()
 
-data Unroll_1 = Unroll_1
-instance Transformation Unroll_1 where
-    type From Unroll_1      = ()
-    type To Unroll_1        = UnrollSemInf
-    type Down Unroll_1      = Int
-    type Up Unroll_1        = Bool
-    type State Unroll_1     = ()
+data Unroll1 = Unroll1
+instance Transformation Unroll1 where
+    type From Unroll1      = ()
+    type To Unroll1        = UnrollSemInf
+    type Down Unroll1      = Int
+    type Up Unroll1        = Bool
+    type State Unroll1     = ()
 
-instance Transformable Unroll_1 Program where
-    transform t s d p@(ParLoop _ _ _ _ _ _)
-        | up tr == False && unrollPossible = tr'
+instance Transformable Unroll1 Program where
+    transform t s d p@ParLoop{}
+        | not (up tr)
+        , unrollPossible = tr'
         | otherwise = tr
         where
         tr = defaultTransform t s d p
@@ -197,36 +196,36 @@ instance Transformable Unroll_1 Program where
                 }
             , up = True
             }
-        prgs = map (\(i,p) -> p{ programLabel = (Just $ SemInfPrg i varNames loopCounter) }) $ zip [0,1..] replPrg
+        prgs = map (\(i,prg) -> prg{ programLabel = Just (SemInfPrg i vns loopCounter) }) $ zip [0,1..] replPrg
         replPrg = replicate d $ blockBody loopCore
-        unrollDecls = concat $ map (\(i,ds) -> renameDecls ds i) $ zip [0,1..] replDecls
-        renameDecls ds i = map (\d -> renameDeclaration d ((getVarNameDecl d) ++ "_u" ++ (show i))) ds
+        unrollDecls = concatMap (uncurry renameDecls) $ zip [0..] replDecls
+        renameDecls (i :: Int) = map (\decl -> renameDeclaration decl (getVarNameDecl decl ++ "_u" ++ show i))
         replDecls = replicate d $ locals loopCore
         loopCore = pLoopBlock $ result tr 
         loopBound = pLoopBound $ result tr
         loopCounter = varName $ pLoopCounter $ result tr
-        varNames = map (\d -> getVarNameDecl d) $ locals loopCore
+        vns = map getVarNameDecl $ locals loopCore
         unrollPossible = case loopBound of
             (ConstExpr (IntConst i _ _ _) _) -> mod i (toInteger d) == 0
             _                              -> False
     transform t s d p = defaultTransform t s d p
 
 
-data Unroll_2 = Unroll_2    
-instance Transformation Unroll_2     where
-    type From Unroll_2      = UnrollSemInf
-    type To Unroll_2        = ()
-    type Down Unroll_2      = Maybe SemInfPrg
-    type Up Unroll_2        = ()
-    type State Unroll_2     = ()
+data Unroll2 = Unroll2    
+instance Transformation Unroll2     where
+    type From Unroll2      = UnrollSemInf
+    type To Unroll2        = ()
+    type Down Unroll2      = Maybe SemInfPrg
+    type Up Unroll2        = ()
+    type State Unroll2     = ()
 
-instance Transformable Unroll_2 Program where
+instance Transformable Unroll2 Program where
     transform t s d p = defaultTransform t s d' p where
         d' = case programLabel p of
             Nothing -> d
             x       -> x 
 
-instance Transformable Unroll_2 Expression where
+instance Transformable Unroll2 Expression where
     transform t s d l = case d of
         Nothing -> tr
         Just x ->  case l of
@@ -252,12 +251,12 @@ instance Transformable Unroll_2 Expression where
             tr = defaultTransform t s d l
 
 
-instance Transformable Unroll_2 Variable where
+instance Transformable Unroll2 Variable where
     transform t s d v = case d of
         Just x
-            | (varName v) `elem` (varNames x) -> tr
+            | varName v `elem` varNames x -> tr
                 { result = (result tr)
-                    { varName = (varName v) ++ "_u" ++ (show $ position x)
+                    { varName = varName v ++ "_u" ++ show (position x)
                     , varLabel = ()
                     }
                 }
@@ -268,9 +267,16 @@ instance Transformable Unroll_2 Variable where
 
 
 -- helper functions : 
-isJust (Just x) = True
-isJust _ = False
+isJust :: Maybe t -> Bool
+isJust (Just _) = True
+isJust _        = False
+
+getVarNameDecl :: Declaration t -> String
 getVarNameDecl d = varName $ declVar d
+
+renameDeclaration :: Declaration t -> String -> Declaration t
 renameDeclaration d n = d { declVar = renameVariable (declVar d) n }
+
+renameVariable :: Variable t -> String -> Variable t
 renameVariable v n = v { varName = n    }
 

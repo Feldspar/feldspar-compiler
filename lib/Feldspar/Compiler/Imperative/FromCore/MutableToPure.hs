@@ -32,8 +32,6 @@ module Feldspar.Compiler.Imperative.FromCore.MutableToPure where
 
 
 
-import Control.Monad.RWS
-
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 
@@ -53,13 +51,13 @@ instance ( Compile dom dom
       => Compile MutableToPure dom
   where
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
-        | Just (_, Variable v0)  <- prjDecorCtx typeCtx marr
-        , Just (info, Lambda v1) <- prjDecorCtx typeCtx lam
+        | Just (_, Variable _)   <- prjDecorCtx typeCtx marr
+        , Just (_, Lambda v1) <- prjDecorCtx typeCtx lam
         = do
             e <- compileExpr marr
             withAlias v1 e $ do
-              e <- compileExpr body
-              tellProg [copyProg loc e]
+              b <- compileExpr body
+              tellProg [copyProg loc b]
 
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
         | Just (info, Lambda v) <- prjDecorCtx typeCtx lam

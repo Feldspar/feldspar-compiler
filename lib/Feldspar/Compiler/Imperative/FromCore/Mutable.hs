@@ -32,8 +32,6 @@ module Feldspar.Compiler.Imperative.FromCore.Mutable where
 
 
 
-import Control.Monad.RWS
-
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 
@@ -83,13 +81,13 @@ instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile Mutable dom
   where
     compileProgSym Run _ loc (ma :* Nil) = compileProg loc ma
 
-    compileExprSym Run info (ma :* Nil) = compileExpr ma
+    compileExprSym Run _ (ma :* Nil) = compileExpr ma
 
 instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile MutableReference dom
   where
     compileProgSym NewRef _ loc (a :* Nil) = compileProg loc a
     compileProgSym GetRef _ loc (r :* Nil) = compileProg loc r
-    compileProgSym SetRef _ loc (r :* a :* Nil) = do
+    compileProgSym SetRef _ _   (r :* a :* Nil) = do
         var  <- compileExpr r
         compileProg var a
 
@@ -98,16 +96,16 @@ instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile MutableReference d
 
 instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile MutableArray dom
   where
-    compileProgSym NewArr_ _ loc (length :* Nil) = do
-      len <- compileExpr length
-      tellProg [initArray loc len]
+    compileProgSym NewArr_ _ loc (len :* Nil) = do
+      l <- compileExpr len
+      tellProg [initArray loc l]
 
-    compileProgSym NewArr _ loc (length :* a :* Nil) = do
+    compileProgSym NewArr _ loc (len :* a :* Nil) = do
         let ix = Var U32 "i"
-        a'  <- compileExpr a
-        len <- compileExpr length
-        tellProg [initArray loc len]
-        tellProg [For "i" len 1 (Seq [assignProg (loc :!: ix) a'])]
+        a' <- compileExpr a
+        l  <- compileExpr len
+        tellProg [initArray loc l]
+        tellProg [For "i" l 1 (Seq [assignProg (loc :!: ix) a'])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr

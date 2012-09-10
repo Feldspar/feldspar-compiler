@@ -26,14 +26,13 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-{-# LANGUAGE EmptyDataDecls, TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Feldspar.Compiler.Imperative.Plugin.Naming where
 
-import Data.Char
+import Data.List (isPrefixOf)
 
 import Feldspar.Transformation
-import Feldspar.Core.Types
 
 import qualified Feldspar.NameExtractor as Precompiler
 import Feldspar.Compiler.Error
@@ -53,6 +52,7 @@ data SignatureInformation = SignatureInformation {
 
 instance Default SignatureInformation where def = precompilationError InternalError "Default value should not be used"
 
+precompilationError :: ErrorClass -> String -> a
 precompilationError = handleError "PluginArch/Naming"
 
 data Precompilation = Precompilation
@@ -72,20 +72,20 @@ instance Transformable Precompilation Entity where
             d' = d { generatedImperativeParameterNames = map varName i }
             tr = defaultTransform t s d' x
             n' = originalFunctionName d
-        transform t s d x@(ProcDef n i _ _ _ _)
-            | any (n `startsWith`) proceduresToPrefix = tr { result = (result tr){ procName = n' } }
+        transform t s d x@(ProcDef n _ _ _ _ _)
+            | any (n `isPrefixOf`) proceduresToPrefix = tr { result = (result tr){ procName = n' } }
           where
             n' = prefix d n
             tr = defaultTransform t s d' x
             d' = d{ generatedImperativeParameterNames = [] }
-        transform t s d x@(ProcDef n i _ _ _ _) = defaultTransform t s d' x
+        transform t s d x@ProcDef{} = defaultTransform t s d' x
           where
             d' = d{ generatedImperativeParameterNames = [] }
         transform t s d x = defaultTransform t s d x
 
 
 instance Transformable Precompilation Variable where
-    transform t s d v = Result newVar s def
+    transform _ s d v = Result newVar s def
       where
         newVar = v 
             { varName = maybeStr2Str (getVariableName d $ varName v) ++ varName v
@@ -93,14 +93,14 @@ instance Transformable Precompilation Variable where
             }
 
 instance Transformable Precompilation ActualParameter where
-    transform t s d (FunParameter n addr lab)
-        | any (n `startsWith`) proceduresToPrefix
+    transform _ s d (FunParameter n addr _)
+        | any (n `isPrefixOf`) proceduresToPrefix
             = Result (FunParameter (prefix d n) addr ()) s def
     transform t s d x = defaultTransform t s d x
 
 instance Transformable Precompilation Program where
     transform t s d c@(ProcedureCall n _ _ _)
-        | any (n `startsWith`) proceduresToPrefix = tr { result = (result tr){ procCallName = n' } }
+        | any (n `isPrefixOf`) proceduresToPrefix = tr { result = (result tr){ procCallName = n' } }
       where
         tr = defaultTransform t s d c
         n' = prefix d n
@@ -112,22 +112,19 @@ proceduresToPrefix = ["noinline", "task"]
 prefix :: SignatureInformation -> String -> String
 prefix d n = originalFunctionName d ++ "_" ++ n
 
-startsWith :: String -> String -> Bool
-s `startsWith` pre = take (length pre) s == pre
-
 getVariableName :: SignatureInformation -> String -> Maybe String
-getVariableName signatureInformation origname = case (originalParameterNames signatureInformation) of
+getVariableName signatureInformation origname = case originalParameterNames signatureInformation of
     Just originalParameterNameList ->
         if length (generatedImperativeParameterNames signatureInformation) == length originalParameterNameList then
             case searchResults of
                 [] -> Nothing
-                otherwise -> snd $ head $ searchResults
+                _  -> snd $ head searchResults
         else
             Nothing
             -- precompilationError InternalError $ "parameter name list length mismatch:" ++
                     -- show (generatedImperativeParameterNames signatureInformation) ++ " " ++ show originalParameterNameList
         where
-            searchResults = filter (((==) origname).fst)
+            searchResults = filter ((origname ==).fst)
                                    (zip (generatedImperativeParameterNames signatureInformation) originalParameterNameList)
     Nothing -> Nothing
 
@@ -143,21 +140,19 @@ data PrecompilationExternalInfo = PrecompilationExternalInfo {
 }
 
 addPostfixNumberToMaybeString :: (Maybe String, Int) -> Maybe String
-addPostfixNumberToMaybeString (ms, num) = case ms of
-    Just s -> Just $ s ++ (show num)
-    Nothing -> Nothing
-    
+addPostfixNumberToMaybeString (ms, num) = ms >>= \s -> return $ s ++ show num
+
 inflate :: Int -> [Maybe String] -> [Maybe String]
-inflate target list | length list < target = inflate target (list++[Nothing])
+inflate target list | length list <  target = inflate target (list++[Nothing])
                     | length list == target = list
-                    | otherwise = precompilationError InternalError "Unexpected situation in 'inflate'"
-    
+                    | otherwise             = precompilationError InternalError "Unexpected situation in 'inflate'"
+
 -- Replicates each element of the [parameter list given by the precompiler] based on the input parameter descriptor
 parameterNameListConsolidator :: PrecompilationExternalInfo -> [Maybe String]
 parameterNameListConsolidator externalInfo =
-    if (numberOfFunctionArguments externalInfo == (length $ inputParametersDescriptor externalInfo))
+    if numberOfFunctionArguments externalInfo == length (inputParametersDescriptor externalInfo)
     then
-        concat $ map (\(cnt,name)->replicate cnt name) 
+        concatMap (uncurry replicate)
             (zip (inputParametersDescriptor externalInfo)
                  (Precompiler.originalParameterNames $ originalFunctionSignature externalInfo))
     else
@@ -166,7 +161,7 @@ parameterNameListConsolidator externalInfo =
 instance Plugin Precompilation where
     type ExternalInfo Precompilation = PrecompilationExternalInfo
     executePlugin Precompilation externalInfo procedure = result
-        $ transform Precompilation ({-state-}) (SignatureInformation {
+        $ transform Precompilation ({-state-}) SignatureInformation{
             originalFunctionName = Precompiler.originalFunctionName $ originalFunctionSignature externalInfo,
             generatedImperativeParameterNames = precompilationError InternalError "GIPN should have been overwritten", 
             originalParameterNames = case compilationMode externalInfo of
@@ -177,10 +172,11 @@ instance Plugin Precompilation where
                     then
                         Just $ parameterNameListConsolidator externalInfo
                     else
-                        (unsafePerformIO $ do
-                            withColor Yellow $ putStrLn $ "[WARNING @ PluginArch/Naming]:"++
-                                " not enough named parameters in function " ++ 
-                                (Precompiler.originalFunctionName $ originalFunctionSignature externalInfo)
+                        unsafePerformIO $ do
+                            withColor Yellow $ putStrLn $ unwords [ "[WARNING @ PluginArch/Naming]:"
+                                                                  , " not enough named parameters in function "
+                                                                  , Precompiler.originalFunctionName (originalFunctionSignature externalInfo)
+                                                                  ]
                             withColor Yellow $ putStrLn $ "numArgs: " ++ show (numberOfFunctionArguments externalInfo) ++
                                 ", parameter list: " ++ show (Precompiler.originalParameterNames $
                                       originalFunctionSignature externalInfo) 
@@ -192,7 +188,6 @@ instance Plugin Precompilation where
                                         originalFunctionSignature externalInfo
                                 }
                             })
-                        )
                 Interactive -> Nothing -- no parameter name handling in interactive mode
-         }) procedure
+         } procedure
 

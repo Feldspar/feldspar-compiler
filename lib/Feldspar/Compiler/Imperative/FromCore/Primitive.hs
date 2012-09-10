@@ -33,7 +33,6 @@ module Feldspar.Compiler.Imperative.FromCore.Primitive where
 
 
 import Language.Syntactic
-import Language.Syntactic.Interpretation.Semantics
 
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Bits

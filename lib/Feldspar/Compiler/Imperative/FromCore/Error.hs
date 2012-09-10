@@ -36,6 +36,7 @@ import Control.Monad.RWS
 
 import Language.Syntactic
 
+import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Error
 
 import Feldspar.Compiler.Imperative.Frontend
@@ -45,17 +46,20 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance (Compile dom dom) => Compile Error dom
   where
-    compileProgSym Undefined _ loc Nil = return ()
+    compileProgSym Undefined _ _ Nil = return ()
     compileProgSym (Assert msg) _ loc (cond :* a :* Nil) = do
-        condExpr <- compileExpr cond
-        tellProg [Call "assert" [In condExpr]]
-        when (length msg > 0) $ tellProg [Comment $ "{" ++ msg ++ "}"]
+        compileAssert cond msg
         compileProg loc a
 
     compileExprSym (Assert msg) _ (cond :* a :* Nil) = do
-        condExpr <- compileExpr cond
-        tellProg [Call "assert" [In condExpr]]
-        when (length msg > 0) $ tellProg [Comment $ "{" ++ msg ++ "}"]
+        compileAssert cond msg
         compileExpr a
     compileExprSym a info args = compileProgFresh a info args
+
+compileAssert :: (Compile dom dom)
+              => ASTF (Decor Info dom) a -> String -> CodeWriter ()
+compileAssert cond msg = do
+    condExpr <- compileExpr cond
+    tellProg [Call "assert" [In condExpr]]
+    when (length msg > 0) $ tellProg [Comment $ "{" ++ msg ++ "}"]
 

@@ -59,6 +59,7 @@ import Control.Monad.Error
 import Control.Monad.CatchIO
 -- ====================================== Other imports ==================================
 import Data.List
+import Data.Maybe (fromMaybe)
 import Debug.Trace
 import Language.Haskell.Interpreter
 
@@ -75,27 +76,26 @@ compileFunction inFileName outFileName coreOptions originalFunctionSignature = d
     let splitModuleDescriptor = executePluginChain Standalone prg originalFunctionSignature coreOptions
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
-    result <- liftIO $ do
-        tempdir <- System.IO.Error.catch (getTemporaryDirectory) (\_ -> return ".")
+    liftIO $ do
+        tempdir <- System.IO.Error.catch getTemporaryDirectory (\_ -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
         let core = compileToCCore Standalone prg (Just outFileName) IncludesNeeded originalFunctionSignature coreOptions
         Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
                                       hPutStrLn temph $ sourceCode $ sctccrHeader core)
                                   (do hClose temph
                                       removeFileIfPossible tempfile)
-        return $ (functionName, Left splitModuleDescriptor)
-    return result
+        return (functionName, Left splitModuleDescriptor)
 
 compileAllFunctions :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature]
                     -> Interpreter [(String, Either SplitModuleDescriptor CompilationError)]
-compileAllFunctions inFileName outFileName options [] = return []
+compileAllFunctions inFileName outFileName options []     = return []
 compileAllFunctions inFileName outFileName options (x:xs) = do
     let functionName = originalFunctionName x
-    resultCurrent <- (catchError (compileFunction inFileName outFileName options x)
-                              (\(e::InterpreterError) -> return $ (functionName, Right $ InterpreterError e)))
+    resultCurrent <- catchError (compileFunction inFileName outFileName options x)
+                              (\(e::InterpreterError) -> return (functionName, Right $ InterpreterError e))
                           `Control.Monad.CatchIO.catch`
-                          (\msg -> return $ (functionName,
-                                             Right $ InternalErrorCall $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)))
+                          (\msg -> return (functionName,
+                                           Right $ InternalErrorCall $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)))
     resultRest <- compileAllFunctions inFileName outFileName options xs
     return $ resultCurrent : resultRest
 
@@ -103,8 +103,8 @@ compileAllFunctions inFileName outFileName options (x:xs) = do
 singleFunctionCompilationBody :: String -> String -> CoreOptions.Options -> OriginalFunctionSignature
                               -> Interpreter (IO ())
 singleFunctionCompilationBody inFileName outFileName coreOptions originalFunctionSignature = do
-    liftIO $ fancyWrite $ "Compiling function " ++ (originalFunctionName originalFunctionSignature) ++ "..."
-    (SomeCompilable prg) <-
+    liftIO $ fancyWrite $ "Compiling function " ++ originalFunctionName originalFunctionSignature ++ "..."
+    SomeCompilable prg <-
         interpret ("SomeCompilable " ++ originalFunctionName originalFunctionSignature) (as::SomeCompilable)
     liftIO $ standaloneCompile prg inFileName outFileName originalFunctionSignature coreOptions
     return $ return ()
@@ -113,7 +113,7 @@ mergeModules :: [Module ()] -> Module ()
 mergeModules [] = handleError "Standalone" InvariantViolation "Called mergeModules with an empty list"
 mergeModules [x] = x
 mergeModules l@(x:xs) = Module {
-    entities = nub $ entities x ++ (entities $ mergeModules xs), -- nub is in fact a "global plugin" here
+    entities = nub $ entities x ++ entities (mergeModules xs), -- nub is in fact a "global plugin" here
     moduleLabel = ()
 }
 
@@ -150,33 +150,31 @@ multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [Orig
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
     let (hIncludes, hLineNum) = genIncludeLines coreOptions Nothing
     let (cIncludes, cLineNum) = genIncludeLines coreOptions (Just outFileName)
-    liftIO $ appendFile (makeHFileName outFileName) $ hIncludes
-    liftIO $ appendFile (makeCFileName outFileName) $ cIncludes
+    liftIO $ appendFile (makeHFileName outFileName) hIncludes
+    liftIO $ appendFile (makeCFileName outFileName) cIncludes
     modules <- compileAllFunctions inFileName outFileName coreOptions declarationList
     liftIO $ do
-        mapM writeErrors modules
+        mapM_ writeErrors modules
         withColor Blue $ putStrLn "\n================= [ Summary of compilation results ] =================\n"
-        mapM writeSummary modules
+        mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map smdSource $ filterLefts modules
         let mergedHModules = mergeModules $ map smdHeader $ filterLefts modules
         let cCompToCResult = compToCWithInfos ((coreOptions, Declaration_pl), cLineNum) mergedCModules
         let hCompToCResult = compToCWithInfos ((coreOptions, Declaration_pl), hLineNum) mergedHModules
-        (appendFile (makeCFileName outFileName) $ fst $ snd cCompToCResult) `Control.Exception.catch` errorHandler
-        (appendFile (makeHFileName outFileName) $ fst $ snd hCompToCResult) `Control.Exception.catch` errorHandler
-        (writeFile (makeDebugCFileName outFileName) $ show $ fst cCompToCResult) `Control.Exception.catch` errorHandler
-        (writeFile (makeDebugHFileName outFileName) $ show $ fst hCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile (makeCFileName outFileName) (fst $ snd cCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile (makeHFileName outFileName) (fst $ snd hCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile (makeDebugCFileName outFileName) (show $ fst cCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile (makeDebugHFileName outFileName) (show $ fst hCompToCResult) `Control.Exception.catch` errorHandler
     return $ return ()
     where
-        errorHandler = (\msg -> withColor Red $ putStrLn $ errorPrefix ++ show (msg::Control.Exception.ErrorCall))
+        errorHandler msg = withColor Red $ putStrLn $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)
 
 -- | Calculates the output file name.
 convertOutputFileName :: String -> Maybe String -> String
-convertOutputFileName inputFileName maybeOutputFileName = case maybeOutputFileName of
-    Nothing -> takeFileName $ dropExtension inputFileName -- remove takeFileName to return the full path
-    Just overriddenFileName -> overriddenFileName
+convertOutputFileName inputFileName = fromMaybe (takeFileName $ dropExtension inputFileName)
 
 makeBackup :: String -> IO ()
-makeBackup filename = renameFile filename (filename ++ ".bak") `Prelude.catch` (const $ return())
+makeBackup filename = renameFile filename (filename ++ ".bak") `Prelude.catch` const (return ())
 
 main = do
     (opts, inputFileName) <- handleOptions optionDescriptors startOptions helpHeader
@@ -196,24 +194,24 @@ main = do
     fancyWrite $ "Compilation target: module " ++ moduleName
     fancyWrite $ "Output file: " ++ outputFileName
 
-    let highLevelInterpreterWithModuleInfo body = 
-            highLevelInterpreter moduleName inputFileName globalImportList False body
+    let highLevelInterpreterWithModuleInfo =
+            highLevelInterpreter moduleName inputFileName globalImportList False
 
     -- C code generation
     case optStandaloneMode opts of
-        MultiFunction 
-          | length declarationList == 0 -> putStrLn "No functions to compile."
+        MultiFunction
+          | null declarationList -> putStrLn "No functions to compile."
           | otherwise -> do
-                fancyWrite $ "Number of functions to compile: " ++ (show $ length declarationList)
+                fancyWrite $ "Number of functions to compile: " ++ show (length declarationList)
                 highLevelInterpreterWithModuleInfo
                     (multiFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) declarationList)
                 return ()
         SingleFunction funName -> do
-            let originalFunctionSignatureNeeded = 
+            let originalFunctionSignatureNeeded =
                     case filter ((==funName).originalFunctionName) declarationList of
                             [a] -> a
                             []  -> error $ "Function " ++ funName ++ " not found"
-                            _   -> error "Unexpected error SC/01" 
+                            _   -> error "Unexpected error SC/01"
             highLevelInterpreterWithModuleInfo
                 (singleFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) originalFunctionSignatureNeeded)
             return ()

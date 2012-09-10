@@ -46,7 +46,7 @@ instance Transformation ConstantFolding where
     type State ConstantFolding  = ()
 
 instance Transformable ConstantFolding Expression where
-    transform t s d f@(FunctionCall _ _ _ _) = case funMode $ function f' of
+    transform t s d f@FunctionCall{} = case funMode $ function f' of
         Infix -> case funName $ function f' of
             "+"     -> tr' $ elimParamIf (isConstIntN 0) True  $ result tr
             "-"     -> tr' $ elimParamIf (isConstIntN 0) False $ result tr
@@ -60,9 +60,9 @@ instance Transformable ConstantFolding Expression where
             isConstIntN n (ConstExpr (IntConst i _ _ _) _) = n == i
             isConstIntN _ _ = False
 
-            elimParamIf pred flippable funCall@(FunctionCall (Function _ _ Infix) (x:xs) _ _)
-                | pred (head xs)      = x
-                | flippable && pred x = head xs
-                | otherwise           = funCall
-            elimParamIf _ _ funCall   = funCall
+            elimParamIf predicate flippable funCall@(FunctionCall (Function _ _ Infix) (x:xs) _ _)
+                | predicate (head xs)      = x
+                | flippable && predicate x = head xs
+                | otherwise                = funCall
+            elimParamIf _ _ funCall        = funCall
     transform t s d e = defaultTransform t s d e

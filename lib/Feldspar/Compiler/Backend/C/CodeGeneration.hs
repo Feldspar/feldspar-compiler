@@ -35,23 +35,25 @@ import Feldspar.Compiler.Error
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
 
-import qualified Data.List as List (last,find)
+import qualified Data.List as List (find)
 
 -- =======================
 -- == C code generation ==
 -- =======================
 
+codeGenerationError :: ErrorClass -> String -> a
 codeGenerationError = handleError "CodeGeneration"
 
+defaultMemberName :: String
 defaultMemberName = "member"
 
 class ToC a where
     toC :: Options -> Place -> a -> String
 
 getStructTypeName :: Options -> Place -> Type -> String
-getStructTypeName options place t@(StructType types) =
-    "_" ++ concat (map (\(_,t) -> (++"_") $ getStructTypeName options place t) types)
-getStructTypeName options place t@(ArrayType len innerType) =
+getStructTypeName options place (StructType ts) =
+    '_' : concatMap (\(_,t) -> (++"_") $ getStructTypeName options place t) ts
+getStructTypeName options place (ArrayType len innerType) =
     "arr_T" ++ getStructTypeName options place innerType ++ "_S" ++ len2str len
     where
         len2str :: Length -> String
@@ -60,55 +62,58 @@ getStructTypeName options place t@(ArrayType len innerType) =
 getStructTypeName options place t = replace (toC options place t) " " "" -- float complex -> floatcomplex
 
 instance ToC Type where
-    toC options MainParameter_pl VoidType = "void"
-    toC options _ VoidType = "int"
-    toC options place t@(StructType types) = "struct s" ++ getStructTypeName options place t
-    toC options place (UserType u) = u
-    toC options place (ArrayType _ _) = arrayTypeName
-    toC options place (IVarType _) = ivarTypeName
-    toC options place t = case (List.find (\(t',_,_) -> t == t') $ types $ platform options) of
+    toC _ MainParameter_pl VoidType = "void"
+    toC _ _ VoidType = "int"
+    toC options place t@(StructType _) = "struct s" ++ getStructTypeName options place t
+    toC _ _ (UserType u) = u
+    toC _ _ (ArrayType _ _) = arrayTypeName
+    toC _ _ (IVarType _) = ivarTypeName
+    toC options place t = case List.find (\(t',_,_) -> t == t') $ types $ platform options of
         Just (_,s,_)  -> s
         Nothing       -> codeGenerationError InternalError $
-                         "Unhandled type in platform " ++ (name $ platform options) ++ ": " ++ show t ++ " place: " ++ show place
+                         "Unhandled type in platform " ++ name (platform options) ++ ": " ++ show t ++ " place: " ++ show place
 
 instance ToC (Variable ()) where
-    toC options place a@(Variable name typ role _) = show_variable options place role typ name
+    toC options place (Variable vname typ role _) = showVariable options place role typ vname
 
-show_variable :: Options -> Place -> VariableRole -> Type -> String -> String
-show_variable options place role typ name  = listprint id " " [variableType, show_name role place typ name] where
-    variableType = show_type options role place typ restr
+showVariable :: Options -> Place -> VariableRole -> Type -> String -> String
+showVariable options place role typ vname  = listprint id " " [variableType, showName role place typ vname] where
+    variableType = showType options role place typ restr
     restr
         | place == MainParameter_pl = isRestrict $ platform options
         | otherwise = NoRestrict
 
-show_type :: Options -> VariableRole -> Place -> Type -> IsRestrict -> String
-show_type options role MainParameter_pl t _
-    | passByReference t || role == Pointer  = name ++ " *"
-    | otherwise                             = name
+showType :: Options -> VariableRole -> Place -> Type -> IsRestrict -> String
+showType options role MainParameter_pl t _
+    | passByReference t || role == Pointer  = tname ++ " *"
+    | otherwise                             = tname
   where
-   name = toC options MainParameter_pl t
-show_type options _ Declaration_pl t _ = toC options Declaration_pl t
-show_type _ _ _ _ _ = ""
+    tname = toC options MainParameter_pl t
+showType options _ Declaration_pl t _ = toC options Declaration_pl t
+showType _ _ _ _ _ = ""
 
+arrayTypeName :: String
 arrayTypeName = "struct array"
+
+ivarTypeName :: String
 ivarTypeName = "struct ivar"
 
-show_name :: VariableRole -> Place -> Type -> String  -> String
-show_name Value place t n
-    | place == AddressNeed_pl = "&" ++ n
-    | place == FunctionCallIn_pl && passByReference t  = "&" ++ n
+showName :: VariableRole -> Place -> Type -> String  -> String
+showName Value place t n
+    | place == AddressNeed_pl = '&' : n
+    | place == FunctionCallIn_pl && passByReference t  = '&' : n
     | otherwise = n
-show_name Pointer p (ArrayType _ _) n = n
-show_name Pointer place t n
-    | place == AddressNeed_pl = n
-    | place == Declaration_pl = codeGenerationError InternalError $ "Output variable of the function declared!"
+showName Pointer _ ArrayType{} n = n
+showName Pointer place _ n
+    | place == AddressNeed_pl   = n
+    | place == Declaration_pl   = codeGenerationError InternalError "Output variable of the function declared!"
     | place == MainParameter_pl = n
     | otherwise = "(* " ++ n ++ ")"
 
 passByReference :: Type -> Bool
-passByReference (ArrayType _ _) = True
-passByReference (StructType _) = True
-passByReference _ = False
+passByReference ArrayType{}  = True
+passByReference StructType{} = True
+passByReference _            = False
 
 ----------------------
 -- Helper functions --
@@ -118,10 +123,11 @@ ind :: (a-> String) -> a -> String
 ind f x = unlines $ map (\a -> "    " ++ a) $ lines $ f x
 
 listprint :: (a->String) -> String -> [a] -> String
-listprint f s xs = listprint' s $ filter (\a -> a /= "") $ map f xs where
-    listprint' _ [] = ""
-    listprint' _ [x] = x
-    listprint' s (x:xs) = x ++ s ++ listprint' s (xs)
+listprint f s = listprint' . filter (/= "") . map f
+  where
+    listprint' [] = ""
+    listprint' [x] = x
+    listprint' (x:xs) = x ++ s ++ listprint' xs
 
 decrArrayDepth :: Type -> Type
 decrArrayDepth (ArrayType _ t) = t
@@ -134,4 +140,5 @@ getStructFieldType f (StructType l) = case List.find (\(a,_) -> a == f) l of
 getStructFieldType f t = codeGenerationError InternalError $
     "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
 
+structFieldNotFound :: String -> a
 structFieldNotFound f = codeGenerationError InternalError $ "Not found struct field with this name: " ++ f

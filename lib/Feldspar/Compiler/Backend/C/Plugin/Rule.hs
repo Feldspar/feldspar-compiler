@@ -32,16 +32,10 @@ module Feldspar.Compiler.Backend.C.Plugin.Rule
     ( RulePlugin(..)
     ) where
 
-import Data.Maybe
 import Data.Typeable
 
-import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Transformation
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Error
-
-userError = handleError "Feldspar.Compiler.Backend.C.Plugin.Rule" InternalError
 
 data RulePlugin = RulePlugin
 
@@ -56,31 +50,29 @@ instance Transformation RulePlugin
 instance Plugin RulePlugin
   where
     type ExternalInfo RulePlugin = Options
-    executePlugin _ externalInfo = result . transform RulePlugin (0{-initial ID-}) externalInfo
+    executePlugin _ externalInfo = result . transform RulePlugin 0 externalInfo
 
 instance (DefaultTransformable RulePlugin t, Typeable1 t) => Transformable RulePlugin t where
     transform t s d orig = recurse { result = x'', up = pr1 ++ pr2 ++ pr3, state = newID2 }
       where
         recurse = defaultTransform t s d orig
         applyRule :: t () -> Int -> [Rule] -> (t (), [Rule], [Rule], Int)
-        applyRule c s rs = foldl applyRuleFun (c,[],[],s) rs
+        applyRule c x = foldl applyRuleFun (c,[],[],x)
           where
             applyRuleFun :: (t (), [Rule], [Rule], Int) -> Rule -> (t (), [Rule], [Rule], Int) 
             applyRuleFun (cc,incomp,prop,currentID) (Rule r) = case cast r of
+                Nothing -> (cc,incomp ++ [Rule r],prop, currentID)
                 Just r' -> (cc',incomp,prop ++ prop', newID)
                   where
                     (cc',prop', newID) = applyAction cc currentID (r' cc)
                     applyAction :: t () -> Int -> [Action (t ())] -> (t (), [Rule], Int)
-                    applyAction ccc currentID actions = foldl applyActionFun (ccc,[],currentID) actions
+                    applyAction ccc cid = foldl applyActionFun (ccc,[],cid)
                       where
                         applyActionFun :: (t (), [Rule], Int) -> Action (t ()) -> (t (), [Rule], Int)
-                        applyActionFun (_, prop'', currentID) (Replace newConstr) = (newConstr, prop'', currentID)
-                        applyActionFun (ccc', prop'', currentID) (Propagate pr) = (ccc', prop'' ++ [pr], currentID)
-                        applyActionFun (constr, ruleList, currentID) (WithId f) 
-                            = applyAction constr (currentID + 1) (f currentID)
-                        applyActionFun (constr, ruleList, currentID) (WithOptions f)
-                            = applyAction constr currentID (f d)
-                Nothing -> (cc,incomp ++ [Rule r],prop, currentID)
+                        applyActionFun (_     , prop'', i) (Replace newConstr) = (newConstr, prop''        , i)
+                        applyActionFun (ccc'  , prop'', i) (Propagate pr)      = (ccc'     , prop'' ++ [pr], i)
+                        applyActionFun (constr, _     , i) (WithId f)          = applyAction constr (i + 1) (f i)
+                        applyActionFun (constr, _     , i) (WithOptions f)     = applyAction constr i       (f d)
         (x',_,pr1,newID1) = applyRule (result recurse) (state recurse) (rules d)
         (x'',pr3,pr2,newID2) = applyRule x' newID1 (up recurse)
 

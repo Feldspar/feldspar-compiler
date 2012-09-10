@@ -34,10 +34,8 @@ module Feldspar.Compiler.Imperative.FromCore.Save where
 
 import Language.Syntactic
 
-import Feldspar.Core.Types
 import Feldspar.Core.Constructs.Save
 
-import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

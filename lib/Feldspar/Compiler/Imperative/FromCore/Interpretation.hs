@@ -34,7 +34,7 @@ module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 import Control.Arrow
 import Control.Monad.RWS
 
-import Language.Syntactic
+import Language.Syntactic.Syntax hiding (result)
 import Language.Syntactic.Constructs.Binding (VarId)
 
 import Feldspar.Range
@@ -53,16 +53,12 @@ data Readers = Readers { alias :: [(VarId, Expr)] -- ^ variable aliasing
                        , sourceInfo :: SourceInfo -- ^ Surrounding source info
                        }
 
+initReader :: Readers
 initReader = Readers [] ""
 
 data Writers = Writers { block :: Block -- ^ collects code within one block
                        , def   :: [Ent] -- ^ collects top level definitions
                        }
-
-instance Monoid Block
-  where
-    mempty                                    = Bl [] (Seq [])
-    mappend (Bl da (Seq pa)) (Bl db (Seq pb)) = Bl (mappend da db) (Seq $ mappend pa pb)
 
 instance Monoid Writers
   where
@@ -78,6 +74,7 @@ type Task = [Prog]
 data States = States { fresh :: Integer -- ^ The first fresh variable id
                      }
 
+initState :: States
 initState = States 0
 
 -- | Where to place the program result
@@ -174,7 +171,7 @@ compileExprVar e = do
         Ptr _ _ -> return e'
         _       -> do
             varId <- freshId
-            let loc = Var (typeof e') ("e" ++ show varId)
+            let loc = Var (typeof e') ('e' : show varId)
             declare loc
             assign loc e'
             return loc
@@ -259,7 +256,7 @@ compileTypeRep (FValType a) sz          = IVar $ compileTypeRep a sz
 compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
 mkVarName :: VarId -> String
-mkVarName v = "v" ++ show v
+mkVarName v = 'v' : show v
 
 mkVar :: Type -> VarId -> Expr
 mkVar t = Var t . mkVarName
@@ -297,28 +294,35 @@ tellDecl ds = tell $ mempty {block = Bl ds $ Seq []}
 
 assign :: Location -> Expr -> CodeWriter ()
 assign lhs rhs = if isArray $ typeof lhs
-    then do
-        tellProg [initArray lhs $ arrayLength rhs]
-        tellProg [copyProg lhs rhs]
-    else do
+    then
+        tellProg [ initArray lhs $ arrayLength rhs
+                 , copyProg lhs rhs]
+    else
         tellProg [copyProg lhs rhs]
 
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
 confiscateBlock :: CodeWriter a -> CodeWriter (a, Block)
 confiscateBlock m
-    = liftM (id *** block)
+    = liftM (second block)
     $ censor (\rec -> rec {block = mempty})
     $ listen m
 
 withAlias :: VarId -> Expr -> CodeWriter a -> CodeWriter a
-withAlias v0 expr action = do
-  local (\e -> e {alias = (v0,expr) : alias e}) $ action
+withAlias v0 expr =
+  local (\e -> e {alias = (v0,expr) : alias e})
 
-isVariableOrLiteral (prjDecorCtx typeCtx -> Just (_, Core.Literal l))  = True
-isVariableOrLiteral (prjDecorCtx typeCtx -> Just (_, Core.Variable v)) = True
+isVariableOrLiteral :: (Core.Variable TypeCtx :<: dom, Core.Literal TypeCtx :<: dom)
+                    => AST (Decor info dom) a -> Bool
+isVariableOrLiteral (prjDecorCtx typeCtx -> Just (_, Core.Literal _))  = True
+isVariableOrLiteral (prjDecorCtx typeCtx -> Just (_, Core.Variable _)) = True
 isVariableOrLiteral _                                                  = False
 
+mkLength :: ( Core.Literal TypeCtx :<: dom
+            , Core.Variable TypeCtx :<: dom
+            , Compile dom dom
+            )
+         => ASTF (Decor Info dom) a -> CodeWriter Expr
 mkLength a | isVariableOrLiteral a = compileExpr a
            | otherwise             = do
                let lentyp = IntType U N32

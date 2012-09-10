@@ -26,7 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-{-# LANGUAGE EmptyDataDecls, TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Feldspar.Compiler.Backend.C.Plugin.TypeDefinitionGenerator where
 
@@ -36,12 +36,11 @@ import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Error
 
-import Debug.Trace
-
 -- ===========================================================================
 --  == Type definition generator plugin
 -- ===========================================================================
 
+typeDefGenError :: ErrorClass -> String -> a
 typeDefGenError = handleError "PluginArch/TypeDefinitionGenerator"
 
 data TypeDefinitionGenerator = TypeDefinitionGenerator
@@ -51,11 +50,11 @@ getTypes options typ = {-trace ("DEBUG: "show typ) $-} case typ of
     StructType members -> concatMap (\(_,t) -> getTypes options t) members
                        ++ [StructDef {
                                structName      = toC options Declaration_pl (StructType members),
-                               structMembers   = map (\(name,typ) -> StructMember name typ ()) members,
+                               structMembers   = map (\(n,t) -> StructMember n t ()) members,
                                structLabel     = (),
                                definitionLabel = ()
                           }]
-    ArrayType len baseType -> getTypes options baseType
+    ArrayType _ baseType -> getTypes options baseType
     _ -> []
     -- XXX complexType?
 
@@ -69,8 +68,8 @@ instance Transformation TypeDefinitionGenerator where
 instance Transformable TypeDefinitionGenerator Module where
     transform selfpointer origState fromAbove origModule = defaultTransformationResult {
         result = (result defaultTransformationResult) {
-            entities = (nub $ state defaultTransformationResult)
-                     ++ (entities $ result defaultTransformationResult)
+            entities = nub (state defaultTransformationResult)
+                     ++ entities (result defaultTransformationResult)
         }
     } where
         defaultTransformationResult = defaultTransform selfpointer origState fromAbove origModule

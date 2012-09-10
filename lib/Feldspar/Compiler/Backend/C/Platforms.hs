@@ -39,13 +39,13 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 
 import Feldspar.Compiler.Backend.C.Options
-import qualified Feldspar.Compiler.Backend.C.Options as Opts
 import Feldspar.Compiler.Imperative.Representation hiding (Type, Cast, In, Out, Block)
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
 availablePlatforms = [ c99, tic64x ]
 
+c99 :: Platform
 c99 = Platform {
     name = "c99",
     types =
@@ -62,10 +62,8 @@ c99 = Platform {
         , (ComplexType FloatType,              "float complex",    "complexOf_float")
         ] ,
     values =
-        [ (ComplexType FloatType,
-              (\cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)"))
-        , (BoolType,
-          (\b -> if boolValue b then "true" else "false"))
+        [ (ComplexType FloatType, \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
+        , (BoolType, \b -> if boolValue b then "true" else "false")
         ] ,
     includes =
         [ "\"feldspar_c99.h\""
@@ -82,6 +80,7 @@ c99 = Platform {
     isRestrict = NoRestrict
 }
 
+tic64x :: Platform
 tic64x = Platform {
     name = "tic64x",
     types =
@@ -100,31 +99,32 @@ tic64x = Platform {
         , (ComplexType FloatType,              "complexOf_float",  "complexOf_float")
         ] ,
     values = 
-        [ (ComplexType FloatType,
-              (\cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")"))
-        , (BoolType,
-          (\b -> if boolValue b then "1" else "0"))
+        [ (ComplexType FloatType, \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
+        , (BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
     includes = ["\"feldspar_tic64x.h\"", "\"feldspar_array.h\"", "<c6x.h>", "<string.h>", "<math.h>"],
     platformRules = tic64xRules ++ c99Rules ++ traceRules,
     isRestrict = Restrict
 }
 
-showRe = showConstant . realPartComplexValue 
+showRe, showIm :: Constant t -> String
+showRe = showConstant . realPartComplexValue
 showIm = showConstant . imagPartComplexValue
 
+showConstant :: Constant t -> String
 showConstant (IntConst c _ _ _)    = show c
 showConstant (FloatConst c _ _)  = show c ++ "f"
 
+c99Rules :: [Rule]
 c99Rules = [rule copy, rule c99]
   where
     copy (Call "copy" [Out arg1, In arg2])
         | isArray (typeof arg1) = [replaceWith $ Call "copyArray" [Out arg1,In arg2]]
         | otherwise = [replaceWith $ arg1 := arg2]
     copy _ = []
-    c99 (Fun t "(!)" [arg1,arg2])    = [replaceWith $ arg1 :!: arg2]
-    c99 (Fun t "getFst" [arg]) = [replaceWith $ arg :.: first]
-    c99 (Fun t "getSnd" [arg]) = [replaceWith $ arg :.: second]
+    c99 (Fun _ "(!)" [arg1,arg2])    = [replaceWith $ arg1 :!: arg2]
+    c99 (Fun _ "getFst" [arg]) = [replaceWith $ arg :.: first]
+    c99 (Fun _ "getSnd" [arg]) = [replaceWith $ arg :.: second]
     c99 (Fun t "(==)" [arg1, arg2])  = [replaceWith $ Binop t "==" [arg1, arg2]]
     c99 (Fun t "(/=)" [arg1, arg2])  = [replaceWith $ Binop t "!=" [arg1, arg2]]
     c99 (Fun t "(<)" [arg1, arg2])   = [replaceWith $ Binop t "<" [arg1, arg2]]
@@ -196,8 +196,8 @@ c99Rules = [rule copy, rule c99]
     c99 (Fun t "reverseBits" [arg])  = [replaceWith $ Fun t (extend "reverseBits" t) [arg]]
     c99 (Fun t "bitScan" [arg])  = [replaceWith $ Fun t (extend "bitScan" $ typeof arg) [arg]]
     c99 (Fun t "bitCount" [arg]) = [replaceWith $ Fun t (extend "bitCount" $ typeof arg) [arg]]
-    c99 (Fun t "bitSize" [intWidth . typeof -> Just n])  = [replaceWith $ LitI U32 n]
-    c99 (Fun t "isSigned" [intSigned . typeof -> Just b])    = [replaceWith $ litB b]
+    c99 (Fun _ "bitSize" [intWidth . typeof -> Just n])  = [replaceWith $ LitI U32 n]
+    c99 (Fun _ "isSigned" [intSigned . typeof -> Just b])    = [replaceWith $ litB b]
     c99 (Fun t "complex" [arg1, arg2])   = [replaceWith $ Fun t (extend "complex" $ typeof arg1) [arg1,arg2]]
     c99 (Fun t "creal" [arg])    = [replaceWith $ Fun t "crealf" [arg]]
     c99 (Fun t "cimag" [arg])    = [replaceWith $ Fun t "cimagf" [arg]]
@@ -215,6 +215,7 @@ c99Rules = [rule copy, rule c99]
     c99 (Fun t "floor" [arg])    = [replaceWith $ Cast t $ Fun Floating "floorf" [arg]]
     c99 _ = []
 
+tic64xRules :: [Rule]
 tic64xRules = [rule tic64x]
   where
     tic64x (Fun t "(==)" [arg1@(typeof -> Complex _), arg2])    = [replaceWith $ Fun t (extend "equal" $ typeof arg1) [arg1, arg2]]
@@ -230,15 +231,16 @@ tic64xRules = [rule tic64x]
     tic64x (Fun t "log" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "log" $ typeof arg1) [arg1, arg2]]
     tic64x (Fun t "(**)" [arg1@(typeof -> Complex _), arg2])    = [replaceWith $ Fun t (extend "cpow" $ typeof arg1) [arg1, arg2]]
     tic64x (Fun t "logBase" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "logBase" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t name [arg@(typeof -> Complex _)])
-        | name `elem` ["sin","tan","cos","asin","atan","acos","sinh","tanh","cosh","asinh","atanh","acosh","creal","cimag","conjugate","magnitude","phase"]
-            = [replaceWith $ Fun t (extend name $ typeof arg) [arg]]
+    tic64x (Fun t fn [arg@(typeof -> Complex _)])
+        | fn `elem` ["sin","tan","cos","asin","atan","acos","sinh","tanh","cosh","asinh","atanh","acosh","creal","cimag","conjugate","magnitude","phase"]
+            = [replaceWith $ Fun t (extend fn $ typeof arg) [arg]]
     tic64x (Fun t "rotateL" [arg1@(typeof -> U32), arg2])   = [replaceWith $ Fun t "_rotl" [arg1, arg2]]
     tic64x (Fun t "reverseBits" [arg@(typeof -> U32)])  = [replaceWith $ Fun t "_bitr" [arg]]
     tic64x (Fun t "bitCount" [arg@(typeof -> U32)])  = [replaceWith $ Fun t "_dotpu4" [Fun t "_bitc4" [arg], LitI U32 0x01010101]]
-    tic64x (Fun t name [arg@(typeof -> Complex _)]) = [replaceWith $ Fun t (extend "creal" $ typeof arg) [arg]]
+    tic64x (Fun t _ [arg@(typeof -> Complex _)]) = [replaceWith $ Fun t (extend "creal" $ typeof arg) [arg]]
     tic64x _ = []
 
+traceRules :: [Rule]
 traceRules = [rule trace]
   where
     trace (Fun t "trace" [lab, val]) = [WithId acts]
@@ -250,9 +252,8 @@ traceRules = [rule trace]
             defTrcVar = Def t trcVarName
             decl (Bl defs prg) = [replaceWith $ Bl (defs ++ [defTrcVar]) prg]
             trc :: Prog -> [Action (Repr Prog)]
-            trc instr = [replaceWith $ Seq [init,trcCall,instr]]
+            trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]
             trcCall = Call (extend' "trace" t) [In trcVar, In lab]
-            init = trcVar := val
             frame (ProcDf pname ins outs prg) = [replaceWith $ ProcDf pname ins outs prg']
               where
                 prg' = case prg of
@@ -274,5 +275,6 @@ log2 n
   where
     l = toInteger $ length $ takeWhile (<=n) $ map (2 Prelude.^) [1..]
 
-first = "member1"
+first, second :: String
+first  = "member1"
 second = "member2"

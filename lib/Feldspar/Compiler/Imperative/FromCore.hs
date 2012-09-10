@@ -31,12 +31,10 @@
 module Feldspar.Compiler.Imperative.FromCore where
 
 
-import Data.List
 import Control.Monad.RWS
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
-import Language.Syntactic.Sharing.SimpleCodeMotion
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
@@ -72,13 +70,13 @@ instance Compile FeldDomain (Lambda TypeCtx :+: (Variable TypeCtx :+: FeldDomain
 
 compileProgTop :: (Compile dom dom, Lambda TypeCtx :<: dom) =>
     String -> [Var] -> ASTF (Decor Info dom) a -> Mod
-compileProgTop name args (lam :$ body)
+compileProgTop funname args (lam :$ body)
     | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
-    = let ta = argType $ infoType info
-          sa = defaultSize ta
+    = let ta  = argType $ infoType info
+          sa  = defaultSize ta
           var = mkVariable (compileTypeRep ta sa) v
-       in compileProgTop name (var:args) body
-compileProgTop name args a = Mod defs
+       in compileProgTop funname (var:args) body
+compileProgTop funname args a = Mod defs
   where
     ins      = reverse args
     info     = getInfo a
@@ -87,7 +85,7 @@ compileProgTop name args a = Mod defs
     outLoc   = Ptr outType "out"
     results  = snd $ evalRWS (compileProg outLoc a) initReader initState
     Bl ds p  = block results
-    defs     = def results ++ [ProcDf name ins [outParam] (Block ds p)]
+    defs     = def results ++ [ProcDf funname ins [outParam] (Block ds p)]
 
 class    Syntactic a FeldDomainAll => Compilable a internal | a -> internal
 instance Syntactic a FeldDomainAll => Compilable a ()
@@ -95,9 +93,9 @@ instance Syntactic a FeldDomainAll => Compilable a ()
   --      similar alias) everywhere. The second parameter is not needed.
 
 fromCore :: Syntactic a FeldDomainAll => String -> a -> Module ()
-fromCore name
+fromCore funname
     = fromInterface
-    . compileProgTop name []
+    . compileProgTop funname []
     . reifyFeld N32
 
 -- | Create a list where each element represents the number of variables needed
@@ -107,7 +105,7 @@ buildInParamDescriptor = go . reifyFeld N32
   where
     go :: (Lambda TypeCtx :<: dom) => ASTF (Decor info dom) a -> [Int]
     go (lam :$ body)
-      | Just (_, Lambda v) <- prjDecorCtx typeCtx lam
+      | Just (_, Lambda _) <- prjDecorCtx typeCtx lam
       = 1 : go body
   -- TODO the 1 above is valid as long as we represent tuples as structs
   -- When we convert a struct to a set of variables the 1 has to replaced

@@ -39,7 +39,6 @@ import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding
 import qualified Feldspar.Core.Constructs.Binding as Core
 
-import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -49,7 +48,7 @@ instance Compile (Core.Variable TypeCtx) dom
     compileExprSym (Core.Variable v) info Nil = do
         env <- ask
         case lookup v (alias env) of
-          Nothing -> return $ Var (compileTypeRep (infoType info) (infoSize info)) ("v" ++ show v)
+          Nothing -> return $ mkVar (compileTypeRep (infoType info) (infoSize info)) v
           Just e  -> return e
 
 instance Compile (Lambda TypeCtx) dom
@@ -60,21 +59,19 @@ instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile (Let TypeCtx TypeC
   where
     compileProgSym Let _ loc (a :* (lam :$ body) :* Nil)
         | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
-        = do
-            let ta = argType $ infoType info
-            let sa = defaultSize ta
-            let var = mkVar (compileTypeRep ta sa) v
-            declare var
-            compileProg var a
-            compileProg loc body
+        = compileLet a info v >> compileProg loc body
 
     compileExprSym Let _ (a :* (lam :$ body) :* Nil)
         | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
-        = do
-            let ta = argType $ infoType info
-            let sa = defaultSize ta
-            let var = mkVar (compileTypeRep ta sa) v
-            declare var
-            compileProg var a
-            compileExpr body
+        = compileLet a info v >> compileExpr body
+
+compileLet :: Compile dom dom
+           => ASTF (Decor Info dom) a -> Info (a -> b) -> VarId -> CodeWriter ()
+compileLet a info v
+    = do
+        let ta  = argType $ infoType info
+            sa  = defaultSize ta
+            var = mkVar (compileTypeRep ta sa) v
+        declare var
+        compileProg var a
 

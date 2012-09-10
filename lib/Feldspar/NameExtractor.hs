@@ -39,37 +39,42 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
     originalParameterNames :: [Maybe String]
 } deriving (Show, Eq)
 
-nameExtractorError errorClass msg = handleError "NameExtractor" errorClass msg 
+nameExtractorError :: ErrorClass -> String -> a
+nameExtractorError = handleError "NameExtractor"
 
-neutralName = "\\"++(r 4)++"/\\"++(r 7)++"\n )  ( ')"++(r 6)++"\n(  /  )"++(r 7)++"\n \\(__)|"
+neutralName :: String
+neutralName = "\\"++ r 4 ++"/\\"++ r 7 ++"\n )  ( ')"++ r 6 ++"\n(  /  )"++ r 7 ++"\n \\(__)|"
     where r n = replicate n ' '
 
+ignore :: OriginalFunctionSignature
 ignore = OriginalFunctionSignature neutralName []
 
+warning :: String -> a -> a
 warning msg retval = unsafePerformIO $ do
     withColor Yellow $ putStrLn $ "Warning: " ++ msg
     return retval
 
 -- Module SrcLoc ModuleName [OptionPragma] (Maybe WarningText) (Maybe [ExportSpec]) [ImportDecl] [Decl]
+stripModule :: Module -> [Decl]
 stripModule x = case x of
-        Module a b c d e f g -> g
+        Module _ _ _ _ _ _ g -> g
 
 stripFunBind :: Decl -> OriginalFunctionSignature
 stripFunBind x = case x of
-        FunBind [Match a b c d e f] ->
+        FunBind [Match _ b c _ _ _] ->
             OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
             -- "Match SrcLoc Name [Pat] (Maybe Type) Rhs Binds"
-        FunBind l@((Match a b c d e f):rest) | length l > 1 -> warning
-            ("Ignoring function " ++ (stripName b) ++
+        FunBind l@(Match _ b _ _ _ _ : _) | length l > 1 -> warning
+            ("Ignoring function " ++ stripName b ++
             ": multi-pattern function definitions are not compilable as Feldspar functions.") ignore
-        PatBind a b c d e -> case stripPattern b of
+        PatBind _ b _ _ _ -> case stripPattern b of
             Just functionName -> OriginalFunctionSignature functionName [] -- parameterless declarations (?)
             Nothing           -> nameExtractorError InternalError ("Unsupported pattern binding: " ++ show b)
-        TypeSig a b c -> ignore --head b -- we don't need the type signature (yet)
-        DataDecl a b c d e f g -> ignore
-        InstDecl a b c d e -> ignore
+        TypeSig{} -> ignore --head b -- we don't need the type signature (yet)
+        DataDecl{} -> ignore
+        InstDecl{} -> ignore
         -- TypeDecl  SrcLoc Name [TyVarBind] Type
-        TypeDecl a b c d -> ignore
+        TypeDecl{} -> ignore
         unknown -> nameExtractorError InternalError ("Unexpected language element [SFB/1]: " ++ show unknown
                                                 ++ "\nPlease file a feature request with an example attached.")
 
@@ -84,18 +89,23 @@ stripName :: Name -> String
 stripName (Ident a) = a
 stripName (Symbol a) = a
 
-stripModule2 (Module a b c d e f g) = b
+stripModule2 :: Module -> ModuleName
+stripModule2 (Module _ b _ _ _ _ _) = b
 
+stripModuleName :: ModuleName -> String
 stripModuleName (ModuleName x) = x
 
 getModuleName :: FilePath -> String -> String -- filename, filecontents -> modulename
 getModuleName fileName = stripModuleName . stripModule2 . fromParseResult . customizedParse fileName
 
+usedExtensions :: [Extension]
 usedExtensions = glasgowExts ++ [ExplicitForAll]
 
 -- Ultimate debug function
-getParseOutput fileName = parseFileWithMode (defaultParseMode { extensions = usedExtensions }) fileName
+getParseOutput :: FilePath -> IO (ParseResult Module)
+getParseOutput = parseFileWithMode (defaultParseMode { extensions = usedExtensions })
 
+customizedParse :: FilePath -> FilePath -> ParseResult Module
 customizedParse fileName = parseFileContentsWithMode
   (defaultParseMode
     { extensions    = usedExtensions
@@ -107,27 +117,29 @@ getFullDeclarationListWithParameterList fileName fileContents =
     map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents )
 
 functionNameNeeded :: String -> Bool
-functionNameNeeded functionName = (functionName /= neutralName)
+functionNameNeeded functionName = functionName /= neutralName
 
 stripUnnecessary :: [String] -> [String]
 stripUnnecessary = filter functionNameNeeded
 
+printDeclarationList :: FilePath -> IO (String -> [String])
 printDeclarationList fileName = do
     handle <- openFile fileName ReadMode
     fileContents <- hGetContents handle
     return $ getDeclarationList fileContents
 
+printDeclarationListWithParameterList :: FilePath -> IO ()
 printDeclarationListWithParameterList fileName = do
     handle <- openFile fileName ReadMode
     fileContents <- hGetContents handle
-    putStrLn $ show $ filter (functionNameNeeded . originalFunctionName) (getFullDeclarationListWithParameterList fileName fileContents)
+    print $ filter (functionNameNeeded . originalFunctionName) (getFullDeclarationListWithParameterList fileName fileContents)
 
 printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
-printParameterListOfFunction fileName functionName = getParameterList fileName functionName
+printParameterListOfFunction = getParameterList
 
 -- The interface
 getDeclarationList :: FilePath -> String -> [String] -- filename, filecontents -> Stringlist
-getDeclarationList fileName = stripUnnecessary . (map originalFunctionName) . getFullDeclarationListWithParameterList fileName
+getDeclarationList fileName = stripUnnecessary . map originalFunctionName . getFullDeclarationListWithParameterList fileName
 
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
 getExtendedDeclarationList fileName fileContents =

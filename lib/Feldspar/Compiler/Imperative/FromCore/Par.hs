@@ -46,7 +46,6 @@ import qualified Feldspar.Compiler.Imperative.Representation as AIR
 import Feldspar.Transformation (transform, Result(..))
 
 import Data.Map (elems)
-import Data.List (partition)
 
 instance ( Compile dom dom
          , Lambda TypeCtx :<: dom
@@ -88,18 +87,18 @@ instance ( Compile dom dom
          )
       => Compile ParFeature dom
   where
-    compileExprSym a info args = compileProgFresh a info args
+    compileExprSym = compileProgFresh
 
     compileProgSym ParRun _ loc (p :* Nil) = compileProg loc p
 
-    compileProgSym ParGet info loc (r :* Nil) = do
+    compileProgSym ParGet _ loc (r :* Nil) = do
         iv <- compileExpr r
         tellProg [iVarGet loc iv]
 
-    compileProgSym ParPut _ loc (r :* a :* Nil) = do
-            iv <- compileExpr r
+    compileProgSym ParPut _ _ (r :* a :* Nil) = do
+            iv  <- compileExpr r
             val <- compileExpr a
-            i <- freshId
+            i   <- freshId
             let var = Var (AIR.typeof val) $ "msg" ++ show i
             declare var
             assign var val
@@ -120,8 +119,8 @@ instance ( Compile dom dom
         -- Spawn:
         tellProg [spawn taskName vs]
 
-    compileProgSym ParYield _ loc Nil = return ()
+    compileProgSym ParYield _ _ Nil = return ()
     
-    compileProgSym ParNew _ loc Nil = return ()
+    compileProgSym ParNew _ _ Nil = return ()
 
 

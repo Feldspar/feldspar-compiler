@@ -31,8 +31,8 @@
 module Feldspar.Transformation.Framework where
 
 import Feldspar.Compiler.Error
-import Feldspar.Compiler.Imperative.Representation
 
+transformationError :: String -> a
 transformationError = handleError "PluginArch/TransformationFramework" InternalError
 
 -- ===========

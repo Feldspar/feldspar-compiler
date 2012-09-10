@@ -57,7 +57,7 @@ instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transf
         defaultTransform t s d (StructDef n m inf1 inf2) =
             Result (StructDef n (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
                 tr = transform1 t s d m
-        defaultTransform t s d (TypeDef typ n inf) =
+        defaultTransform _ s _ (TypeDef typ n inf) =
             Result (TypeDef typ n (convert inf)) s def
         defaultTransform t s d (ProcDef n i o p inf1 inf2) =
             Result (ProcDef n (result1 tr1) (result1 tr2) (result tr3) (convert inf1) $ convert inf2)
@@ -73,7 +73,7 @@ instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transf
 
 instance (Conversion t StructMember, Default (Up t))
     => DefaultTransformable t StructMember where
-        defaultTransform t s d (StructMember n typ inf) = Result (StructMember n typ $ convert inf) s def
+        defaultTransform _ s _ (StructMember n typ inf) = Result (StructMember n typ $ convert inf) s def
 
 instance (Transformable1 t [] Declaration, Transformable t Program, Conversion t Block)
     => DefaultTransformable t Block where
@@ -83,8 +83,8 @@ instance (Transformable1 t [] Declaration, Transformable t Program, Conversion t
 
 instance (Transformable1 t [] Program, Transformable t Expression, Transformable1 t [] ActualParameter, Transformable t Block, Transformable t Variable, Conversion t Program, Conversion t Empty, Conversion t Comment, Conversion t Assign, Conversion t ProcedureCall, Conversion t Spawn, Conversion t Run, Conversion t Sequence, Conversion t Branch, Conversion t SeqLoop, Conversion t ParLoop, Default (Up t))
     => DefaultTransformable t Program where
-        defaultTransform t s d (Empty inf1 inf2) = Result (Empty (convert inf1) $ convert inf2) s def
-        defaultTransform t s d (Comment b c inf1 inf2) = Result (Comment b c (convert inf1) $ convert inf2) s def
+        defaultTransform _ s _ (Empty inf1 inf2) = Result (Empty (convert inf1) $ convert inf2) s def
+        defaultTransform _ s _ (Comment b c inf1 inf2) = Result (Comment b c (convert inf1) $ convert inf2) s def
         defaultTransform t s d (Assign l r inf1 inf2) = Result (Assign (result tr1) (result tr2) (convert inf1) $ convert inf2) (state tr2) (combine (up tr1) (up tr2)) where
             tr1 = transform t s d l
             tr2 = transform t (state tr1) d r
@@ -113,8 +113,8 @@ instance (Transformable t Expression, Conversion t ActualParameter)
             tr = transform t s d p
         defaultTransform t s d (Out p inf) = Result (Out (result tr) $ convert inf) (state tr) (up tr) where
             tr = transform t s d p
-        defaultTransform t s d (TypeParameter p r inf) = Result (TypeParameter p r $ convert inf) s def
-        defaultTransform t s d (FunParameter n b inf) = Result (FunParameter n b $ convert inf) s def
+        defaultTransform _ s _ (TypeParameter p r inf) = Result (TypeParameter p r $ convert inf) s def
+        defaultTransform _ s _ (FunParameter n b inf) = Result (FunParameter n b $ convert inf) s def
 
 instance (Transformable t Variable, Transformable1 t Maybe Expression, Conversion t Declaration)
     => DefaultTransformable t Declaration where
@@ -136,18 +136,18 @@ instance (Transformable t Expression, Transformable t Variable, Transformable t 
         defaultTransform t s d (FunctionCall f par inf1 inf2) =
             Result (FunctionCall f (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
                 tr = transform1 t s d par
-        defaultTransform t s d (Cast typ exp inf1 inf2) = Result (Cast typ (result tr) (convert inf1) $ convert inf2) (state tr) (up tr) where
-            tr = transform t s d exp
+        defaultTransform t s d (Cast typ ex inf1 inf2) = Result (Cast typ (result tr) (convert inf1) $ convert inf2) (state tr) (up tr) where
+            tr = transform t s d ex
         defaultTransform t s d (SizeOf par inf1 inf2) = case par of
             Left typ -> Result (SizeOf (Left typ) (convert inf1) $ convert inf2) s def
-            Right exp -> Result (SizeOf (Right $ result tr) (convert inf1) $ convert inf2) (state tr) (up tr) where
-                tr = transform t s d exp
+            Right ex -> Result (SizeOf (Right $ result tr) (convert inf1) $ convert inf2) (state tr) (up tr) where
+                tr = transform t s d ex
 
 instance (Transformable t Constant, Transformable1 t [] Constant, Conversion t Constant, Conversion t IntConst, Conversion t FloatConst, Conversion t BoolConst, Conversion t ArrayConst, Conversion t ComplexConst, Default (Up t))
     => DefaultTransformable t Constant where
-        defaultTransform t s d (IntConst c typ inf1 inf2) = Result (IntConst c typ (convert inf1) $ convert inf2) s def
-        defaultTransform t s d (FloatConst c inf1 inf2) = Result (FloatConst c (convert inf1) $ convert inf2) s def
-        defaultTransform t s d (BoolConst c inf1 inf2) = Result (BoolConst c (convert inf1) $ convert inf2) s def
+        defaultTransform _ s _ (IntConst c typ inf1 inf2) = Result (IntConst c typ (convert inf1) $ convert inf2) s def
+        defaultTransform _ s _ (FloatConst c inf1 inf2) = Result (FloatConst c (convert inf1) $ convert inf2) s def
+        defaultTransform _ s _ (BoolConst c inf1 inf2) = Result (BoolConst c (convert inf1) $ convert inf2) s def
         -- defaultTransform t s d (ArrayConst c inf1 inf2) = Result (ArrayConst (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
             -- tr = transform1 t s d c
         defaultTransform t s d (ComplexConst re im inf1 inf2) = Result (ComplexConst (result tr1) (result tr2) (convert inf1) $ convert inf2) (state tr2) (combine (up tr1) $ up tr2) where
@@ -156,20 +156,20 @@ instance (Transformable t Constant, Transformable1 t [] Constant, Conversion t C
 
 instance (Conversion t Variable, Default (Up t))
     => DefaultTransformable t Variable where
-        defaultTransform t s d (Variable name typ role inf) = Result (Variable name typ role $ convert inf) s def
+        defaultTransform _ s _ (Variable name typ role inf) = Result (Variable name typ role $ convert inf) s def
 
 
 instance (Transformable t a, Default (Up t), Combine (Up t), Transformation t)
     => DefaultTransformable1 t [] a where
-        defaultTransform1 t s d [] = Result1 [] s def
+        defaultTransform1 _ s _ [] = Result1 [] s def
         defaultTransform1 t s d [x] = Result1 [result tr] (state tr) (up tr) where
             tr  = transform t s d x
-        defaultTransform1 t s d (x:xs) = Result1 ((result tr1):(result1 tr2)) (state1 tr2) (combine (up tr1) (up1 tr2)) where
+        defaultTransform1 t s d (x:xs) = Result1 (result tr1 : result1 tr2) (state1 tr2) (combine (up tr1) (up1 tr2)) where
             tr1 = transform t s d x
             tr2 = transform1 t (state tr1) d xs
 
 instance (Transformable t a, Default (Up t), Transformation t)
     => DefaultTransformable1 t Maybe a where
-        defaultTransform1 t s d Nothing = Result1 Nothing s def
+        defaultTransform1 _ s _ Nothing = Result1 Nothing s def
         defaultTransform1 t s d (Just x) = Result1 (Just $ result tr) (state tr) (up tr) where
             tr = transform t s d x

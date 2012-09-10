@@ -31,9 +31,6 @@
 module Feldspar.Compiler.Imperative.FromCore.Condition where
 
 
-
-import Control.Monad.RWS
-
 import Language.Syntactic
 
 import Feldspar.Core.Types

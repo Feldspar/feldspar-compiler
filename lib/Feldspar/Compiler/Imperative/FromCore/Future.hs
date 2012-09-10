@@ -30,14 +30,9 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Future where
 
-import qualified Data.Map as Map
-
 import Language.Syntactic
 
-import Feldspar.Core.Types
-import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Future
-import Feldspar.Core.Constructs.NoInline
 
 import Feldspar.Compiler.Imperative.Frontend
 import qualified Feldspar.Compiler.Imperative.Frontend as Front
@@ -46,16 +41,15 @@ import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
 import Feldspar.Transformation (transform, Result(..))
 
 import Data.Map (elems)
-import Data.List (partition)
 
 instance ( FUTURE :<: dom
          , Compile dom dom
          )
       => Compile FUTURE dom
   where
-    compileExprSym a info args = compileProgFresh a info args
+    compileExprSym = compileProgFresh
 
-    compileProgSym MkFuture info loc (p :* Nil) = do
+    compileProgSym MkFuture _ loc (p :* Nil) = do
         -- Task core:
         (_, Bl ds t)  <- confiscateBlock $ do
             p' <- compileExprVar p
@@ -74,7 +68,7 @@ instance ( FUTURE :<: dom
         tellProg [spawn taskName vs]
 ---
 
-    compileProgSym Await info loc (a :* Nil) = do
+    compileProgSym Await _ loc (a :* Nil) = do
         fut <- compileExprVar a -- compileExpr a
         tellProg [iVarGet loc fut]
 

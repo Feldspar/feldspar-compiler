@@ -32,13 +32,10 @@ module Feldspar.Compiler.Imperative.FromCore.SizeProp where
 
 
 
-import Control.Monad.RWS
-
 import Language.Syntactic
 
 import Feldspar.Core.Constructs.SizeProp
 
-import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

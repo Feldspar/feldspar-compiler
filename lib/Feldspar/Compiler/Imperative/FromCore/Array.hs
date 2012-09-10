@@ -32,8 +32,6 @@ module Feldspar.Compiler.Imperative.FromCore.Array where
 
 
 
-import Control.Monad.RWS
-
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 
@@ -61,7 +59,7 @@ instance ( Compile dom dom
             let sa = defaultSize ta
             let ix@(Var _ name) = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len
-            (e, Bl ds body) <- confiscateBlock $ compileProg (loc :!: ix) ixf
+            (_, Bl ds body) <- confiscateBlock $ compileProg (loc :!: ix) ixf
             tellProg [initArray loc len']
             tellProg [For name len' 1 (Block ds body)]
 
@@ -81,16 +79,15 @@ instance ( Compile dom dom
             len' <- mkLength len
             tmp       <- freshVar "seq" tr' sr'
             initSt    <- compileExpr st
-            (e, Bl ds (Seq body)) <- confiscateBlock $ compileProg tmp step
+            (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg tmp step
             tellProg [initArray loc len']
-            tellProg [Block (ds ++ [ini stv initSt]) $
+            tellProg [Block (ds ++ [toIni stv initSt]) $
                       For name len' 1 $
                                     Seq (body ++
                                          [assignProg (loc :!: ix) (tmp :.: "member1")
                                          ,assignProg stv (tmp :.: "member2")
                                          ])]
-      where def (Var ty str)   = Def  ty str
-            ini (Var ty str) e = Init ty str e
+      where toIni (Var ty str) = Init ty str
 
     compileProgSym Append _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
@@ -104,7 +101,7 @@ instance ( Compile dom dom
         --       But take care of array initialization:
         --       compiling 'a' and 'b' might do initialization itself...
 
-    compileProgSym SetIx info loc (arr :* i :* a :* Nil) = do
+    compileProgSym SetIx _ loc (arr :* i :* a :* Nil) = do
         compileProg loc arr
         i' <- compileExpr i
         compileProg (loc :!: i') a
@@ -121,7 +118,7 @@ instance ( Compile dom dom
         aExpr <- compileExpr a
         return $ Fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [aExpr]
 
-    compileExprSym GetIx info (arr :* i :* Nil) = do
+    compileExprSym GetIx _ (arr :* i :* Nil) = do
         a' <- compileExpr arr
         i' <- compileExpr i
         return $ a' :!: i'

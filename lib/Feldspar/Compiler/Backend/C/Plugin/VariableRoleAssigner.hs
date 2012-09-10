@@ -28,7 +28,6 @@
 
 module Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner where
 
-import Data.List
 import Feldspar.Transformation
 
 data VariableRoleAssigner = VariableRoleAssigner
@@ -46,7 +45,7 @@ instance Transformation VariableRoleAssigner where
     type State VariableRoleAssigner = ()
 
 instance Transformable VariableRoleAssigner Variable where
-        transform t s d v = Result v' () () where
+        transform _ _ d v = Result v' () () where
             v' = v { varRole = if (varName v `elem` outParametersVRA d) ||
                             (isComposite v && (varName v `elem` inParametersVRA d))
                         then Pointer else Value
@@ -54,7 +53,7 @@ instance Transformable VariableRoleAssigner Variable where
                    }
 
 instance Transformable VariableRoleAssigner Entity where
-        transform t s d p@(ProcDef n i o pr inf1 inf2) = defaultTransform t s d' p where
+        transform t s _ p@(ProcDef _ i o _ _ _) = defaultTransform t s d' p where
             d' = Parameters
                     { inParametersVRA = map varName i
                     , outParametersVRA = map varName o
@@ -63,12 +62,12 @@ instance Transformable VariableRoleAssigner Entity where
 
 instance Plugin VariableRoleAssigner where
     type ExternalInfo VariableRoleAssigner = ()
-    executePlugin self@VariableRoleAssigner externalInfo procedure = 
+    executePlugin self@VariableRoleAssigner _ procedure = 
         result $ transform self ({-state-}) (Parameters [] []) procedure
 
 isComposite :: Variable () -> Bool
 isComposite v = case varType v of
-    (ArrayType _ _) -> True
-    (StructType _)  -> True
-    otherwise       -> False
+    ArrayType{}  -> True
+    StructType{} -> True
+    _            -> False
 

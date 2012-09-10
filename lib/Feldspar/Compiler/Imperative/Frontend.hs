@@ -27,16 +27,17 @@
 --
 
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Feldspar.Compiler.Imperative.Frontend where
 
 import Data.List
+import Data.Monoid
+import Control.Arrow (second)
 
 import Feldspar.Compiler.Imperative.Representation hiding (Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
-
-import Feldspar.Core.Types hiding (Type)
 
 -- * Frontend data types
 
@@ -94,6 +95,14 @@ data Prog
     | Block [Def] Prog
     deriving (Eq,Show)
 
+instance Monoid Prog
+  where
+    mempty                    = Skip
+    mappend Skip     p        = p
+    mappend p        Skip     = p
+    mappend (Seq pa) (Seq pb) = Seq $ mappend pa pb
+    mappend pa pb             = Seq [mappend pa pb]
+
 data Param
     = In Expr
     | Out Expr
@@ -103,9 +112,13 @@ data Param
     | FnAddr String
     deriving (Eq,Show)
 
-data Block
-    = Bl [Def] Prog
+data Block = Bl [Def] Prog
     deriving (Eq,Show)
+
+instance Monoid Block
+  where
+    mempty                        = Bl [] Skip
+    mappend (Bl da pa) (Bl db pb) = Bl (mappend da db) (mappend pa pb)
 
 data Def
     = Init Type String Expr
@@ -135,8 +148,8 @@ class Interface t where
 
 instance Interface Mod where
     type Repr Mod = AIR.Module ()
-    toInterface (Module entities ()) = Mod $ map toInterface entities
-    fromInterface (Mod entities) = AIR.Module (map fromInterface entities) ()
+    toInterface (Module es ()) = Mod $ map toInterface es
+    fromInterface (Mod es) = AIR.Module (map fromInterface es) ()
 
 instance Interface Ent where
     type Repr Ent = AIR.Entity ()
@@ -146,6 +159,7 @@ instance Interface Ent where
         ProcDf name (map toInterface inparams) (map toInterface outparams) (toProg body)
     toInterface (AIR.ProcDecl name inparams outparams () ()) =
         ProcDcl name (map toInterface inparams) (map toInterface outparams)
+    toInterface AIR.TypeDef{} = error "TypeDef not handled"
     fromInterface (StructD name members) =
         AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname (fromInterface mtyp) ())) members) () ()
     fromInterface (ProcDf name inparams outparams body) =
@@ -153,10 +167,10 @@ instance Interface Ent where
     fromInterface (ProcDcl name inparams outparams) =
         AIR.ProcDecl name (map fromInterface inparams) (map fromInterface outparams) () ()
 
-
 instance Interface Type where
     type Repr Type = AIR.Type
     toInterface VoidType = Void
+    toInterface Alias{}  = error "Alias not handled"
     toInterface AIR.BoolType = Boolean
     toInterface BitType = Bit
     toInterface AIR.FloatType = Floating
@@ -174,7 +188,7 @@ instance Interface Type where
     toInterface (AIR.UserType s) = UserType s
     toInterface (AIR.ArrayType (LiteralLen l) t) = SizedArray l $ toInterface t
     toInterface (AIR.ArrayType _ t) = Array $ toInterface t
-    toInterface (AIR.StructType fields) = Struct $ map (\(name,t) -> (name,toInterface t)) fields
+    toInterface (AIR.StructType fields) = Struct $ map (second toInterface) fields
     toInterface (AIR.IVarType t) = IVar $ toInterface t
     fromInterface Void = VoidType
     fromInterface Boolean = AIR.BoolType
@@ -194,15 +208,15 @@ instance Interface Type where
     fromInterface (UserType s) = AIR.UserType s
     fromInterface (Array t) = AIR.ArrayType UndefinedLen $ fromInterface t
     fromInterface (SizedArray l t) = AIR.ArrayType (LiteralLen l) $ fromInterface t
-    fromInterface (Struct fields) = AIR.StructType $ map (\(name,t) -> (name,fromInterface t)) fields
+    fromInterface (Struct fields) = AIR.StructType $ map (second fromInterface) fields
     fromInterface (IVar t) = AIR.IVarType $ fromInterface t
 
 instance Interface Expr where
     type Repr Expr = Expression ()
     toInterface (VarExpr (AIR.Variable name t Value ()) ()) = Var (toInterface t) name
     toInterface (VarExpr (AIR.Variable name t AIR.Pointer ()) ()) = Ptr (toInterface t) name
-    toInterface (ArrayElem arr idx () ()) = (toInterface arr) :!: (toInterface idx)
-    toInterface (StructField str field () ()) = (toInterface str) :.: field
+    toInterface (ArrayElem arr idx () ()) = toInterface arr :!: toInterface idx
+    toInterface (StructField str field () ()) = toInterface str :.: field
     toInterface (ConstExpr (BoolConst True () ()) ()) = Tr
     toInterface (ConstExpr (BoolConst False () ()) ()) = Fl
     toInterface (ConstExpr (IntConst x t () ()) ()) = LitI (toInterface t) x
@@ -235,7 +249,7 @@ instance Interface Prog where
     toInterface (Empty () ()) = Skip
     toInterface (AIR.Comment True s () ()) = BComment s
     toInterface (AIR.Comment False s () ()) = Comment s
-    toInterface (Assign lhs rhs () ()) = (toInterface lhs) := (toInterface rhs)
+    toInterface Assign{..} = toInterface lhs := toInterface rhs
     toInterface (ProcedureCall s ps () ()) = Call s (map toInterface ps)
     toInterface (Sequence ps () ()) = Seq (map toInterface ps)
     toInterface (Branch e b1 b2 () ()) = If (toInterface e) (toProg b1) (toProg b2)
@@ -359,7 +373,7 @@ spawn taskName vs = Call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FnAddr taskName
-    typeParams = map (\v -> TypAuto $ vType v) vs
+    typeParams = map (TypAuto . vType) vs
     varParams = map (\v -> In $ Var (vType v) (vName v)) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 

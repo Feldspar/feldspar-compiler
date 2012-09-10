@@ -31,12 +31,8 @@
 module Feldspar.Compiler.Imperative.FromCore.ConditionM where
 
 
-
-import Control.Monad.RWS
-
 import Language.Syntactic
 
-import Feldspar.Core.Types
 import Feldspar.Core.Constructs.ConditionM
 
 import Feldspar.Compiler.Imperative.Frontend

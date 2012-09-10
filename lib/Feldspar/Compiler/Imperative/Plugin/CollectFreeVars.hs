@@ -59,7 +59,7 @@ instance Plugin Collect
     executePlugin _ externalInfo = result . transform Collect () externalInfo
 
 instance Transformable Collect Variable where
-    transform t _ _ var = Result var () $ Map.singleton (varName var) (Front.toInterface var)
+    transform _ _ _ v = Result v () $ Map.singleton (varName v) (Front.toInterface v)
 
 instance Transformable Collect Block where
     transform t _ _ bl = Result bl' () diff
