@@ -26,6 +26,8 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Main where
 -- ====================================== Feldspar imports ==================================
 import Feldspar.NameExtractor

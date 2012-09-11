@@ -28,16 +28,13 @@
 
 module Feldspar.Compiler.Compiler where
 
-import System.IO
 import System.FilePath
 import Data.Typeable as DT
 import Control.Arrow
 import Control.Applicative
 
-import Feldspar.Core.Types
 import Feldspar.Transformation
 import qualified Feldspar.NameExtractor as NameExtractor
-import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -47,7 +44,6 @@ import Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner
 import Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
 import Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
-import Feldspar.Compiler.Backend.C.Plugin.Locator
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.ConstantFolding
 import Feldspar.Compiler.Imperative.Plugin.Free
@@ -80,20 +76,19 @@ data IncludesNeeded = IncludesNeeded | NoIncludesNeeded { incneedLineNum :: Int 
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
-    smdHeader = Module ((filter belongsToHeader $ entities m) ++ (createProcDecls $ entities m)) (moduleLabel m),
+    smdHeader = Module (filter belongsToHeader (entities m) ++ createProcDecls (entities m)) (moduleLabel m),
     smdSource = Module (filter (not . belongsToHeader) $ entities m) (moduleLabel m)
 } where
     belongsToHeader :: Entity () -> Bool
-    belongsToHeader (StructDef _ _ _ _) = True
-    belongsToHeader (ProcDecl _ _ _ _ _) = True
-    belongsToHeader _ = False
+    belongsToHeader StructDef{} = True
+    belongsToHeader ProcDecl{}  = True
+    belongsToHeader _           = False
     createProcDecls :: [Entity ()] -> [Entity ()]
-    createProcDecls [] = []
-    createProcDecls (e:es) = convertProcDefToProcDecl e ++ createProcDecls es
+    createProcDecls = foldr ((++) . convertProcDefToProcDecl) []
     convertProcDefToProcDecl :: Entity () -> [Entity ()]
     convertProcDefToProcDecl e = case e of
-        ProcDef name inparams outparams body label1 label2 -> [ProcDecl name inparams outparams label1 label2]
-        anythingelse -> []
+        ProcDef n inparams outparams _ label1 label2 -> [ProcDecl n inparams outparams label1 label2]
+        _ -> []
 
 separateAndCompileToCCore :: (Compilable t internal)
   => (Module ()
@@ -103,7 +98,7 @@ separateAndCompileToCCore :: (Compilable t internal)
   -> [(CompToCCoreResult, Module ())]
 separateAndCompileToCCore
   moduleSeparator
-  compilationMode prg needed
+  compMode prg needed
   functionSignature coreOptions =
     pack <$> separatedModules
       where
@@ -111,7 +106,7 @@ separateAndCompileToCCore
 
         separatedModules =
           moduleSeparator $
-          executePluginChain' compilationMode prg functionSignature coreOptions
+          executePluginChain' compMode prg functionSignature coreOptions
 
         compToCWithInfo = moduleToCCore needed coreOptions
 
@@ -120,12 +115,12 @@ moduleToCCore
   -> CompToCCoreResult
 moduleToCCore needed opts mdl =
   CompToCCoreResult {
-    sourceCode      = includes ++ moduleSrc
+    sourceCode      = incls ++ moduleSrc
   , endPosition     = endPos
   , debugModule     = dbgModule
   }
   where
-    (includes, lineNum) = genInclude needed
+    (incls, lineNum) = genInclude needed
 
     (dbgModule, (moduleSrc, endPos)) =
       compToCWithInfos ((opts,Declaration_pl), lineNum) mdl
@@ -139,10 +134,10 @@ compileToCCore
   :: (Compilable t internal) => CompilationMode -> t -> Maybe String -> IncludesNeeded
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> SplitCompToCCoreResult
-compileToCCore compilationMode prg outputFileName includesNeeded
-  originalFunctionSignature coreOptions =
+compileToCCore compMode prg _ includesNeeded
+  funSig coreOptions =
     createSplit $ fst <$> separateAndCompileToCCore headerAndSource
-      compilationMode prg includesNeeded originalFunctionSignature coreOptions
+      compMode prg includesNeeded funSig coreOptions
   where
     headerAndSource modules = [header, source]
       where (SplitModuleDescriptor header source) = moduleSplitter modules
@@ -156,13 +151,14 @@ genIncludeLinesCore (x:xs) = ("#include " ++ x ++ "\n" ++ str, linenum + 1) wher
 
 genIncludeLines :: Options -> Maybe String -> (String, Int)
 genIncludeLines coreOptions mainHeader = (str ++ "\n\n", linenum + 2) where
-    (str, linenum)  = genIncludeLinesCore $ (includes $ platform coreOptions) ++ mainHeaderCore
+    (str, linenum)  = genIncludeLinesCore $ includes (platform coreOptions) ++ mainHeaderCore
     mainHeaderCore = case mainHeader of
         Nothing -> []
         Just filename -> ["\"" ++ takeFileName filename ++ ".h\""]
 
 -- | Predefined options
 
+defaultOptions :: Options
 defaultOptions
     = Options
     { platform          = c99
@@ -172,27 +168,36 @@ defaultOptions
     , rules             = []
     }
 
+c99PlatformOptions :: Options
 c99PlatformOptions              = defaultOptions
+
+tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
+
+unrollOptions :: Options
 unrollOptions                   = defaultOptions { unroll = Unroll 8 }
+
+noPrimitiveInstructionHandling :: Options
 noPrimitiveInstructionHandling  = defaultOptions { debug = NoPrimitiveInstructionHandling }
+
+noMemoryInformation :: Options
 noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 
 -- | Plugin system
 
 pluginChain :: ExternalInfoCollection -> Module () -> Module ()
 pluginChain externalInfo
-    = (executePlugin RulePlugin (ruleExternalInfo externalInfo))
-    . (executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo))
-    . (executePlugin ConstantFolding ())
-    . (executePlugin UnrollPlugin (unrollExternalInfo externalInfo))
-    . (executePlugin Precompilation (precompilationExternalInfo externalInfo))
-    . (executePlugin RulePlugin (primitivesExternalInfo externalInfo))
-    . (executePlugin Free ())
-    . (executePlugin IVarPlugin ())
-    . (executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo))
-    . (executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo))
-    . (executePlugin BlockProgramHandler ())
+    = executePlugin RulePlugin (ruleExternalInfo externalInfo)
+    . executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo)
+    . executePlugin ConstantFolding ()
+    . executePlugin UnrollPlugin (unrollExternalInfo externalInfo)
+    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
+    . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
+    . executePlugin Free ()
+    . executePlugin IVarPlugin ()
+    . executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo)
+    . executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo)
+    . executePlugin BlockProgramHandler ()
 
 data ExternalInfoCollection = ExternalInfoCollection {
       precompilationExternalInfo          :: ExternalInfo Precompilation
@@ -207,13 +212,13 @@ data ExternalInfoCollection = ExternalInfoCollection {
 executePluginChain' :: (Compilable c internal)
   => CompilationMode -> c -> NameExtractor.OriginalFunctionSignature
   -> Options -> Module ()
-executePluginChain' compilationMode prg originalFunctionSignatureParam opt =
+executePluginChain' compMode prg originalFunctionSignatureParam opt =
   pluginChain ExternalInfoCollection {
     precompilationExternalInfo = PrecompilationExternalInfo {
         originalFunctionSignature = fixedOriginalFunctionSignature
       , inputParametersDescriptor = buildInParamDescriptor prg
       , numberOfFunctionArguments = numArgs prg
-      , compilationMode           = compilationMode
+      , compilationMode           = compMode
       }
     , unrollExternalInfo                  = unroll opt
     , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
@@ -224,12 +229,17 @@ executePluginChain' compilationMode prg originalFunctionSignatureParam opt =
     } $ fromCore "PLACEHOLDER" prg
   where
     ofn = NameExtractor.originalFunctionName
-    errorPEI =
-      (error "There is no defaultArraySize any more", debug opt, platform opt)
     fixedOriginalFunctionSignature = originalFunctionSignatureParam {
       NameExtractor.originalFunctionName =
         fixFunctionName $ ofn originalFunctionSignatureParam
     }
 
+executePluginChain :: (Compilable c internal)
+                   => CompilationMode
+                   -> c
+                   -> NameExtractor.OriginalFunctionSignature
+                   -> Options
+                   -> SplitModuleDescriptor
 executePluginChain cm f sig opts =
   moduleSplitter $ executePluginChain' cm f sig opts
+

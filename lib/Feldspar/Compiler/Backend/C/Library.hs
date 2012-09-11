@@ -46,8 +46,8 @@ type AllocationInfo = ([AIR.Type],[AIR.Type],[AIR.Type])
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace [] _ _ = []
-replace s find repl | take (length find) s == find = repl ++ (replace (drop (length find) s) find repl)
-                    | otherwise = [head s] ++ (replace (tail s) find repl)
+replace s find repl | take (length find) s == find = repl ++ replace (drop (length find) s) find repl
+                    | otherwise = head s : replace (tail s) find repl
 
 fixFunctionName :: String -> String
 fixFunctionName functionName = replace (replace functionName "_" "__") "'" "_prime"

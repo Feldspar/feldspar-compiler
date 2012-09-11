@@ -28,8 +28,6 @@
 
 module Feldspar.Compiler.Frontend.CommandLine.API.Library where
 
-import qualified Feldspar.Compiler.Backend.C.Options as CoreOptions
-import Feldspar.Compiler.Backend.C.Platforms
 
 import Data.Char
 import Language.Haskell.Interpreter
@@ -37,28 +35,30 @@ import System.Console.ANSI
 import Feldspar.Compiler.Backend.C.Library
 
 lowerFirst :: String -> String
-lowerFirst (first:rest) = (toLower first : rest)
+lowerFirst (first:rest) = toLower first : rest
+lowerFirst s            = s
 
 upperFirst :: String -> String
-upperFirst (first:rest) = (toUpper first : rest)
+upperFirst (first:rest) = toUpper first : rest
+upperFirst s            = s
 
 formatStringListCore :: [String] -> String
 formatStringListCore []     = ""
 formatStringListCore [x]    = x
-formatStringListCore (x:xs) = x ++ " | " ++ (formatStringListCore xs)
+formatStringListCore (x:xs) = x ++ " | " ++ formatStringListCore xs
 
 formatStringList :: [String] -> String
-formatStringList list | length list > 0 = "(" ++ (formatStringListCore list) ++ ")"
+formatStringList list | not (null list) = "(" ++ formatStringListCore list ++ ")"
 formatStringList _ = error "This list should not be empty."
 
 rpad :: Int -> String -> String
-rpad target s = rpadWith target ' ' s
+rpad target = rpadWith target ' '
 
 rpadWith :: Int -> Char -> String -> String
 rpadWith target padchar s
     | length s >= target = s
     | otherwise = rpadWith target padchar (s ++ [padchar])
-    
+
 iPutStrLn :: String -> Interpreter ()
 iPutStrLn = liftIO . putStrLn
 

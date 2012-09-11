@@ -84,7 +84,7 @@ highLevelInterpreter moduleName inputFileName importList needQualify interpreter
     unsafeSetGhcOption "-fcontext-stack=100"
     -- in relesae mode, globalImportList modules are package modules and shouldn't be loaded, only imported
     -- in normal mode, we need to load them before importing them
-    loadModules $ [inputFileName] ++ if not releaseMode then importList else []
+    loadModules $ inputFileName : if not releaseMode then importList else []
     setTopLevelModules [moduleName]
     -- Import modules qualified to prevent name collisions with user defined entities
     if needQualify
@@ -113,7 +113,7 @@ handleOptions :: [OptDescr (a -> IO a)] -> a -> String -> IO (a, String)
 handleOptions descriptors startOptions helpHeader = do
     args <- getArgs
 
-    when (length args == 0) (do
+    when (null args) (do
         putStrLn $ usageInfo helpHeader descriptors
         exitSuccess)
 
@@ -137,7 +137,7 @@ handleOptions descriptors startOptions helpHeader = do
     return (opts, inputFileName)
 
 removeFileIfPossible :: String -> IO ()
-removeFileIfPossible filename = removeFile filename `Prelude.catch` (const $ return())
+removeFileIfPossible filename = removeFile filename `Prelude.catch` const (return())
 
 prepareInputFile :: String -> IO ()
 prepareInputFile inputFileName = do

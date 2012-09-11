@@ -51,9 +51,8 @@ assignPrg = AssignType
 
 getProgram :: (Int, Int) -> PrgType -> Module DebugToCSemanticInfo -> IO ()
 getProgram (line, col) prgtype prg = res where
-     res = case find of
-                True -> putStrLn $ myShow code
-                _    -> putStrLn "Not found appropriate code part!"
+     res = if find then putStrLn $ myShow code
+                   else putStrLn "Not found appropriate code part!"
      (find, code) = case prgtype of
                         ForType     -> getPrgParLoop (line, col) prg
                         AssignType  -> getPrgAssign (line, col) prg
@@ -80,9 +79,9 @@ compile prg fileName functionName opts = do
                                     , "#endif // " ++ guardName
                                     ]
 
-    guardName = map (\c -> if c `elem` toBeChanged then '_' else c) $ map toUpper $ hfile
+    guardName = map ((\c -> if c `elem` toBeChanged then '_' else c) . toUpper) hfile
       where
-        toBeChanged = ['.', '/', '\\']
+        toBeChanged = "./\\"
 
 
 icompile :: (Compilable t internal) => t -> IO ()
@@ -99,5 +98,5 @@ icompile' prg functionName opts = do
                                        (NameExtractor.OriginalFunctionSignature functionName []) opts
 
 icompileWithInfos :: (Compilable t internal) => t -> String -> Options -> SplitCompToCCoreResult
-icompileWithInfos prg functionName opts = compileToCCore Interactive prg Nothing IncludesNeeded
-                                                          (NameExtractor.OriginalFunctionSignature functionName []) opts
+icompileWithInfos prg functionName = compileToCCore Interactive prg Nothing IncludesNeeded
+                                                          (NameExtractor.OriginalFunctionSignature functionName [])

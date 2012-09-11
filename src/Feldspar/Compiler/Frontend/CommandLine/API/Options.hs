@@ -36,6 +36,7 @@ import Feldspar.Compiler.Backend.C.Platforms
 
 import Data.List
 import Data.Char
+import Data.Maybe (fromMaybe)
 
 import System.Console.GetOpt
 import System.Exit
@@ -108,7 +109,7 @@ optionDescriptors =
             (\_ -> do
                 --prg <- getProgName
                 hPutStrLn stderr (usageInfo helpHeader optionDescriptors)
-                exitWith ExitSuccess))
+                exitSuccess))
         "Show this help message"
     ]
 
@@ -118,13 +119,12 @@ optionDescriptors =
 
 findPlatformByName :: String -> Maybe CompilerCoreOptions.Platform
 findPlatformByName platformName = -- Finds a platform by name using case-insensitive comparison
-    find (\platform -> (map toLower platformName) == (map toLower $ CompilerCoreOptions.name platform))
+    find (\platform -> map toLower platformName == map toLower (CompilerCoreOptions.name platform))
          availablePlatforms
 
 decodePlatform :: String -> CompilerCoreOptions.Platform
-decodePlatform s = case (findPlatformByName s) of
-    Just platform  -> platform
-    Nothing        -> error $ "Invalid platform specified. Valid platforms are: " ++ availablePlatformsStrRep
+decodePlatform s = fromMaybe (error $ "Invalid platform specified. Valid platforms are: " ++ availablePlatformsStrRep)
+                 $ findPlatformByName s
 
 decodeDebug "NoPrimitiveInstructionHandling" = CompilerCoreOptions.NoPrimitiveInstructionHandling
 decodeDebug _ = error "Invalid debug level specified"
