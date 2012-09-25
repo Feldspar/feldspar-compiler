@@ -109,10 +109,10 @@ library
     ./lib/Feldspar/C
 
   c-sources:
-    lib/Feldspar/C/feldspar_c99.c
-    lib/Feldspar/C/feldspar_array.c
-    lib/Feldspar/C/ivar.c
-    lib/Feldspar/C/taskpool.c
+--    lib/Feldspar/C/feldspar_c99.c
+--    lib/Feldspar/C/feldspar_array.c
+--    lib/Feldspar/C/ivar.c
+--    lib/Feldspar/C/taskpool.c
 
   cc-options: -std=c99 -Wall
 
@@ -144,7 +144,7 @@ executable feldspar
     Feldspar.Compiler.Frontend.CommandLine.API.Constants
     Feldspar.Compiler.Frontend.CommandLine.API.Options
     Feldspar.Compiler.Frontend.CommandLine.API
-  
+
   build-depends:
     feldspar-language >= 0.6 && < 0.7,
     feldspar-compiler,
