@@ -34,25 +34,26 @@ module Feldspar.Compiler.Imperative.FromCore.MutableToPure where
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.MutableToPure
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Variable)
+import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
 instance ( Compile dom dom
-         , Lambda TypeCtx :<: dom
-         , Variable TypeCtx :<: dom
+         , Project (ArgConstr Lambda Type) dom
+         , Project (Variable :|| Type) dom
          )
       => Compile MutableToPure dom
   where
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
-        | Just (_, Variable _)   <- prjDecorCtx typeCtx marr
-        , Just (_, Lambda v1) <- prjDecorCtx typeCtx lam
+        | Just (C' (Variable _))       <- prjF marr
+        , Just (ArgConstr (Lambda v1)) <- prjArgConstr tProxy lam
         = do
             e <- compileExpr marr
             withAlias v1 e $ do
@@ -60,9 +61,9 @@ instance ( Compile dom dom
               tellProg [copyProg loc b]
 
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
-        | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
         = do
-            let ta = argType $ infoType info
+            let ta = argType $ infoType $ getInfo lam
             let sa = defaultSize ta
             let var = mkVar (compileTypeRep ta sa) v
             declare var

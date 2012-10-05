@@ -34,13 +34,14 @@ module Feldspar.Compiler.Imperative.FromCore.Save where
 
 import Language.Syntactic
 
+import Feldspar.Core.Types (Type)
 import Feldspar.Core.Constructs.Save
 
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile dom dom => Compile Save dom
+instance Compile dom dom => Compile (Save :|| Type) dom
   where
-    compileProgSym Save _ loc (a :* Nil) = compileProg loc a
+    compileProgSym (C' Save) _ loc (a :* Nil) = compileProg loc a
 

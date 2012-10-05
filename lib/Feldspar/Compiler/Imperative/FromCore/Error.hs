@@ -36,22 +36,23 @@ import Control.Monad.RWS
 
 import Language.Syntactic
 
+import Feldspar.Core.Types (Type)
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Error
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance (Compile dom dom) => Compile Error dom
+instance (Compile dom dom) => Compile (Error :|| Type) dom
   where
-    compileProgSym Undefined _ _ Nil = return ()
-    compileProgSym (Assert msg) _ loc (cond :* a :* Nil) = do
+    compileProgSym (C' Undefined)    _ _   Nil = return ()
+    compileProgSym (C' (Assert msg)) _ loc (cond :* a :* Nil) = do
         compileAssert cond msg
         compileProg loc a
 
-    compileExprSym (Assert msg) _ (cond :* a :* Nil) = do
+    compileExprSym (C' (Assert msg)) _ (cond :* a :* Nil) = do
         compileAssert cond msg
         compileExpr a
     compileExprSym a info args = compileProgFresh a info args

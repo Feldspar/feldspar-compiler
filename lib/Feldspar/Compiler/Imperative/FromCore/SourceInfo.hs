@@ -37,17 +37,17 @@ import Language.Syntactic
 import Feldspar.Core.Types
 import Feldspar.Core.Constructs.SourceInfo
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile dom dom => Compile (Decor SourceInfo1 (Identity TypeCtx)) dom
+instance Compile dom dom => Compile ((Decor SourceInfo1 Identity) :|| Type) dom
   where
-    compileProgSym (Decor (SourceInfo1 info) Id) _ loc (a :* Nil) = do
+    compileProgSym (C' (Decor (SourceInfo1 info) Id)) _ loc (a :* Nil) = do
         tellProg [BComment info]
         compileProg loc a
-    compileExprSym (Decor (SourceInfo1 info) Id) _ (a :* Nil) = do
+    compileExprSym (C' (Decor (SourceInfo1 info) Id)) _ (a :* Nil) = do
         tellProg [BComment info]
         compileExpr a
 

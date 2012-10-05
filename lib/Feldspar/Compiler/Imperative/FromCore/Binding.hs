@@ -33,8 +33,9 @@ module Feldspar.Compiler.Imperative.FromCore.Binding where
 import Control.Monad.RWS
 
 import Language.Syntactic
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
-import Feldspar.Core.Types
+import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding
 import qualified Feldspar.Core.Constructs.Binding as Core
@@ -43,27 +44,27 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile (Core.Variable TypeCtx) dom
+instance Compile (Core.Variable :|| Type) dom
   where
-    compileExprSym (Core.Variable v) info Nil = do
+    compileExprSym (C' (Core.Variable v)) info Nil = do
         env <- ask
         case lookup v (alias env) of
           Nothing -> return $ mkVar (compileTypeRep (infoType info) (infoSize info)) v
           Just e  -> return e
 
-instance Compile (Lambda TypeCtx) dom
+instance Compile (ArgConstr Lambda Type) dom
   where
     compileProgSym = error "Can only compile top-level Lambda"
 
-instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile (Let TypeCtx TypeCtx) dom
+instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile (Let :|| Type) dom
   where
-    compileProgSym Let _ loc (a :* (lam :$ body) :* Nil)
-        | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
-        = compileLet a info v >> compileProg loc body
+    compileProgSym (C' Let) _ loc (a :* (lam :$ body) :* Nil)
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+        = compileLet a (getInfo lam) v >> compileProg loc body
 
-    compileExprSym Let _ (a :* (lam :$ body) :* Nil)
-        | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
-        = compileLet a info v >> compileExpr body
+    compileExprSym (C' Let) _ (a :* (lam :$ body) :* Nil)
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+        = compileLet a (getInfo lam) v >> compileExpr body
 
 compileLet :: Compile dom dom
            => ASTF (Decor Info dom) a -> Info (a -> b) -> VarId -> CodeWriter ()

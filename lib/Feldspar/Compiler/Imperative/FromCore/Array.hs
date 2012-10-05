@@ -34,28 +34,29 @@ module Feldspar.Compiler.Imperative.FromCore.Array where
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
-import Feldspar.Core.Types
+import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Array
 import Feldspar.Core.Constructs.Literal
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
 instance ( Compile dom dom
-         , Lambda TypeCtx :<: dom
-         , Literal TypeCtx :<: dom
-         , Variable TypeCtx :<: dom
+         , Project (ArgConstr Lambda Type) dom
+         , Project (Literal  :|| Type) dom
+         , Project (Variable :|| Type) dom
          )
-      => Compile Array dom
+      => Compile (Array :|| Type) dom
   where
-    compileProgSym Parallel _ loc (len :* (lam :$ ixf) :* Nil)
-        | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
+    compileProgSym (C' Parallel) _ loc (len :* (lam :$ ixf) :* Nil)
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
         = do
-            let ta = argType $ infoType info
+            let ta = argType $ infoType $ getInfo lam
             let sa = defaultSize ta
             let ix@(Var _ name) = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len
@@ -64,15 +65,15 @@ instance ( Compile dom dom
             tellProg [For name len' 1 (Block ds body)]
 
 
-    compileProgSym Sequential _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
-        | Just (info1, Lambda v) <- prjDecorCtx typeCtx lam1
-        , Just (info2, Lambda s) <- prjDecorCtx typeCtx lam2
+    compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam1
+        , Just (ArgConstr (Lambda s)) <- prjArgConstr tProxy lam2
         = do
-            let t = argType $ infoType info1
+            let t = argType $ infoType $ getInfo lam1
             let sz = defaultSize t
-            let ta' = argType $ infoType info2
+            let ta' = argType $ infoType $ getInfo lam2
             let sa' = defaultSize ta'
-            let tr' = resType $ infoType info2
+            let tr' = resType $ infoType $ getInfo lam2
             let sr' = defaultSize tr'
             let ix@(Var _ name) = mkVar (compileTypeRep t sz) v
             let stv = mkVar (compileTypeRep ta' sa') s
@@ -89,7 +90,7 @@ instance ( Compile dom dom
                                          ])]
       where toIni (Var ty str) = Init ty str
 
-    compileProgSym Append _ loc (a :* b :* Nil) = do
+    compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
         b' <- compileExpr b
         let aLen = arrayLength a'
@@ -101,12 +102,12 @@ instance ( Compile dom dom
         --       But take care of array initialization:
         --       compiling 'a' and 'b' might do initialization itself...
 
-    compileProgSym SetIx _ loc (arr :* i :* a :* Nil) = do
+    compileProgSym (C' SetIx) _ loc (arr :* i :* a :* Nil) = do
         compileProg loc arr
         i' <- compileExpr i
         compileProg (loc :!: i') a
 
-    compileProgSym SetLength _ loc (len :* arr :* Nil) = do
+    compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
         len' <- compileExpr len
         tellProg [setLength loc len']
         compileProg loc arr
@@ -114,11 +115,11 @@ instance ( Compile dom dom
 
     compileProgSym a info loc args = compileExprLoc a info loc args
 
-    compileExprSym GetLength info (a :* Nil) = do
+    compileExprSym (C' GetLength) info (a :* Nil) = do
         aExpr <- compileExpr a
         return $ Fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [aExpr]
 
-    compileExprSym GetIx _ (arr :* i :* Nil) = do
+    compileExprSym (C' GetIx) _ (arr :* i :* Nil) = do
         a' <- compileExpr arr
         i' <- compileExpr i
         return $ a' :!: i'

@@ -33,12 +33,13 @@ module Feldspar.Compiler.Imperative.FromCore.Par where
 import Language.Syntactic
 import Language.Syntactic.Constructs.Monad
 import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Par
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Variable)
+import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
 import qualified Feldspar.Compiler.Imperative.Frontend as Front
@@ -48,23 +49,23 @@ import Feldspar.Transformation (transform, Result(..))
 import Data.Map (elems)
 
 instance ( Compile dom dom
-         , Lambda TypeCtx :<: dom
-         , ParFeature :<: dom
+         , Project (ArgConstr Lambda Type) dom
+         , Project ParFeature dom
          )
       => Compile (MONAD Par) dom
   where
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (_, Lambda v)  <- prjDecorCtx typeCtx lam
-        , Just (info, ParNew) <- prjDecor ma
-        -- TODO add helper function :: Info (Par a) -> Info a
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+        , Just ParNew                 <- prj ma
         = do
+            let info = getInfo ma
             let var = mkVar (compileTypeRep (infoType info) (infoSize info)) v
             declare var
             tellProg [iVarInit var]
             compileProg loc body
 
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (_, Lambda v) <- prjDecorCtx typeCtx lam
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
         = do
             e <- compileExpr ma
             withAlias v e $ compileProg loc body
@@ -83,7 +84,7 @@ instance ( Compile dom dom
         tellProg [If c' (Block ds body) Skip]
 
 instance ( Compile dom dom
-         , Variable TypeCtx :<: dom
+         , Project (Variable :|| Type) dom
          )
       => Compile ParFeature dom
   where

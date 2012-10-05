@@ -33,7 +33,7 @@ module Feldspar.Compiler.Imperative.FromCore.Condition where
 
 import Language.Syntactic
 
-import Feldspar.Core.Types
+import Feldspar.Core.Types as Core
 import Feldspar.Core.Constructs.Condition
 
 import Feldspar.Compiler.Imperative.Frontend
@@ -41,9 +41,9 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile dom dom => Compile (Condition TypeCtx) dom
+instance Compile dom dom => Compile (Condition :|| Core.Type) dom
   where
-    compileProgSym Condition _ loc (cond :* tHEN :* eLSE :* Nil) = do
+    compileProgSym (C' Condition) _ loc (cond :* tHEN :* eLSE :* Nil) = do
         condExpr <- compileExpr cond
         (_, Bl tds thenProg) <- confiscateBlock $ compileProg loc tHEN
         (_, Bl eds elseProg) <- confiscateBlock $ compileProg loc eLSE

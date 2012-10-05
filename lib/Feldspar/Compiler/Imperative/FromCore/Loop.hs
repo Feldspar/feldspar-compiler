@@ -35,6 +35,7 @@ import Prelude hiding (init)
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
@@ -42,20 +43,22 @@ import Feldspar.Core.Constructs.Loop hiding (For, While)
 import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance ( Compile dom dom
-         , Lambda TypeCtx :<: dom
-         , Literal TypeCtx :<: dom
-         , Variable TypeCtx :<: dom
+         , Project (ArgConstr Lambda Type) dom
+         , Project (Literal  :|| Type) dom
+         , Project (Variable :|| Type) dom
          )
-      => Compile Loop dom
+      => Compile (Loop :|| Type) dom
   where
-    compileProgSym ForLoop _ loc (len :* init :* (lam1 :$ (lam2 :$ ixf)) :* Nil)
-        | Just (info1, Lambda ix)  <- prjDecorCtx typeCtx lam1
-        , Just (info2, Lambda st)  <- prjDecorCtx typeCtx lam2
+    compileProgSym (C' ForLoop) _ loc (len :* init :* (lam1 :$ (lam2 :$ ixf)) :* Nil)
+        | Just (ArgConstr (Lambda ix)) <- prjArgConstr tProxy lam1
+        , Just (ArgConstr (Lambda st)) <- prjArgConstr tProxy lam2
         = do
+            let info1 = getInfo lam1
+                info2 = getInfo lam2
             let (Var _ name) = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len
@@ -64,10 +67,11 @@ instance ( Compile dom dom
             declare stvar
             tellProg [For name len' 1 (Block ds body)]
 
-    compileProgSym WhileLoop _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
-        | Just (_    , Lambda cv) <- prjDecorCtx typeCtx lam1
-        , Just (info2, Lambda cb) <- prjDecorCtx typeCtx lam2
+    compileProgSym (C' WhileLoop) _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
+        | Just (ArgConstr (Lambda cv)) <- prjArgConstr tProxy lam1
+        , Just (ArgConstr (Lambda cb)) <- prjArgConstr tProxy lam2
         = do
+            let info2 = getInfo lam2
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
             compileProg loc init
             cond' <- withAlias cv loc $ compileExpr cond
@@ -76,16 +80,16 @@ instance ( Compile dom dom
             tellProg [While Skip cond' (Block ds body')]
 
 instance ( Compile dom dom
-         , Lambda TypeCtx :<: dom
-         , Literal TypeCtx :<: dom
-         , Variable TypeCtx :<: dom
+         , Project (ArgConstr Lambda Type) dom
+         , Project (Literal  :|| Type) dom
+         , Project (Variable :|| Type) dom
          )
       => Compile (LoopM Mut) dom
   where
     compileProgSym Core.For _ loc (len :* (lam :$ ixf) :* Nil)
-        | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
         = do
-            let ta = argType $ infoType info
+            let ta = argType $ infoType $ getInfo lam
             let sa = defaultSize ta
             let (Var _ name) = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len
@@ -98,3 +102,4 @@ instance ( Compile dom dom
             cond'     <- compileExpr cond
             (_, Bl _ step') <- confiscateBlock $ compileProg loc step
             tellProg [While Skip cond' step']
+

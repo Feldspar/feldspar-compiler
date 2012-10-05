@@ -34,15 +34,16 @@ module Feldspar.Compiler.Imperative.FromCore.SizeProp where
 
 import Language.Syntactic
 
+import Feldspar.Core.Types (Type)
 import Feldspar.Core.Constructs.SizeProp
 
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile dom dom => Compile PropSize dom
+instance Compile dom dom => Compile (PropSize :|| Type) dom
   where
-    compileProgSym (PropSize _) _ loc (_ :* b :* Nil) = compileProg loc b
+    compileProgSym (C' (PropSize _)) _ loc (_ :* b :* Nil) = compileProg loc b
 
-    compileExprSym (PropSize _) _ (_ :* b :* Nil) = compileExpr b
+    compileExprSym (C' (PropSize _)) _ (_ :* b :* Nil) = compileExpr b
 

@@ -34,6 +34,7 @@ module Feldspar.Compiler.Imperative.FromCore.Mutable where
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
@@ -41,15 +42,15 @@ import Feldspar.Core.Constructs.Mutable
 import Feldspar.Core.Constructs.MutableArray
 import Feldspar.Core.Constructs.MutableReference
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile (MONAD Mut) dom
+instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile (MONAD Mut) dom
   where
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (_, Lambda v) <- prjDecorCtx typeCtx lam
+        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
         = do
             e <- compileExpr ma
             withAlias v e $ compileProg loc body
@@ -77,13 +78,13 @@ instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile (MONAD Mut) dom
         (_, Bl ds body) <- confiscateBlock $ compileProg loc action
         tellProg [If c' (Block ds body) Skip]
 
-instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile Mutable dom
+instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile Mutable dom
   where
     compileProgSym Run _ loc (ma :* Nil) = compileProg loc ma
 
     compileExprSym Run _ (ma :* Nil) = compileExpr ma
 
-instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile MutableReference dom
+instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile MutableReference dom
   where
     compileProgSym NewRef _ loc (a :* Nil) = compileProg loc a
     compileProgSym GetRef _ loc (r :* Nil) = compileProg loc r
@@ -94,7 +95,7 @@ instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile MutableReference d
     compileExprSym GetRef _ (r :* Nil) = compileExpr r
     compileExprSym feat info args      = compileProgFresh feat info args
 
-instance (Compile dom dom, Lambda TypeCtx :<: dom) => Compile MutableArray dom
+instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile MutableArray dom
   where
     compileProgSym NewArr_ _ loc (len :* Nil) = do
       l <- compileExpr len

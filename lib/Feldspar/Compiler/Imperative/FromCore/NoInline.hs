@@ -34,21 +34,19 @@ import Data.Map (elems)
 import Data.List (partition)
 import Language.Syntactic
 
+import Feldspar.Core.Types (Type)
 import Feldspar.Core.Constructs.NoInline
 import Feldspar.Transformation (transform, Result(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
-import Feldspar.Compiler.Imperative.Frontend hiding (Variable)
+import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
 import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
 import qualified Feldspar.Compiler.Imperative.Frontend as Front
 
-instance ( Compile dom dom
-         , NoInline :<: dom
-         )
-    => Compile NoInline dom
+instance Compile dom dom => Compile (NoInline :|| Type) dom
   where
     compileExprSym = compileProgFresh
 
-    compileProgSym NoInline _ loc (p :* Nil) = do
+    compileProgSym (C' NoInline) _ loc (p :* Nil) = do
         (_, Bl ds t)  <- confiscateBlock $ compileProg loc p
         let b = Block ds t
         let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
@@ -59,3 +57,4 @@ instance ( Compile dom dom
         tellDef [ProcDf funname ins outs b]
         let ins' = map (\v -> Front.In $ Front.Var (vType v) (Front.vName v)) ins
         tellProg [Call funname $ ins' ++ [Out loc]]
+

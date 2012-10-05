@@ -35,11 +35,14 @@ import Control.Arrow
 import Control.Monad.RWS
 
 import Language.Syntactic.Syntax hiding (result)
+import Language.Syntactic.Traversal
+import Language.Syntactic.Constraint
 import Language.Syntactic.Constructs.Binding (VarId)
 
 import Feldspar.Range
 import Feldspar.Core.Types hiding (Type)
 import Feldspar.Core.Interpretation
+import qualified Feldspar.Core.Types as Core
 import qualified Feldspar.Core.Constructs.Binding as Core
 import qualified Feldspar.Core.Constructs.Literal as Core
 
@@ -157,10 +160,10 @@ compileExprDecor (Decor info a) args = do
 
 compileProg :: Compile dom dom =>
     Location -> ASTF (Decor Info dom) a -> CodeWriter ()
-compileProg result = queryNodeSimple (compileProgDecor result)
+compileProg result = simpleMatch (compileProgDecor result)
 
 compileExpr :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter Expr
-compileExpr = queryNodeSimple compileExprDecor
+compileExpr = simpleMatch compileExprDecor
 
 -- Compile an expression and make sure that the result is stored in a variable
 compileExprVar :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter Expr
@@ -312,14 +315,15 @@ withAlias :: VarId -> Expr -> CodeWriter a -> CodeWriter a
 withAlias v0 expr =
   local (\e -> e {alias = (v0,expr) : alias e})
 
-isVariableOrLiteral :: (Core.Variable TypeCtx :<: dom, Core.Literal TypeCtx :<: dom)
+isVariableOrLiteral :: ( Project (Core.Variable :|| Core.Type) dom
+                       , Project (Core.Literal  :|| Core.Type) dom)
                     => AST (Decor info dom) a -> Bool
-isVariableOrLiteral (prjDecorCtx typeCtx -> Just (_, Core.Literal _))  = True
-isVariableOrLiteral (prjDecorCtx typeCtx -> Just (_, Core.Variable _)) = True
-isVariableOrLiteral _                                                  = False
+isVariableOrLiteral (prjF -> Just (C' (Core.Literal  _))) = True
+isVariableOrLiteral (prjF -> Just (C' (Core.Variable _))) = True
+isVariableOrLiteral _                                     = False
 
-mkLength :: ( Core.Literal TypeCtx :<: dom
-            , Core.Variable TypeCtx :<: dom
+mkLength :: ( Project (Core.Literal  :|| Core.Type) dom
+            , Project (Core.Variable :|| Core.Type) dom
             , Compile dom dom
             )
          => ASTF (Decor Info dom) a -> CodeWriter Expr

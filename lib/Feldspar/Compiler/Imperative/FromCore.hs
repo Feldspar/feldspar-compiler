@@ -1,3 +1,5 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -35,6 +37,7 @@ import Control.Monad.RWS
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
@@ -42,7 +45,7 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Frontend
 
 import Feldspar.Compiler.Imperative.Representation (Module)
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
 import Feldspar.Compiler.Imperative.FromCore.Binding ()
@@ -63,16 +66,21 @@ import Feldspar.Compiler.Imperative.FromCore.SizeProp ()
 import Feldspar.Compiler.Imperative.FromCore.SourceInfo ()
 import Feldspar.Compiler.Imperative.FromCore.Tuple ()
 
-instance Compile FeldDomain (Lambda TypeCtx :+: (Variable TypeCtx :+: FeldDomain))
+instance Compile FeldDomain FeldDomain
   where
-    compileProgSym (FeldDomain a) = compileProgSym a
-    compileExprSym (FeldDomain a) = compileExprSym a
+    compileProgSym (C' a) = compileProgSym a
+    compileExprSym (C' a) = compileExprSym a
 
-compileProgTop :: (Compile dom dom, Lambda TypeCtx :<: dom) =>
+instance Compile Empty FeldDomain
+  where
+    compileProgSym _ = error "Can't compile Empty"
+    compileExprSym _ = error "Can't compile Empty"
+
+compileProgTop :: (Compile dom dom, Project (ArgConstr Lambda Type) dom) =>
     String -> [Var] -> ASTF (Decor Info dom) a -> Mod
 compileProgTop funname args (lam :$ body)
-    | Just (info, Lambda v) <- prjDecorCtx typeCtx lam
-    = let ta  = argType $ infoType info
+    | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+    = let ta  = argType $ infoType $ getInfo lam
           sa  = defaultSize ta
           var = mkVariable (compileTypeRep ta sa) v
        in compileProgTop funname (var:args) body
@@ -87,12 +95,12 @@ compileProgTop funname args a = Mod defs
     Bl ds p  = block results
     defs     = def results ++ [ProcDf funname ins [outParam] (Block ds p)]
 
-class    Syntactic a FeldDomainAll => Compilable a internal | a -> internal
-instance Syntactic a FeldDomainAll => Compilable a ()
+class    SyntacticFeld a => Compilable a internal | a -> internal
+instance SyntacticFeld a => Compilable a ()
   -- TODO This class should be replaced by (Syntactic a FeldDomainAll) (or a
   --      similar alias) everywhere. The second parameter is not needed.
 
-fromCore :: Syntactic a FeldDomainAll => String -> a -> Module ()
+fromCore :: SyntacticFeld a => String -> a -> Module ()
 fromCore funname
     = fromInterface
     . compileProgTop funname []
@@ -100,18 +108,18 @@ fromCore funname
 
 -- | Create a list where each element represents the number of variables needed
 -- to as arguments
-buildInParamDescriptor :: Syntactic a FeldDomainAll => a -> [Int]
+buildInParamDescriptor :: SyntacticFeld a => a -> [Int]
 buildInParamDescriptor = go . reifyFeld N32
   where
-    go :: (Lambda TypeCtx :<: dom) => ASTF (Decor info dom) a -> [Int]
+    go :: (Project (ArgConstr Lambda Type) dom) => ASTF (Decor info dom) a -> [Int]
     go (lam :$ body)
-      | Just (_, Lambda _) <- prjDecorCtx typeCtx lam
+      | Just (ArgConstr (Lambda _)) <- prjArgConstr tProxy lam
       = 1 : go body
   -- TODO the 1 above is valid as long as we represent tuples as structs
   -- When we convert a struct to a set of variables the 1 has to replaced
   -- with an implementation that calculates the apropriate value.
     go _ = []
 
-numArgs :: Syntactic a FeldDomainAll => a -> Int
+numArgs :: SyntacticFeld a => a -> Int
 numArgs = length . buildInParamDescriptor
 

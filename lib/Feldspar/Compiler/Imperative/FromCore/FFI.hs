@@ -32,15 +32,16 @@ module Feldspar.Compiler.Imperative.FromCore.FFI where
 
 import Language.Syntactic
 
+import Feldspar.Core.Types (Type)
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.FFI
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
-instance (Compile dom dom) => Compile FFI dom
+instance (Compile dom dom) => Compile (FFI :|| Type) dom
   where
-    compileExprSym (ForeignImport name _) info args = do
+    compileExprSym (C' (ForeignImport name _)) info args = do
         argExprs <- sequence $ listArgs compileExpr args
         return $ Fun (compileTypeRep (infoType info) (infoSize info)) name argExprs
 

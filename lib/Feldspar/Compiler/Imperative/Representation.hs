@@ -30,6 +30,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Feldspar.Compiler.Imperative.Representation where
 
@@ -42,8 +43,8 @@ import Feldspar.Compiler.Error
 -- == Class defining semantic information attached to different nodes in the imperative program ==
 -- ===============================================================================================
 
-class Annotation t s where
-    type Label t (s :: * -> *)
+class Annotation t (s :: * -> *) where
+    type Label t s
 
 instance Annotation () s where
     type Label () s = ()

@@ -38,7 +38,7 @@ import GHC.Float (float2Double)
 
 import Language.Syntactic
 
-import Feldspar.Core.Types
+import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Literal
 
@@ -47,11 +47,11 @@ import Feldspar.Range (upperBound)
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
-instance Compile (Literal TypeCtx) dom
+instance Compile (Literal :|| Core.Type) dom
   where
-    compileExprSym (Literal a) info Nil = literal (infoType info) (infoSize info) a
+    compileExprSym (C' (Literal a)) info Nil = literal (infoType info) (infoSize info) a
 
-    compileProgSym (Literal a) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
+    compileProgSym (C' (Literal a)) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter Expr
 literal UnitType        _  ()     = return $ LitI I32 0

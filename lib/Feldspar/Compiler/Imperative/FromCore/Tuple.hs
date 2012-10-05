@@ -37,39 +37,39 @@ import Language.Syntactic
 import Feldspar.Core.Types
 import Feldspar.Core.Constructs.Tuple
 
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile dom dom => Compile (Tuple TypeCtx) dom
+instance Compile dom dom => Compile (Tuple :|| Type) dom
   where
-    compileProgSym Tup2 _ loc (m1 :* m2 :* Nil) = do
+    compileProgSym (C' Tup2) _ loc (m1 :* m2 :* Nil) = do
         compileExpr m1 >>= assign (loc :.: "member1")
         compileExpr m2 >>= assign (loc :.: "member2")
-    compileProgSym Tup3 _ loc (m1 :* m2 :* m3 :* Nil) = do
+    compileProgSym (C' Tup3) _ loc (m1 :* m2 :* m3 :* Nil) = do
         compileExpr m1 >>= assign (loc :.: "member1")
         compileExpr m2 >>= assign (loc :.: "member2")
         compileExpr m3 >>= assign (loc :.: "member3")
-    compileProgSym Tup4 _ loc (m1 :* m2 :* m3 :* m4 :* Nil) = do
+    compileProgSym (C' Tup4) _ loc (m1 :* m2 :* m3 :* m4 :* Nil) = do
         compileExpr m1 >>= assign (loc :.: "member1")
         compileExpr m2 >>= assign (loc :.: "member2")
         compileExpr m3 >>= assign (loc :.: "member3")
         compileExpr m4 >>= assign (loc :.: "member4")
-    compileProgSym Tup5 _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* Nil) = do
+    compileProgSym (C' Tup5) _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* Nil) = do
         compileExpr m1 >>= assign (loc :.: "member1")
         compileExpr m2 >>= assign (loc :.: "member2")
         compileExpr m3 >>= assign (loc :.: "member3")
         compileExpr m4 >>= assign (loc :.: "member4")
         compileExpr m5 >>= assign (loc :.: "member5")
-    compileProgSym Tup6 _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* m6 :* Nil) = do
+    compileProgSym (C' Tup6) _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* m6 :* Nil) = do
         compileExpr m1 >>= assign (loc :.: "member1")
         compileExpr m2 >>= assign (loc :.: "member2")
         compileExpr m3 >>= assign (loc :.: "member3")
         compileExpr m4 >>= assign (loc :.: "member4")
         compileExpr m5 >>= assign (loc :.: "member5")
         compileExpr m6 >>= assign (loc :.: "member6")
-    compileProgSym Tup7 _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* m6 :* m7 :* Nil) = do
+    compileProgSym (C' Tup7) _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* m6 :* m7 :* Nil) = do
         compileExpr m1 >>= assign (loc :.: "member1")
         compileExpr m2 >>= assign (loc :.: "member2")
         compileExpr m3 >>= assign (loc :.: "member3")
@@ -78,27 +78,27 @@ instance Compile dom dom => Compile (Tuple TypeCtx) dom
         compileExpr m6 >>= assign (loc :.: "member6")
         compileExpr m7 >>= assign (loc :.: "member7")
 
-instance Compile dom dom => Compile (Select TypeCtx) dom
+instance Compile dom dom => Compile (Select :|| Type) dom
   where
-    compileExprSym Sel1 _ (tup :* Nil) = do
+    compileExprSym (C' Sel1) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member1"
-    compileExprSym Sel2 _ (tup :* Nil) = do
+    compileExprSym (C' Sel2) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member2"
-    compileExprSym Sel3 _ (tup :* Nil) = do
+    compileExprSym (C' Sel3) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member3"
-    compileExprSym Sel4 _ (tup :* Nil) = do
+    compileExprSym (C' Sel4) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member4"
-    compileExprSym Sel5 _ (tup :* Nil) = do
+    compileExprSym (C' Sel5) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member5"
-    compileExprSym Sel6 _ (tup :* Nil) = do
+    compileExprSym (C' Sel6) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member6"
-    compileExprSym Sel7 _ (tup :* Nil) = do
+    compileExprSym (C' Sel7) _ (tup :* Nil) = do
         tupExpr <- compileExpr tup
         return $ tupExpr :.: "member7"
 
