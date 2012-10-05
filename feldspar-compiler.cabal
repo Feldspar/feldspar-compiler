@@ -19,7 +19,7 @@ description:    Feldspar (**F**unctional **E**mbedded **L**anguage for **DSP**
                 language both according to ANSI C and also targeted to a real
                 DSP HW.
 category:       Compiler
-tested-with:    GHC==7.0.4, GHC==7.4.1
+tested-with:    GHC==7.6.1, GHC==7.4.2
 
 source-repository head
   type:     git
