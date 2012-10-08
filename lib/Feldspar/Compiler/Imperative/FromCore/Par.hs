@@ -1,11 +1,11 @@
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
---     * Redistributions of source code must retain the above copyright notice, 
+--
+--     * Redistributions of source code must retain the above copyright notice,
 --       this list of conditions and the following disclaimer.
 --     * Redistributions in binary form must reproduce the above copyright
 --       notice, this list of conditions and the following disclaimer in the
@@ -13,10 +13,10 @@
 --     * Neither the name of the ERICSSON AB nor the names of its contributors
 --       may be used to endorse or promote products derived from this software
 --       without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
--- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 -- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 -- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -49,13 +49,13 @@ import Feldspar.Transformation (transform, Result(..))
 import Data.Map (elems)
 
 instance ( Compile dom dom
-         , Project (ArgConstr Lambda Type) dom
+         , Project (SubConstr2 (->) Lambda Type Top) dom
          , Project ParFeature dom
          )
       => Compile (MONAD Par) dom
   where
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
         , Just ParNew                 <- prj ma
         = do
             let info = getInfo ma
@@ -65,7 +65,7 @@ instance ( Compile dom dom
             compileProg loc body
 
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
         = do
             e <- compileExpr ma
             withAlias v e $ compileProg loc body
@@ -121,7 +121,7 @@ instance ( Compile dom dom
         tellProg [spawn taskName vs]
 
     compileProgSym ParYield _ _ Nil = return ()
-    
+
     compileProgSym ParNew _ _ Nil = return ()
 
 

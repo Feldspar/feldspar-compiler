@@ -1,11 +1,11 @@
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
---     * Redistributions of source code must retain the above copyright notice, 
+--
+--     * Redistributions of source code must retain the above copyright notice,
 --       this list of conditions and the following disclaimer.
 --     * Redistributions in binary form must reproduce the above copyright
 --       notice, this list of conditions and the following disclaimer in the
@@ -13,10 +13,10 @@
 --     * Neither the name of the ERICSSON AB nor the names of its contributors
 --       may be used to endorse or promote products derived from this software
 --       without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
--- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 -- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 -- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -47,10 +47,10 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile (MONAD Mut) dom
+instance (Compile dom dom, Project (SubConstr2 (->) Lambda Type Top) dom) => Compile (MONAD Mut) dom
   where
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (ArgConstr (Lambda v)) <- prjArgConstr tProxy lam
+        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
         = do
             e <- compileExpr ma
             withAlias v e $ compileProg loc body
@@ -78,13 +78,13 @@ instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile (MONA
         (_, Bl ds body) <- confiscateBlock $ compileProg loc action
         tellProg [If c' (Block ds body) Skip]
 
-instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile Mutable dom
+instance (Compile dom dom, Project (SubConstr2 (->) Lambda Type Top) dom) => Compile Mutable dom
   where
     compileProgSym Run _ loc (ma :* Nil) = compileProg loc ma
 
     compileExprSym Run _ (ma :* Nil) = compileExpr ma
 
-instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile MutableReference dom
+instance (Compile dom dom, Project (SubConstr2 (->) Lambda Type Top) dom) => Compile MutableReference dom
   where
     compileProgSym NewRef _ loc (a :* Nil) = compileProg loc a
     compileProgSym GetRef _ loc (r :* Nil) = compileProg loc r
@@ -95,7 +95,7 @@ instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile Mutab
     compileExprSym GetRef _ (r :* Nil) = compileExpr r
     compileExprSym feat info args      = compileProgFresh feat info args
 
-instance (Compile dom dom, Project (ArgConstr Lambda Type) dom) => Compile MutableArray dom
+instance (Compile dom dom, Project (SubConstr2 (->) Lambda Type Top) dom) => Compile MutableArray dom
   where
     compileProgSym NewArr_ _ loc (len :* Nil) = do
       l <- compileExpr len
