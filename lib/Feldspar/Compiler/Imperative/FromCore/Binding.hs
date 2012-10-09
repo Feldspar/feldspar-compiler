@@ -52,18 +52,18 @@ instance Compile (Core.Variable :|| Type) dom
           Nothing -> return $ mkVar (compileTypeRep (infoType info) (infoSize info)) v
           Just e  -> return e
 
-instance Compile (SubConstr2 (->) Lambda Type Top) dom
+instance Compile (CLambda Type) dom
   where
     compileProgSym = error "Can only compile top-level Lambda"
 
-instance (Compile dom dom, Project (SubConstr2 (->) Lambda Type Top) dom) => Compile (Let :|| Type) dom
+instance (Compile dom dom, Project (CLambda Type) dom) => Compile (Let :|| Type) dom
   where
     compileProgSym (C' Let) _ loc (a :* (lam :$ body) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = compileLet a (getInfo lam) v >> compileProg loc body
 
     compileExprSym (C' Let) _ (a :* (lam :$ body) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = compileLet a (getInfo lam) v >> compileExpr body
 
 compileLet :: Compile dom dom

@@ -38,6 +38,7 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
+import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.MutableToPure
 
 import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
@@ -46,14 +47,14 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 instance ( Compile dom dom
-         , Project (SubConstr2 (->) Lambda Type Top) dom
+         , Project (CLambda Type) dom
          , Project (Variable :|| Type) dom
          )
       => Compile MutableToPure dom
   where
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
-        | Just (C' (Variable _))       <- prjF marr
-        , Just (SubConstr2 (Lambda v1)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+        | Just (C' (Variable _))        <- prjF marr
+        , Just (SubConstr2 (Lambda v1)) <- prjLambda lam
         = do
             e <- compileExpr marr
             withAlias v1 e $ do
@@ -61,7 +62,7 @@ instance ( Compile dom dom
               tellProg [copyProg loc b]
 
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
             let sa = defaultSize ta

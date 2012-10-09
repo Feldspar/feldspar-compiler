@@ -39,6 +39,7 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
+import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Loop hiding (For, While)
 import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
@@ -47,15 +48,15 @@ import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance ( Compile dom dom
-         , Project (SubConstr2 (->) Lambda Type Top) dom
+         , Project (CLambda Type) dom
          , Project (Literal  :|| Type) dom
          , Project (Variable :|| Type) dom
          )
       => Compile (Loop :|| Type) dom
   where
     compileProgSym (C' ForLoop) _ loc (len :* init :* (lam1 :$ (lam2 :$ ixf)) :* Nil)
-        | Just (SubConstr2 (Lambda ix)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam1
-        , Just (SubConstr2 (Lambda st)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam2
+        | Just (SubConstr2 (Lambda ix)) <- prjLambda lam1
+        , Just (SubConstr2 (Lambda st)) <- prjLambda lam2
         = do
             let info1 = getInfo lam1
                 info2 = getInfo lam2
@@ -68,8 +69,8 @@ instance ( Compile dom dom
             tellProg [For name len' 1 (Block ds body)]
 
     compileProgSym (C' WhileLoop) _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
-        | Just (SubConstr2 (Lambda cv)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam1
-        , Just (SubConstr2 (Lambda cb)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam2
+        | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
+        , Just (SubConstr2 (Lambda cb)) <- prjLambda lam2
         = do
             let info2 = getInfo lam2
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
@@ -80,14 +81,14 @@ instance ( Compile dom dom
             tellProg [While Skip cond' (Block ds body')]
 
 instance ( Compile dom dom
-         , Project (SubConstr2 (->) Lambda Type Top) dom
+         , Project (CLambda Type) dom
          , Project (Literal  :|| Type) dom
          , Project (Variable :|| Type) dom
          )
       => Compile (LoopM Mut) dom
   where
     compileProgSym Core.For _ loc (len :* (lam :$ ixf) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
             let sa = defaultSize ta

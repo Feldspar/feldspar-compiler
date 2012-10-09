@@ -39,6 +39,7 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Array
+import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Literal
 
 import Feldspar.Compiler.Imperative.Frontend hiding (Type)
@@ -47,14 +48,14 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 instance ( Compile dom dom
-         , Project (SubConstr2 (->) Lambda Type Top) dom
+         , Project (CLambda Type) dom
          , Project (Literal  :|| Type) dom
          , Project (Variable :|| Type) dom
          )
       => Compile (Array :|| Type) dom
   where
     compileProgSym (C' Parallel) _ loc (len :* (lam :$ ixf) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam  -- TODO Use helper function
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
             let sa = defaultSize ta
@@ -66,8 +67,8 @@ instance ( Compile dom dom
 
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam1
-        , Just (SubConstr2 (Lambda s)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam2
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
+        , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         = do
             let t = argType $ infoType $ getInfo lam1
             let sz = defaultSize t

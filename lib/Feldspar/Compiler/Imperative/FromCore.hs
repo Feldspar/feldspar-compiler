@@ -42,7 +42,8 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs
-import Feldspar.Core.Frontend hiding (P)
+import Feldspar.Core.Constructs.Binding
+import Feldspar.Core.Frontend
 
 import Feldspar.Compiler.Imperative.Representation (Module)
 import Feldspar.Compiler.Imperative.Frontend hiding (Type)
@@ -76,10 +77,10 @@ instance Compile Empty FeldDomain
     compileProgSym _ = error "Can't compile Empty"
     compileExprSym _ = error "Can't compile Empty"
 
-compileProgTop :: (Compile dom dom, Project (SubConstr2 (->) Lambda Type Top) dom) =>
+compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
     String -> [Var] -> ASTF (Decor Info dom) a -> Mod
 compileProgTop funname args (lam :$ body)
-    | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+    | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
           sa  = defaultSize ta
           var = mkVariable (compileTypeRep ta sa) v
@@ -111,9 +112,9 @@ fromCore funname
 buildInParamDescriptor :: SyntacticFeld a => a -> [Int]
 buildInParamDescriptor = go . reifyFeld N32
   where
-    go :: (Project (SubConstr2 (->) Lambda Type Top) dom) => ASTF (Decor info dom) a -> [Int]
+    go :: (Project (CLambda Type) dom) => ASTF (Decor info dom) a -> [Int]
     go (lam :$ body)
-      | Just (SubConstr2 (Lambda _)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+      | Just (SubConstr2 (Lambda _)) <- prjLambda lam
       = 1 : go body
   -- TODO the 1 above is valid as long as we represent tuples as structs
   -- When we convert a struct to a set of variables the 1 has to replaced

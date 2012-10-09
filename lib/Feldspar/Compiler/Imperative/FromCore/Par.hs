@@ -37,6 +37,7 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
+import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Par
 
 import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
@@ -49,14 +50,14 @@ import Feldspar.Transformation (transform, Result(..))
 import Data.Map (elems)
 
 instance ( Compile dom dom
-         , Project (SubConstr2 (->) Lambda Type Top) dom
+         , Project (CLambda Type) dom
          , Project ParFeature dom
          )
       => Compile (MONAD Par) dom
   where
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
-        , Just ParNew                 <- prj ma
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
+        , Just ParNew                  <- prj ma
         = do
             let info = getInfo ma
             let var = mkVar (compileTypeRep (infoType info) (infoSize info)) v
@@ -65,7 +66,7 @@ instance ( Compile dom dom
             compileProg loc body
 
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
-        | Just (SubConstr2 (Lambda v)) <- prjP (P::P (SubConstr2 (->) Lambda Type Top)) lam
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             e <- compileExpr ma
             withAlias v e $ compileProg loc body
