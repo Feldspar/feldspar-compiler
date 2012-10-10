@@ -79,7 +79,7 @@ compileFunction inFileName outFileName coreOptions originalFunctionSignature = d
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do
-        tempdir <- System.IO.Error.catch getTemporaryDirectory (\_ -> return ".")
+        tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
         let core = compileToCCore Standalone prg (Just outFileName) IncludesNeeded originalFunctionSignature coreOptions
         Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
@@ -176,7 +176,7 @@ convertOutputFileName :: String -> Maybe String -> String
 convertOutputFileName inputFileName = fromMaybe (takeFileName $ dropExtension inputFileName)
 
 makeBackup :: String -> IO ()
-makeBackup filename = renameFile filename (filename ++ ".bak") `Prelude.catch` const (return ())
+makeBackup filename = renameFile filename (filename ++ ".bak") `Control.Exception.catch` (\(_ :: IOException) -> return ())
 
 main = do
     (opts, inputFileName) <- handleOptions optionDescriptors startOptions helpHeader

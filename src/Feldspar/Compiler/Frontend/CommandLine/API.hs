@@ -48,6 +48,8 @@ import System.Exit
 import System.Environment
 import System.Console.GetOpt
 
+import Control.Exception (catch, IOException)
+
 data CompilationResult
     = CompilationSuccess
     | CompilationFailure
@@ -137,7 +139,7 @@ handleOptions descriptors startOptions helpHeader = do
     return (opts, inputFileName)
 
 removeFileIfPossible :: String -> IO ()
-removeFileIfPossible filename = removeFile filename `Prelude.catch` const (return())
+removeFileIfPossible filename = removeFile filename `Control.Exception.catch` (\(e :: IOException) -> return ())
 
 prepareInputFile :: String -> IO ()
 prepareInputFile inputFileName = do

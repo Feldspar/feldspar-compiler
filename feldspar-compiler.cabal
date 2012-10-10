@@ -139,11 +139,12 @@ library
 
   cpp-options: -DRELEASE
 
-{-
 executable feldspar
   hs-source-dirs: src
 
   main-is : Feldspar/Compiler/Frontend/CommandLine/Main.hs
+
+  default-language: Haskell98
 
   other-modules:
     Feldspar.Compiler.Frontend.CommandLine.API.Library
@@ -166,7 +167,7 @@ executable feldspar
     containers,
     haskell-src-exts >= 1.12
 
-  extensions:
+  default-extensions:
     CPP
     DeriveDataTypeable
     EmptyDataDecls
@@ -188,5 +189,4 @@ executable feldspar
   ghc-options: -fcontext-stack=100
 
   cpp-options: -DRELEASE
--}
 
