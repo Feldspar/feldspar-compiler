@@ -26,7 +26,10 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Feldspar.Compiler.Backend.C.Plugin.Rule
     ( RulePlugin(..)
@@ -56,10 +59,10 @@ instance (DefaultTransformable RulePlugin t, Typeable1 t) => Transformable RuleP
     transform t s d orig = recurse { result = x'', up = pr1 ++ pr2 ++ pr3, state = newID2 }
       where
         recurse = defaultTransform t s d orig
-        applyRule :: t () -> Int -> [Rule] -> (t (), [Rule], [Rule], Int)
+        applyRule :: Typeable1 t => t () -> Int -> [Rule] -> (t (), [Rule], [Rule], Int)
         applyRule c x = foldl applyRuleFun (c,[],[],x)
           where
-            applyRuleFun :: (t (), [Rule], [Rule], Int) -> Rule -> (t (), [Rule], [Rule], Int) 
+            applyRuleFun :: Typeable1 t => (t (), [Rule], [Rule], Int) -> Rule -> (t (), [Rule], [Rule], Int) 
             applyRuleFun (cc,incomp,prop,currentID) (Rule r) = case cast r of
                 Nothing -> (cc,incomp ++ [Rule r],prop, currentID)
                 Just r' -> (cc',incomp,prop ++ prop', newID)

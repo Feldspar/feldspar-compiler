@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Feldspar.Compiler.Backend.C.Plugin.TypeDefinitionGenerator where
 

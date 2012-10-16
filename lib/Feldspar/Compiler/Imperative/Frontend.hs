@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Feldspar.Compiler.Imperative.Frontend where

@@ -27,6 +27,8 @@
 --
 
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Feldspar.Compiler.Backend.C.Plugin.PrettyPrint where
 
