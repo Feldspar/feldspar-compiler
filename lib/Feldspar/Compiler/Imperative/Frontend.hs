@@ -350,6 +350,8 @@ freeArray :: Var -> Prog
 freeArray arr = Call "freeArray" [Out $ varToExpr arr]
 
 arrayLength :: Expr -> Expr
+arrayLength (Var (SizedArray n _) _) = LitI U32 $ fromIntegral n
+arrayLength (Ptr (SizedArray n _) _) = LitI U32 $ fromIntegral n
 arrayLength arr = Fun U32 "getLength" [arr]
 
 iVarInit :: Expr -> Prog
