@@ -26,6 +26,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner where
 
 import Feldspar.Transformation

@@ -26,7 +26,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Feldspar.Compiler.Imperative.Plugin.IVars where
 

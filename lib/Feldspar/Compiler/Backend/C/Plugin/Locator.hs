@@ -27,6 +27,8 @@
 --
 
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Feldspar.Compiler.Backend.C.Plugin.Locator where
 
