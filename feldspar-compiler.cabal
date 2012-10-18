@@ -4,12 +4,15 @@ cabal-version:  >= 1.14
 build-type:     Simple
 license:        BSD3
 license-file:   LICENSE
-copyright:      Copyright (c) 2009-2011, ERICSSON AB
+copyright:      Copyright (c) 2012 Emil Axelsson, Gergely Dévai,
+                                   Anders Persson, Josef Svenningsson
+                Copyright (c) 2009-2011, ERICSSON AB
 author:         Feldspar group,
                 Eotvos Lorand University Faculty of Informatics
 maintainer:     deva@inf.elte.hu
 stability:      experimental
-homepage:       http://feldspar.inf.elte.hu/feldspar/
+homepage:       https://feldspar.github.com
+bug-reports:    https://github.com/feldspar/feldspar-compiler/issues
 synopsis:       Compiler for the Feldspar language
 description:    Feldspar (**F**unctional **E**mbedded **L**anguage for **DSP**
                 and **PAR**allelism) is an embedded DSL for describing digital
@@ -23,7 +26,7 @@ tested-with:    GHC==7.6.1, GHC==7.4.2
 
 source-repository head
   type:     git
-  location: git://github.com/emwap/feldspar-compiler.git
+  location: git://github.com/feldspar/feldspar-compiler.git
 
 library
   hs-source-dirs: lib
