@@ -11,7 +11,7 @@ author:         Feldspar group,
                 Eotvos Lorand University Faculty of Informatics
 maintainer:     deva@inf.elte.hu
 stability:      experimental
-homepage:       https://feldspar.github.com
+homepage:       http://feldspar.github.com
 bug-reports:    https://github.com/feldspar/feldspar-compiler/issues
 synopsis:       Compiler for the Feldspar language
 description:    Feldspar (**F**unctional **E**mbedded **L**anguage for **DSP**
