@@ -26,7 +26,7 @@ tested-with:    GHC==7.6.1, GHC==7.4.2
 
 source-repository head
   type:     git
-  location: git://github.com/feldspar/feldspar-compiler.git
+  location: git://github.com/Feldspar/feldspar-compiler.git
 
 library
   hs-source-dirs: lib
