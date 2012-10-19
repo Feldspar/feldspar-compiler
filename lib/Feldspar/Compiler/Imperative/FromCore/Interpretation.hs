@@ -248,16 +248,8 @@ compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = Struct
         ]
 compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (ArrayType a) (rs :> es) = if unboundedLength
-                                          then Array $ compileTypeRep a es
-                                          else SizedArray (fromEnum $ upperBound rs) $ compileTypeRep a es
-  where
-    unboundedLength
-        =  upperBound rs > fromIntegral (maxBound :: Int)
-             -- This ensures that `fromEnum` succeeds
-        || upperBound rs == maxBound
-             -- This `maxBound` might be smaller than `maxBound :: Int`
-compileTypeRep (MArrType a) _           = Array (compileTypeRep a (defaultSize a))
+compileTypeRep (ArrayType a) (rs :> es) = SizedArray rs $ compileTypeRep a es
+compileTypeRep (MArrType a) (rs :> es)  = SizedArray rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (IVarType a) _           = IVar $ compileTypeRep a $ defaultSize a
 compileTypeRep (FunType _ b) sz         = compileTypeRep b sz

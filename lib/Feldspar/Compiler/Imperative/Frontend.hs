@@ -39,6 +39,8 @@ import Control.Arrow (second)
 import Feldspar.Compiler.Imperative.Representation hiding (Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
+import Feldspar.Range
+import Feldspar.Core.Types (Length)
 
 -- * Frontend data types
 
@@ -60,8 +62,7 @@ data Type
     | U8 | U16 | U32 | U40 | U64
     | Complex Type
     | UserType String
-    | Array Type
-    | SizedArray Int Type
+    | SizedArray (Range Length) Type
     | Struct [(String, Type)]
     | IVar Type
   deriving Eq
@@ -187,8 +188,7 @@ instance Interface Type where
     toInterface (NumType Unsigned S64) = U64
     toInterface (AIR.ComplexType t) = Complex $ toInterface t
     toInterface (AIR.UserType s) = UserType s
-    toInterface (AIR.ArrayType (LiteralLen l) t) = SizedArray l $ toInterface t
-    toInterface (AIR.ArrayType _ t) = Array $ toInterface t
+    toInterface (AIR.ArrayType l t) = SizedArray l $ toInterface t
     toInterface (AIR.StructType fields) = Struct $ map (second toInterface) fields
     toInterface (AIR.IVarType t) = IVar $ toInterface t
     fromInterface Void = VoidType
@@ -207,8 +207,7 @@ instance Interface Type where
     fromInterface U64 = NumType Unsigned S64
     fromInterface (Complex t) = AIR.ComplexType $ fromInterface t
     fromInterface (UserType s) = AIR.UserType s
-    fromInterface (Array t) = AIR.ArrayType UndefinedLen $ fromInterface t
-    fromInterface (SizedArray l t) = AIR.ArrayType (LiteralLen l) $ fromInterface t
+    fromInterface (SizedArray l t) = AIR.ArrayType l $ fromInterface t
     fromInterface (Struct fields) = AIR.StructType $ map (second fromInterface) fields
     fromInterface (IVar t) = AIR.IVarType $ fromInterface t
 
@@ -334,7 +333,6 @@ initArray arr len = Call "initArray" [Out arr, In s, In len]
         | isArray t = Binop U32 "-" [LitI U32 0,SizeofT t]
         | otherwise = SizeofT t
     t = case typeof arr of
-        Array e -> e
         SizedArray _ e -> e
         _       -> error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
@@ -350,9 +348,23 @@ freeArray :: Var -> Prog
 freeArray arr = Call "freeArray" [Out $ varToExpr arr]
 
 arrayLength :: Expr -> Expr
-arrayLength (Var (SizedArray n _) _) = LitI U32 $ fromIntegral n
-arrayLength (Ptr (SizedArray n _) _) = LitI U32 $ fromIntegral n
-arrayLength arr = Fun U32 "getLength" [arr]
+arrayLength arr
+  | Just r <- chaseArray arr = LitI U32 $ fromIntegral (upperBound r)
+  | otherwise = Fun U32 "getLength" [arr]
+
+chaseArray :: Expr -> Maybe (Range Length)
+chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
+  where go :: Expr -> [String] -> Maybe (Range Length)
+        go (Var (SizedArray r _) _) [] | isSingleton r = Just r
+        go (Ptr (SizedArray r _) _) [] | isSingleton r = Just r
+        go (e :.: s) ss = go e (s:ss)
+        go (Var (Struct fields) _) (s:_)
+          | Just (SizedArray r _) <- lookup s fields 
+          , isSingleton r = Just r
+        go (Ptr (Struct fields) _) (s:_)
+          | Just (SizedArray r _) <- lookup s fields 
+          , isSingleton r = Just r
+        go _ _ = Nothing
 
 iVarInit :: Expr -> Prog
 iVarInit var = Call "ivar_init" [Out var]
@@ -406,8 +418,9 @@ instance Show Type
     show U64        = "uint64"
     show (Complex t)    = "complexOf_" ++ show t
     show (UserType s)   = "userType_" ++ s
-    show (Array t)      = "arrayOf_" ++ show t
-    show (SizedArray i t)   = "arrayOfSize_" ++ show i ++ "_" ++ show t
+    show (SizedArray i t)
+      | isSingleton i = "arrayOfSize_" ++ show (upperBound i) ++ "_" ++ show t
+      | otherwise = "arrayOf_" ++ show t
     show (Struct fields)    = "struct_" ++ intercalate "_" (map (\(s,t) -> s ++ "_" ++ show t) fields)
     show (IVar t)   = "ivarOf_" ++ show t
 
@@ -452,7 +465,6 @@ litB True = Tr
 litB False = Fl
 
 isArray :: Type -> Bool
-isArray (Array _) = True
 isArray (SizedArray _ _) = True
 isArray _ = False
 
