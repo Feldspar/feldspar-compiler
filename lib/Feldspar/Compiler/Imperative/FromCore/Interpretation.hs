@@ -250,7 +250,7 @@ compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (ArrayType a) (rs :> es) = if unboundedLength
                                           then Array $ compileTypeRep a es
-                                          else SizedArray (fromEnum $ upperBound rs) $ compileTypeRep a es
+                                          else SizedArray rs $ compileTypeRep a es
   where
     unboundedLength
         =  upperBound rs > fromIntegral (maxBound :: Int)

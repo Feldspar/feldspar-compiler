@@ -45,6 +45,9 @@ import qualified Data.List as List (find)
 
 import Feldspar.Compiler.Error
 
+import Feldspar.Range
+import Feldspar.Core.Types (Length)
+
 -- ===============================================================================================
 -- == Class defining semantic information attached to different nodes in the imperative program ==
 -- ===============================================================================================
@@ -305,11 +308,6 @@ deriving instance (EqLabel t)   => Eq (Variable t)
 -- == Basic structures ==
 -- ======================
 
-data Length =
-      LiteralLen Int
-    | UndefinedLen
-    deriving (Eq,Show)
-
 data Size = S8 | S16 | S32 | S40 | S64
     deriving (Eq,Show)
 
@@ -325,7 +323,7 @@ data Type =
     | ComplexType Type
     | UserType String
     | Alias Type String
-    | ArrayType Length Type
+    | ArrayType (Range Length) Type
     | StructType [(String, Type)]
     | IVarType Type
     deriving (Eq,Show)

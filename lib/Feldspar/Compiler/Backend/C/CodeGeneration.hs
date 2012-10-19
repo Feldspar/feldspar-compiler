@@ -35,6 +35,9 @@ import Feldspar.Compiler.Error
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
 
+import Feldspar.Range
+import Feldspar.Core.Types (Length)
+
 import qualified Data.List as List (find)
 
 -- =======================
@@ -56,9 +59,9 @@ getStructTypeName options place (StructType ts) =
 getStructTypeName options place (ArrayType len innerType) =
     "arr_T" ++ getStructTypeName options place innerType ++ "_S" ++ len2str len
     where
-        len2str :: Length -> String
-        len2str UndefinedLen = "UD"
-        len2str (LiteralLen i) = show i
+        len2str :: Range Length -> String
+        len2str r | isSingleton r = show (upperBound r)
+                  | otherwise = "UD"
 getStructTypeName options place t = replace (toC options place t) " " "" -- float complex -> floatcomplex
 
 instance ToC Type where

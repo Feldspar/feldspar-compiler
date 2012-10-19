@@ -39,6 +39,8 @@ import Control.Arrow (second)
 import Feldspar.Compiler.Imperative.Representation hiding (Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
+import Feldspar.Range
+import Feldspar.Core.Types (Length)
 
 -- * Frontend data types
 
@@ -61,7 +63,7 @@ data Type
     | Complex Type
     | UserType String
     | Array Type
-    | SizedArray Int Type
+    | SizedArray (Range Length) Type
     | Struct [(String, Type)]
     | IVar Type
   deriving Eq
@@ -187,8 +189,7 @@ instance Interface Type where
     toInterface (NumType Unsigned S64) = U64
     toInterface (AIR.ComplexType t) = Complex $ toInterface t
     toInterface (AIR.UserType s) = UserType s
-    toInterface (AIR.ArrayType (LiteralLen l) t) = SizedArray l $ toInterface t
-    toInterface (AIR.ArrayType _ t) = Array $ toInterface t
+    toInterface (AIR.ArrayType l t) = SizedArray l $ toInterface t
     toInterface (AIR.StructType fields) = Struct $ map (second toInterface) fields
     toInterface (AIR.IVarType t) = IVar $ toInterface t
     fromInterface Void = VoidType
@@ -207,8 +208,8 @@ instance Interface Type where
     fromInterface U64 = NumType Unsigned S64
     fromInterface (Complex t) = AIR.ComplexType $ fromInterface t
     fromInterface (UserType s) = AIR.UserType s
-    fromInterface (Array t) = AIR.ArrayType UndefinedLen $ fromInterface t
-    fromInterface (SizedArray l t) = AIR.ArrayType (LiteralLen l) $ fromInterface t
+    fromInterface (Array t) = AIR.ArrayType naturalRange $ fromInterface t
+    fromInterface (SizedArray l t) = AIR.ArrayType l $ fromInterface t
     fromInterface (Struct fields) = AIR.StructType $ map (second fromInterface) fields
     fromInterface (IVar t) = AIR.IVarType $ fromInterface t
 
@@ -350,8 +351,8 @@ freeArray :: Var -> Prog
 freeArray arr = Call "freeArray" [Out $ varToExpr arr]
 
 arrayLength :: Expr -> Expr
-arrayLength (Var (SizedArray n _) _) = LitI U32 $ fromIntegral n
-arrayLength (Ptr (SizedArray n _) _) = LitI U32 $ fromIntegral n
+arrayLength (Var (SizedArray r _) _) | isSingleton r = LitI U32 $ fromIntegral (upperBound r)
+arrayLength (Ptr (SizedArray r _) _) | isSingleton r = LitI U32 $ fromIntegral (upperBound r)
 arrayLength arr = Fun U32 "getLength" [arr]
 
 iVarInit :: Expr -> Prog
