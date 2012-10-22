@@ -36,6 +36,8 @@ import Feldspar.Transformation
 import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Backend.C.Options
 
+import Feldspar.Range
+
 import qualified Data.List as List (find, intercalate)
 import qualified Control.Monad.State as StateMonad (get, put, runState)
 
@@ -410,10 +412,10 @@ displayMemInfo n info = n ++ ": " ++ List.intercalate ", " (map displayType info
 
 displayType :: Type -> String
 displayType (Alias t _) = displayType t
-displayType (ArrayType (LiteralLen n) (ArrayType (LiteralLen m) t)) =
-    unwords [displayType t, concat ["array(", show n, "x", show m, ")"]]
-displayType (ArrayType (LiteralLen n) t) = unwords [displayType t, concat ["array(", show n, ")"]]
-displayType (ArrayType UndefinedLen t) = unwords [displayType t, "array"]
+displayType (ArrayType n (ArrayType m t)) | isSingleton n && isSingleton m =
+    unwords [displayType t, concat ["array(", show (upperBound n), "x", show (upperBound m), ")"]]
+displayType (ArrayType n t) | isSingleton n = unwords [displayType t, concat ["array(", show (upperBound n), ")"]]
+displayType (ArrayType r t) = unwords [displayType t, "array"]
 displayType (IVarType t) = unwords ["ivar(", displayType t, ")"]
 displayType VoidType = "void"
 displayType BoolType = "Boolean"

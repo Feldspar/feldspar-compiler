@@ -37,6 +37,8 @@ import Feldspar.Transformation
 import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Error
 
+import Feldspar.Range
+
 -- ===========================================================================
 --  == Type corrector plugin
 -- ===========================================================================
@@ -174,9 +176,11 @@ select act decl
         select' (ArrayType l1 t1) (ArrayType l2 t2) = (o && o2, ArrayType l t) where
             (o,t) = select' t1 t2
             (o2,l) = select'' l1 l2
-            select'' UndefinedLen x = (True, x)
-            select'' x UndefinedLen = (True, x)
-            select'' (LiteralLen a) (LiteralLen b) = (a==b, LiteralLen b)
+            select'' r1 r2 -- Selects the smaller size if one is unknown.
+              | isSingleton r1 && isSingleton r2 = (r1 == r2, r2)
+              | isFull r1 = (True, r2)
+              | isFull r2 = (True, r1)
+              | otherwise = (False, fullRange)
         select' (StructType t1) (StructType t2) = (o, StructType t) where
             (o,t) = select'' t1 t2
             select'' [] [] = (True, [])
