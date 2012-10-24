@@ -324,11 +324,11 @@ mkLength :: ( Project (Core.Literal  :|| Core.Type) dom
             , Project (Core.Variable :|| Core.Type) dom
             , Compile dom dom
             )
-         => ASTF (Decor Info dom) a -> CodeWriter Expr
-mkLength a | isVariableOrLiteral a = compileExpr a
-           | otherwise             = do
-               let lentyp = IntType U N32
-               lenvar    <- freshVar "len" lentyp (defaultSize lentyp)
-               compileProg lenvar a
-               return lenvar
+         => ASTF (Decor Info dom) a -> TypeRep a -> Size a -> CodeWriter Expr
+mkLength a t sz 
+  | isVariableOrLiteral a = compileExpr a
+  | otherwise             = do
+      lenvar    <- freshVar "len" t sz
+      compileProg lenvar a
+      return lenvar
 

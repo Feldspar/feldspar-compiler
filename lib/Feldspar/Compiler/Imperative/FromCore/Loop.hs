@@ -41,6 +41,7 @@ import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 import Language.Syntactic.Constructs.Binding.HigherOrder
 
+import Feldspar.Range
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding
@@ -64,9 +65,10 @@ instance ( Compile dom dom
         = do
             let info1 = getInfo lam1
                 info2 = getInfo lam2
+                sz = range 0 (upperBound $ infoSize $ getInfo len)
             let (Var _ name) = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
-            len' <- mkLength len
+            len' <- mkLength len (infoType $ getInfo len) sz
             compileProg loc init
             (_, Bl ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
             declare stvar
@@ -95,9 +97,9 @@ instance ( Compile dom dom
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
-            let sa = defaultSize ta
+            let sa = range 0 (upperBound $ infoSize $ getInfo len)
             let (Var _ name) = mkVar (compileTypeRep ta sa) v
-            len' <- mkLength len
+            len' <- mkLength len (infoType $ getInfo len) sa
             (_, Bl _ body) <- confiscateBlock $ compileProg loc ixf
             tellProg [For name len' 1 body]
 
