@@ -73,12 +73,12 @@ import Feldspar.Compiler.Imperative.FromCore.SizeProp ()
 import Feldspar.Compiler.Imperative.FromCore.SourceInfo ()
 import Feldspar.Compiler.Imperative.FromCore.Tuple ()
 
-instance Compile FeldDomain FeldDomain
+instance Compile FeldDom FeldDom
   where
     compileProgSym (C' a) = compileProgSym a
     compileExprSym (C' a) = compileExprSym a
 
-instance Compile Empty FeldDomain
+instance Compile Empty dom
   where
     compileProgSym _ = error "Can't compile Empty"
     compileExprSym _ = error "Can't compile Empty"

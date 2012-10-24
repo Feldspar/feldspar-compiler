@@ -83,7 +83,7 @@ library
   default-language: Haskell98
 
   build-depends:
-    feldspar-language >= 0.6 && < 0.7,
+    feldspar-language >= 0.6.1 && < 0.7,
     ansi-terminal,
     base >= 4 && < 4.7,
     containers,
@@ -93,7 +93,7 @@ library
     MonadCatchIO-mtl,
     mtl,
     process,
-    syntactic >= 1.4 && < 1.5
+    syntactic >= 1.4 && < 1.6
 
   default-extensions:
     DeriveDataTypeable
@@ -156,9 +156,9 @@ executable feldspar
     Feldspar.Compiler.Frontend.CommandLine.API
 
   build-depends:
-    feldspar-language >= 0.6 && < 0.7,
+    feldspar-language >= 0.6.1 && < 0.7,
     feldspar-compiler,
-    syntactic >= 1.4 && < 1.5,
+    syntactic >= 1.4 && < 1.6,
     base >= 4 && < 4.7,
     hint,
     MonadCatchIO-mtl,
