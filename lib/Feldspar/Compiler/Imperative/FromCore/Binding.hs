@@ -76,7 +76,7 @@ compileLet :: Compile dom dom
 compileLet a info v
     = do
         let ta  = argType $ infoType info
-            sa  = defaultSize ta
+            sa  = infoSize $ getInfo a
             var = mkVar (compileTypeRep ta sa) v
         declare var
         compileProg var a

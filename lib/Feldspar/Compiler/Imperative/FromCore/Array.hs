@@ -40,6 +40,7 @@ import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 import Language.Syntactic.Constructs.Binding.HigherOrder
 
+import Feldspar.Range
 import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Array
@@ -62,9 +63,9 @@ instance ( Compile dom dom
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
-            let sa = defaultSize ta
+            let sa = range 0 (upperBound $ infoSize $ getInfo len)
             let ix@(Var _ name) = mkVar (compileTypeRep ta sa) v
-            len' <- mkLength len
+            len' <- mkLength len (infoType $ getInfo len) sa
             (_, Bl ds body) <- confiscateBlock $ compileProg (loc :!: ix) ixf
             tellProg [initArray loc len']
             tellProg [For name len' 1 (Block ds body)]
@@ -75,14 +76,14 @@ instance ( Compile dom dom
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         = do
             let t = argType $ infoType $ getInfo lam1
-            let sz = defaultSize t
+            let sz = range 0 (upperBound $ infoSize $ getInfo len)
             let ta' = argType $ infoType $ getInfo lam2
             let sa' = defaultSize ta'
             let tr' = resType $ infoType $ getInfo lam2
-            let sr' = defaultSize tr'
+            let sr' = infoSize $ getInfo lam2
             let ix@(Var _ name) = mkVar (compileTypeRep t sz) v
             let stv = mkVar (compileTypeRep ta' sa') s
-            len' <- mkLength len
+            len' <- mkLength len (infoType $ getInfo len) sz
             tmp       <- freshVar "seq" tr' sr'
             initSt    <- compileExpr st
             (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg tmp step
