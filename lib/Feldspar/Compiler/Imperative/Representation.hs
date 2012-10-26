@@ -345,6 +345,19 @@ data Place
 data TypeParameterMode = Auto | Scalar
     deriving (Eq,Show)
 
+-----------------------
+--   Query functions --
+-----------------------
+
+-- | True if the type is a scalar.
+isScalarType :: Type -> Bool
+isScalarType VoidType     = True
+isScalarType BoolType     = True
+isScalarType BitType      = True
+isScalarType FloatType    = True
+isScalarType (NumType {}) = True
+isScalarType _        = False
+
 ----------------------
 --   Type inference --
 ----------------------
