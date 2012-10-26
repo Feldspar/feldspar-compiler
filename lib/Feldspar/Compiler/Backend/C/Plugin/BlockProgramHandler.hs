@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -34,8 +35,9 @@ module Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler where
 
 import Feldspar.Transformation
 
+import Feldspar.Compiler.Imperative.Representation (isScalarType)
 -- ===========================================================================
---  == Type definition generator plugin
+--  == Plugin for floating variable declarations.
 -- ===========================================================================
 
 data BlockProgramHandler = BlockProgramHandler
@@ -54,6 +56,7 @@ instance Transformation BlockProgramHandler where
     type State BlockProgramHandler = ()
 
 instance Transformable BlockProgramHandler Block where
+        -- The main work horse. up tr are definitions floating upwards.
         transform t s d b = tr
             { result = (result tr)
                 { locals = locals (result tr) ++ up tr
@@ -65,14 +68,52 @@ instance Transformable BlockProgramHandler Block where
 
 instance Transformable BlockProgramHandler Program where
         transform t s d p =
-            case result tr of
-                BlockProgram b _ -> Result (blockBody b) () (locals b ++ up tr)
+            case result tr of -- Note [Floating initializations]
+                BlockProgram b _ | all scalarValueOrUninitialized (locals b) -> 
+                  Result (blockBody b) () (locals b ++ up tr)
                 _ -> tr
             where
                     tr = defaultTransform t s d p
 
+-- | True if a declaration is a scalar value or a complex type that is
+-- not initialized.
+scalarValueOrUninitialized :: Declaration t -> Bool
+scalarValueOrUninitialized (Declaration {..})
+  | Just t <- initVal = isScalarType (varType declVar)
+  | otherwise = True
 
 instance Plugin BlockProgramHandler where
     type ExternalInfo BlockProgramHandler = ()
     executePlugin BlockProgramHandler _ procedure = 
         result $ transform BlockProgramHandler ({-state-}) () procedure
+
+{-
+
+Note [Floating initializations]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Declarations and initializations should be floated out of loops for
+reasons of efficiency. We need to be careful so that we preserve the
+order of initialization. Consider the program:
+
+((\v n -> sequential n ((0...1)::Vector1 WordN) (\i s -> (i, s))) :: Vector1 WordN -> Data Length -> Data [WordN])
+
+The generated code should look like this:
+
+    struct array x1 = {0};
+    struct array v4 = {0};
+
+    initArray(&x1, sizeof(uint32_t), 2);
+    at(uint32_t,&x1,0) = 0;
+    at(uint32_t,&x1,1) = 1;
+    v4 = x1;
+    for(...) {...}
+
+Initializing v4 any sooner than that might give mysterious garbage as
+input in the first loop iteration.
+
+We play it safe and avoid the problem by not floating any declarations
+further as soon as we find one declaration that is not a scalar value
+and immediately initialized.
+
+-}
