@@ -54,6 +54,7 @@ instance Transformation BlockProgramHandler where
     type State BlockProgramHandler = ()
 
 instance Transformable BlockProgramHandler Block where
+        -- The main work horse. up tr are definitions floating upwards.
         transform t s d b = tr
             { result = (result tr)
                 { locals = locals (result tr) ++ up tr
