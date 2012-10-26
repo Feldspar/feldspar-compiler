@@ -35,7 +35,7 @@ module Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler where
 import Feldspar.Transformation
 
 -- ===========================================================================
---  == Type definition generator plugin
+--  == Plugin for floating variable declarations.
 -- ===========================================================================
 
 data BlockProgramHandler = BlockProgramHandler
