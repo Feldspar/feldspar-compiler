@@ -63,7 +63,7 @@ instance ( Compile dom dom
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
-            let sa = range 0 (upperBound $ infoSize $ getInfo len)
+            let sa = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
             let ix@(Var _ name) = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
             (_, Bl ds body) <- confiscateBlock $ compileProg (loc :!: ix) ixf
@@ -76,7 +76,7 @@ instance ( Compile dom dom
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         = do
             let t = argType $ infoType $ getInfo lam1
-            let sz = range 0 (upperBound $ infoSize $ getInfo len)
+            let sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
             let ta' = argType $ infoType $ getInfo lam2
             let sa' = defaultSize ta'
             let tr' = resType $ infoType $ getInfo lam2

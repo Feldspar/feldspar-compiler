@@ -65,7 +65,7 @@ instance ( Compile dom dom
         = do
             let info1 = getInfo lam1
                 info2 = getInfo lam2
-                sz = range 0 (upperBound $ infoSize $ getInfo len)
+                sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
             let (Var _ name) = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
