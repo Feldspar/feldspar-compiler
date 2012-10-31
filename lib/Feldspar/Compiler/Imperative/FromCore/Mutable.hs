@@ -71,7 +71,9 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile (MONAD Mut) do
 -}
 
     compileProgSym Then _ loc (ma :* mb :* Nil) = do
-        compileExpr ma
+        let err = error $  "compileProgSym Then: "
+                        ++ "Should not assign from the first action"
+        compileProg err ma
         compileProg loc mb
 
     compileProgSym Return info loc (a :* Nil)
