@@ -51,14 +51,19 @@ import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
-
-instance (Compile dom dom, Project (CLambda Type) dom) => Compile (MONAD Mut) dom
+instance ( Compile dom dom
+         , Project (CLambda Type) dom
+         )
+      => Compile (MONAD Mut) dom
   where
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
-            e <- compileExpr ma
-            withAlias v e $ compileProg loc body
+            let info = getInfo ma
+                var  = mkVar (compileTypeRep (infoType info) (infoSize info)) v
+            declare var
+            compileProg var ma
+            compileProg loc body
 
 {- TODO reenable this implementation! The case above inlines too much if v is used more than once in the body
     compileProgSym Bind _ loc (ma :* (Symbol (Decor info lam) :$ body) :* Nil)
