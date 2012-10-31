@@ -72,7 +72,7 @@ instance ( Compile dom dom
             compileProg loc init
             (_, Bl ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
             declare stvar
-            tellProg [For name len' 1 (Block ds body)]
+            tellProg [Block ds (For name len' 1 body)]
 
     compileProgSym (C' WhileLoop) _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
@@ -84,7 +84,7 @@ instance ( Compile dom dom
             cond' <- withAlias cv loc $ compileExpr cond
             (_, Bl ds body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
             declare stvar
-            tellProg [While Skip cond' (Block ds body')]
+            tellProg [Block ds (While Skip cond' body')]
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -100,13 +100,13 @@ instance ( Compile dom dom
             let sa = range 0 (upperBound $ infoSize $ getInfo len)
             let (Var _ name) = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
-            (_, Bl _ body) <- confiscateBlock $ compileProg loc ixf
-            tellProg [For name len' 1 body]
+            (_, Bl ds body) <- confiscateBlock $ compileProg loc ixf
+            tellProg [Block ds (For name len' 1 body)]
 
 -- TODO Missing While
     compileProgSym Core.While _ loc (cond :* step :* Nil)
         = do
             cond'     <- compileExpr cond
-            (_, Bl _ step') <- confiscateBlock $ compileProg loc step
-            tellProg [While Skip cond' step']
+            (_, Bl ds step') <- confiscateBlock $ compileProg loc step
+            tellProg [Block ds (While Skip cond' step')]
 
