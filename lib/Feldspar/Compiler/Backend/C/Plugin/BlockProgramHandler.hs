@@ -33,6 +33,8 @@
 
 module Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler where
 
+import Data.List (partition)
+
 import Feldspar.Transformation
 
 import Feldspar.Compiler.Imperative.Representation (isScalarType)
@@ -67,13 +69,16 @@ instance Transformable BlockProgramHandler Block where
                 tr = defaultTransform t s d b
 
 instance Transformable BlockProgramHandler Program where
-        transform t s d p =
-            case result tr of -- Note [Floating initializations]
-                BlockProgram b _ | all scalarValueOrUninitialized (locals b) -> 
-                  Result (blockBody b) () (locals b ++ up tr)
-                _ -> tr
-            where
-                    tr = defaultTransform t s d p
+    transform t s d p =
+      case result tr of -- Note [Floating initializations]
+        BlockProgram b l | (b', d') <- splt b l -> Result b' () (d' ++ up tr)
+        _ -> tr
+      where
+        tr = defaultTransform t s d p
+        splt b l | null noFlt = (blockBody b, flt)
+                 | otherwise = (BlockProgram (b {locals = noFlt}) l, flt)
+          where
+            (flt, noFlt) = partition scalarValueOrUninitialized (locals b)
 
 -- | True if a declaration is a scalar value or a complex type that is
 -- not initialized.
@@ -112,8 +117,9 @@ The generated code should look like this:
 Initializing v4 any sooner than that might give mysterious garbage as
 input in the first loop iteration.
 
-We play it safe and avoid the problem by not floating any declarations
-further as soon as we find one declaration that is not a scalar value
-and immediately initialized.
+We tried to avoid the problem by not floating any declarations as soon
+as we found one declaration that was not a scalar value and
+immediately initialized, but that made the output hard to read for
+humans.
 
 -}
