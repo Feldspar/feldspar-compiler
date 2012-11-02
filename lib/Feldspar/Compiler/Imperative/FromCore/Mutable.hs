@@ -65,16 +65,6 @@ instance ( Compile dom dom
             compileProg var ma
             compileProg loc body
 
-{- TODO reenable this implementation! The case above inlines too much if v is used more than once in the body
-    compileProgSym Bind _ loc (ma :* (Symbol (Decor info lam) :$ body) :* Nil)
-        | Just (Lambda v) <- prjCtx typeCtx lam
-        = do
-            let var = mkVar (compileTypeRep $ argType $ infoType info) v
-            withDecl var $ do
-              compileProg var ma
-              compileProg loc body
--}
-
     compileProgSym Then _ loc (ma :* mb :* Nil) = do
         let err = error $  "compileProgSym Then: "
                         ++ "Should not assign from the first action"
