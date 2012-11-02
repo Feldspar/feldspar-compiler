@@ -103,6 +103,13 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableReferen
     compileProgSym SetRef _ _   (r :* a :* Nil) = do
         var  <- compileExpr r
         compileProg var a
+    compileProgSym ModRef _ loc (r :* (lam :$ body) :* Nil)
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
+        = do
+            var <- compileExpr r
+            withAlias v var $ compileProg var body
+               -- Since the modifier function is pure it is safe to alias
+               -- v with var here
 
     compileExprSym GetRef _ (r :* Nil) = compileExpr r
     compileExprSym feat info args      = compileProgFresh feat info args
