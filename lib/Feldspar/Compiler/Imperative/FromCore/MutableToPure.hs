@@ -43,6 +43,7 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding
+import Feldspar.Core.Constructs.MutableArray
 import Feldspar.Core.Constructs.MutableToPure
 
 import Feldspar.Compiler.Imperative.Frontend
@@ -53,6 +54,7 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 instance ( Compile dom dom
          , Project (CLambda Type) dom
          , Project (Variable :|| Type) dom
+         , Project MutableArray dom
          )
       => Compile MutableToPure dom
   where
@@ -75,6 +77,14 @@ instance ( Compile dom dom
             compileProg var marr
             e <- compileExpr body
             tellProg [copyProg loc [e]]
+
+    compileProgSym RunMutableArray _ loc ((bnd :$ (na :$ l) :$ (lam :$ body)) :* Nil)
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
+        , Just NewArr_ <- prj na
+        = do
+            len <- compileExpr l
+            tellProg [setLength loc len]
+            withAlias v loc $ compileProg loc body
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr
 
