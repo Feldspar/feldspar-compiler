@@ -65,16 +65,6 @@ instance ( Compile dom dom
             compileProg var ma
             compileProg loc body
 
-{- TODO reenable this implementation! The case above inlines too much if v is used more than once in the body
-    compileProgSym Bind _ loc (ma :* (Symbol (Decor info lam) :$ body) :* Nil)
-        | Just (Lambda v) <- prjCtx typeCtx lam
-        = do
-            let var = mkVar (compileTypeRep $ argType $ infoType info) v
-            withDecl var $ do
-              compileProg var ma
-              compileProg loc body
--}
-
     compileProgSym Then _ loc (ma :* mb :* Nil) = do
         let err = error $  "compileProgSym Then: "
                         ++ "Should not assign from the first action"
@@ -103,6 +93,13 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableReferen
     compileProgSym SetRef _ _   (r :* a :* Nil) = do
         var  <- compileExpr r
         compileProg var a
+    compileProgSym ModRef _ loc (r :* (lam :$ body) :* Nil)
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
+        = do
+            var <- compileExpr r
+            withAlias v var $ compileProg var body
+               -- Since the modifier function is pure it is safe to alias
+               -- v with var here
 
     compileExprSym GetRef _ (r :* Nil) = compileExpr r
     compileExprSym feat info args      = compileProgFresh feat info args
