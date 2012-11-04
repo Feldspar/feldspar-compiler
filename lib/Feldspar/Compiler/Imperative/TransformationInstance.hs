@@ -86,7 +86,7 @@ instance (Transformable1 t [] Declaration, Transformable t Program, Conversion t
             tr1 = transform1 t s d l
             tr2 = transform t (state1 tr1) d b
 
-instance (Transformable1 t [] Program, Transformable t Expression, Transformable1 t [] ActualParameter, Transformable t Block, Transformable t Variable, Conversion t Program, Conversion t Empty, Conversion t Comment, Conversion t Assign, Conversion t ProcedureCall, Conversion t Spawn, Conversion t Run, Conversion t Sequence, Conversion t Branch, Conversion t SeqLoop, Conversion t ParLoop, Default (Up t))
+instance (Transformable1 t [] Program, Transformable t Expression, Transformable1 t [] ActualParameter, Transformable t Block, Transformable t Variable, Conversion t Program, Conversion t Empty, Conversion t Comment, Conversion t Assign, Conversion t ProcedureCall, Conversion t Spawn, Conversion t Run, Conversion t Sequence, Conversion t Branch, Conversion t Switch, Conversion t SeqLoop, Conversion t ParLoop, Default (Up t))
     => DefaultTransformable t Program where
         defaultTransform _ s _ (Empty inf1 inf2) = Result (Empty (convert inf1) $ convert inf2) s def
         defaultTransform _ s _ (Comment b c inf1 inf2) = Result (Comment b c (convert inf1) $ convert inf2) s def
@@ -101,6 +101,13 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
             tr1 = transform t s d e
             tr2 = transform t (state tr1) d p1
             tr3 = transform t (state tr2) d p2
+        defaultTransform t s d (Switch scrut alts inf1 inf2) = error "TODO: defaultTransform for switch" where -- Result (Switch (result tr1) (result def':map result alts') (convert inf1) $ convert inf2) (state (last alts')) (foldl combine (up tr1) (up def':map up alts')) where
+            tr1 = transform t s d scrut
+{-            def' = transform t (state tr1) d (head alts)
+            alts' = go def' [] (tail alts)
+            go prev acc [] = reverse (prev:acc)
+            go prev acc (h:t) = go (transform t (state prev) d h) (prev:acc) t
+-}
         defaultTransform t s d (SeqLoop v c p inf1 inf2) = Result (SeqLoop (result tr1) (result tr2) (result tr3) (convert inf1) $ convert inf2) (state tr3) (foldl combine (up tr1) [up tr2, up tr3]) where
             tr1 = transform t s d v
             tr2 = transform t (state tr1) d c

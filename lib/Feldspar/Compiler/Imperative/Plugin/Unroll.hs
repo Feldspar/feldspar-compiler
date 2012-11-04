@@ -96,6 +96,9 @@ instance Annotation UnrollSemInf Sequence where
 instance Annotation UnrollSemInf Branch where
     type Label UnrollSemInf Branch = ()
 
+instance Annotation UnrollSemInf Switch where
+    type Label UnrollSemInf Switch = ()
+
 instance Annotation UnrollSemInf SeqLoop where
     type Label UnrollSemInf SeqLoop = ()
 

@@ -253,6 +253,7 @@ instance Interface Prog where
     toInterface (ProcedureCall s ps () ()) = Call s (map toInterface ps)
     toInterface (Sequence ps () ()) = Seq (map toInterface ps)
     toInterface (Branch e b1 b2 () ()) = If (toInterface e) (toProg b1) (toProg b2)
+    toInterface (Switch e alts () ()) = error "TODO: toInterface Switch"
     toInterface (SeqLoop e pe b () ()) = While (toProg pe) (toInterface e) (toProg b)
     toInterface (ParLoop v e i b () ()) = For (varName v) (toInterface e) i (toProg b)
     toInterface (BlockProgram b ()) = Block (map toInterface $ locals b) (toInterface $ blockBody b)
@@ -263,6 +264,7 @@ instance Interface Prog where
     fromInterface (Call s ps) = ProcedureCall s (map fromInterface ps) () ()
     fromInterface (Seq ps) = Sequence (map fromInterface ps) () ()
     fromInterface (If e p1 p2) = Branch (fromInterface e) (toBlock p1) (toBlock p2) () ()
+--    fromInterface (Switch scrut alts) = Switch (fromInterface scrut) (map toBlock alts) () () -- TODO: Add Switch in Prog.
     fromInterface (While pe e p) = SeqLoop (fromInterface e) (toBlock pe) (toBlock p) () ()
     fromInterface (For s e i p) = ParLoop
         (AIR.Variable s (NumType Unsigned S32) Value ()) (fromInterface e) i (toBlock p) () ()

@@ -94,6 +94,9 @@ instance Annotation DebugToCSemanticInfo Sequence where
 instance Annotation DebugToCSemanticInfo Branch where
     type Label DebugToCSemanticInfo Branch = ((Int, Int), (Int, Int))
 
+instance Annotation DebugToCSemanticInfo Switch where
+    type Label DebugToCSemanticInfo Switch = ((Int, Int), (Int, Int))
+
 instance Annotation DebugToCSemanticInfo SeqLoop where
     type Label DebugToCSemanticInfo SeqLoop = ((Int, Int), (Int, Int))
 
@@ -563,6 +566,8 @@ instance Transformable DebugToC Program where
                 code "}\n"
                 (_, nl, nc) <- StateMonad.get
                 return (ncon, ntPrg, nePrg, ((line,col),(nl,nc)))
+
+    transform t (line, col) (options, place, indent) (Switch scrut alts _ _) = error "TODO: PrettyPrint for switch"
 
     transform t (line, col) (options, place, indent) (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
         where

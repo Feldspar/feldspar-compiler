@@ -152,6 +152,40 @@ instance Transformable GetPrgBranch Program where
     transform t () (line, col) pr = defaultTransform t () (line, col) pr
 
 -----------------------------------------------------
+--- GetPrg plugin for Switch
+-----------------------------------------------------
+
+data GetPrgSwitch = GetPrgSwitch
+
+instance Transformation GetPrgSwitch where
+    type From GetPrgSwitch    = DebugToCSemanticInfo
+    type To GetPrgSwitch      = DebugToCSemanticInfo
+    type Down GetPrgSwitch    = (Int, Int)
+    type Up GetPrgSwitch      = (Bool, Program DebugToCSemanticInfo)
+    type State GetPrgSwitch   = ()
+
+
+instance Plugin GetPrgSwitch where
+    type ExternalInfo GetPrgSwitch = (Int, Int)
+    executePlugin GetPrgSwitch (line, col) procedure =
+        result $ transform GetPrgSwitch () (line, col) procedure
+
+getPrgSwitch :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
+getPrgSwitch (line, col) procedure = up res where
+    res = transform GetPrgSwitch () (line, col) procedure
+
+instance Transformable GetPrgSwitch Program where
+    transform t () (line, col) sw@(Switch _ alts inf1 _) = Result sw () info where
+        info  = case contains (line, col) inf1 of
+                    True -> infoCr where
+                        alts' = map (\(_, prog) -> transform t () (line, col) prog) alts
+                        res = foldl combine (up (head alts')) (map up (tail alts'))
+                        infoCr = if fst res then res else (True,sw)
+                    _    -> def
+
+    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+
+-----------------------------------------------------
 --- GetPrg plugin for ProcedureCall
 -----------------------------------------------------
 
