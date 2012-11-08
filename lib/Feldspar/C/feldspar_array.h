@@ -104,7 +104,7 @@ static inline void initArray(struct array *arr, int32_t size, int32_t len)
         // First initialization
         arr->bytes = newBytes;
         arr->buffer = (void*)malloc( newBytes );        
-        log_5("initArray %p - alloc %d * %d bytes %d at %p\n"
+        log_5("initArray %p - alloc %d * %d = %d bytes at %p\n"
              , arr, arr->length, arr->elemSize, newBytes, arr->buffer);
         arr->inited = INITED;
     }
