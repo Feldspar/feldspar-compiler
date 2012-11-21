@@ -310,10 +310,6 @@ toProg :: AIR.Block () -> Prog
 toProg (AIR.Block [] p ()) = toInterface p
 toProg (AIR.Block ds p ()) = Block (map toInterface ds) (toInterface p)
 
-boolToExpr :: Bool -> Expr
-boolToExpr True = Tr
-boolToExpr False = Fl
-
 setLength :: Expr -> Expr -> Prog
 setLength arr len = Call "setLength" [Out arr, In len]
 
