@@ -39,7 +39,7 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Representation hiding (Type, Cast, In, Out, Block)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, Cast, In, Out, Block)
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
@@ -147,6 +147,14 @@ c99Rules = [rule copy, rule c99]
     c99 (Fun t "(*)" [arg1, LitI _ (log2 -> Just n)])    = [replaceWith $ Binop t "<<" [arg1, LitI I32 n]]
     c99 (Fun t "(*)" [arg1, arg2])   = [replaceWith $ Binop t "*" [arg1, arg2]]
     c99 (Fun t "(/)" [arg1, arg2])   = [replaceWith $ Binop t "/" [arg1, arg2]]
+    c99 (Fun t "div" [arg1, arg2]) =
+        [replaceWith $ Fun div_t (div t) [arg1, arg2] :.: "quot"]
+      where div_t = Alias (Struct [("quot", t), ("rem", t)]) "div_t"
+            div I8  = "div"
+            div I16 = "div"
+            div I32 = "div"
+            div I40 = "ldiv"
+            div I64 = "lldiv"
     c99 (Fun t@(Complex _) "exp" [arg])  = [replaceWith $ Fun t "cexpf" [arg]]
     c99 (Fun t "exp" [arg])  = [replaceWith $ Fun t "expf" [arg]]
     c99 (Fun t@(Complex _) "sqrt" [arg]) = [replaceWith $ Fun t "csqrtf" [arg]]
