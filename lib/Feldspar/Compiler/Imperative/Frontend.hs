@@ -36,7 +36,7 @@ import Data.List
 import Data.Monoid
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
@@ -65,6 +65,7 @@ data Type
     | SizedArray (Range Length) Type
     | Struct [(String, Type)]
     | IVar Type
+    | Alias Type String
   deriving Eq
 
 data Expr
@@ -172,7 +173,7 @@ instance Interface Ent where
 instance Interface Type where
     type Repr Type = AIR.Type
     toInterface VoidType = Void
-    toInterface Alias{}  = error "Alias not handled"
+    toInterface (AIR.Alias t s) = Alias (toInterface t) s
     toInterface AIR.BoolType = Boolean
     toInterface BitType = Bit
     toInterface AIR.FloatType = Floating
@@ -192,6 +193,7 @@ instance Interface Type where
     toInterface (AIR.StructType fields) = Struct $ map (second toInterface) fields
     toInterface (AIR.IVarType t) = IVar $ toInterface t
     fromInterface Void = VoidType
+    fromInterface (Alias t s) = AIR.Alias (fromInterface t) s
     fromInterface Boolean = AIR.BoolType
     fromInterface Bit = BitType
     fromInterface Floating = AIR.FloatType
