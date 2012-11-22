@@ -1,2 +1,8 @@
 language: haskell
 
+before_install:
+    - "cabal install cabal-meta cabal-src"
+
+install:
+    - "cabal-meta install --enable-tests"
+

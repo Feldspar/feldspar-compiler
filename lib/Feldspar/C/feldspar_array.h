@@ -88,9 +88,8 @@ static inline void initArray(struct array *arr, int32_t size, int32_t len)
             log_3("initArray %p - realloc since %d < %d\n"
                  , arr, arr->bytes, newBytes);
             // Not enough space: reallocation needed
-            arr->bytes = newBytes;
-            free(arr->buffer);
-            arr->buffer = (void*)malloc( newBytes );
+            arr->bytes  = newBytes;
+            arr->buffer = realloc(arr->buffer, newBytes);
         }
         else
         {
@@ -104,7 +103,7 @@ static inline void initArray(struct array *arr, int32_t size, int32_t len)
         // First initialization
         arr->bytes = newBytes;
         arr->buffer = (void*)malloc( newBytes );        
-        log_5("initArray %p - alloc %d * %d bytes %d at %p\n"
+        log_5("initArray %p - alloc %d * %d = %d bytes at %p\n"
              , arr, arr->length, arr->elemSize, newBytes, arr->buffer);
         arr->inited = INITED;
     }
@@ -206,18 +205,13 @@ static inline void setLength(struct array *arr, int32_t len)
     assert(arr);
     log_2("setLength %p %d - enter\n", arr, len);
     int newBytes = arr->elemSize * len;
-    if( arr->bytes >= newBytes )
-    {
-        arr->length = len;
-    }
-    else
+    arr->length = len;
+    if( arr->bytes < newBytes )
     {
         log_3("setLength %p %d - realloc %d bytes\n", arr, len, newBytes);
-        // TODO: copy
-        arr->bytes = newBytes;
-        free( arr->buffer );
-        arr->buffer = malloc( newBytes );
-        assert( arr->buffer );
+        arr->buffer = realloc(arr->buffer,newBytes);
+        assert(arr->buffer);
+        arr->bytes  = newBytes;
     }
     log_2("setLength %p %d - leave\n", arr, len);
 }

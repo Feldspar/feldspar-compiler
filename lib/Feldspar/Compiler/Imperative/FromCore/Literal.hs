@@ -59,7 +59,7 @@ instance Compile (Literal :|| Core.Type) dom
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter Expr
 literal UnitType        _  ()     = return $ LitI I32 0
-literal BoolType        _  a      = return $ boolToExpr a
+literal BoolType        _  a      = return $ litB a
 literal trep@IntType{}  sz a      = return $ LitI (compileTypeRep trep sz) (toInteger a)
 literal FloatType       _  a      = return $ LitF $ float2Double a
 literal (ComplexType t) _  (r:+i) = do re <- literal t (defaultSize t) r
