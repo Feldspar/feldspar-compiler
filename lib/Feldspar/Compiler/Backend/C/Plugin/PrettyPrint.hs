@@ -342,13 +342,13 @@ instance Transformable1 DebugToC [] StructMember where
 
 
 instance Transformable DebugToC Entity where
-    transform t pos (options, place, indent) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
+    transform t pos down@(options, place, indent) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
         where
             ((newMembers, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 code $ n ++ " {\n"
                 (crep, cl, cc) <- StateMonad.get
-                StateMonad.put (crep, cl, cc + addIndent indent)
-                nms <- monadicListTransform' t (options, place, addIndent indent) members
+                StateMonad.put (crep, cl, cc + (trd $ addIndent down))
+                nms <- monadicListTransform' t (addIndent down) members
                 indenter indent
                 code "};\n"
                 (crep, cl, _) <- StateMonad.get
@@ -367,7 +367,7 @@ instance Transformable DebugToC Entity where
                 StateMonad.put (crep, cl, indent)
                 return (pos, (cl, indent))
 
-    transform t pos (options, _, indent) (ProcDef n inp outp body _ _) =
+    transform t pos down@(options, _, indent) (ProcDef n inp outp body _ _) =
       Result (ProcDef n (result1 newInParam) (result1 newOutParam) (result newBody) newInf newInf) (snd newInf) cRep
         where
             ((newInParam, newOutParam, newBody, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
@@ -383,8 +383,8 @@ instance Transformable DebugToC Entity where
                 indenter indent
                 code "{\n"
                 (crep, al, _) <- StateMonad.get
-                StateMonad.put (crep, al, addIndent indent)
-                nb <- monadicTransform' t (options, Declaration_pl, addIndent indent) body
+                StateMonad.put (crep, al, trd $ addIndent down)
+                nb <- monadicTransform' t (options, Declaration_pl, trd $ addIndent down) body
                 indenter indent
                 code "}\n"
                 (_, nl, _) <- StateMonad.get
@@ -543,7 +543,7 @@ instance Transformable DebugToC Program where
                 np <- monadicListTransform' t down prog
                 return (np, (pos,state1 newProg))
 
-    transform t pos (options, place, indent) (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, indent) (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
         where 
             ((newCon, newTPrg, newEPrg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter indent
@@ -552,14 +552,14 @@ instance Transformable DebugToC Program where
                 code ")\n" 
                 indenter indent
                 code "{\n"
-                ntPrg <- monadicTransform' t (options, place, addIndent indent) tPrg
+                ntPrg <- monadicTransform' t (addIndent down) tPrg
                 indenter indent
                 code "}\n" 
                 indenter indent 
                 code "else\n" 
                 indenter indent 
                 code "{\n"
-                nePrg <- monadicTransform' t (options, place, addIndent indent) ePrg
+                nePrg <- monadicTransform' t (addIndent down) ePrg
                 indenter indent 
                 code "}\n"
                 (_, nl, nc) <- StateMonad.get
@@ -567,52 +567,52 @@ instance Transformable DebugToC Program where
 
     transform t pos down (Switch scrut alts _ _) = error "TODO: PrettyPrint for switch"
 
-    transform t pos (options, place, indent) (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, indent) (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
         where
             ((newCon, newConPrg, newBlockPrg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter indent
                 code "{\n"
-                ncp <- monadicTransform' t (options, place, addIndent indent) conPrg
-                indenter $ addIndent indent
+                ncp <- monadicTransform' t (addIndent down) conPrg
+                indenter $ trd $ addIndent down
                 code "while("
-                ncon <- monadicTransform' t (options, ValueNeed_pl, addIndent indent) con
+                ncon <- monadicTransform' t (options, ValueNeed_pl, trd $ addIndent down) con
                 code ")\n" 
-                indenter $ addIndent indent
+                indenter $ trd $ addIndent down
                 code "{\n"
-                nbp <- monadicTransform' t (options, place, addIndent $ addIndent indent) blockPrg
-                monadicTransform' t (options, place, addIndent $ addIndent indent) (blockBody conPrg)
-                indenter $ addIndent indent
+                nbp <- monadicTransform' t (addIndent $ addIndent down) blockPrg
+                monadicTransform' t (addIndent $ addIndent down) (blockBody conPrg)
+                indenter $ trd $ addIndent down
                 code "}\n" 
                 indenter indent 
                 code "}\n"
                 (_, nl, nc) <- StateMonad.get
                 return (ncon, ncp, nbp, (pos,(nl,nc)))
 
-    transform t pos (options, place, indent) (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, indent) (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
         where
             ((newCount, newBound, newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter indent
                 code "for("
-                _ <- monadicTransform' t (options, Declaration_pl, addIndent indent) count
+                _ <- monadicTransform' t (options, Declaration_pl, trd $ addIndent down) count
                 code " = 0; "
-                loopVariable <- monadicTransform' t (options, ValueNeed_pl, addIndent indent) count
+                loopVariable <- monadicTransform' t (options, ValueNeed_pl, trd $ addIndent down) count
                 code " < "
-                nb <- monadicTransform' t (options, ValueNeed_pl, addIndent indent) bound
+                nb <- monadicTransform' t (options, ValueNeed_pl, trd $ addIndent down) bound
                 code $ "; " ++ up loopVariable ++ " += " ++ show step ++ ")\n" 
                 indenter indent
                 code "{\n"
-                np <- monadicTransform' t (options, place, addIndent indent) prog
+                np <- monadicTransform' t (addIndent down) prog
                 indenter indent
                 code "}\n" 
                 (_, nl, nc) <- StateMonad.get
                 return (loopVariable, nb, np, (pos,(nl,nc)))
 
-    transform t pos (options, place, indent) (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, indent) (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
         where
             ((newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter indent 
                 code "{\n"
-                np <- monadicTransform' t (options, place, addIndent indent) prog
+                np <- monadicTransform' t (addIndent down) prog
                 indenter indent 
                 code "}\n"
                 (_, nl, nc) <- StateMonad.get
@@ -621,8 +621,8 @@ instance Transformable DebugToC Program where
 putIndent :: Int -> String
 putIndent = concat . flip replicate " "
 
-addIndent :: Int -> Int
-addIndent indent = indent + 4
+addIndent :: (Options, Place, Int) -> (Options, Place, Int)
+addIndent (options, place, indent) = (options, place, indent + 4)
 
 transform1' _ pos _ [] _ = Result1 [] pos ""
 transform1' t pos down (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
@@ -717,3 +717,6 @@ monadicListTransform' t down l = do
 
 defaultState :: (Int, Int) -> (String, Int, Int)
 defaultState (line, col) = ("", line, col)
+
+trd :: (a, b, c) -> c
+trd (_, _, e) = e
