@@ -316,7 +316,13 @@ setLength :: Expr -> Expr -> Prog
 setLength arr len = Call "setLength" [Out arr, In len]
 
 copyProg :: Expr -> Expr -> Prog
-copyProg outExp inExp = Call "copy" [Out outExp, In inExp]
+copyProg outExp inExp
+    | outExp == inExp         = Skip
+    | isArray (typeof outExp) = Seq [ini, cp]
+    | otherwise               = cp
+  where
+    ini = initArray outExp (arrayLength inExp)
+    cp  = Call "copy" [Out outExp, In inExp]
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
 copyProgPos outExp shift inExp = Call "copyArrayPos" [Out outExp, In shift, In inExp]
@@ -335,12 +341,7 @@ initArray arr len = Call "initArray" [Out arr, In s, In len]
         _       -> error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 assignProg :: Expr -> Expr -> Prog
-assignProg lhs rhs
-    | isArray (typeof lhs)  = Seq [ini,cp]
-    | otherwise             = cp
-  where
-    ini = initArray lhs $ arrayLength rhs
-    cp = copyProg lhs rhs
+assignProg = copyProg
 
 freeArray :: Var -> Prog
 freeArray arr = Call "freeArray" [Out $ varToExpr arr]
