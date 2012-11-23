@@ -192,7 +192,7 @@ instance Transformable DebugToC Constant where
 
     transform t pos down cnst@(BoolConst True _ _) = transformConst pos down cnst "1"
 
-    transform t pos down@(options, place, indent) cnst@(ComplexConst real im _ _)
+    transform t pos down@(options, _, _) cnst@(ComplexConst real im _ _)
         = case List.find (\(t',_) -> t' == typeof cnst) $ values $ platform options of
             Just (_,f) -> 
                 Result (ComplexConst (result newReal) (result newIm) newInf newInf) (snd newInf) cRep 
@@ -292,7 +292,7 @@ instance Transformable DebugToC Expression where
                 (_, nl, nc) <- StateMonad.get
                 return (npl, (pos,(nl,nc)))
 
-    transform t pos down@(options, place, indent) (Cast typ e _ _) =  Result (Cast typ (result newExp) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, _) (Cast typ e _ _) =  Result (Cast typ (result newExp) newInf newInf) (snd newInf) cRep 
         where
             ((newExp, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 code $ concat ["((", toC options place typ, ")("]
@@ -342,7 +342,7 @@ instance Transformable1 DebugToC [] StructMember where
 
 
 instance Transformable DebugToC Entity where
-    transform t pos down@(options, place, indent) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
+    transform t pos down@(_, _, indent) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
         where
             ((newMembers, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 code $ n ++ " {\n"
@@ -500,7 +500,7 @@ instance Transformable DebugToC Program where
     transform _ pos _ (Empty _ _) = Result (Empty newInf newInf) pos "" where 
         newInf = (pos, pos)
 
-    transform _ pos down@(_, _, indent) (Comment True comment _ _) = Result (Comment True comment newInf newInf) (snd newInf) cRep 
+    transform _ pos down (Comment True comment _ _) = Result (Comment True comment newInf newInf) (snd newInf) cRep 
         where
             (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter down
@@ -508,7 +508,7 @@ instance Transformable DebugToC Program where
                 (_, nl, nc) <- StateMonad.get
                 return (pos, (nl, nc))
 
-    transform _ pos down@(_, _, indent) (Comment False comment _ _) = Result (Comment False comment newInf newInf) (snd newInf) cRep 
+    transform _ pos down (Comment False comment _ _) = Result (Comment False comment newInf newInf) (snd newInf) cRep 
         where 
             (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter down
@@ -543,7 +543,7 @@ instance Transformable DebugToC Program where
                 np <- monadicListTransform' t down prog
                 return (np, (pos,state1 newProg))
 
-    transform t pos down@(options, place, indent) (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, _, indent) (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
         where 
             ((newCon, newTPrg, newEPrg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter down
@@ -567,7 +567,7 @@ instance Transformable DebugToC Program where
 
     transform t pos down (Switch scrut alts _ _) = error "TODO: PrettyPrint for switch"
 
-    transform t pos down@(options, place, indent) (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, _, indent) (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
         where
             ((newCon, newConPrg, newBlockPrg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter down
@@ -588,7 +588,7 @@ instance Transformable DebugToC Program where
                 (_, nl, nc) <- StateMonad.get
                 return (ncon, ncp, nbp, (pos,(nl,nc)))
 
-    transform t pos down@(options, place, indent) (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, _, indent) (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
         where
             ((newCount, newBound, newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter down
@@ -607,7 +607,7 @@ instance Transformable DebugToC Program where
                 (_, nl, nc) <- StateMonad.get
                 return (loopVariable, nb, np, (pos,(nl,nc)))
 
-    transform t pos down@(options, place, indent) (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
+    transform t pos down (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
         where
             ((newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState pos) $ do
                 indenter down
