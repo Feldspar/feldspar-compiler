@@ -253,7 +253,7 @@ instance Transformable DebugToC Expression where
 
     transform t pos down expr@(StructField _ field _ _) = transformExpr pos down ('.' : field) ValueNeed_pl
       where
-          transformExpr pos (options, place, indent) str paramType = Result (newExpr expr) (snd newInf) cRep
+          transformExpr pos down@(_, place, _) str paramType = Result (newExpr expr) (snd newInf) cRep
             where
                 newExpr (StructField _ s _ _ ) = StructField (result newTarget) s newInf newInf
                 getExpr (StructField e _ _ _ ) = e
@@ -263,7 +263,7 @@ instance Transformable DebugToC Expression where
                        _                   -> ""
                 ((newTarget, newInf), (cRep, _)) = flip StateMonad.runState (defaultState pos) $ do
                     code prefix
-                    nt <- monadicTransform' t (options, paramType, indent)  (getExpr expr)
+                    nt <- monadicTransform' t (newPlace down paramType)  (getExpr expr)
                     code str
                     (_, np) <- StateMonad.get
                     return (nt, (pos,np))
@@ -282,12 +282,12 @@ instance Transformable DebugToC Expression where
     transform t pos down fc@(FunctionCall f [_,_] _ _)
         | funMode f == Infix = transformFuncCall t pos down fc "(" (" " ++ funName f ++ " ") ")"
 
-    transform t pos (options, _, indent) (FunctionCall f paramlist _ _) =
+    transform t pos down (FunctionCall f paramlist _ _) =
                 Result (FunctionCall f (result1 newParamlist) newInf newInf) (snd newInf) cRep 
         where
             ((newParamlist, newInf), (cRep, _)) = flip StateMonad.runState (defaultState pos) $ do
                 code $ funName f ++ "("
-                npl <- monadicListTransform' t (options, FunctionCallIn_pl, indent) paramlist
+                npl <- monadicListTransform' t (newPlace down FunctionCallIn_pl) paramlist
                 code ")"
                 (_, np) <- StateMonad.get
                 return (npl, (pos,np))
