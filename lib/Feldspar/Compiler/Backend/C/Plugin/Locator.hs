@@ -71,21 +71,21 @@ instance Transformation GetPrgParLoop where
 
 instance Plugin GetPrgParLoop where
     type ExternalInfo GetPrgParLoop = (Int, Int)
-    executePlugin GetPrgParLoop (line, col) procedure =
-        result $ transform GetPrgParLoop () (line, col) procedure
+    executePlugin GetPrgParLoop pos procedure =
+        result $ transform GetPrgParLoop () pos procedure
 
 getPrgParLoop :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
-getPrgParLoop (line, col) procedure = up res where
-    res = transform GetPrgParLoop () (line, col) procedure        
+getPrgParLoop pos procedure = up res where
+    res = transform GetPrgParLoop () pos procedure
 
 instance Transformable GetPrgParLoop Program where
-    transform t () (line, col) pl@(ParLoop _ _ _ prog inf1 _) = Result pl () info where
-        info  = case contains (line, col) inf1  of
+    transform t () pos pl@(ParLoop _ _ _ prog inf1 _) = Result pl () info where
+        info  = case contains pos inf1  of
                     True -> infoCr where
-                        res = transform t () (line, col) prog
+                        res = transform t () pos prog
                         infoCr = if fst $ up res then up res else (True, pl)
                     _    -> def
-    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+    transform t () pos pr = defaultTransform t () pos pr
 
 -----------------------------------------------------
 --- GetPrg plugin for Assign
@@ -103,17 +103,17 @@ instance Transformation GetPrgAssign where
 
 instance Plugin GetPrgAssign where
     type ExternalInfo GetPrgAssign = (Int, Int)
-    executePlugin GetPrgAssign (line, col) procedure =
-        result $ transform GetPrgAssign () (line, col) procedure
+    executePlugin GetPrgAssign pos procedure =
+        result $ transform GetPrgAssign () pos procedure
 
 getPrgAssign :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
-getPrgAssign (line, col) procedure = up res where
-    res = transform GetPrgAssign () (line, col) procedure        
+getPrgAssign pos procedure = up res where
+    res = transform GetPrgAssign () pos procedure
 
 instance Transformable GetPrgAssign Program where
-    transform _ () (line, col) assign@(Assign _ _ inf1 _) = Result assign () info where
-        info  = if contains (line, col) inf1 then (True, assign) else def
-    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+    transform _ () pos assign@(Assign _ _ inf1 _) = Result assign () info where
+        info  = if contains pos inf1 then (True, assign) else def
+    transform t () pos pr = defaultTransform t () pos pr
 
 
 -----------------------------------------------------
@@ -132,24 +132,24 @@ instance Transformation GetPrgBranch where
 
 instance Plugin GetPrgBranch where
     type ExternalInfo GetPrgBranch = (Int, Int)
-    executePlugin GetPrgBranch (line, col) procedure =
-        result $ transform GetPrgBranch () (line, col) procedure
+    executePlugin GetPrgBranch pos procedure =
+        result $ transform GetPrgBranch () pos procedure
 
 getPrgBranch :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
-getPrgBranch (line, col) procedure = up res where
-    res = transform GetPrgBranch () (line, col) procedure        
+getPrgBranch pos procedure = up res where
+    res = transform GetPrgBranch () pos procedure
 
 instance Transformable GetPrgBranch Program where
-    transform t () (line, col) br@(Branch _ prog1 prog2 inf1 _) = Result br () info where
-        info  = case contains (line, col) inf1  of
+    transform t () pos br@(Branch _ prog1 prog2 inf1 _) = Result br () info where
+        info  = case contains pos inf1  of
                     True -> infoCr where
-                        res1 = transform t () (line, col) prog1
-                        res2 = transform t () (line, col) prog2
+                        res1 = transform t () pos prog1
+                        res2 = transform t () pos prog2
                         res = combine (up res1) (up res2)
                         infoCr = if fst res then res else (True,br)
                     _    -> def
 
-    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+    transform t () pos pr = defaultTransform t () pos pr
 
 -----------------------------------------------------
 --- GetPrg plugin for Switch
@@ -167,23 +167,23 @@ instance Transformation GetPrgSwitch where
 
 instance Plugin GetPrgSwitch where
     type ExternalInfo GetPrgSwitch = (Int, Int)
-    executePlugin GetPrgSwitch (line, col) procedure =
-        result $ transform GetPrgSwitch () (line, col) procedure
+    executePlugin GetPrgSwitch pos procedure =
+        result $ transform GetPrgSwitch () pos procedure
 
 getPrgSwitch :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
-getPrgSwitch (line, col) procedure = up res where
-    res = transform GetPrgSwitch () (line, col) procedure
+getPrgSwitch pos procedure = up res where
+    res = transform GetPrgSwitch () pos procedure
 
 instance Transformable GetPrgSwitch Program where
-    transform t () (line, col) sw@(Switch _ alts inf1 _) = Result sw () info where
-        info  = case contains (line, col) inf1 of
+    transform t () pos sw@(Switch _ alts inf1 _) = Result sw () info where
+        info  = case contains pos inf1 of
                     True -> infoCr where
-                        alts' = map (\(_, prog) -> transform t () (line, col) prog) alts
+                        alts' = map (\(_, prog) -> transform t () pos prog) alts
                         res = foldl combine (up (head alts')) (map up (tail alts'))
                         infoCr = if fst res then res else (True,sw)
                     _    -> def
 
-    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+    transform t () pos pr = defaultTransform t () pos pr
 
 -----------------------------------------------------
 --- GetPrg plugin for ProcedureCall
@@ -201,17 +201,17 @@ instance Transformation GetPrgProcCall where
 
 instance Plugin GetPrgProcCall where
     type ExternalInfo GetPrgProcCall = (Int, Int)
-    executePlugin GetPrgProcCall (line, col) procedure =
-        result $ transform GetPrgProcCall () (line, col) procedure
+    executePlugin GetPrgProcCall pos procedure =
+        result $ transform GetPrgProcCall () pos procedure
 
 getPrgProcCall :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
-getPrgProcCall (line, col) procedure = up res where
-    res = transform GetPrgProcCall () (line, col) procedure        
+getPrgProcCall pos procedure = up res where
+    res = transform GetPrgProcCall () pos procedure
 
 instance Transformable GetPrgProcCall Program where
-    transform _ () (line, col) pc@(ProcedureCall _ _ inf1 _) = Result pc () info where
-        info  = if contains (line,col) inf1 then (True,pc) else def
-    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+    transform _ () pos pc@(ProcedureCall _ _ inf1 _) = Result pc () info where
+        info  = if contains pos inf1 then (True,pc) else def
+    transform t () pos pr = defaultTransform t () pos pr
 
 -----------------------------------------------------
 --- GetPrg plugin for SeqLoop
@@ -229,21 +229,21 @@ instance Transformation GetPrgSeqLoop where
 
 instance Plugin GetPrgSeqLoop where
     type ExternalInfo GetPrgSeqLoop = (Int, Int)
-    executePlugin GetPrgSeqLoop (line, col) procedure =
-        result $ transform GetPrgSeqLoop () (line, col) procedure
+    executePlugin GetPrgSeqLoop pos procedure =
+        result $ transform GetPrgSeqLoop () pos procedure
 
 getPrgSeqLoop :: (Int, Int) -> Module DebugToCSemanticInfo -> (Bool, Program DebugToCSemanticInfo)
-getPrgSeqLoop (line, col) procedure = up res where
-    res = transform GetPrgSeqLoop () (line, col) procedure
+getPrgSeqLoop pos procedure = up res where
+    res = transform GetPrgSeqLoop () pos procedure
 
 instance Transformable GetPrgSeqLoop Program where
-    transform t () (line, col) sl@(SeqLoop _ _ prog inf1 _) = Result sl () info where
-        info  = case contains (line, col) inf1  of
+    transform t () pos sl@(SeqLoop _ _ prog inf1 _) = Result sl () info where
+        info  = case contains pos inf1  of
                     True -> infoCr where
-                        res = transform t () (line, col) prog
+                        res = transform t () pos prog
                         infoCr = if fst $ up res then up res else (True, sl)
                     _    -> def
-    transform t () (line, col) pr = defaultTransform t () (line, col) pr
+    transform t () pos pr = defaultTransform t () pos pr
 
 
 -------------------------------------------------
