@@ -181,7 +181,7 @@ instance Transformable DebugToC Variable where
                 return ((line, col), (nl, nc))
 
 instance Transformable1 DebugToC [] Constant where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Constant where
     transform t pos down cnst@(IntConst c _ _ _) = transformConst t pos down cnst (show c)
@@ -226,7 +226,7 @@ instance Transformable DebugToC ActualParameter where
     transform t pos down act@FunParameter{}  = transformActParam t pos down act FunctionCallIn_pl
 
 instance Transformable1 DebugToC [] Expression where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Expression where
     transform t (line, col) (options, place, indent) (VarExpr val _) = Result (VarExpr (result newVal) newInf) (snd newInf) cRep
@@ -318,7 +318,7 @@ instance Transformable DebugToC Expression where
                 return (ne, ((line,col),(nl,nc)))
 
 instance Transformable1 DebugToC [] Entity where
-    transform1 t pos down l = transform1' t pos down l "" 0
+    transform1 t pos down l = transform1' t pos down l ""
 
 instance Transformable DebugToC Module where
     transform t (line, col) (options, place, indent) (Module defList _) = Result (Module (result1 newDefList) newInf) (snd newInf) cRep 
@@ -329,7 +329,7 @@ instance Transformable DebugToC Module where
                 return (ndl, ((line,col),(nl,nc)))
 
 instance Transformable1 DebugToC [] Variable where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable1 DebugToC [] StructMember where
     transform1 _ (line, col) _ [] = Result1 [] (line, col) ""
@@ -490,10 +490,10 @@ instance Transformable DebugToC Declaration where
                 return (ndv, ne, ((line,col),(nl,nc)))
 
 instance Transformable1 DebugToC [] ActualParameter where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable1 DebugToC [] Program where
-    transform1 t pos down l = transform1' t pos down l "" 0
+    transform1 t pos down l = transform1' t pos down l ""
 
 
 instance Transformable DebugToC Program where
@@ -626,13 +626,13 @@ putIndent = concat . flip replicate " "
 addIndent :: Int -> Int
 addIndent indent = indent + 4
 
-transform1' _ (line, col) _ [] _ _ = Result1 [] (line, col) ""
-transform1' t (line, col) (options, place, indent) (x:[]) _ _ = Result1 [result newX] (state newX) (up newX) where
+transform1' _ (line, col) _ [] _ = Result1 [] (line, col) ""
+transform1' t (line, col) (options, place, indent) (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
     newX = transform t (line, col) (options, place, indent) x
-transform1' t (line, col) (options, place, indent) (x:xs) str num = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
+transform1' t (line, col) (options, place, indent) (x:xs) str = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
     newX = transform t (line, col) (options, place, indent) x
     (line2, col2) =  state newX
-    newSt = (line2 + num, col2 + length str) 
+    newSt = (line2, col2 + length str)
     newXs = transform1 t newSt (options, place, indent) xs
 
 transformConst _ (line, col) (options, _, _) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
