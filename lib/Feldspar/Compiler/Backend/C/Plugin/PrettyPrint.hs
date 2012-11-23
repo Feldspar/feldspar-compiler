@@ -627,13 +627,13 @@ addIndent :: Int -> Int
 addIndent indent = indent + 4
 
 transform1' _ pos _ [] _ = Result1 [] pos ""
-transform1' t pos (options, place, indent) (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
-    newX = transform t pos (options, place, indent) x
-transform1' t pos (options, place, indent) (x:xs) str = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
-    newX = transform t pos (options, place, indent) x
+transform1' t pos info (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
+    newX = transform t pos info x
+transform1' t pos info (x:xs) str = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
+    newX = transform t pos info x
     (line2, col2) =  state newX
     newSt = (line2, col2 + length str)
-    newXs = transform1 t newSt (options, place, indent) xs
+    newXs = transform1 t newSt info xs
 
 transformConst (line, col) (options, _, _) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
     where
