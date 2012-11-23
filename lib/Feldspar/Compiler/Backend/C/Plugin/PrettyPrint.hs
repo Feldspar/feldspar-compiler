@@ -626,11 +626,11 @@ putIndent = concat . flip replicate " "
 addIndent :: Int -> Int
 addIndent indent = indent + 4
 
-transform1' _ (line, col) _ [] _ = Result1 [] (line, col) ""
-transform1' t (line, col) (options, place, indent) (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
-    newX = transform t (line, col) (options, place, indent) x
-transform1' t (line, col) (options, place, indent) (x:xs) str = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
-    newX = transform t (line, col) (options, place, indent) x
+transform1' _ pos _ [] _ = Result1 [] pos ""
+transform1' t pos (options, place, indent) (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
+    newX = transform t pos (options, place, indent) x
+transform1' t pos (options, place, indent) (x:xs) str = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
+    newX = transform t pos (options, place, indent) x
     (line2, col2) =  state newX
     newSt = (line2, col2 + length str)
     newXs = transform1 t newSt (options, place, indent) xs
