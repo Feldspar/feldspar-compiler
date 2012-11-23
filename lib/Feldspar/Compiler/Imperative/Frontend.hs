@@ -321,7 +321,10 @@ copyProg outExp inExp
     | isArray (typeof outExp) = Seq [ini, cp]
     | otherwise               = cp
   where
-    ini = initArray outExp (arrayLength inExp)
+    len = arrayLength inExp
+    ini = if (len == arrayLength outExp)
+            then Skip
+            else initArray outExp len
     cp  = Call "copy" [Out outExp, In inExp]
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
