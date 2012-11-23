@@ -168,8 +168,8 @@ compToC :: ((Options, Place), Int) -> Module () -> (String, (Int, Int))
 compToC ((options, place), line) procedure = (up res, state res) where
     res = transform DebugToC (line, 0) (options, place, 0) procedure
 
-compToCWithInfos :: (Options, Place) -> Int -> Module () -> (Module DebugToCSemanticInfo, (String, (Int, Int)))
-compToCWithInfos (options, place) line procedure = (result res, (up res, state res)) where
+compToCWithInfos :: Options -> Place -> Int -> Module () -> (Module DebugToCSemanticInfo, (String, (Int, Int)))
+compToCWithInfos options place line procedure = (result res, (up res, state res)) where
     res = transform DebugToC (line, 0) (options, place, 0) procedure
 
 instance Transformable DebugToC Variable where
