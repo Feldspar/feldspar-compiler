@@ -77,24 +77,19 @@ instance ( Compile dom dom
         = do
             let t = argType $ infoType $ getInfo lam1
             let sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
-            let ta' = argType $ infoType $ getInfo lam2
-            let sa' = defaultSize ta'
             let tr' = resType $ infoType $ getInfo lam2
             let sr' = infoSize $ getInfo lam2
             let ix@(Var _ name) = mkVar (compileTypeRep t sz) v
-            let stv = mkVar (compileTypeRep ta' sa') s
             len' <- mkLength len (infoType $ getInfo len) sz
             tmp       <- freshVar "seq" tr' sr'
-            initSt    <- compileExpr st
-            (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg tmp step
+            (_, Bl ds (Seq body)) <- confiscateBlock $ withAlias s (tmp :.: "member2") $ compileProg tmp step
             tellProg [initArray loc len']
-            tellProg [Block (ds ++ [toIni stv initSt]) $
+            compileProg (tmp :.: "member2") st
+            tellProg [Block ds $
                       For name len' 1 $
                                     Seq (body ++
                                          [assignProg (loc :!: ix) (tmp :.: "member1")
-                                         ,assignProg stv (tmp :.: "member2")
                                          ])]
-      where toIni (Var ty str) = Init ty str
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
