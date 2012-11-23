@@ -184,13 +184,13 @@ instance Transformable1 DebugToC [] Constant where
     transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Constant where
-    transform t pos down cnst@(IntConst c _ _ _) = transformConst t pos down cnst (show c)
+    transform t pos down cnst@(IntConst c _ _ _) = transformConst pos down cnst (show c)
 
-    transform t pos down cnst@(FloatConst c _ _) = transformConst t pos down cnst (show c ++ "f")
+    transform t pos down cnst@(FloatConst c _ _) = transformConst pos down cnst (show c ++ "f")
 
-    transform t pos down cnst@(BoolConst False _ _) = transformConst t pos down cnst "0"
+    transform t pos down cnst@(BoolConst False _ _) = transformConst pos down cnst "0"
 
-    transform t pos down cnst@(BoolConst True _ _) = transformConst t pos down cnst "1"
+    transform t pos down cnst@(BoolConst True _ _) = transformConst pos down cnst "1"
 
     transform t (line, col) (options, place, indent) cnst@(ComplexConst real im _ _)
         = case List.find (\(t',_) -> t' == typeof cnst) $ values $ platform options of
@@ -635,7 +635,7 @@ transform1' t (line, col) (options, place, indent) (x:xs) str = Result1 (result 
     newSt = (line2, col2 + length str)
     newXs = transform1 t newSt (options, place, indent) xs
 
-transformConst _ (line, col) (options, _, _) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
+transformConst (line, col) (options, _, _) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
     where
         newConst (IntConst c t _ _) = IntConst c t newInf newInf
         newConst (FloatConst c _ _) = FloatConst c newInf newInf
