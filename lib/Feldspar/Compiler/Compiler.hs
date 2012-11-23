@@ -126,7 +126,7 @@ moduleToCCore needed opts mdl =
     (incls, lineNum) = genInclude needed
 
     (dbgModule, (moduleSrc, endPos)) =
-      compToCWithInfos ((opts,Declaration_pl), lineNum) mdl
+      compToCWithInfos (opts, Declaration_pl) lineNum mdl
 
     genInclude IncludesNeeded         = genIncludeLines opts Nothing
     genInclude (NoIncludesNeeded ln)  = ("", ln)
