@@ -161,8 +161,8 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map smdSource $ filterLefts modules
         let mergedHModules = mergeModules $ map smdHeader $ filterLefts modules
-        let cCompToCResult = compToCWithInfos ((coreOptions, Declaration_pl), cLineNum) mergedCModules
-        let hCompToCResult = compToCWithInfos ((coreOptions, Declaration_pl), hLineNum) mergedHModules
+        let cCompToCResult = compToCWithInfos coreOptions Declaration_pl cLineNum mergedCModules
+        let hCompToCResult = compToCWithInfos coreOptions Declaration_pl hLineNum mergedHModules
         appendFile (makeCFileName outFileName) (fst $ snd cCompToCResult) `Control.Exception.catch` errorHandler
         appendFile (makeHFileName outFileName) (fst $ snd hCompToCResult) `Control.Exception.catch` errorHandler
         writeFile (makeDebugCFileName outFileName) (show $ fst cCompToCResult) `Control.Exception.catch` errorHandler

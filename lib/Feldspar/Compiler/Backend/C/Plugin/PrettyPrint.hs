@@ -168,52 +168,52 @@ compToC :: ((Options, Place), Int) -> Module () -> (String, (Int, Int))
 compToC ((options, place), line) procedure = (up res, state res) where
     res = transform DebugToC (line, 0) (options, place, 0) procedure
 
-compToCWithInfos :: ((Options, Place), Int) -> Module () -> (Module DebugToCSemanticInfo, (String, (Int, Int)))
-compToCWithInfos ((options, place), line) procedure = (result res, (up res, state res)) where
+compToCWithInfos :: Options -> Place -> Int -> Module () -> (Module DebugToCSemanticInfo, (String, (Int, Int)))
+compToCWithInfos options place line procedure = (result res, (up res, state res)) where
     res = transform DebugToC (line, 0) (options, place, 0) procedure
 
 instance Transformable DebugToC Variable where
-    transform _ (line, col) (options, place, _) x@(Variable vname typ role _) = Result (Variable vname typ role newInf) (snd newInf) cRep
+    transform _ pos (options, place, _) x@(Variable vname typ role _) = Result (Variable vname typ role newInf) (snd newInf) cRep
         where
-            (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            (newInf, (cRep, _)) = runState pos $ do
                 code $ toC options place x
-                (_, nl, nc) <- StateMonad.get
-                return ((line, col), (nl, nc))
+                (_, np) <- StateMonad.get
+                return (pos, np)
 
 instance Transformable1 DebugToC [] Constant where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Constant where
-    transform t pos down cnst@(IntConst c _ _ _) = transformConst t pos down cnst (show c)
+    transform t pos down cnst@(IntConst c _ _ _) = transformConst pos down cnst (show c)
 
-    transform t pos down cnst@(FloatConst c _ _) = transformConst t pos down cnst (show c ++ "f")
+    transform t pos down cnst@(FloatConst c _ _) = transformConst pos down cnst (show c ++ "f")
 
-    transform t pos down cnst@(BoolConst False _ _) = transformConst t pos down cnst "0"
+    transform t pos down cnst@(BoolConst False _ _) = transformConst pos down cnst "0"
 
-    transform t pos down cnst@(BoolConst True _ _) = transformConst t pos down cnst "1"
+    transform t pos down cnst@(BoolConst True _ _) = transformConst pos down cnst "1"
 
-    transform t (line, col) (options, place, indent) cnst@(ComplexConst real im _ _)
+    transform t pos down@(options, _, _) cnst@(ComplexConst real im _ _)
         = case List.find (\(t',_) -> t' == typeof cnst) $ values $ platform options of
             Just (_,f) -> 
                 Result (ComplexConst (result newReal) (result newIm) newInf newInf) (snd newInf) cRep 
                     where
-                        ((newReal, newIm, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                            nr <- complexTransform t (options, place, indent) real
-                            ni <- complexTransform t (options, place, indent) im
+                        ((newReal, newIm, newInf), (cRep, _)) = runState pos $ do
+                            nr <- complexTransform t down real
+                            ni <- complexTransform t down im
                             code $ f cnst
-                            (_, nl, nc) <- StateMonad.get
-                            return (nr, ni, ((line,col),(nl,nc)))
+                            (_, np) <- StateMonad.get
+                            return (nr, ni, (pos,np))
             Nothing    -> 
                 Result (ComplexConst (result newReal) (result newIm) newInf newInf) (snd newInf) cRep
                     where
-                        ((newReal, newIm, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+                        ((newReal, newIm, newInf), (cRep, _)) = runState pos $ do
                             code "complex("
-                            nr <- monadicTransform' t (options, place, indent) real
+                            nr <- monadicTransform' t down real
                             code ","
-                            ni <- monadicTransform' t (options, place, indent) im
+                            ni <- monadicTransform' t down im
                             code ")"
-                            (_, nl, nc) <- StateMonad.get
-                            return (nr, ni, ((line,col),(nl,nc)))
+                            (_, np) <- StateMonad.get
+                            return (nr, ni, (pos,np))
 
 instance Transformable DebugToC ActualParameter where
     transform t pos down act@(In (VarExpr (Variable _ StructType{} _ _) _) _) =
@@ -226,34 +226,34 @@ instance Transformable DebugToC ActualParameter where
     transform t pos down act@FunParameter{}  = transformActParam t pos down act FunctionCallIn_pl
 
 instance Transformable1 DebugToC [] Expression where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Expression where
-    transform t (line, col) (options, place, indent) (VarExpr val _) = Result (VarExpr (result newVal) newInf) (snd newInf) cRep
+    transform t pos down (VarExpr val _) = Result (VarExpr (result newVal) newInf) (snd newInf) cRep
         where
-            ((newVal, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                nv <- monadicTransform' t (options, place, indent) val
-                (_, nl, nc) <- StateMonad.get
-                return (nv, ((line,col),(nl,nc)))
+            ((newVal, newInf), (cRep, _)) = runState pos $ do
+                nv <- monadicTransform' t down val
+                (_, np) <- StateMonad.get
+                return (nv, (pos,np))
 
-    transform t (line, col) (options, place, indent) e@(ArrayElem n index _ _) = Result (ArrayElem (result newName) (result newIndex) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, _) e@(ArrayElem n index _ _) = Result (ArrayElem (result newName) (result newIndex) newInf newInf) (snd newInf) cRep 
         where
-            ((newName, newIndex, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            ((newName, newIndex, newInf), (cRep, _)) = runState pos $ do
                 let prefix = case (place, typeof e) of
                        (AddressNeed_pl, _) -> "&"
                        (_, ArrayType _ _)  -> "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                        _                   -> ""
                 code $ prefix ++ "at(" ++ showType options Value Declaration_pl (typeof e) NoRestrict ++ ","
-                nn <- monadicTransform' t (options, AddressNeed_pl, indent) n
+                nn <- monadicTransform' t (newPlace down AddressNeed_pl) n
                 code ","
-                ni <- monadicTransform' t (options, ValueNeed_pl, indent) index
+                ni <- monadicTransform' t (newPlace down ValueNeed_pl) index
                 code ")"
-                (_, nl, nc) <- StateMonad.get
-                return (nn, ni, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (nn, ni, (pos,np))
 
     transform t pos down expr@(StructField _ field _ _) = transformExpr pos down ('.' : field) ValueNeed_pl
       where
-          transformExpr (line, col) (options, place, indent) str paramType = Result (newExpr expr) (snd newInf) cRep
+          transformExpr pos down@(_, place, _) str paramType = Result (newExpr expr) (snd newInf) cRep
             where
                 newExpr (StructField _ s _ _ ) = StructField (result newTarget) s newInf newInf
                 getExpr (StructField e _ _ _ ) = e
@@ -261,20 +261,20 @@ instance Transformable DebugToC Expression where
                        (AddressNeed_pl, _) -> "&"
                        (_, ArrayType _ _)  -> "&"
                        _                   -> ""
-                ((newTarget, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+                ((newTarget, newInf), (cRep, _)) = runState pos $ do
                     code prefix
-                    nt <- monadicTransform' t (options, paramType, indent)  (getExpr expr)
+                    nt <- monadicTransform' t (newPlace down paramType)  (getExpr expr)
                     code str
-                    (_, nl, nc) <- StateMonad.get
-                    return (nt, ((line,col),(nl,nc)))
+                    (_, np) <- StateMonad.get
+                    return (nt, (pos,np))
 
 
-    transform t (line, col) (options, place, indent) (ConstExpr val _) = Result (ConstExpr (result newVal) newInf) (snd newInf) cRep
+    transform t pos down (ConstExpr val _) = Result (ConstExpr (result newVal) newInf) (snd newInf) cRep
         where
-            ((newVal, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                nv <- monadicTransform' t (options, place, indent) val
-                (_, nl, nc) <- StateMonad.get
-                return (nv, ((line,col),(nl,nc)))
+            ((newVal, newInf), (cRep, _)) = runState pos $ do
+                nv <- monadicTransform' t down val
+                (_, np) <- StateMonad.get
+                return (nv, (pos,np))
 
     transform t pos down fc@(FunctionCall f [_,_] _ _)
         | funName f == "!" = transformFuncCall t pos down fc "at(" "," ")"
@@ -282,129 +282,129 @@ instance Transformable DebugToC Expression where
     transform t pos down fc@(FunctionCall f [_,_] _ _)
         | funMode f == Infix = transformFuncCall t pos down fc "(" (" " ++ funName f ++ " ") ")"
 
-    transform t (line, col) (options, _, indent) (FunctionCall f paramlist _ _) =
+    transform t pos down (FunctionCall f paramlist _ _) =
                 Result (FunctionCall f (result1 newParamlist) newInf newInf) (snd newInf) cRep 
         where
-            ((newParamlist, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            ((newParamlist, newInf), (cRep, _)) = runState pos $ do
                 code $ funName f ++ "("
-                npl <- monadicListTransform' t (options, FunctionCallIn_pl, indent) paramlist
+                npl <- monadicListTransform' t (newPlace down FunctionCallIn_pl) paramlist
                 code ")"
-                (_, nl, nc) <- StateMonad.get
-                return (npl, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (npl, (pos,np))
 
-    transform t (line, col) (options, place, indent) (Cast typ e _ _) =  Result (Cast typ (result newExp) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(options, place, _) (Cast typ e _ _) =  Result (Cast typ (result newExp) newInf newInf) (snd newInf) cRep 
         where
-            ((newExp, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            ((newExp, newInf), (cRep, _)) = runState pos $ do
                 code $ concat ["((", toC options place typ, ")("]
-                ne <- monadicTransform' t (options, place, indent) e
+                ne <- monadicTransform' t down e
                 code "))"
-                (_, nl, nc) <- StateMonad.get
-                return (ne, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (ne, (pos,np))
 
-    transform _ (line, col) (options, place, _) (SizeOf (Left typ) _ _) = Result (SizeOf (Left typ) newInf newInf) (snd newInf) cRep 
+    transform _ pos (options, place, _) (SizeOf (Left typ) _ _) = Result (SizeOf (Left typ) newInf newInf) (snd newInf) cRep 
         where
-            (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            (newInf, (cRep, _)) = runState pos $ do
                 code ("sizeof(" ++ toC options place typ ++ ")")
-                (_, nl, nc) <- StateMonad.get
-                return ((line, col), (nl, nc))
+                (_, np) <- StateMonad.get
+                return (pos, np)
 
-    transform t (line, col) (options, place, indent) (SizeOf (Right e) _ _) = Result (SizeOf (Right (result newExp)) newInf newInf) (newLine, newCol) cRep 
+    transform t pos down (SizeOf (Right e) _ _) = Result (SizeOf (Right (result newExp)) newInf newInf) p cRep 
         where
-            ((newExp, newInf), (cRep, newLine, newCol)) = flip StateMonad.runState (defaultState line col) $ do
+            ((newExp, newInf), (cRep, p)) = runState pos $ do
                 code "sizeof"
-                ne <- monadicTransform' t (options, place, indent) e
+                ne <- monadicTransform' t down e
                 code ")"
-                (_, nl, nc) <- StateMonad.get
-                return (ne, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (ne, (pos,np))
 
 instance Transformable1 DebugToC [] Entity where
-    transform1 t pos down l = transform1' t pos down l "" 0
+    transform1 t pos down l = transform1' t pos down l ""
 
 instance Transformable DebugToC Module where
-    transform t (line, col) (options, place, indent) (Module defList _) = Result (Module (result1 newDefList) newInf) (snd newInf) cRep 
+    transform t pos down (Module defList _) = Result (Module (result1 newDefList) newInf) (snd newInf) cRep 
         where
-            ((newDefList, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                ndl <- monadicListTransform' t (options, place, indent) defList
-                (_, nl, nc) <- StateMonad.get
-                return (ndl, ((line,col),(nl,nc)))
+            ((newDefList, newInf), (cRep, _)) = runState pos $ do
+                ndl <- monadicListTransform' t down defList
+                (_, np) <- StateMonad.get
+                return (ndl, (pos,np))
 
 instance Transformable1 DebugToC [] Variable where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable1 DebugToC [] StructMember where
-    transform1 _ (line, col) _ [] = Result1 [] (line, col) ""
-    transform1 t (line, col) (options, place, indent) (x:xs) = Result1 (result newX : result1 newXs) (state1 newXs) cRep where
-        ((newX, newXs), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-            indenter indent
-            nx  <- monadicTransform' t (options, place, indent) x
-            nxs <- monadicListTransform' t (options, place, indent) xs
+    transform1 _ pos _ [] = Result1 [] pos ""
+    transform1 t pos down (x:xs) = Result1 (result newX : result1 newXs) (state1 newXs) cRep where
+        ((newX, newXs), (cRep, _)) = runState pos $ do
+            indenter down
+            nx  <- monadicTransform' t down x
+            nxs <- monadicListTransform' t down xs
             return (nx, nxs)
 
 
 instance Transformable DebugToC Entity where
-    transform t (line, col) (options, place, indent) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
+    transform t pos down@(_, _, indent) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
         where
-            ((newMembers, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            ((newMembers, newInf), (cRep, _)) = runState pos $ do
                 code $ n ++ " {\n"
-                (crep, cl, cc) <- StateMonad.get
-                StateMonad.put (crep, cl, cc + addIndent indent)
-                nms <- monadicListTransform' t (options, place, addIndent indent) members
-                indenter indent
+                (crep, (cl, cc)) <- StateMonad.get
+                StateMonad.put (crep, (cl, cc + (trd $ addIndent down)))
+                nms <- monadicListTransform' t (addIndent down) members
+                indenter down
                 code "};\n"
-                (crep, cl, _) <- StateMonad.get
-                StateMonad.put (crep, cl, indent)
-                return (nms, ((line,col),(cl,indent)))
+                (crep, (cl, _)) <- StateMonad.get
+                StateMonad.put (crep, (cl, indent))
+                return (nms, (pos,(cl,indent)))
 
-    transform _ (line, col) (options, place, indent) (TypeDef typ n _) = Result (TypeDef typ n newInf) (snd newInf) cRep
+    transform _ pos (options, place, indent) (TypeDef typ n _) = Result (TypeDef typ n newInf) (snd newInf) cRep
         where
-            (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            (newInf, (cRep, _)) = runState pos $ do
                 code $ unwords [ "typedef"
                                , showType options Value place typ NoRestrict
                                , n
                                ]
                 code ";\n"
-                (crep, cl, _) <- StateMonad.get
-                StateMonad.put (crep, cl, indent)
-                return ((line, col), (cl, indent))
+                (crep, (cl, _)) <- StateMonad.get
+                StateMonad.put (crep, (cl, indent))
+                return (pos, (cl, indent))
 
-    transform t (line, col) (options, place, indent) (ProcDef n inp outp body _ _) =
+    transform t pos down@(_, _, indent) (ProcDef n inp outp body _ _) =
       Result (ProcDef n (result1 newInParam) (result1 newOutParam) (result newBody) newInf newInf) (snd newInf) cRep
         where
-            ((newInParam, newOutParam, newBody, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            ((newInParam, newOutParam, newBody, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code $ "void " ++ n ++ "("
-                ninp <- monadicListTransform' t (options, MainParameter_pl, indent) inp
+                ninp <- monadicListTransform' t (newPlace down MainParameter_pl) inp
                 let str
                         | null inp || null outp = ""
                         | otherwise             = ", "
                 code str
-                noutp <- monadicListTransform' t (options, MainParameter_pl, indent) outp
+                noutp <- monadicListTransform' t (newPlace down MainParameter_pl) outp
                 code ")\n"
-                indenter indent
+                indenter down
                 code "{\n"
-                (crep, al, _) <- StateMonad.get
-                StateMonad.put (crep, al, addIndent indent)
-                nb <- monadicTransform' t (options, Declaration_pl, addIndent indent) body
-                indenter indent
+                (crep, (al, _)) <- StateMonad.get
+                StateMonad.put (crep, (al, trd $ addIndent down))
+                nb <- monadicTransform' t (newPlace (addIndent down) Declaration_pl) body
+                indenter down
                 code "}\n"
-                (_, nl, _) <- StateMonad.get
-                return (ninp, noutp, nb, ((line,col),(nl,indent)))
+                (_, (nl, _)) <- StateMonad.get
+                return (ninp, noutp, nb, (pos,(nl,indent)))
 
-    transform t (line, col) (options, _, indent) (ProcDecl n inp outp _ _) =
+    transform t pos down@(options, _, indent) (ProcDecl n inp outp _ _) =
       Result (ProcDecl n (result1 newInParam) (result1 newOutParam) newInf newInf) (snd newInf) cRep
         where
-            ((newInParam, newOutParam, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            ((newInParam, newOutParam, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code $ "void " ++ n ++ "("
-                ninp <- monadicListTransform' t (options, MainParameter_pl, indent) inp
+                ninp <- monadicListTransform' t (newPlace down MainParameter_pl) inp
                 let str
                         | null inp || null outp = ""
                         | otherwise             = ", "
                 code str
-                noutp <- monadicListTransform' t (options, MainParameter_pl, indent) outp
+                noutp <- monadicListTransform' t (newPlace down MainParameter_pl) outp
                 code ");\n"
-                (_, nl, _) <- StateMonad.get
-                return (ninp, noutp, ((line,col),(nl,indent)))
+                (_, (nl, _)) <- StateMonad.get
+                return (ninp, noutp, (pos,(nl,indent)))
 
 displayComment :: Int -> [String] -> String
 displayComment indent = unlines . map (putIndent indent ++) . (["/*"] ++) . (++ [" */"]) . map (" * " ++)
@@ -438,284 +438,290 @@ displayType (UserType s)    = s
 displayType (StructType _)  = "struct"
 
 instance Transformable DebugToC StructMember where
-    transform _ (line, col) (options, place, _) dsm@(StructMember str typ _) = Result (StructMember str typ newInf) (snd newInf) cRep 
+    transform _ pos (options, place, _) dsm@(StructMember str typ _) = Result (StructMember str typ newInf) (snd newInf) cRep 
         where
-            (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+            (newInf, (cRep, _)) = runState pos $ do
                 let t = case structMemberType dsm of
                      ArrayType{} -> showVariable options place Value (structMemberType dsm) (structMemberName dsm) ++ ";"
                      _           -> toC options place (structMemberType dsm) ++ " " ++ structMemberName dsm ++ ";"
                 code $ t ++ "\n"
-                (_, nl, nc) <- StateMonad.get
-                return ((line, col), (nl, nc))
+                (_, np) <- StateMonad.get
+                return (pos, np)
 
 instance Transformable1 DebugToC [] Declaration where
-    transform1 _ (line, col) _ [] = Result1 [] (line, col) ""
-    transform1 t (line, col) (options, place, indent) (x:xs) = Result1 (result newX : result1 newXs) (state1 newXs) ((putIndent indent ++ up newX ++ ";\n" ) ++ up1 newXs) where
-        newX = transform t (line, col) (options, place, indent) x
+    transform1 _ pos _ [] = Result1 [] pos ""
+    transform1 t pos down@(_, _, indent) (x:xs) = Result1 (result newX : result1 newXs) (state1 newXs) ((putIndent indent ++ up newX ++ ";\n" ) ++ up1 newXs) where
+        newX = transform t pos down x
         (line2, _) =  state newX
         newSt = (line2 + 1, indent) 
-        newXs = transform1 t newSt (options, place, indent) xs
+        newXs = transform1 t newSt down xs
 
 instance Transformable DebugToC Block where
-    transform t (line, col) (options, place, indent) (Block locs body _) = Result (Block (result1 newLocs) (result newBody) newInf) (snd newInf) cRep
+    transform t pos down@(_, _, indent) (Block locs body _) = Result (Block (result1 newLocs) (result newBody) newInf) (snd newInf) cRep
         where
-            ((newLocs, newBody, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                nlocs <- monadicListTransform' t (options, Declaration_pl, indent) locs
+            ((newLocs, newBody, newInf), (cRep, _)) = runState pos $ do
+                nlocs <- monadicListTransform' t (newPlace down Declaration_pl) locs
                 let str = case up1 newLocs of 
                      "" -> ""
                      _  -> "\n"
                 code str
-                nbody <- monadicTransform' t (options, place, indent) body
-                (_, nl, _) <- StateMonad.get
-                return (nlocs, nbody, ((line,col),(nl,indent)))
+                nbody <- monadicTransform' t down body
+                (_, (nl, _)) <- StateMonad.get
+                return (nlocs, nbody, (pos,(nl,indent)))
 
 instance Transformable DebugToC Declaration where
-    transform t (line, col) (options, _, indent) (Declaration dv Nothing _) = Result (Declaration (result newDeclVar) Nothing newInf) (snd newInf) cRep
+    transform t pos down (Declaration dv Nothing _) = Result (Declaration (result newDeclVar) Nothing newInf) (snd newInf) cRep
         where
-            ((newDeclVar, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                ndv <- monadicTransform' t (options, Declaration_pl, indent) dv
+            ((newDeclVar, newInf), (cRep, _)) = runState pos $ do
+                ndv <- monadicTransform' t (newPlace down Declaration_pl) dv
                 case varType dv of
                     (ArrayType _ _) -> code " = {0}"
                     _               -> code ""
-                (_, nl, nc) <- StateMonad.get
-                return (ndv, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (ndv, (pos,np))
 
-    transform t (line, col) (options, _, indent) (Declaration dv (Just e) _) = Result (Declaration (result newDeclVar) (Just (result newExpr)) newInf) (snd newInf) cRep 
+    transform t pos down (Declaration dv (Just e) _) = Result (Declaration (result newDeclVar) (Just (result newExpr)) newInf) (snd newInf) cRep 
         where
-            ((newDeclVar, newExpr, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                ndv <- monadicTransform' t (options, Declaration_pl, indent) dv
+            ((newDeclVar, newExpr, newInf), (cRep, _)) = runState pos $ do
+                ndv <- monadicTransform' t (newPlace down Declaration_pl) dv
                 code " = "
-                ne <- monadicTransform' t (options, ValueNeed_pl, indent) e
-                (_, nl, nc) <- StateMonad.get
-                return (ndv, ne, ((line,col),(nl,nc)))
+                ne <- monadicTransform' t (newPlace down ValueNeed_pl) e
+                (_, np) <- StateMonad.get
+                return (ndv, ne, (pos,np))
 
 instance Transformable1 DebugToC [] ActualParameter where
-    transform1 t pos down l = transform1' t pos down l ", " 0
+    transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable1 DebugToC [] Program where
-    transform1 t pos down l = transform1' t pos down l "" 0
+    transform1 t pos down l = transform1' t pos down l ""
 
 
 instance Transformable DebugToC Program where
-    transform _ (line, col) _ (Empty _ _) = Result (Empty newInf newInf) newSt cRep where 
-        newSt = (line, col)
-        newInf = ((line, col), newSt)
-        cRep = ""
+    transform _ pos _ (Empty _ _) = Result (Empty newInf newInf) pos "" where 
+        newInf = (pos, pos)
 
-    transform _ (line, col) (_, _, indent) (Comment True comment _ _) = Result (Comment True comment newInf newInf) (snd newInf) cRep 
+    transform _ pos down (Comment True comment _ _) = Result (Comment True comment newInf newInf) (snd newInf) cRep 
         where
-            (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            (newInf, (cRep, _)) = runState pos $ do
+                indenter down
                 code $ "/* " ++ comment ++ " */\n"
-                (_, nl, nc) <- StateMonad.get
-                return ((line, col), (nl, nc))
+                (_, np) <- StateMonad.get
+                return (pos, np)
 
-    transform _ (line, col) (_, _, indent) (Comment False comment _ _) = Result (Comment False comment newInf newInf) (snd newInf) cRep 
+    transform _ pos down (Comment False comment _ _) = Result (Comment False comment newInf newInf) (snd newInf) cRep 
         where 
-            (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            (newInf, (cRep, _)) = runState pos $ do
+                indenter down
                 code $ "// " ++ comment ++ "\n"
-                (_, nl, nc) <- StateMonad.get
-                return ((line, col), (nl, nc))
+                (_, np) <- StateMonad.get
+                return (pos, np)
 
-    transform t (line, col) (options, _, indent) (Assign lh rh _ _) = Result (Assign (result newLhs) (result newRhs) newInf newInf) (snd newInf) cRep
+    transform t pos down@(_, _, indent) (Assign lh rh _ _) = Result (Assign (result newLhs) (result newRhs) newInf newInf) (snd newInf) cRep
         where
-            ((newLhs, newRhs, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
-                nlhs <- monadicTransform' t (options, ValueNeed_pl, indent) lh
+            ((newLhs, newRhs, newInf), (cRep, _)) = runState pos $ do
+                indenter down
+                nlhs <- monadicTransform' t (newPlace down ValueNeed_pl) lh
                 code " = "
-                nrhs <- monadicTransform' t (options, ValueNeed_pl, indent) rh
+                nrhs <- monadicTransform' t (newPlace down ValueNeed_pl) rh
                 code ";\n"
-                (_, nl, _) <- StateMonad.get
-                return (nlhs, nrhs, ((line,col),(nl,indent)))
+                (_, (nl, _)) <- StateMonad.get
+                return (nlhs, nrhs, (pos,(nl,indent)))
 
-    transform t (line, col) (options, place, indent) (ProcedureCall n param _ _) = Result (ProcedureCall n (result1 newParam) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(_, _, indent) (ProcedureCall n param _ _) = Result (ProcedureCall n (result1 newParam) newInf newInf) (snd newInf) cRep 
         where
-            ((newParam, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            ((newParam, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code $ n ++ "("
-                np <- monadicListTransform' t (options, place, indent) param
+                np <- monadicListTransform' t down param
                 code ");\n"
-                (_, nl, _) <- StateMonad.get
-                return (np, ((line,col),(nl,indent)))
+                (_, (nl, _)) <- StateMonad.get
+                return (np, (pos,(nl,indent)))
 
-    transform t (line, col) (options, place, indent) (Sequence prog _ _) = Result (Sequence (result1 newProg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (Sequence prog _ _) = Result (Sequence (result1 newProg) newInf newInf) (snd newInf) cRep 
         where
-            ((newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                np <- monadicListTransform' t (options, place, indent) prog
-                return (np, ((line,col),state1 newProg))
+            ((newProg, newInf), (cRep, _)) = runState pos $ do
+                np <- monadicListTransform' t down prog
+                return (np, (pos,state1 newProg))
 
-    transform t (line, col) (options, place, indent) (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
         where 
-            ((newCon, newTPrg, newEPrg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            ((newCon, newTPrg, newEPrg, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code "if("
-                ncon <- monadicTransform' t (options, ValueNeed_pl, indent) con
+                ncon <- monadicTransform' t (newPlace down ValueNeed_pl) con
                 code ")\n" 
-                indenter indent
+                indenter down
                 code "{\n"
-                ntPrg <- monadicTransform' t (options, place, addIndent indent) tPrg
-                indenter indent
+                ntPrg <- monadicTransform' t (addIndent down) tPrg
+                indenter down
                 code "}\n" 
-                indenter indent 
+                indenter down
                 code "else\n" 
-                indenter indent 
+                indenter down
                 code "{\n"
-                nePrg <- monadicTransform' t (options, place, addIndent indent) ePrg
-                indenter indent 
+                nePrg <- monadicTransform' t (addIndent down) ePrg
+                indenter down
                 code "}\n"
-                (_, nl, nc) <- StateMonad.get
-                return (ncon, ntPrg, nePrg, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (ncon, ntPrg, nePrg, (pos,np))
 
-    transform t (line, col) (options, place, indent) (Switch scrut alts _ _) = error "TODO: PrettyPrint for switch"
+    transform t pos down (Switch scrut alts _ _) = error "TODO: PrettyPrint for switch"
 
-    transform t (line, col) (options, place, indent) (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
         where
-            ((newCon, newConPrg, newBlockPrg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            ((newCon, newConPrg, newBlockPrg, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code "{\n"
-                ncp <- monadicTransform' t (options, place, addIndent indent) conPrg
-                indenter $ addIndent indent
+                ncp <- monadicTransform' t (addIndent down) conPrg
+                indenter $ addIndent down
                 code "while("
-                ncon <- monadicTransform' t (options, ValueNeed_pl, addIndent indent) con
+                ncon <- monadicTransform' t (newPlace (addIndent down) ValueNeed_pl) con
                 code ")\n" 
-                indenter $ addIndent indent
+                indenter $ addIndent down
                 code "{\n"
-                nbp <- monadicTransform' t (options, place, addIndent $ addIndent indent) blockPrg
-                monadicTransform' t (options, place, addIndent $ addIndent indent) (blockBody conPrg)
-                indenter $ addIndent indent
+                nbp <- monadicTransform' t (addIndent $ addIndent down) blockPrg
+                monadicTransform' t (addIndent $ addIndent down) (blockBody conPrg)
+                indenter $ addIndent down
                 code "}\n" 
-                indenter indent 
+                indenter down
                 code "}\n"
-                (_, nl, nc) <- StateMonad.get
-                return (ncon, ncp, nbp, ((line,col),(nl,nc)))
+                (_, np) <- StateMonad.get
+                return (ncon, ncp, nbp, (pos,np))
 
-    transform t (line, col) (options, place, indent) (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
         where
-            ((newCount, newBound, newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent
+            ((newCount, newBound, newProg, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code "for("
-                _ <- monadicTransform' t (options, Declaration_pl, addIndent indent) count
+                _ <- monadicTransform' t (newPlace (addIndent down) Declaration_pl) count
                 code " = 0; "
-                loopVariable <- monadicTransform' t (options, ValueNeed_pl, addIndent indent) count
+                loopVariable <- monadicTransform' t (newPlace (addIndent down) ValueNeed_pl) count
                 code " < "
-                nb <- monadicTransform' t (options, ValueNeed_pl, addIndent indent) bound
+                nb <- monadicTransform' t (newPlace (addIndent down) ValueNeed_pl) bound
                 code $ "; " ++ up loopVariable ++ " += " ++ show step ++ ")\n" 
-                indenter indent
+                indenter down
                 code "{\n"
-                np <- monadicTransform' t (options, place, addIndent indent) prog
-                indenter indent
+                np <- monadicTransform' t (addIndent down) prog
+                indenter down
                 code "}\n" 
-                (_, nl, nc) <- StateMonad.get
-                return (loopVariable, nb, np, ((line,col),(nl,nc)))
+                (_, np') <- StateMonad.get
+                return (loopVariable, nb, np, (pos,np'))
 
-    transform t (line, col) (options, place, indent) (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
+    transform t pos down (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
         where
-            ((newProg, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-                indenter indent 
+            ((newProg, newInf), (cRep, _)) = runState pos $ do
+                indenter down
                 code "{\n"
-                np <- monadicTransform' t (options, place, addIndent indent) prog
-                indenter indent 
+                np <- monadicTransform' t (addIndent down) prog
+                indenter down
                 code "}\n"
-                (_, nl, nc) <- StateMonad.get
-                return (np, ((line,col),(nl,nc)))
+                (_, np') <- StateMonad.get
+                return (np, (pos,np'))
 
 putIndent :: Int -> String
 putIndent = concat . flip replicate " "
 
-addIndent :: Int -> Int
-addIndent indent = indent + 4
+addIndent :: (Options, Place, Int) -> (Options, Place, Int)
+addIndent (options, place, indent) = (options, place, indent + 4)
 
-transform1' _ (line, col) _ [] _ _ = Result1 [] (line, col) ""
-transform1' t (line, col) (options, place, indent) (x:[]) _ _ = Result1 [result newX] (state newX) (up newX) where
-    newX = transform t (line, col) (options, place, indent) x
-transform1' t (line, col) (options, place, indent) (x:xs) str num = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
-    newX = transform t (line, col) (options, place, indent) x
+transform1' _ pos _ [] _ = Result1 [] pos ""
+transform1' t pos down (x:[]) _ = Result1 [result newX] (state newX) (up newX) where
+    newX = transform t pos down x
+transform1' t pos down (x:xs) str = Result1 (result newX : result1 newXs) (state1 newXs) (up newX ++ str ++ up1 newXs) where
+    newX = transform t pos down x
     (line2, col2) =  state newX
-    newSt = (line2 + num, col2 + length str) 
-    newXs = transform1 t newSt (options, place, indent) xs
+    newSt = (line2, col2 + length str)
+    newXs = transform1 t newSt down xs
 
-transformConst _ (line, col) (options, _, _) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
+transformConst pos@(line, _) (options, _, _) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
     where
         newConst (IntConst c t _ _) = IntConst c t newInf newInf
         newConst (FloatConst c _ _) = FloatConst c newInf newInf
         newConst (BoolConst c _ _)  = BoolConst c newInf newInf
-        newInf = ((line, col), (line, newCol))
-        (cRep, _, newCol) = snd $ flip StateMonad.runState (defaultState line col) $ do
+        newInf = (pos, (line, newCol))
+        (cRep, (_, newCol)) = snd $ runState pos $ do
         let s = case List.find (\(t',_) -> t' == typeof cnst) $ values $ platform options of
              Just (_,f) -> f cnst
              Nothing    -> str
         code s
 
-transformActParam _ (line, col) (options, _, _) (TypeParameter typ mode _) _ = Result newParam (snd newInf) cRep 
+transformActParam _ pos (options, _, _) (TypeParameter typ mode _) _ = Result newParam (snd newInf) cRep 
     where
         newParam = TypeParameter typ mode newInf
         place Auto = MainParameter_pl
         place Scalar = Declaration_pl
-        (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+        (newInf, (cRep, _)) = runState pos $ do
             code $ showType options Value (place mode) typ NoRestrict
-            (_, nl, nc) <- StateMonad.get
-            return ((line,col),(nl,nc))
+            (_, np) <- StateMonad.get
+            return (pos,np)
 
-transformActParam _ (line, col) _ (FunParameter n addr _) _ = Result newParam (snd newInf) cRep 
+transformActParam _ pos _ (FunParameter n addr _) _ = Result newParam (snd newInf) cRep 
     where
         newParam = FunParameter n addr newInf
-        (newInf, (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+        (newInf, (cRep, _)) = runState pos $ do
             let addrOp
                     | addr      = "&"
                     | otherwise = ""
             code $ addrOp ++ n
-            (_, nl, nc) <- StateMonad.get
-            return ((line, col), (nl, nc))
+            (_, np) <- StateMonad.get
+            return (pos, np)
 
-transformActParam t (line, col) (options, _, indent) act paramType = Result (newActParam act) (snd newInf) cRep 
+transformActParam t pos down act paramType = Result (newActParam act) (snd newInf) cRep 
     where
         newActParam Out{} = Out (result newParam) newInf
         newActParam In{}  = In  (result newParam) newInf
         getParam (In param _)  = param
         getParam (Out param _) = param
-        ((newParam, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
-            np <- monadicTransform' t (options, paramType, indent) (getParam act)
-            (_, nl, nc) <- StateMonad.get
-            return (np, ((line,col),(nl,nc)))
+        ((newParam, newInf), (cRep, _)) = runState pos $ do
+            np <- monadicTransform' t (newPlace down paramType) (getParam act)
+            (_, np') <- StateMonad.get
+            return (np, (pos,np'))
 
-transformFuncCall t (line, col) (options, place, indent)
+transformFuncCall t pos down
                   (FunctionCall f [a, b] _ _) str1 str2 str3 =
                   Result (FunctionCall f [result newA, result newB] newInf newInf) (snd newInf) cRep
     where
-        ((newA, newB, newInf), (cRep, _, _)) = flip StateMonad.runState (defaultState line col) $ do
+        ((newA, newB, newInf), (cRep, _)) = runState pos $ do
             code str1
-            na <- monadicTransform' t (options, place, indent) a
+            na <- monadicTransform' t down a
             code str2
-            nb <- monadicTransform' t (options, place, indent) b
+            nb <- monadicTransform' t down b
             code str3
-            (_, nl, nc) <- StateMonad.get
-            return (na, nb, ((line,col),(nl,nc)))
+            (_, np) <- StateMonad.get
+            return (na, nb, (pos,np))
 
 code s = do
-    (str, line, col) <- StateMonad.get
+    (str, (line, col)) <- StateMonad.get
     let numEOF = length (filter (=='\n') s)
-    StateMonad.put (str++s,line + numEOF, (if numEOF == 0 then col else 0) + length (takeWhile (/='\n') $ reverse s))
+    StateMonad.put (str++s,(line + numEOF, (if numEOF == 0 then col else 0) + length (takeWhile (/='\n') $ reverse s)))
 
-indenter n = do
-    (str, line, col) <- StateMonad.get
-    StateMonad.put (str ++ concat (replicate n " "), line, col)
+indenter (_, _, n) = do
+    (str, p) <- StateMonad.get
+    StateMonad.put (str ++ concat (replicate n " "), p)
 
 monadicTransform' t down d = do
-    (_, line, col) <- StateMonad.get
-    let res = transform t (line, col) down d
+    (_, p) <- StateMonad.get
+    let res = transform t p down d
     code $ up res
     return res
 
 complexTransform t down d = do
-    (_, line, col) <- StateMonad.get
-    return $ transform t (line, col) down d
+    (_, p) <- StateMonad.get
+    return $ transform t p down d
 
 monadicListTransform' t down l = do
-    (_, line, col) <- StateMonad.get
-    let resList = transform1 t (line, col) down l
+    (_, p) <- StateMonad.get
+    let resList = transform1 t p down l
     code $ up1 resList
     return resList
 
-defaultState :: Int -> Int -> (String, Int, Int)
-defaultState line col = ("", line, col)
+defaultState :: (Int, Int) -> (String, (Int, Int))
+defaultState pos = ("", pos)
+
+trd :: (a, b, c) -> c
+trd (_, _, e) = e
+
+newPlace :: (Options, Place, Int) -> Place -> (Options, Place, Int)
+newPlace (options, _, i) place = (options, place, i)
+
+runState pos b = flip StateMonad.runState (defaultState pos) b
