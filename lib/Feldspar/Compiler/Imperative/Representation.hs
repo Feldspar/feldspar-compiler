@@ -158,6 +158,12 @@ data Program t
         , branchLabel               :: Label t Branch
         , programLabel              :: Label t Program
         }
+    | Switch
+        { scrutinee                 :: Expression t
+        , alts                      :: [(Pattern t, Block t)]
+        , switchLabel               :: Label t Switch
+        , programLabel              :: Label t Program
+        }
     | SeqLoop
         { sLoopCond                 :: Expression t
         , sLoopCondCalc             :: Block t
@@ -181,6 +187,14 @@ data Program t
 
 deriving instance (ShowLabel t) => Show (Program t)
 deriving instance (EqLabel t)   => Eq (Program t)
+
+data Pattern t
+   = PatDefault
+   | Pat (Constant t)
+     deriving Typeable
+
+deriving instance (ShowLabel t) => Show (Pattern t)
+deriving instance (EqLabel t)   => Eq (Pattern t)
 
 data ActualParameter t
     = In
@@ -426,6 +440,7 @@ data Spawn t
 data Run t
 data Sequence t
 data Branch t
+data Switch t
 data SeqLoop t
 data ParLoop t
 data FunctionCall t
@@ -460,6 +475,7 @@ class ( Show (Label t Module)
       , Show (Label t Run)
       , Show (Label t Sequence)
       , Show (Label t Branch)
+      , Show (Label t Switch)
       , Show (Label t SeqLoop)
       , Show (Label t ParLoop)
       , Show (Label t ActualParameter)
@@ -495,6 +511,7 @@ instance ( Show (Label t Module)
          , Show (Label t Run)
          , Show (Label t Sequence)
          , Show (Label t Branch)
+         , Show (Label t Switch)
          , Show (Label t SeqLoop)
          , Show (Label t ParLoop)
          , Show (Label t ActualParameter)
@@ -530,6 +547,7 @@ class ( Eq (Label t Module)
       , Eq (Label t Run)
       , Eq (Label t Sequence)
       , Eq (Label t Branch)
+      , Eq (Label t Switch)
       , Eq (Label t SeqLoop)
       , Eq (Label t ParLoop)
       , Eq (Label t ActualParameter)
@@ -565,6 +583,7 @@ instance ( Eq (Label t Module)
          , Eq (Label t Run)
          , Eq (Label t Sequence)
          , Eq (Label t Branch)
+         , Eq (Label t Switch)
          , Eq (Label t SeqLoop)
          , Eq (Label t ParLoop)
          , Eq (Label t ActualParameter)
