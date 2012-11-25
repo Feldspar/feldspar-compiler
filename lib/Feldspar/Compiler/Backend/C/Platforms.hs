@@ -119,7 +119,12 @@ c99Rules :: [Rule]
 c99Rules = [rule copy, rule c99]
   where
     copy (Call "copy" [Out arg1, In arg2])
-        | isArray (typeof arg1) = [replaceWith $ Call "copyArray" [Out arg1,In arg2]]
+        | arg1 == arg2 = [replaceWith $ Skip]
+        | isArray (typeof arg1)
+          = [replaceWith $ Seq [if arrayLength arg1 == arrayLength arg2
+                                   then Skip
+                                   else initArray arg1 (arrayLength arg2)
+                               , Call "copyArray" [Out arg1,In arg2]]]
         | otherwise = [replaceWith $ arg1 := arg2]
     copy _ = []
     c99 (Fun _ "(!)" [arg1,arg2])    = [replaceWith $ arg1 :!: arg2]
