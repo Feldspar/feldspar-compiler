@@ -131,17 +131,3 @@ listprint f s = listprint' . filter (/= "") . map f
     listprint' [] = ""
     listprint' [x] = x
     listprint' (x:xs) = x ++ s ++ listprint' xs
-
-decrArrayDepth :: Type -> Type
-decrArrayDepth (ArrayType _ t) = t
-decrArrayDepth t = codeGenerationError InternalError $ "Non-array variable of type " ++ show t ++ " is indexed!"
-
-getStructFieldType :: String -> Type -> Type
-getStructFieldType f (StructType l) = case List.find (\(a,_) -> a == f) l of
-    Just (_,t) -> t
-    Nothing -> structFieldNotFound f
-getStructFieldType f t = codeGenerationError InternalError $
-    "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
-
-structFieldNotFound :: String -> a
-structFieldNotFound f = codeGenerationError InternalError $ "Not found struct field with this name: " ++ f
