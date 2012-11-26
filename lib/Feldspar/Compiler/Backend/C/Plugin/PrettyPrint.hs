@@ -390,7 +390,7 @@ instance Transformable DebugToC Entity where
                 (_, (nl, _)) <- StateMonad.get
                 return (ninp, noutp, nb, (pos,(nl,indent)))
 
-    transform t pos down@(options, _, indent) (ProcDecl n inp outp _ _) =
+    transform t pos down@(_, _, indent) (ProcDecl n inp outp _ _) =
       Result (ProcDecl n (result1 newInParam) (result1 newOutParam) newInf newInf) (snd newInf) cRep
         where
             ((newInParam, newOutParam, newInf), (cRep, _)) = runState pos $ do
