@@ -76,7 +76,7 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    platformRules = c99Rules ++ traceRules,
+    platformRules = c99Rules ++ traceRules ++ arrayRules,
     isRestrict = NoRestrict
 }
 
@@ -115,13 +115,22 @@ showConstant :: Constant t -> String
 showConstant (IntConst c _ _ _)    = show c
 showConstant (FloatConst c _ _)  = show c ++ "f"
 
-c99Rules :: [Rule]
-c99Rules = [rule copy, rule c99]
+arrayRules :: [Rule]
+arrayRules = [rule copy]
   where
     copy (Call "copy" [Out arg1, In arg2])
-        | isArray (typeof arg1) = [replaceWith $ Call "copyArray" [Out arg1,In arg2]]
+        | arg1 == arg2 = [replaceWith $ Skip]
+        | isArray (typeof arg1)
+          = [replaceWith $ Seq [if arrayLength arg1 == arrayLength arg2
+                                   then Skip
+                                   else initArray arg1 (arrayLength arg2)
+                               , Call "copyArray" [Out arg1,In arg2]]]
         | otherwise = [replaceWith $ arg1 := arg2]
     copy _ = []
+
+c99Rules :: [Rule]
+c99Rules = [rule c99]
+  where
     c99 (Fun _ "(!)" [arg1,arg2])    = [replaceWith $ arg1 :!: arg2]
     c99 (Fun _ "getFst" [arg]) = [replaceWith $ arg :.: first]
     c99 (Fun _ "getSnd" [arg]) = [replaceWith $ arg :.: second]

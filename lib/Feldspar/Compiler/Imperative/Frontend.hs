@@ -320,14 +320,7 @@ setLength arr len = Call "setLength" [Out arr, In len]
 copyProg :: Expr -> Expr -> Prog
 copyProg outExp inExp
     | outExp == inExp         = Skip
-    | isArray (typeof outExp) = Seq [ini, cp]
-    | otherwise               = cp
-  where
-    len = arrayLength inExp
-    ini = if (len == arrayLength outExp)
-            then Skip
-            else initArray outExp len
-    cp  = Call "copy" [Out outExp, In inExp]
+    | otherwise               = Call "copy" [Out outExp, In inExp]
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
 copyProgPos outExp shift inExp = Call "copyArrayPos" [Out outExp, In shift, In inExp]
