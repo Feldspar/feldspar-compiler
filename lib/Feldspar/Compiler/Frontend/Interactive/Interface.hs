@@ -100,3 +100,9 @@ icompile' prg functionName opts = do
 icompileWithInfos :: (Compilable t internal) => t -> String -> Options -> SplitCompToCCoreResult
 icompileWithInfos prg functionName = compileToCCore Interactive prg Nothing IncludesNeeded
                                                           (NameExtractor.OriginalFunctionSignature functionName [])
+
+-- | Get the generated core for a program.
+getCore prog = getCore' prog
+
+-- | Print the generated core for a program.
+printCore prog = print $ getCore' prog

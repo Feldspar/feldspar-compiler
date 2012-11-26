@@ -113,6 +113,10 @@ fromCore funname
     . compileProgTop funname []
     . reifyFeld N32
 
+-- | Get the generated core for a program.
+getCore' :: SyntacticFeld a => a -> Mod
+getCore' prog = compileProgTop "test" [] (reifyFeld N32 prog)
+
 -- | Create a list where each element represents the number of variables needed
 -- to as arguments
 buildInParamDescriptor :: SyntacticFeld a => a -> [Int]

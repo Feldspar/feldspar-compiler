@@ -1,6 +1,8 @@
 module Feldspar.Compiler
     ( compile
     , icompile
+    , getCore
+    , printCore
     , Options (..)
     , defaultOptions
     , c99PlatformOptions
