@@ -320,7 +320,10 @@ toProg (AIR.Block ds p ()) = Block (map toInterface ds) (toInterface p)
 setLength :: Expr -> Expr -> Prog
 setLength arr len = Call "setLength" [Out arr, In len]
 
+-- | Copies expressions into a destination. If the destination is
+-- a non-scalar the arguments are appended to the destination.
 copyProg :: Expr -> [Expr] -> Prog
+copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
     | outExp == (head inExp)
       && null (tail inExp) = Skip
