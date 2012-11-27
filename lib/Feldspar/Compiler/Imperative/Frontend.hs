@@ -322,8 +322,9 @@ setLength arr len = Call "setLength" [Out arr, In len]
 
 copyProg :: Expr -> [Expr] -> Prog
 copyProg outExp inExp
-    | outExp == (head inExp)  = Skip
-    | otherwise               = Call "copy" (Out outExp:map In inExp)
+    | outExp == (head inExp)
+      && null (tail inExp) = Skip
+    | otherwise            = Call "copy" (Out outExp:map In inExp)
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
 copyProgPos outExp shift inExp = Call "copyArrayPos" [Out outExp, In shift, In inExp]
