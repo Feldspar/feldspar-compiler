@@ -94,11 +94,7 @@ instance ( Compile dom dom
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
         b' <- compileExpr b
-        let aLen = arrayLength a'
-        let bLen = arrayLength b'
-        tellProg [initArray loc $ Binop U32 "+" [aLen, bLen]]
-        tellProg [copyProg loc a']
-        tellProg [copyProgPos loc aLen b']
+        tellProg [copyProg loc [a',b']]
         -- TODO: Optimize by writing to directly to 'loc' instead of 'a'' and 'b''!
         --       But take care of array initialization:
         --       compiling 'a' and 'b' might do initialization itself...

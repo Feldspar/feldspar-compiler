@@ -122,12 +122,15 @@ arrayRules = [rule copy]
   where
     copy (Call "copy" [Out arg1, In arg2])
         | arg1 == arg2 = [replaceWith $ Skip]
-        | isArray (typeof arg1)
-          = [replaceWith $ Seq [if arrayLength arg1 == arrayLength arg2
-                                   then Skip
-                                   else initArray arg1 (arrayLength arg2)
-                               , Call "copyArray" [Out arg1,In arg2]]]
-        | otherwise = [replaceWith $ arg1 := arg2]
+        | not (isArray (typeof arg1)) = [replaceWith $ arg1 := arg2]
+    copy (Call "copy" (dst@(Out arg1):ins'@(in1:ins))) | isArray (typeof arg1)
+        = [replaceWith $ Seq ([
+               initArray arg1 (foldr ePlus (litI32 0) aLens)
+             , Call "copyArray" [dst, in1]
+             ] ++ flattenCopy dst ins argnLens arg1len)]
+           where
+             aLens@(arg1len:argnLens) = map (\(In src) -> arrayLength src) ins'
+    copy (Call "copy" _) = error "Multiple scalar arguments to copy"
     copy _ = []
 
 nativeArrayRules :: [Rule]
@@ -156,6 +159,14 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     fromSingleton r = if isSingleton r
                         then Just $ upperBound r
                         else Nothing
+
+flattenCopy :: Param -> [Param] -> [Expr] -> Expr -> [Prog]
+flattenCopy _ [] [] _ = []
+flattenCopy dst (t:ts) (l:ls) cLen =
+  (Call "copyArrayPos" [dst, In cLen, t]):flattenCopy dst ts ls (ePlus cLen l)
+
+ePlus :: Expr -> Expr -> Expr
+ePlus e1 e2 = Binop I32 "+" [e1, e2]
 
 c99Rules :: [Rule]
 c99Rules = [rule c99]

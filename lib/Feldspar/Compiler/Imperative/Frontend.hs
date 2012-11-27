@@ -320,10 +320,10 @@ toProg (AIR.Block ds p ()) = Block (map toInterface ds) (toInterface p)
 setLength :: Expr -> Expr -> Prog
 setLength arr len = Call "setLength" [Out arr, In len]
 
-copyProg :: Expr -> Expr -> Prog
+copyProg :: Expr -> [Expr] -> Prog
 copyProg outExp inExp
-    | outExp == inExp         = Skip
-    | otherwise               = Call "copy" [Out outExp, In inExp]
+    | outExp == (head inExp)  = Skip
+    | otherwise               = Call "copy" (Out outExp:map In inExp)
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
 copyProgPos outExp shift inExp = Call "copyArrayPos" [Out outExp, In shift, In inExp]
@@ -342,7 +342,7 @@ initArray arr len = Call "initArray" [Out arr, In s, In len]
         _       -> error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 assignProg :: Expr -> Expr -> Prog
-assignProg = copyProg
+assignProg inExp outExp = copyProg inExp [outExp]
 
 freeArray :: Var -> Prog
 freeArray arr = Call "freeArray" [Out $ varToExpr arr]
@@ -464,6 +464,9 @@ intSigned _   = Nothing
 litB :: Bool -> Expr
 litB True = Tr
 litB False = Fl
+
+litI32 :: Integer -> Expr
+litI32 n = LitI I32 n
 
 isArray :: Type -> Bool
 isArray (SizedArray _ _) = True
