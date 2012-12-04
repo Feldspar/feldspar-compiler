@@ -87,8 +87,7 @@ data Expr
 
 data Prog
     = Skip
-    | BComment String
-    | Comment String
+    | Comment Bool {-BlockComment-} String
     | Expr := Expr
     | Call String [Param]
     | Seq [Prog]
@@ -249,8 +248,7 @@ instance Interface Expr where
 instance Interface Prog where
     type Repr Prog = AIR.Program ()
     toInterface (Empty () ()) = Skip
-    toInterface (AIR.Comment True s () ()) = BComment s
-    toInterface (AIR.Comment False s () ()) = Comment s
+    toInterface (AIR.Comment b s () ()) = Comment b s
     toInterface Assign{..} = toInterface lhs := toInterface rhs
     toInterface (ProcedureCall s ps () ()) = Call s (map toInterface ps)
     toInterface (Sequence ps () ()) = Seq (map toInterface ps)
@@ -260,8 +258,7 @@ instance Interface Prog where
     toInterface (ParLoop v e i b () ()) = For (varName v) (toInterface e) i (toProg b)
     toInterface (BlockProgram b ()) = Block (map toInterface $ locals b) (toInterface $ blockBody b)
     fromInterface (Skip) = Empty () ()
-    fromInterface (BComment s) = AIR.Comment True s () ()
-    fromInterface (Comment s) = AIR.Comment False s () ()
+    fromInterface (Comment b s) = AIR.Comment b s () ()
     fromInterface (lhs := rhs) = Assign (fromInterface lhs) (fromInterface rhs) () ()
     fromInterface (Call s ps) = ProcedureCall s (map fromInterface ps) () ()
     fromInterface (Seq ps) = Sequence (map fromInterface ps) () ()

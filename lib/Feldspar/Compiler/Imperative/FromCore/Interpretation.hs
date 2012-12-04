@@ -151,7 +151,7 @@ compileProgDecor :: Compile dom dom
 compileProgDecor result (Decor info a) args = do
     let src = infoSource info
     aboveSrc <- asks sourceInfo
-    unless (null src || src==aboveSrc) $ tellProg [BComment src]
+    unless (null src || src==aboveSrc) $ tellProg [Comment True src]
     local (\env -> env {sourceInfo = src}) $ compileProgSym a info result args
 
 compileExprDecor :: Compile dom dom
@@ -161,7 +161,7 @@ compileExprDecor :: Compile dom dom
 compileExprDecor (Decor info a) args = do
     let src = infoSource info
     aboveSrc <- asks sourceInfo
-    unless (null src || src==aboveSrc) $ tellProg [BComment src]
+    unless (null src || src==aboveSrc) $ tellProg [Comment True src]
     local (\env -> env {sourceInfo = src}) $ compileExprSym a info args
 
 compileProg :: Compile dom dom =>
