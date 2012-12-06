@@ -85,10 +85,13 @@ compile prg fileName functionName opts = do
 
 
 icompile :: (Compilable t internal) => t -> IO ()
-icompile prg = icompile' prg "test" defaultOptions
+icompile = icompileWith defaultOptions
 
-icompile' :: (Compilable t internal) => t -> String -> Options -> IO ()
-icompile' prg functionName opts = do
+icompileWith :: (Compilable t internal) => Options -> t -> IO ()
+icompileWith opts = icompile' opts "test"
+
+icompile' :: (Compilable t internal) => Options -> String -> t -> IO ()
+icompile' opts functionName prg = do
     putStrLn "=============== Header ================"
     putStrLn $ sourceCode $ sctccrHeader compilationResult
     putStrLn "=============== Source ================"
