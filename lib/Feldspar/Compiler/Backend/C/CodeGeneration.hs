@@ -90,11 +90,11 @@ showVariable options place role typ vname = var ++ sz where
     sz = case place of
            MainParameter_pl -> variableSize typ
            _                -> ""
-    variableSize (NativeArray l t) = "[" ++ (maybe "" show l) ++ "]"
+    variableSize (NativeArray l t) = "[" ++ (maybe "" show l) ++ "]" ++ variableSize t
     variableSize _                 = ""
 
 showType :: Options -> VariableRole -> Place -> Type -> IsRestrict -> String
-showType options role MainParameter_pl (NativeArray _ t) _ = toC options MainParameter_pl t
+showType options role MainParameter_pl (NativeArray _ t) res = showType options role Declaration_pl t res
 showType options role MainParameter_pl t _
     | passByReference t || role == Pointer  = tname ++ " *"
     | otherwise                             = tname

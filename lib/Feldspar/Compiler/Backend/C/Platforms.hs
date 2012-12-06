@@ -140,11 +140,14 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
       [replaceWith $ Call "assert" [Out arr]]
     toNativeProg _ = []
 
-    toNativeVariable (Pointer (SizedArray sz t) n)
-      = [replaceWith $ Pointer (NativeArray (fromSingleton sz) t) n]
-    toNativeVariable (Variable (SizedArray sz t) n)
-      = [replaceWith $ Variable (NativeArray (fromSingleton sz) t) n]
+    toNativeVariable (Pointer arr@(SizedArray sz t) n)
+      = [replaceWith $ Pointer (nativeArray arr) n]
+    toNativeVariable (Variable arr@(SizedArray sz t) n)
+      = [replaceWith $ Variable (nativeArray arr) n]
     toNativeVariable _ = []
+
+    nativeArray (SizedArray sz t) = NativeArray (fromSingleton sz) (nativeArray t)
+    nativeArray t = t
 
     fromSingleton r = if isSingleton r
                         then Just $ upperBound r
