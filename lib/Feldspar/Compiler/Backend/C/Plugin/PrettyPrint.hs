@@ -263,6 +263,20 @@ instance Transformable DebugToC Expression where
                 (_, np) <- StateMonad.get
                 return (nn, ni, (pos,np))
 
+    transform t pos down@(PEnv {..}) e@(NativeElem n index _ _) = Result (NativeElem (result newName) (result newIndex) newInf newInf) (snd newInf) cRep
+        where
+            ((newName, newIndex, newInf), (cRep, _)) = runState pos $ do
+                let prefix = case (place, typeof e) of
+                       (AddressNeed_pl, _) -> "&"
+                       (_, ArrayType _ _)  -> "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
+                       _                   -> ""
+                nn <- monadicTransform' t (newPlace down AddressNeed_pl) n
+                code "["
+                ni <- monadicTransform' t (newPlace down ValueNeed_pl) index
+                code "]"
+                (_, np) <- StateMonad.get
+                return (nn, ni, (pos,np))
+
     transform t pos down expr@(StructField _ field _ _) = transformExpr pos down ('.' : field) ValueNeed_pl
       where
           transformExpr pos down@(PEnv {..}) str paramType = Result (newExpr expr) (snd newInf) cRep

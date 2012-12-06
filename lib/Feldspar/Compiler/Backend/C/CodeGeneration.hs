@@ -70,6 +70,7 @@ instance ToC Type where
     toC options place t@(StructType _) = "struct s" ++ getStructTypeName options place t
     toC _ _ (UserType u) = u
     toC _ _ (ArrayType _ _) = arrayTypeName
+    toC options place (NativeArray _ t) = toC options place t
     toC _ _ (IVarType _) = ivarTypeName
     toC options place t = case List.find (\(t',_,_) -> t == t') $ types $ platform options of
         Just (_,s,_)  -> s
@@ -80,13 +81,20 @@ instance ToC (Variable ()) where
     toC options place (Variable vname typ role _) = showVariable options place role typ vname
 
 showVariable :: Options -> Place -> VariableRole -> Type -> String -> String
-showVariable options place role typ vname  = listprint id " " [variableType, showName role place typ vname] where
+showVariable options place role typ vname = var ++ sz where
+    var = listprint id " " [variableType, showName role place typ vname]
     variableType = showType options role place typ restr
     restr
         | place == MainParameter_pl = isRestrict $ platform options
         | otherwise = NoRestrict
+    sz = case place of
+           MainParameter_pl -> variableSize typ
+           _                -> ""
+    variableSize (NativeArray l t) = "[" ++ (maybe "" show l) ++ "]"
+    variableSize _                 = ""
 
 showType :: Options -> VariableRole -> Place -> Type -> IsRestrict -> String
+showType options role MainParameter_pl (NativeArray _ t) _ = toC options MainParameter_pl t
 showType options role MainParameter_pl t _
     | passByReference t || role == Pointer  = tname ++ " *"
     | otherwise                             = tname

@@ -241,6 +241,12 @@ data Expression t
         , arrayLabel                :: Label t ArrayElem
         , exprLabel                 :: Label t Expression
         }
+    | NativeElem
+        { array                     :: Expression t
+        , arrayIndex                :: Expression t
+        , arrayLabel                :: Label t ArrayElem
+        , exprLabel                 :: Label t Expression
+        }
     | StructField
         { struct                    :: Expression t
         , fieldName                 :: String
@@ -338,6 +344,7 @@ data Type =
     | UserType String
     | Alias Type String
     | ArrayType (Range Length) Type
+    | NativeArray (Maybe Length) Type
     | StructType [(String, Type)]
     | IVarType Type
     deriving (Eq,Show)
@@ -399,6 +406,12 @@ instance (ShowLabel t) => HasType (Expression t) where
         decrArrayDepth :: Type -> Type
         decrArrayDepth (ArrayType _ t) = t
         decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
+    typeof NativeElem{..} = decrArrayDepth $ typeof array
+      where
+        decrArrayDepth :: Type -> Type
+        decrArrayDepth (ArrayType _ t) = t
+        decrArrayDepth (NativeArray _ t) = t
+        decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
         getStructFieldType :: String -> Type -> Type
@@ -447,6 +460,7 @@ data FunctionCall t
 data Cast t
 data SizeOf t
 data ArrayElem t
+data NativeElem t
 data StructField t
 data LeftFunCall t
 data IntConst t

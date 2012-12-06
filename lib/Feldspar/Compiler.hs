@@ -7,6 +7,7 @@ module Feldspar.Compiler
     , defaultOptions
     , c99PlatformOptions
     , tic64xPlatformOptions
+    , nativeArrayRules
     , unrollOptions
     , noPrimitiveInstructionHandling
     , noMemoryInformation

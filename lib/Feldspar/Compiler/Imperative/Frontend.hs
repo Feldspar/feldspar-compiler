@@ -36,7 +36,7 @@ import Data.List
 import Data.Monoid
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run, NativeArray, NativeElem)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
@@ -63,6 +63,7 @@ data Type
     | Complex Type
     | UserType String
     | SizedArray (Range Length) Type
+    | NativeArray (Maybe Length) Type
     | Struct [(String, Type)]
     | IVar Type
     | Alias Type String
@@ -78,6 +79,7 @@ data Expr
     | LitC Expr Expr
     | Expr :!: Expr
     | Expr :.: String
+    | NativeElem Expr Expr
     | Binop Type String [Expr]
     | Fun Type String [Expr]
     | Cast Type Expr
@@ -189,6 +191,7 @@ instance Interface Type where
     toInterface (AIR.ComplexType t) = Complex $ toInterface t
     toInterface (AIR.UserType s) = UserType s
     toInterface (AIR.ArrayType l t) = SizedArray l $ toInterface t
+    toInterface (AIR.NativeArray l t) = NativeArray l $ toInterface t
     toInterface (AIR.StructType fields) = Struct $ map (second toInterface) fields
     toInterface (AIR.IVarType t) = IVar $ toInterface t
     fromInterface Void = VoidType
@@ -209,6 +212,7 @@ instance Interface Type where
     fromInterface (Complex t) = AIR.ComplexType $ fromInterface t
     fromInterface (UserType s) = AIR.UserType s
     fromInterface (SizedArray l t) = AIR.ArrayType l $ fromInterface t
+    fromInterface (NativeArray l t) = AIR.NativeArray l $ fromInterface t
     fromInterface (Struct fields) = AIR.StructType $ map (second fromInterface) fields
     fromInterface (IVar t) = AIR.IVarType $ fromInterface t
 
@@ -217,6 +221,7 @@ instance Interface Expr where
     toInterface (VarExpr (AIR.Variable name t Value ()) ()) = Var (toInterface t) name
     toInterface (VarExpr (AIR.Variable name t AIR.Pointer ()) ()) = Ptr (toInterface t) name
     toInterface (ArrayElem arr idx () ()) = toInterface arr :!: toInterface idx
+    toInterface (AIR.NativeElem arr idx () ()) = NativeElem (toInterface arr) (toInterface idx)
     toInterface (StructField str field () ()) = toInterface str :.: field
     toInterface (ConstExpr (BoolConst True () ()) ()) = Tr
     toInterface (ConstExpr (BoolConst False () ()) ()) = Fl
@@ -243,6 +248,7 @@ instance Interface Expr where
     fromInterface (SizeofE e) = SizeOf (Right $ fromInterface e) () ()
     fromInterface (SizeofT t) = SizeOf (Left $ fromInterface t) () ()
     fromInterface (arr :!: idx) = ArrayElem (fromInterface arr) (fromInterface idx) () ()
+    fromInterface (NativeElem arr idx) = AIR.NativeElem (fromInterface arr) (fromInterface idx) () ()
     fromInterface (str :.: field) = StructField (fromInterface str) field () ()
 
 instance Interface Prog where

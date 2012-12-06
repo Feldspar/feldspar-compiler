@@ -35,11 +35,13 @@ module Feldspar.Compiler.Backend.C.Platforms
     , c99Rules
     , tic64xRules
     , traceRules
+    , nativeArrayRules
     ) where
 
 
+import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, Cast, In, Out, Block)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, Cast, In, Out, Block, NativeArray, NativeElem, Variable, Pointer)
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
@@ -112,8 +114,8 @@ showRe = showConstant . realPartComplexValue
 showIm = showConstant . imagPartComplexValue
 
 showConstant :: Constant t -> String
-showConstant (IntConst c _ _ _)    = show c
-showConstant (FloatConst c _ _)  = show c ++ "f"
+showConstant (IntConst c _ _ _) = show c
+showConstant (FloatConst c _ _) = show c ++ "f"
 
 arrayRules :: [Rule]
 arrayRules = [rule copy]
@@ -127,6 +129,26 @@ arrayRules = [rule copy]
                                , Call "copyArray" [Out arg1,In arg2]]]
         | otherwise = [replaceWith $ arg1 := arg2]
     copy _ = []
+
+nativeArrayRules :: [Rule]
+nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
+  where
+    toNativeExpr (arr :!: ix) = [replaceWith $ NativeElem arr ix]
+    toNativeExpr _ = []
+
+    toNativeProg (Call "initArray" [Out arr,esz,num]) =
+      [replaceWith $ Call "assert" [Out arr]]
+    toNativeProg _ = []
+
+    toNativeVariable (Pointer (SizedArray sz t) n)
+      = [replaceWith $ Pointer (NativeArray (fromSingleton sz) t) n]
+    toNativeVariable (Variable (SizedArray sz t) n)
+      = [replaceWith $ Variable (NativeArray (fromSingleton sz) t) n]
+    toNativeVariable _ = []
+
+    fromSingleton r = if isSingleton r
+                        then Just $ upperBound r
+                        else Nothing
 
 c99Rules :: [Rule]
 c99Rules = [rule c99]
