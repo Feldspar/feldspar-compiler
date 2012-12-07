@@ -115,6 +115,7 @@ showName Value place t n
     | place == FunctionCallIn_pl && passByReference t  = '&' : n
     | otherwise = n
 showName Pointer _ ArrayType{} n = n
+showName Pointer _ NativeArray{} n = n
 showName Pointer place _ n
     | place == AddressNeed_pl   = n
     | place == Declaration_pl   = codeGenerationError InternalError "Output variable of the function declared!"
