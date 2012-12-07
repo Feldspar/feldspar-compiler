@@ -418,6 +418,7 @@ instance Show Type
     show U64        = "uint64"
     show (Complex t)    = "complexOf_" ++ show t
     show (UserType s)   = "userType_" ++ s
+    show (NativeArray _ t) = show t ++ "*"
     show (SizedArray i t)
       | isSingleton i = "arrayOfSize_" ++ show (upperBound i) ++ "_" ++ show t
       | otherwise = "arrayOf_" ++ show t
