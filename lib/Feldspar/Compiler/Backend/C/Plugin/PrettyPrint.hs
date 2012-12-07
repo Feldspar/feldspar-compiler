@@ -270,7 +270,8 @@ instance Transformable DebugToC Expression where
                        (AddressNeed_pl, _) -> "&"
                        (_, ArrayType _ _)  -> "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                        _                   -> ""
-                nn <- monadicTransform' t (newPlace down AddressNeed_pl) n
+                -- No address needed since that is handled by the brackets.
+                nn <- monadicTransform' t down n
                 code "["
                 ni <- monadicTransform' t (newPlace down ValueNeed_pl) index
                 code "]"

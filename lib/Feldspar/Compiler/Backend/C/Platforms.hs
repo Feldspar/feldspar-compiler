@@ -133,11 +133,12 @@ arrayRules = [rule copy]
 nativeArrayRules :: [Rule]
 nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
   where
-    toNativeExpr (arr :!: ix) = [replaceWith $ NativeElem arr ix]
+    toNativeExpr (arr :!: ix)
+      | native (typeof arr) = [replaceWith $ NativeElem arr ix]
     toNativeExpr _ = []
 
-    toNativeProg (Call "initArray" [Out arr,esz,num]) =
-      [replaceWith $ Call "assert" [Out arr]]
+    toNativeProg (Call "initArray" [Out arr,esz,num])
+      | native (typeof arr) = [replaceWith $ Call "assert" [Out arr]]
     toNativeProg _ = []
 
     toNativeVariable (Pointer arr@(SizedArray sz t) n)
@@ -148,6 +149,9 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
 
     nativeArray (SizedArray sz t) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray t = t
+
+    native (NativeArray {}) = True
+    native _                = False
 
     fromSingleton r = if isSingleton r
                         then Just $ upperBound r
