@@ -294,7 +294,7 @@ tellDecl :: [Def] -> CodeWriter ()
 tellDecl ds = tell $ mempty {block = Bl ds $ Seq []}
 
 assign :: Location -> Expr -> CodeWriter ()
-assign lhs rhs = tellProg [copyProg lhs rhs]
+assign lhs rhs = tellProg [copyProg lhs [rhs]]
 
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.

@@ -63,7 +63,7 @@ instance ( Compile dom dom
             e <- compileExpr marr
             withAlias v1 e $ do
               b <- compileExpr body
-              tellProg [copyProg loc b]
+              tellProg [copyProg loc [b]]
 
     compileProgSym WithArray _ loc (marr :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
@@ -74,7 +74,7 @@ instance ( Compile dom dom
             declare var
             compileProg var marr
             e <- compileExpr body
-            tellProg [copyProg loc e]
+            tellProg [copyProg loc [e]]
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr
 
