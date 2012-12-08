@@ -38,6 +38,7 @@ import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Backend.C.Plugin.Locator
 
 import Data.Char
+import System.FilePath (takeBaseName, (<.>))
 
 -- ================================================================================================
 --  == Interactive compilation
@@ -61,7 +62,7 @@ getProgram (line, col) prgtype prg = res where
 
 compile :: (Compilable t internal) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName functionName opts = do
-    writeFile cfile $ unlines [ "#include \"" ++ hfile ++ "\""
+    writeFile cfile $ unlines [ "#include \"" ++ takeBaseName fileName <.> "h" ++ "\""
                               , sourceCode $ sctccrSource compilationResult
                               ]
     writeFile hfile $ withIncludeGuard $ sourceCode $ sctccrHeader compilationResult
