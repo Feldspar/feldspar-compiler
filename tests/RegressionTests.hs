@@ -1,13 +1,10 @@
 module Main where
 
 -- To generate the golden files use a script similiar to this one
--- > ghc -e 'compile example9 "example9" "example9" defaultOptions' tests/RegressionTests.hs
+-- > ghc -e 'compile example9 "tests/gold/example9" "example9" defaultOptions' tests/RegressionTests.hs
 
 import Test.Framework
 import Test.Golden
-
-import Data.Text.Lazy as TL
-import qualified Data.ByteString.Lazy.Char8 as B
 
 import qualified Prelude
 import Feldspar
