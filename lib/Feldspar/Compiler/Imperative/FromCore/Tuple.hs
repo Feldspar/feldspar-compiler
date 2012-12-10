@@ -49,38 +49,38 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 instance Compile dom dom => Compile (Tuple :|| Type) dom
   where
     compileProgSym (C' Tup2) _ loc (m1 :* m2 :* Nil) = do
-        compileExpr m1 >>= assign (loc :.: "member1")
-        compileExpr m2 >>= assign (loc :.: "member2")
+        compileProg (loc :.: "member1") m1
+        compileProg (loc :.: "member2") m2
     compileProgSym (C' Tup3) _ loc (m1 :* m2 :* m3 :* Nil) = do
-        compileExpr m1 >>= assign (loc :.: "member1")
-        compileExpr m2 >>= assign (loc :.: "member2")
-        compileExpr m3 >>= assign (loc :.: "member3")
+        compileProg (loc :.: "member1") m1
+        compileProg (loc :.: "member2") m2
+        compileProg (loc :.: "member3") m3
     compileProgSym (C' Tup4) _ loc (m1 :* m2 :* m3 :* m4 :* Nil) = do
-        compileExpr m1 >>= assign (loc :.: "member1")
-        compileExpr m2 >>= assign (loc :.: "member2")
-        compileExpr m3 >>= assign (loc :.: "member3")
-        compileExpr m4 >>= assign (loc :.: "member4")
+        compileProg (loc :.: "member1") m1
+        compileProg (loc :.: "member2") m2
+        compileProg (loc :.: "member3") m3
+        compileProg (loc :.: "member4") m4
     compileProgSym (C' Tup5) _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* Nil) = do
-        compileExpr m1 >>= assign (loc :.: "member1")
-        compileExpr m2 >>= assign (loc :.: "member2")
-        compileExpr m3 >>= assign (loc :.: "member3")
-        compileExpr m4 >>= assign (loc :.: "member4")
-        compileExpr m5 >>= assign (loc :.: "member5")
+        compileProg (loc :.: "member1") m1
+        compileProg (loc :.: "member2") m2
+        compileProg (loc :.: "member3") m3
+        compileProg (loc :.: "member4") m4
+        compileProg (loc :.: "member5") m5
     compileProgSym (C' Tup6) _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* m6 :* Nil) = do
-        compileExpr m1 >>= assign (loc :.: "member1")
-        compileExpr m2 >>= assign (loc :.: "member2")
-        compileExpr m3 >>= assign (loc :.: "member3")
-        compileExpr m4 >>= assign (loc :.: "member4")
-        compileExpr m5 >>= assign (loc :.: "member5")
-        compileExpr m6 >>= assign (loc :.: "member6")
+        compileProg (loc :.: "member1") m1
+        compileProg (loc :.: "member2") m2
+        compileProg (loc :.: "member3") m3
+        compileProg (loc :.: "member4") m4
+        compileProg (loc :.: "member5") m5
+        compileProg (loc :.: "member6") m6
     compileProgSym (C' Tup7) _ loc (m1 :* m2 :* m3 :* m4 :* m5 :* m6 :* m7 :* Nil) = do
-        compileExpr m1 >>= assign (loc :.: "member1")
-        compileExpr m2 >>= assign (loc :.: "member2")
-        compileExpr m3 >>= assign (loc :.: "member3")
-        compileExpr m4 >>= assign (loc :.: "member4")
-        compileExpr m5 >>= assign (loc :.: "member5")
-        compileExpr m6 >>= assign (loc :.: "member6")
-        compileExpr m7 >>= assign (loc :.: "member7")
+        compileProg (loc :.: "member1") m1
+        compileProg (loc :.: "member2") m2
+        compileProg (loc :.: "member3") m3
+        compileProg (loc :.: "member4") m4
+        compileProg (loc :.: "member5") m5
+        compileProg (loc :.: "member6") m6
+        compileProg (loc :.: "member7") m7
 
 instance Compile dom dom => Compile (Select :|| Type) dom
   where
