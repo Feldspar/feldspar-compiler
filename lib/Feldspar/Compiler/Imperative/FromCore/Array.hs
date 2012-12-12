@@ -47,7 +47,7 @@ import Feldspar.Core.Constructs.Array
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Literal
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend hiding (Type, Variable)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -56,6 +56,7 @@ instance ( Compile dom dom
          , Project (CLambda Type) dom
          , Project (Literal  :|| Type) dom
          , Project (Variable :|| Type) dom
+         , Project (Let :|| Type) dom
          )
       => Compile (Array :|| Type) dom
   where
@@ -70,6 +71,32 @@ instance ( Compile dom dom
             tellProg [initArray loc len']
             tellProg [For name len' 1 (Block ds body)]
 
+
+    compileProgSym (C' Sequential) _ loc (len :* init :* (lam1 :$ (lam2 :$ (lt :$ step :$ (lam3 :$ (tup :$ a :$ b))))) :* Nil)
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
+        , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
+        , Just (C' Let)                <- prjF lt
+        , Just (SubConstr2 (Lambda e)) <- prjLambda lam3
+        , Just (C' (Variable t1))      <- prjF a
+        , Just (C' (Variable t2))      <- prjF b
+        , t1 == e
+        , t2 == e
+        = do
+            let tix = argType $ infoType $ getInfo lam1
+                six = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
+                tst = infoType $ getInfo step
+                sst = infoSize $ getInfo step
+            let ix@(Var _ name) = mkVar (compileTypeRep tix six) v
+            len' <- mkLength len (infoType $ getInfo len) six
+            let st = Ptr (compileTypeRep tst sst) $ 'v' : show s
+            (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg (loc :!: ix) step
+            tellProg [initArray loc len']
+            compileProg st init
+            tellProg [Block ds $
+                      For name len' 1 $
+                                    Seq (body ++
+                                         [assignProg st (loc :!: ix)
+                                         ])]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
