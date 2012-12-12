@@ -89,6 +89,7 @@ showVariable options place role typ vname = var ++ sz where
         | otherwise = NoRestrict
     sz = case place of
            MainParameter_pl -> variableSize typ
+           Declaration_pl   -> variableSize typ
            _                -> ""
     variableSize (NativeArray l t) = "[" ++ (maybe "" show l) ++ "]" ++ variableSize t
     variableSize _                 = ""
