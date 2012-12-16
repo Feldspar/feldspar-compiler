@@ -48,12 +48,13 @@ instance Transformation VariableRoleAssigner where
     type State VariableRoleAssigner = ()
 
 instance Transformable VariableRoleAssigner Variable where
-        transform _ _ d v = Result v' () () where
+        transform _ _ d v@(Variable _ _ Value _) = Result v' () () where
             v' = v { varRole = if (varName v `elem` outParametersVRA d) ||
                             (isComposite v && (varName v `elem` inParametersVRA d))
                         then Pointer else Value
                    , varLabel = ()
                    }
+        transform _ _ d v = Result (v {varLabel = ()}) () ()
 
 instance Transformable VariableRoleAssigner Entity where
         transform t s _ p@(ProcDef _ i o _ _ _) = defaultTransform t s d' p where
