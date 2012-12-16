@@ -72,6 +72,7 @@ instance Plugin VariableRoleAssigner where
 isComposite :: Variable () -> Bool
 isComposite v = case varType v of
     ArrayType{}  -> True
+    NativeArray{}  -> True
     StructType{} -> True
     _            -> False
 
