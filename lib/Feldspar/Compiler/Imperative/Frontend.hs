@@ -125,8 +125,8 @@ instance Monoid Block
     mappend (Bl da pa) (Bl db pb) = Bl (mappend da db) (mappend pa pb)
 
 data Def
-    = Init Type String Expr
-    | Def Type String
+    = Init Var Expr
+    | Def Var
     deriving (Eq,Show)
 
 data Var
@@ -137,8 +137,8 @@ data Var
 class Named a where
     getName :: a -> String
 instance Named Def where
-    getName (Init _ n _) = n
-    getName (Def _ n)    = n
+    getName (Init v _) = getName v
+    getName (Def v)    = getName v
 instance Named Var where
     getName (Variable _ n) = n
     getName (Pointer  _ n) = n
@@ -292,10 +292,10 @@ instance Interface Param where
 
 instance Interface Def where
     type Repr Def = Declaration ()
-    toInterface (Declaration v (Just e) ()) = Init (toInterface $ varType v) (varName v) (toInterface e)
-    toInterface (Declaration v Nothing ()) = Def (toInterface $ varType v) (varName v)
-    fromInterface (Init t s e) = Declaration (AIR.Variable s (fromInterface t) Value ()) (Just $ fromInterface e) ()
-    fromInterface (Def t s) = Declaration (AIR.Variable s (fromInterface t) Value ()) Nothing ()
+    toInterface (Declaration v (Just e) ()) = Init (toInterface v) (toInterface e)
+    toInterface (Declaration v Nothing ()) = Def (toInterface v)
+    fromInterface (Init v e) = Declaration (fromInterface v) (Just $ fromInterface e) ()
+    fromInterface (Def v) = Declaration (fromInterface v) Nothing ()
 
 instance Interface Block where
     type Repr Block = AIR.Block ()

@@ -308,7 +308,7 @@ traceRules = [rule trace]
          where
             trcVar = Var t trcVarName
             trcVarName = "trc" ++ show i
-            defTrcVar = Def t trcVarName
+            defTrcVar = Def (Variable t trcVarName)
             decl (Bl defs prg) = [replaceWith $ Bl (defs ++ [defTrcVar]) prg]
             trc :: Prog -> [Action (Repr Prog)]
             trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]

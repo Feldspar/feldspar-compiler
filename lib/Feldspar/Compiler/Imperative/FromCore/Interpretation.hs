@@ -280,8 +280,8 @@ freshVar base t size = do
   return var
 
 declare :: Expr -> CodeWriter ()
-declare (Var t n) = tellDecl [Def t n]
-declare (Ptr t n) = tellDecl [Def t n]
+declare (Var t s) = tellDecl [Def (Variable t s)]
+declare (Ptr t s) = tellDecl [Def (Pointer t s)]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
 tellDef :: [Ent] -> CodeWriter ()
