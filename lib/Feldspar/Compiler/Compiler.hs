@@ -198,7 +198,7 @@ pluginChain externalInfo
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
     . executePlugin Free ()
     . executePlugin IVarPlugin ()
-    . executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo)
+--    . executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo)
     . executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo)
     . executePlugin BlockProgramHandler ()
 
