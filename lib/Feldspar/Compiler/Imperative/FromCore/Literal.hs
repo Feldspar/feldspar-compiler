@@ -76,74 +76,46 @@ literalLoc loc (ArrayType t) (rs :> es) e
         zipWithM_ (writeElement t es) (map (LitI I32) [0..]) e
   where writeElement :: TypeRep a -> Size a -> Expr -> a -> CodeWriter ()
         writeElement ty sz ix x = do
-            expr <- literal ty sz x
-            assign (loc :!: ix) expr
+            literalLoc (loc :!: ix) ty sz x
 
 literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
-    do aExpr <- literal ta sa a
-       bExpr <- literal tb sb b
-       assign (loc :.: "member1") aExpr
-       assign (loc :.: "member2") bExpr
+    do literalLoc (loc :.: "member1") ta sa a
+       literalLoc (loc :.: "member2") tb sb b
 
 literalLoc loc (Tup3Type ta tb tc) (sa,sb,sc) (a,b,c) =
-    do aExpr <- literal ta sa a
-       bExpr <- literal tb sb b
-       cExpr <- literal tc sc c
-       assign (loc :.: "member1") aExpr
-       assign (loc :.: "member2") bExpr
-       assign (loc :.: "member3") cExpr
+    do literalLoc (loc :.: "member1") ta sa a
+       literalLoc (loc :.: "member2") tb sb b
+       literalLoc (loc :.: "member3") tc sc c
        
 literalLoc loc (Tup4Type ta tb tc td) (sa,sb,sc,sd) (a,b,c,d) =
-    do aExpr <- literal ta sa a
-       bExpr <- literal tb sb b
-       cExpr <- literal tc sc c
-       dExpr <- literal td sd d
-       assign (loc :.: "member1") aExpr
-       assign (loc :.: "member2") bExpr
-       assign (loc :.: "member3") cExpr
-       assign (loc :.: "member4") dExpr
+    do literalLoc (loc :.: "member1") ta sa a
+       literalLoc (loc :.: "member2") tb sb b
+       literalLoc (loc :.: "member3") tc sc c
+       literalLoc (loc :.: "member4") td sd d
        
 literalLoc loc (Tup5Type ta tb tc td te) (sa,sb,sc,sd,se) (a,b,c,d,e) =
-    do aExpr <- literal ta sa a
-       bExpr <- literal tb sb b
-       cExpr <- literal tc sc c
-       dExpr <- literal td sd d
-       eExpr <- literal te se e
-       assign (loc :.: "member1") aExpr
-       assign (loc :.: "member2") bExpr
-       assign (loc :.: "member3") cExpr
-       assign (loc :.: "member4") dExpr
-       assign (loc :.: "member5") eExpr
+    do literalLoc (loc :.: "member1") ta sa a
+       literalLoc (loc :.: "member2") tb sb b
+       literalLoc (loc :.: "member3") tc sc c
+       literalLoc (loc :.: "member4") td sd d
+       literalLoc (loc :.: "member5") te se e
        
 literalLoc loc (Tup6Type ta tb tc td te tf) (sa,sb,sc,sd,se,sf) (a,b,c,d,e,f) =
-    do aExpr <- literal ta sa a
-       bExpr <- literal tb sb b
-       cExpr <- literal tc sc c
-       dExpr <- literal td sd d
-       eExpr <- literal te se e
-       fExpr <- literal tf sf f
-       assign (loc :.: "member1") aExpr
-       assign (loc :.: "member2") bExpr
-       assign (loc :.: "member3") cExpr
-       assign (loc :.: "member4") dExpr
-       assign (loc :.: "member5") eExpr
-       assign (loc :.: "member6") fExpr
+    do literalLoc (loc :.: "member1") ta sa a
+       literalLoc (loc :.: "member2") tb sb b
+       literalLoc (loc :.: "member3") tc sc c
+       literalLoc (loc :.: "member4") td sd d
+       literalLoc (loc :.: "member5") te se e
+       literalLoc (loc :.: "member6") tf sf f
        
 literalLoc loc (Tup7Type ta tb tc td te tf tg) (sa,sb,sc,sd,se,sf,sg) (a,b,c,d,e,f,g) =
-    do aExpr <- literal ta sa a
-       bExpr <- literal tb sb b
-       cExpr <- literal tc sc c
-       dExpr <- literal td sd d
-       eExpr <- literal te se e
-       fExpr <- literal tf sf f
-       gExpr <- literal tg sg g
-       assign (loc :.: "member1") aExpr
-       assign (loc :.: "member2") bExpr
-       assign (loc :.: "member3") cExpr
-       assign (loc :.: "member4") dExpr
-       assign (loc :.: "member5") eExpr
-       assign (loc :.: "member6") fExpr
-       assign (loc :.: "member7") gExpr
+    do literalLoc (loc :.: "member1") ta sa a
+       literalLoc (loc :.: "member2") tb sb b
+       literalLoc (loc :.: "member3") tc sc c
+       literalLoc (loc :.: "member4") td sd d
+       literalLoc (loc :.: "member5") te se e
+       literalLoc (loc :.: "member6") tf sf f
+       literalLoc (loc :.: "member7") tg sg g
 
 literalLoc loc t sz a =
     do rhs <- literal t sz a
