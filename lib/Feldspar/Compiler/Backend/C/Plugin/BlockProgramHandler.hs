@@ -71,14 +71,31 @@ instance Transformable BlockProgramHandler Block where
 instance Transformable BlockProgramHandler Program where
     transform t s d p =
       case result tr of -- Note [Floating initializations]
-        BlockProgram b l | (b', d') <- splt b l -> Result b' () (d' ++ up tr)
+        e | Just b <- getBlock e
+          , (flt, noFlt) <- splt b ->
+               Result (newLocals e noFlt) () (flt ++ up tr)
         _ -> tr
       where
         tr = defaultTransform t s d p
-        splt b l | null noFlt = (blockBody b, flt)
-                 | otherwise = (BlockProgram (b {locals = noFlt}) l, flt)
-          where
-            (flt, noFlt) = partition scalarValueOrUninitialized (locals b)
+        splt b = partition scalarValueOrUninitialized (locals b)
+
+-- | Returns a block for constructs that support floating. Keep implementation
+-- in sync with newLocals below.
+getBlock :: Program t -> Maybe (Block t)
+getBlock (SeqLoop _ _ b _ _) = Just b
+getBlock (ParLoop _ _ _ b _ _) = Just b
+getBlock (BlockProgram b _) = Just b
+getBlock _ = Nothing
+
+
+-- | Sets the locals of a construct. Keep implementation in sync with getBlock
+-- above.
+newLocals :: Program t -> [Declaration t] -> Program t
+newLocals (SeqLoop c b' b l1 l2) d = SeqLoop c b' (b { locals = d }) l1 l2
+newLocals (ParLoop c b' s b l1 l2) d = ParLoop c b' s (b { locals = d }) l1 l2
+newLocals (BlockProgram b l) [] = blockBody b
+newLocals (BlockProgram b l) d = BlockProgram (b { locals = d }) l
+newLocals _ _ = error "newLocals and getBlock out of sync in BlockProgramHandler.hs"
 
 -- | True if a declaration is a scalar value or a complex type that is
 -- not initialized.
