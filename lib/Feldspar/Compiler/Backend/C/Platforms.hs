@@ -142,6 +142,8 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
 
     toNativeProg (Call "initArray" [Out arr,esz,num])
       | native (typeof arr) = [replaceWith $ Call "assert" [Out arr]]
+    toNativeProg (Call "freeArray" [Out arr])
+      | native (typeof arr) = [replaceWith $ Skip]
     toNativeProg _ = []
 
     toNativeVariable (Pointer arr@(SizedArray sz t) n)
