@@ -57,6 +57,8 @@ instance ( Compile dom dom
          , Project (Literal  :|| Type) dom
          , Project (Variable :|| Type) dom
          , Project (Let :|| Type) dom
+         , Project (Array :|| Type) dom
+         , AlphaEq dom dom (Decor Info dom) [(VarId, VarId)]
          )
       => Compile (Array :|| Type) dom
   where
@@ -118,6 +120,25 @@ instance ( Compile dom dom
                                     Seq (body ++
                                          [assignProg (loc :!: ix) (tmp :.: "member1")
                                          ])]
+
+    -- loc = parallel l f ++ parallel l g ==> for l (\i -> loc[i] = f i; loc[i+l] = g i)
+    compileProgSym (C' Append) _ loc ((arr1 :$ l1 :$ (lam1 :$ body1)) :* (arr2 :$ l2 :$ (lam2 :$ body2)) :* Nil)
+        | Just (C' Parallel) <- prjF arr1
+        , Just (C' Parallel) <- prjF arr2
+        , Just (SubConstr2 (Lambda v1)) <- prjLambda lam1
+        , Just (SubConstr2 (Lambda v2)) <- prjLambda lam2
+        , alphaEq l1 l2
+        = do
+            let t   = argType $ infoType $ getInfo lam1
+                sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo l1) 1)
+                ix1@(Var _ name) = mkVar (compileTypeRep t sz) v1
+                ix2              = mkVar (compileTypeRep t sz) v2
+            len <- mkLength l1 (infoType $ getInfo l1) sz
+            (_, Bl ds1 (Seq b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (loc :!: ix1) body1
+            (_, Bl ds2 (Seq b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (loc :!: ix2) body2
+            tellProg [initArray loc len]
+            assign ix2 len
+            tellProg [For name len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (Binop U32 "+" [ix2, (LitI U32 1)])]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
