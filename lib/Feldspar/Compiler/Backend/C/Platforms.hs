@@ -114,8 +114,8 @@ showRe = showConstant . realPartComplexValue
 showIm = showConstant . imagPartComplexValue
 
 showConstant :: Constant t -> String
-showConstant (IntConst c _ _ _) = show c
-showConstant (FloatConst c _ _) = show c ++ "f"
+showConstant (IntConst c _) = show c
+showConstant (FloatConst c) = show c ++ "f"
 
 arrayRules :: [Rule]
 arrayRules = [rule copy]

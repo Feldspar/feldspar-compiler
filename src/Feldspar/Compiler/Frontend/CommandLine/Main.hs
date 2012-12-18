@@ -115,8 +115,7 @@ mergeModules :: [Module ()] -> Module ()
 mergeModules [] = handleError "Standalone" InvariantViolation "Called mergeModules with an empty list"
 mergeModules [x] = x
 mergeModules l@(x:xs) = Module {
-    entities = nub $ entities x ++ entities (mergeModules xs), -- nub is in fact a "global plugin" here
-    moduleLabel = ()
+    entities = nub $ entities x ++ entities (mergeModules xs) -- nub is in fact a "global plugin" here
 }
 
 padFunctionName :: String -> String

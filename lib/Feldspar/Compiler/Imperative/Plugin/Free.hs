@@ -54,8 +54,8 @@ instance Plugin Free
     executePlugin _ _ = result . transform Free () ()
 
 instance Transformable Free Block where
-    transform _ _ _ (Block locs b _) = Result bl' () ()
+    transform _ _ _ (Block locs b) = Result bl' () ()
       where
         arrays = filter (isArray . typeof) $ map (toInterface . declVar) locs
-        newBody = Sequence (b : map (fromInterface . freeArray) arrays) () ()
-        bl' = Block locs newBody ()
+        newBody = Sequence (b : map (fromInterface . freeArray) arrays)
+        bl' = Block locs newBody

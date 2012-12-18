@@ -58,11 +58,11 @@ instance Transformable IVarPlugin Entity where
     transform t _ d p = defaultTransform t () d p
 
 instance Transformable IVarPlugin Program where
-    transform _ _ d (ProcedureCall name k ps _ _)
-        | k == KIVar && "ivar_get" `isPrefixOf` name
+    transform _ _ d (ProcedureCall name k ps)
+        | "ivar_get" `isPrefixOf` name
         = Result pc' () ()
       where
-        pc' = ProcedureCall name' k ps () ()
+        pc' = ProcedureCall name' k ps
         name' | d           = name
               | otherwise   = name ++ "_nontask"
     transform t _ d x = defaultTransform t () d x
@@ -71,14 +71,14 @@ instance Transformable IVarPlugin Program where
 instance Transformable IVarPlugin Block where
     transform t _ d b = Result b{ blockBody = body' } () ()
       where
-        body' = Sequence prg () ()
+        body' = Sequence prg
         prg = result (transform t () d $ blockBody b) : destrs
         iVars = filter isIVar $ map declVar $ locals b
         isIVar v = case varType v of
             IVarType _  -> True
             _           -> False
-        ivarFun s v = ProcedureCall ("ivar_" ++ s) KIVar [p] () ()
+        ivarFun s v = ProcedureCall ("ivar_" ++ s) KIVar [p]
           where
-            p = Out (VarExpr v ()) ()
+            p = Out (VarExpr v)
         destrs = map (ivarFun "destroy") iVars
 -}

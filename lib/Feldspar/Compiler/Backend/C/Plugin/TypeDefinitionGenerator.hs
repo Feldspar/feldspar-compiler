@@ -51,9 +51,7 @@ getTypes options typ = {-trace ("DEBUG: "show typ) $-} case typ of
     StructType members -> concatMap (\(_,t) -> getTypes options t) members
                        ++ [StructDef {
                                structName      = toC options Declaration_pl (StructType members),
-                               structMembers   = map (\(n,t) -> StructMember n t ()) members,
-                               structLabel     = (),
-                               definitionLabel = ()
+                               structMembers   = map (\(n,t) -> StructMember n t) members
                           }]
     ArrayType _ baseType -> getTypes options baseType
     _ -> []

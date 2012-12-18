@@ -55,9 +55,6 @@ class Combine t where
     combine :: t -> t -> t
     combine = transformationError "Default combination function used."
 
-class Convert a b where
-    convert :: a -> b
-
 instance Default () where
     def = ()
 
@@ -85,9 +82,6 @@ instance Combine Int where
 instance (Combine a, Combine b)
     => Combine (a,b) where
         combine (x,y) (v,w) = (combine x v, combine y w)
-
-instance Default b => Convert a b where
-    convert _ = def
 
 -- =============================
 -- == TransformationFramework ==

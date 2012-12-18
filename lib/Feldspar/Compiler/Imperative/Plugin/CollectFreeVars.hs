@@ -75,7 +75,7 @@ instance Transformable Collect Block where
         diff = m `Map.difference` localMap
 
 instance Transformable Collect Program where
-    transform t _ _ pr@(ParLoop idxVar _ _ _ _ _) = Result pr' () diff
+    transform t _ _ pr@(ParLoop idxVar _ _ _) = Result pr' () diff
       where
         Result pr' _ m = defaultTransform t () () pr
         diff = Map.delete (varName idxVar) m

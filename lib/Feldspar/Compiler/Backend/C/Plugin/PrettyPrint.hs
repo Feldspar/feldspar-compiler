@@ -50,108 +50,6 @@ data DebugToC = DebugToC
 
 data DebugToCSemanticInfo
 
-instance Annotation DebugToCSemanticInfo Module where
-    type Label DebugToCSemanticInfo Module = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Entity where
-    type Label DebugToCSemanticInfo Entity = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Struct where
-    type Label DebugToCSemanticInfo Struct = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ProcDef where
-    type Label DebugToCSemanticInfo ProcDef = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ProcDecl where
-    type Label DebugToCSemanticInfo ProcDecl = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo StructMember where
-    type Label DebugToCSemanticInfo StructMember = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Block where
-    type Label DebugToCSemanticInfo Block = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Program where
-    type Label DebugToCSemanticInfo Program = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Empty where
-    type Label DebugToCSemanticInfo Empty = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Assign where
-    type Label DebugToCSemanticInfo Assign = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ProcedureCall where
-    type Label DebugToCSemanticInfo ProcedureCall = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Spawn where
-    type Label DebugToCSemanticInfo Spawn = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Run where
-    type Label DebugToCSemanticInfo Run = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Sequence where
-    type Label DebugToCSemanticInfo Sequence = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Branch where
-    type Label DebugToCSemanticInfo Branch = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Switch where
-    type Label DebugToCSemanticInfo Switch = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo SeqLoop where
-    type Label DebugToCSemanticInfo SeqLoop = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ParLoop where
-    type Label DebugToCSemanticInfo ParLoop = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ActualParameter where
-    type Label DebugToCSemanticInfo ActualParameter = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Declaration where
-    type Label DebugToCSemanticInfo Declaration = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Expression where
-    type Label DebugToCSemanticInfo Expression = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo FunctionCall where
-    type Label DebugToCSemanticInfo FunctionCall = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo SizeOf where
-    type Label DebugToCSemanticInfo SizeOf = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ArrayElem where
-    type Label DebugToCSemanticInfo ArrayElem = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo StructField where
-    type Label DebugToCSemanticInfo StructField = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Constant where
-    type Label DebugToCSemanticInfo Constant = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo IntConst where
-    type Label DebugToCSemanticInfo IntConst = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo FloatConst where
-    type Label DebugToCSemanticInfo FloatConst = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo BoolConst where
-    type Label DebugToCSemanticInfo BoolConst = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ArrayConst where
-    type Label DebugToCSemanticInfo ArrayConst = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo ComplexConst where
-    type Label DebugToCSemanticInfo ComplexConst = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Variable where
-    type Label DebugToCSemanticInfo Variable = ((Int, Int), (Int, Int))
-
-instance Annotation DebugToCSemanticInfo Cast where
-    type Label DebugToCSemanticInfo Cast = ((Int, Int), (Int, Int))
-    
-instance Annotation DebugToCSemanticInfo Comment where
-    type Label DebugToCSemanticInfo Comment = ((Int, Int), (Int, Int))
-
 data PrintEnv = PEnv
     { -- Platform, Place and Indentation
       options :: Options,
@@ -185,7 +83,7 @@ compToCWithInfos opts line procedure =
                     (PEnv {options = opts, place = Declaration_pl, indent = 0}) procedure
 
 instance Transformable DebugToC Variable where
-    transform _ pos (PEnv {..}) x@(Variable vname typ role _) = Result (Variable vname typ role newInf) (snd newInf) cRep
+    transform _ pos (PEnv {..}) x@(Variable vname typ role) = Result (Variable vname typ role) (snd newInf) cRep
         where
             (newInf, (cRep, _)) = runState pos $ do
                 code $ toC options place x
@@ -196,18 +94,18 @@ instance Transformable1 DebugToC [] Constant where
     transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Constant where
-    transform t pos down cnst@(IntConst c _ _ _) = transformConst pos down cnst (show c)
+    transform t pos down cnst@(IntConst c _) = transformConst pos down cnst (show c)
 
-    transform t pos down cnst@(FloatConst c _ _) = transformConst pos down cnst (show c ++ "f")
+    transform t pos down cnst@(FloatConst c) = transformConst pos down cnst (show c ++ "f")
 
-    transform t pos down cnst@(BoolConst False _ _) = transformConst pos down cnst "0"
+    transform t pos down cnst@(BoolConst False) = transformConst pos down cnst "0"
 
-    transform t pos down cnst@(BoolConst True _ _) = transformConst pos down cnst "1"
+    transform t pos down cnst@(BoolConst True) = transformConst pos down cnst "1"
 
-    transform t pos down@(PEnv {..}) cnst@(ComplexConst real im _ _)
+    transform t pos down@(PEnv {..}) cnst@(ComplexConst real im)
         = case List.find (\(t',_) -> t' == typeof cnst) $ values $ platform options of
             Just (_,f) -> 
-                Result (ComplexConst (result newReal) (result newIm) newInf newInf) (snd newInf) cRep 
+                Result (ComplexConst (result newReal) (result newIm)) (snd newInf) cRep 
                     where
                         ((newReal, newIm, newInf), (cRep, _)) = runState pos $ do
                             nr <- complexTransform t down real
@@ -216,7 +114,7 @@ instance Transformable DebugToC Constant where
                             (_, np) <- StateMonad.get
                             return (nr, ni, (pos,np))
             Nothing    -> 
-                Result (ComplexConst (result newReal) (result newIm) newInf newInf) (snd newInf) cRep
+                Result (ComplexConst (result newReal) (result newIm)) (snd newInf) cRep
                     where
                         ((newReal, newIm, newInf), (cRep, _)) = runState pos $ do
                             code "complex("
@@ -228,9 +126,9 @@ instance Transformable DebugToC Constant where
                             return (nr, ni, (pos,np))
 
 instance Transformable DebugToC ActualParameter where
-    transform t pos down act@(In (VarExpr (Variable _ StructType{} _ _) _) _) =
+    transform t pos down act@(In (VarExpr (Variable _ StructType{} _))) =
         transformActParam t pos down act AddressNeed_pl
-    transform t pos down act@(In (VarExpr (Variable _ ArrayType{} _ _) _) _) =
+    transform t pos down act@(In (VarExpr (Variable _ ArrayType{} _))) =
         transformActParam t pos down act AddressNeed_pl
     transform t pos down act@In{}            = transformActParam t pos down act FunctionCallIn_pl
     transform t pos down act@Out{}           = transformActParam t pos down act AddressNeed_pl
@@ -241,14 +139,14 @@ instance Transformable1 DebugToC [] Expression where
     transform1 t pos down l = transform1' t pos down l ", "
 
 instance Transformable DebugToC Expression where
-    transform t pos down (VarExpr val _) = Result (VarExpr (result newVal) newInf) (snd newInf) cRep
+    transform t pos down (VarExpr val) = Result (VarExpr (result newVal)) (snd newInf) cRep
         where
             ((newVal, newInf), (cRep, _)) = runState pos $ do
                 nv <- monadicTransform' t down val
                 (_, np) <- StateMonad.get
                 return (nv, (pos,np))
 
-    transform t pos down@(PEnv {..}) e@(ArrayElem n index _ _) = Result (ArrayElem (result newName) (result newIndex) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(PEnv {..}) e@(ArrayElem n index) = Result (ArrayElem (result newName) (result newIndex)) (snd newInf) cRep 
         where
             ((newName, newIndex, newInf), (cRep, _)) = runState pos $ do
                 let prefix = case (place, typeof e) of
@@ -263,7 +161,7 @@ instance Transformable DebugToC Expression where
                 (_, np) <- StateMonad.get
                 return (nn, ni, (pos,np))
 
-    transform t pos down@(PEnv {..}) e@(NativeElem n index _ _) = Result (NativeElem (result newName) (result newIndex) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) e@(NativeElem n index) = Result (NativeElem (result newName) (result newIndex)) (snd newInf) cRep
         where
             ((newName, newIndex, newInf), (cRep, _)) = runState pos $ do
                 let prefix = case (place, typeof e) of
@@ -278,12 +176,12 @@ instance Transformable DebugToC Expression where
                 (_, np) <- StateMonad.get
                 return (nn, ni, (pos,np))
 
-    transform t pos down expr@(StructField _ field _ _) = transformExpr pos down ('.' : field) ValueNeed_pl
+    transform t pos down expr@(StructField _ field) = transformExpr pos down ('.' : field) ValueNeed_pl
       where
           transformExpr pos down@(PEnv {..}) str paramType = Result (newExpr expr) (snd newInf) cRep
             where
-                newExpr (StructField _ s _ _ ) = StructField (result newTarget) s newInf newInf
-                getExpr (StructField e _ _ _ ) = e
+                newExpr (StructField _ s) = StructField (result newTarget) s
+                getExpr (StructField e _) = e
                 prefix = case (place, typeof expr) of
                        (AddressNeed_pl, _) -> "&"
                        (_, ArrayType _ _)  -> "&"
@@ -296,21 +194,21 @@ instance Transformable DebugToC Expression where
                     return (nt, (pos,np))
 
 
-    transform t pos down (ConstExpr val _) = Result (ConstExpr (result newVal) newInf) (snd newInf) cRep
+    transform t pos down (ConstExpr val) = Result (ConstExpr (result newVal)) (snd newInf) cRep
         where
             ((newVal, newInf), (cRep, _)) = runState pos $ do
                 nv <- monadicTransform' t down val
                 (_, np) <- StateMonad.get
                 return (nv, (pos,np))
 
-    transform t pos down fc@(FunctionCall f [_,_] _ _)
+    transform t pos down fc@(FunctionCall f [_,_])
         | funName f == "!" = transformFuncCall t pos down fc "at(" "," ")"
 
-    transform t pos down fc@(FunctionCall f [_,_] _ _)
+    transform t pos down fc@(FunctionCall f [_,_])
         | funMode f == Infix = transformFuncCall t pos down fc "(" (" " ++ funName f ++ " ") ")"
 
-    transform t pos down (FunctionCall f paramlist _ _) =
-                Result (FunctionCall f (result1 newParamlist) newInf newInf) (snd newInf) cRep 
+    transform t pos down (FunctionCall f paramlist) =
+                Result (FunctionCall f (result1 newParamlist)) (snd newInf) cRep 
         where
             ((newParamlist, newInf), (cRep, _)) = runState pos $ do
                 code $ funName f ++ "("
@@ -319,7 +217,7 @@ instance Transformable DebugToC Expression where
                 (_, np) <- StateMonad.get
                 return (npl, (pos,np))
 
-    transform t pos down@(PEnv {..}) (Cast typ e _ _) =  Result (Cast typ (result newExp) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(PEnv {..}) (Cast typ e) =  Result (Cast typ (result newExp)) (snd newInf) cRep 
         where
             ((newExp, newInf), (cRep, _)) = runState pos $ do
                 code $ concat ["((", toC options place typ, ")("]
@@ -328,14 +226,14 @@ instance Transformable DebugToC Expression where
                 (_, np) <- StateMonad.get
                 return (ne, (pos,np))
 
-    transform _ pos (PEnv {..}) (SizeOf (Left typ) _ _) = Result (SizeOf (Left typ) newInf newInf) (snd newInf) cRep 
+    transform _ pos (PEnv {..}) (SizeOf (Left typ)) = Result (SizeOf (Left typ)) (snd newInf) cRep 
         where
             (newInf, (cRep, _)) = runState pos $ do
                 code ("sizeof(" ++ toC options place typ ++ ")")
                 (_, np) <- StateMonad.get
                 return (pos, np)
 
-    transform t pos down (SizeOf (Right e) _ _) = Result (SizeOf (Right (result newExp)) newInf newInf) p cRep 
+    transform t pos down (SizeOf (Right e)) = Result (SizeOf (Right (result newExp))) p cRep 
         where
             ((newExp, newInf), (cRep, p)) = runState pos $ do
                 code "sizeof"
@@ -348,7 +246,7 @@ instance Transformable1 DebugToC [] Entity where
     transform1 t pos down l = transform1' t pos down l ""
 
 instance Transformable DebugToC Module where
-    transform t pos down (Module defList _) = Result (Module (result1 newDefList) newInf) (snd newInf) cRep 
+    transform t pos down (Module defList) = Result (Module (result1 newDefList)) (snd newInf) cRep 
         where
             ((newDefList, newInf), (cRep, _)) = runState pos $ do
                 ndl <- monadicListTransform' t down defList
@@ -369,7 +267,7 @@ instance Transformable1 DebugToC [] StructMember where
 
 
 instance Transformable DebugToC Entity where
-    transform t pos down@(PEnv {..}) (StructDef n members _ _) = Result (StructDef n (result1 newMembers) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (StructDef n members) = Result (StructDef n (result1 newMembers)) (snd newInf) cRep
         where
             ((newMembers, newInf), (cRep, _)) = runState pos $ do
                 code $ n ++ " {\n"
@@ -382,7 +280,7 @@ instance Transformable DebugToC Entity where
                 StateMonad.put (crep, (cl, indent))
                 return (nms, (pos,(cl,indent)))
 
-    transform _ pos (PEnv {..}) (TypeDef typ n _) = Result (TypeDef typ n newInf) (snd newInf) cRep
+    transform _ pos (PEnv {..}) (TypeDef typ n) = Result (TypeDef typ n) (snd newInf) cRep
         where
             (newInf, (cRep, _)) = runState pos $ do
                 code $ unwords [ "typedef"
@@ -394,8 +292,8 @@ instance Transformable DebugToC Entity where
                 StateMonad.put (crep, (cl, indent))
                 return (pos, (cl, indent))
 
-    transform t pos down@(PEnv {..}) (ProcDef n k inp outp body _ _) =
-      Result (ProcDef n k (result1 newInParam) (result1 newOutParam) (result newBody) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (ProcDef n k inp outp body) =
+      Result (ProcDef n k (result1 newInParam) (result1 newOutParam) (result newBody)) (snd newInf) cRep
         where
             ((newInParam, newOutParam, newBody, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -417,8 +315,8 @@ instance Transformable DebugToC Entity where
                 (_, (nl, _)) <- StateMonad.get
                 return (ninp, noutp, nb, (pos,(nl,indent)))
 
-    transform t pos down@(PEnv {..}) (ProcDecl n knd inp outp _ _) =
-      Result (ProcDecl n knd (result1 newInParam) (result1 newOutParam) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (ProcDecl n knd inp outp) =
+      Result (ProcDecl n knd (result1 newInParam) (result1 newOutParam)) (snd newInf) cRep
         where
             ((newInParam, newOutParam, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -465,7 +363,7 @@ displayType (UserType s)    = s
 displayType (StructType _)  = "struct"
 
 instance Transformable DebugToC StructMember where
-    transform _ pos (PEnv {..}) dsm@(StructMember str typ _) = Result (StructMember str typ newInf) (snd newInf) cRep 
+    transform _ pos (PEnv {..}) dsm@(StructMember str typ) = Result (StructMember str typ) (snd newInf) cRep 
         where
             (newInf, (cRep, _)) = runState pos $ do
                 let t = case structMemberType dsm of
@@ -484,7 +382,7 @@ instance Transformable1 DebugToC [] Declaration where
         newXs = transform1 t newSt down xs
 
 instance Transformable DebugToC Block where
-    transform t pos down@(PEnv {..}) (Block locs body _) = Result (Block (result1 newLocs) (result newBody) newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (Block locs body) = Result (Block (result1 newLocs) (result newBody)) (snd newInf) cRep
         where
             ((newLocs, newBody, newInf), (cRep, _)) = runState pos $ do
                 nlocs <- monadicListTransform' t (newPlace down Declaration_pl) locs
@@ -497,7 +395,7 @@ instance Transformable DebugToC Block where
                 return (nlocs, nbody, (pos,(nl,indent)))
 
 instance Transformable DebugToC Declaration where
-    transform t pos down (Declaration dv Nothing _) = Result (Declaration (result newDeclVar) Nothing newInf) (snd newInf) cRep
+    transform t pos down (Declaration dv Nothing) = Result (Declaration (result newDeclVar) Nothing) (snd newInf) cRep
         where
             ((newDeclVar, newInf), (cRep, _)) = runState pos $ do
                 ndv <- monadicTransform' t (newPlace down Declaration_pl) dv
@@ -507,7 +405,7 @@ instance Transformable DebugToC Declaration where
                 (_, np) <- StateMonad.get
                 return (ndv, (pos,np))
 
-    transform t pos down (Declaration dv (Just e) _) = Result (Declaration (result newDeclVar) (Just (result newExpr)) newInf) (snd newInf) cRep 
+    transform t pos down (Declaration dv (Just e)) = Result (Declaration (result newDeclVar) (Just (result newExpr))) (snd newInf) cRep 
         where
             ((newDeclVar, newExpr, newInf), (cRep, _)) = runState pos $ do
                 ndv <- monadicTransform' t (newPlace down Declaration_pl) dv
@@ -524,10 +422,10 @@ instance Transformable1 DebugToC [] Program where
 
 
 instance Transformable DebugToC Program where
-    transform _ pos _ (Empty _ _) = Result (Empty newInf newInf) pos "" where 
+    transform _ pos _ Empty = Result Empty pos "" where 
         newInf = (pos, pos)
 
-    transform _ pos down (Comment True comment _ _) = Result (Comment True comment newInf newInf) (snd newInf) cRep 
+    transform _ pos down (Comment True comment) = Result (Comment True comment) (snd newInf) cRep 
         where
             (newInf, (cRep, _)) = runState pos $ do
                 indenter down
@@ -535,7 +433,7 @@ instance Transformable DebugToC Program where
                 (_, np) <- StateMonad.get
                 return (pos, np)
 
-    transform _ pos down (Comment False comment _ _) = Result (Comment False comment newInf newInf) (snd newInf) cRep 
+    transform _ pos down (Comment False comment) = Result (Comment False comment) (snd newInf) cRep 
         where 
             (newInf, (cRep, _)) = runState pos $ do
                 indenter down
@@ -543,7 +441,7 @@ instance Transformable DebugToC Program where
                 (_, np) <- StateMonad.get
                 return (pos, np)
 
-    transform t pos down@(PEnv {..}) (Assign lh rh _ _) = Result (Assign (result newLhs) (result newRhs) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (Assign lh rh) = Result (Assign (result newLhs) (result newRhs)) (snd newInf) cRep
         where
             ((newLhs, newRhs, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -554,7 +452,7 @@ instance Transformable DebugToC Program where
                 (_, (nl, _)) <- StateMonad.get
                 return (nlhs, nrhs, (pos,(nl,indent)))
 
-    transform t pos down@(PEnv {..}) (ProcedureCall n k param _ _) = Result (ProcedureCall n k (result1 newParam) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(PEnv {..}) (ProcedureCall n k param) = Result (ProcedureCall n k (result1 newParam)) (snd newInf) cRep 
         where
             ((newParam, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -564,13 +462,13 @@ instance Transformable DebugToC Program where
                 (_, (nl, _)) <- StateMonad.get
                 return (np, (pos,(nl,indent)))
 
-    transform t pos down (Sequence prog _ _) = Result (Sequence (result1 newProg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (Sequence prog) = Result (Sequence (result1 newProg)) (snd newInf) cRep 
         where
             ((newProg, newInf), (cRep, _)) = runState pos $ do
                 np <- monadicListTransform' t down prog
                 return (np, (pos,state1 newProg))
 
-    transform t pos down (Branch con tPrg ePrg _ _) = Result (Branch (result newCon) (result newTPrg) (result newEPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (Branch con tPrg ePrg) = Result (Branch (result newCon) (result newTPrg) (result newEPrg)) (snd newInf) cRep 
         where 
             ((newCon, newTPrg, newEPrg, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -592,9 +490,9 @@ instance Transformable DebugToC Program where
                 (_, np) <- StateMonad.get
                 return (ncon, ntPrg, nePrg, (pos,np))
 
-    transform t pos down (Switch scrut alts _ _) = error "TODO: PrettyPrint for switch"
+    transform t pos down (Switch scrut alts) = error "TODO: PrettyPrint for switch"
 
-    transform t pos down (SeqLoop con conPrg blockPrg _ _) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (SeqLoop con conPrg blockPrg) = Result (SeqLoop (result newCon) (result newConPrg) (result newBlockPrg)) (snd newInf) cRep 
         where
             ((newCon, newConPrg, newBlockPrg, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -615,7 +513,7 @@ instance Transformable DebugToC Program where
                 (_, np) <- StateMonad.get
                 return (ncon, ncp, nbp, (pos,np))
 
-    transform t pos down (ParLoop count bound step prog _ _) = Result (ParLoop (result newCount) (result newBound) step (result newProg) newInf newInf) (snd newInf) cRep 
+    transform t pos down (ParLoop count bound step prog) = Result (ParLoop (result newCount) (result newBound) step (result newProg)) (snd newInf) cRep 
         where
             ((newCount, newBound, newProg, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -634,7 +532,7 @@ instance Transformable DebugToC Program where
                 (_, np') <- StateMonad.get
                 return (loopVariable, nb, np, (pos,np'))
 
-    transform t pos down (BlockProgram prog _) = Result (BlockProgram (result newProg) newInf) (snd newInf) cRep 
+    transform t pos down (BlockProgram prog) = Result (BlockProgram (result newProg)) (snd newInf) cRep 
         where
             ((newProg, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -662,9 +560,9 @@ transform1' t pos down (x:xs) str = Result1 (result newX : result1 newXs) (state
 
 transformConst pos@(line, _) (PEnv {..}) (cnst :: Constant ()) str = Result (newConst cnst) (line, newCol) cRep 
     where
-        newConst (IntConst c t _ _) = IntConst c t newInf newInf
-        newConst (FloatConst c _ _) = FloatConst c newInf newInf
-        newConst (BoolConst c _ _)  = BoolConst c newInf newInf
+        newConst (IntConst c t) = IntConst c t
+        newConst (FloatConst c) = FloatConst c
+        newConst (BoolConst c)  = BoolConst c
         newInf = (pos, (line, newCol))
         (cRep, (_, newCol)) = snd $ runState pos $ do
         let s = case List.find (\(t',_) -> t' == typeof cnst) $ values $ platform options of
@@ -672,9 +570,9 @@ transformConst pos@(line, _) (PEnv {..}) (cnst :: Constant ()) str = Result (new
              Nothing    -> str
         code s
 
-transformActParam _ pos (PEnv {..}) (TypeParameter typ mode _) _ = Result newParam (snd newInf) cRep 
+transformActParam _ pos (PEnv {..}) (TypeParameter typ mode) _ = Result newParam (snd newInf) cRep 
     where
-        newParam = TypeParameter typ mode newInf
+        newParam = TypeParameter typ mode
         place Auto = MainParameter_pl
         place Scalar = Declaration_pl
         (newInf, (cRep, _)) = runState pos $ do
@@ -682,9 +580,9 @@ transformActParam _ pos (PEnv {..}) (TypeParameter typ mode _) _ = Result newPar
             (_, np) <- StateMonad.get
             return (pos,np)
 
-transformActParam _ pos _ (FunParameter n k addr _) _ = Result newParam (snd newInf) cRep 
+transformActParam _ pos _ (FunParameter n k addr) _ = Result newParam (snd newInf) cRep 
     where
-        newParam = FunParameter n k addr newInf
+        newParam = FunParameter n k addr
         (newInf, (cRep, _)) = runState pos $ do
             let addrOp
                     | addr      = "&"
@@ -695,18 +593,18 @@ transformActParam _ pos _ (FunParameter n k addr _) _ = Result newParam (snd new
 
 transformActParam t pos down act paramType = Result (newActParam act) (snd newInf) cRep 
     where
-        newActParam Out{} = Out (result newParam) newInf
-        newActParam In{}  = In  (result newParam) newInf
-        getParam (In param _)  = param
-        getParam (Out param _) = param
+        newActParam Out{} = Out (result newParam)
+        newActParam In{}  = In  (result newParam)
+        getParam (In param)  = param
+        getParam (Out param) = param
         ((newParam, newInf), (cRep, _)) = runState pos $ do
             np <- monadicTransform' t (newPlace down paramType) (getParam act)
             (_, np') <- StateMonad.get
             return (np, (pos,np'))
 
 transformFuncCall t pos down
-                  (FunctionCall f [a, b] _ _) str1 str2 str3 =
-                  Result (FunctionCall f [result newA, result newB] newInf newInf) (snd newInf) cRep
+                  (FunctionCall f [a, b]) str1 str2 str3 =
+                  Result (FunctionCall f [result newA, result newB]) (snd newInf) cRep
     where
         ((newA, newB, newInf), (cRep, _)) = runState pos $ do
             code str1

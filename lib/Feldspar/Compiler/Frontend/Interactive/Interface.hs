@@ -35,7 +35,7 @@ import qualified Feldspar.NameExtractor as NameExtractor
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
-import Feldspar.Compiler.Backend.C.Plugin.Locator
+--import Feldspar.Compiler.Backend.C.Plugin.Locator
 
 import Data.Char
 import System.FilePath (takeBaseName, (<.>))
@@ -44,6 +44,7 @@ import System.FilePath (takeBaseName, (<.>))
 --  == Interactive compilation
 -- ================================================================================================
 
+{-
 data PrgType = ForType | AssignType | IfType
 
 forPrg = ForType
@@ -58,7 +59,7 @@ getProgram (line, col) prgtype prg = res where
                         ForType     -> getPrgParLoop (line, col) prg
                         AssignType  -> getPrgAssign (line, col) prg
                         IfType      -> getPrgBranch (line, col) prg
-
+-}
 
 compile :: (Compilable t internal) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName functionName opts = do

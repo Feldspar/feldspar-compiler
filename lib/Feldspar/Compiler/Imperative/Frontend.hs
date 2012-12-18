@@ -32,8 +32,8 @@
 
 module Feldspar.Compiler.Imperative.Frontend where
 
-import Data.List
-import Data.Monoid
+import Data.List (intercalate)
+import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
 import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run, NativeArray, NativeElem)
@@ -93,7 +93,7 @@ data EConst
 
 data Prog
     = Skip
-    | Comment Bool {-BlockComment-} String
+    | Comment Bool String
     | Expr := Expr
     | Call String Kind [Param]
     | Seq [Prog]
@@ -108,7 +108,7 @@ instance Monoid Prog
     mempty                    = Skip
     mappend Skip     p        = p
     mappend p        Skip     = p
-    mappend (Seq pa) (Seq pb) = Seq $ mappend pa pb
+    mappend (Seq pa) (Seq pb) = Seq (mappend pa pb)
     mappend pa pb             = Seq [mappend pa pb]
 
 data Param
@@ -156,24 +156,24 @@ class Interface t where
 
 instance Interface Mod where
     type Repr Mod = AIR.Module ()
-    toInterface (Module es ()) = Mod $ map toInterface es
-    fromInterface (Mod es) = AIR.Module (map fromInterface es) ()
+    toInterface (Module es) = Mod $ map toInterface es
+    fromInterface (Mod es) = AIR.Module (map fromInterface es)
 
 instance Interface Ent where
     type Repr Ent = AIR.Entity ()
-    toInterface (AIR.StructDef name members () ()) =
-        StructD name (map (\(StructMember mname mtyp ())->(mname,toInterface mtyp)) members)
-    toInterface (AIR.ProcDef name knd inparams outparams body () ()) =
+    toInterface (AIR.StructDef name members) =
+        StructD name (map (\(StructMember mname mtyp)->(mname,toInterface mtyp)) members)
+    toInterface (AIR.ProcDef name knd inparams outparams body) =
         ProcDf name knd (map toInterface inparams) (map toInterface outparams) (toProg body)
-    toInterface (AIR.ProcDecl name knd inparams outparams () ()) =
+    toInterface (AIR.ProcDecl name knd inparams outparams) =
         ProcDcl name knd (map toInterface inparams) (map toInterface outparams)
     toInterface AIR.TypeDef{} = error "TypeDef not handled"
     fromInterface (StructD name members) =
-        AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname (fromInterface mtyp) ())) members) () ()
+        AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname (fromInterface mtyp))) members)
     fromInterface (ProcDf name knd inparams outparams body) =
-        AIR.ProcDef name knd (map fromInterface inparams) (map fromInterface outparams) (toBlock body) () ()
+        AIR.ProcDef name knd (map fromInterface inparams) (map fromInterface outparams) (toBlock body)
     fromInterface (ProcDcl name knd inparams outparams) =
-        AIR.ProcDecl name knd (map fromInterface inparams) (map fromInterface outparams) () ()
+        AIR.ProcDecl name knd (map fromInterface inparams) (map fromInterface outparams)
 
 instance Interface Type where
     type Repr Type = AIR.Type
@@ -222,106 +222,105 @@ instance Interface Type where
 
 instance Interface Expr where
     type Repr Expr = Expression ()
-    toInterface (VarExpr (AIR.Variable name t Value ()) ()) = Var (toInterface t) name
-    toInterface (VarExpr (AIR.Variable name t AIR.Pointer ()) ()) = Ptr (toInterface t) name
-    toInterface (ArrayElem arr idx () ()) = toInterface arr :!: toInterface idx
-    toInterface (AIR.NativeElem arr idx () ()) = NativeElem (toInterface arr) (toInterface idx)
-    toInterface (StructField str field () ()) = toInterface str :.: field
-    toInterface (ConstExpr (BoolConst True () ()) ()) = litB True
-    toInterface (ConstExpr (BoolConst False () ()) ()) = litB False
-    toInterface (ConstExpr (IntConst x t () ()) ()) = litI (toInterface t) x
-    toInterface (ConstExpr (FloatConst x () ()) ()) = litF x
-    toInterface (ConstExpr (ComplexConst r i () ()) ()) = litC (toInterface $ ConstExpr r ()) (toInterface $ ConstExpr i ())
-    toInterface (FunctionCall (Function name t Prefix) ps () ()) = Fun (toInterface t) name $ map toInterface ps
-    toInterface (FunctionCall (Function name t Infix) ps () ()) = Binop (toInterface t) name $ map toInterface ps
-    toInterface (AIR.Cast t e () ()) = Cast (toInterface t) (toInterface e)
-    toInterface (SizeOf (Left t) () ()) = SizeofT $ toInterface t
-    toInterface (SizeOf (Right e) () ()) = SizeofE $ toInterface e
-    fromInterface (Var t name) = VarExpr (AIR.Variable name (fromInterface t) Value ()) ()
-    fromInterface (Ptr t name) = VarExpr (AIR.Variable name (fromInterface t) AIR.Pointer ()) ()
-    fromInterface (Lit (EBool True)) = ConstExpr (BoolConst True () ()) ()
-    fromInterface (Lit (EBool False)) = ConstExpr (BoolConst False () ()) ()
-    fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x (fromInterface t) () ()) ()
-    fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x () ()) ()
+    toInterface (VarExpr (AIR.Variable name t Value)) = Var (toInterface t) name
+    toInterface (VarExpr (AIR.Variable name t AIR.Pointer)) = Ptr (toInterface t) name
+    toInterface (ArrayElem arr idx) = toInterface arr :!: toInterface idx
+    toInterface (AIR.NativeElem arr idx) = NativeElem (toInterface arr) (toInterface idx)
+    toInterface (StructField str field) = toInterface str :.: field
+    toInterface (ConstExpr (BoolConst True)) = litB True
+    toInterface (ConstExpr (BoolConst False)) = litB False
+    toInterface (ConstExpr (IntConst x t)) = litI (toInterface t) x
+    toInterface (ConstExpr (FloatConst x)) = litF x
+    toInterface (ConstExpr (ComplexConst r i)) = litC (toInterface $ ConstExpr r) (toInterface $ ConstExpr i)
+    toInterface (FunctionCall (Function name t Prefix) ps) = Fun (toInterface t) name $ map toInterface ps
+    toInterface (FunctionCall (Function name t Infix) ps) = Binop (toInterface t) name $ map toInterface ps
+    toInterface (AIR.Cast t e) = Cast (toInterface t) (toInterface e)
+    toInterface (SizeOf (Left t)) = SizeofT $ toInterface t
+    toInterface (SizeOf (Right e)) = SizeofE $ toInterface e
+    fromInterface (Var t name) = VarExpr (AIR.Variable name (fromInterface t) Value)
+    fromInterface (Ptr t name) = VarExpr (AIR.Variable name (fromInterface t) AIR.Pointer)
+    fromInterface (Lit (EBool b)) = ConstExpr (BoolConst b)
+    fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x (fromInterface t))
+    fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x)
     fromInterface (Lit (EComplex
-                        (fromInterface -> (ConstExpr r ()))
-                        (fromInterface -> (ConstExpr i ())))) =
-                        ConstExpr (ComplexConst r i () ()) ()
-    fromInterface (Lit (EComplex _ _)) = error "Internal compiler error for LitC"
-    fromInterface (Binop t name es) = FunctionCall (Function name (fromInterface t) Infix) (map fromInterface es) () ()
-    fromInterface (Fun t name es) = FunctionCall (Function name (fromInterface t) Prefix) (map fromInterface es) () ()
-    fromInterface (Cast t e) = AIR.Cast (fromInterface t) (fromInterface e) () ()
-    fromInterface (SizeofE e) = SizeOf (Right $ fromInterface e) () ()
-    fromInterface (SizeofT t) = SizeOf (Left $ fromInterface t) () ()
-    fromInterface (arr :!: idx) = ArrayElem (fromInterface arr) (fromInterface idx) () ()
-    fromInterface (NativeElem arr idx) = AIR.NativeElem (fromInterface arr) (fromInterface idx) () ()
-    fromInterface (str :.: field) = StructField (fromInterface str) field () ()
+                        (fromInterface -> ConstExpr r)
+                        (fromInterface -> ConstExpr i))) =
+                        ConstExpr (ComplexConst r i)
+    fromInterface (Lit (EComplex _ _)) = error "Internal compiler error for complex literal"
+    fromInterface (Binop t name es) = FunctionCall (Function name (fromInterface t) Infix) (map fromInterface es)
+    fromInterface (Fun t name es) = FunctionCall (Function name (fromInterface t) Prefix) (map fromInterface es)
+    fromInterface (Cast t e) = AIR.Cast (fromInterface t) (fromInterface e)
+    fromInterface (SizeofE e) = SizeOf (Right $ fromInterface e)
+    fromInterface (SizeofT t) = SizeOf (Left $ fromInterface t)
+    fromInterface (arr :!: idx) = ArrayElem (fromInterface arr) (fromInterface idx)
+    fromInterface (NativeElem arr idx) = AIR.NativeElem (fromInterface arr) (fromInterface idx)
+    fromInterface (str :.: field) = StructField (fromInterface str) field
 
 instance Interface Prog where
     type Repr Prog = AIR.Program ()
-    toInterface (Empty () ()) = Skip
-    toInterface (AIR.Comment b s () ()) = Comment b s
+    toInterface (Empty) = Skip
+    toInterface (AIR.Comment b s) = Comment b s
     toInterface Assign{..} = toInterface lhs := toInterface rhs
-    toInterface (ProcedureCall s k ps () ()) = Call s k (map toInterface ps)
-    toInterface (Sequence ps () ()) = Seq (map toInterface ps)
-    toInterface (Branch e b1 b2 () ()) = If (toInterface e) (toProg b1) (toProg b2)
-    toInterface (Switch e alts () ()) = error "TODO: toInterface Switch"
-    toInterface (SeqLoop e pe b () ()) = While (toProg pe) (toInterface e) (toProg b)
-    toInterface (ParLoop v e i b () ()) = For (varName v) (toInterface e) i (toProg b)
-    toInterface (BlockProgram b ()) = Block (map toInterface $ locals b) (toInterface $ blockBody b)
-    fromInterface (Skip) = Empty () ()
-    fromInterface (Comment b s) = AIR.Comment b s () ()
-    fromInterface (lhs := rhs) = Assign (fromInterface lhs) (fromInterface rhs) () ()
-    fromInterface (Call s k ps) = ProcedureCall s k (map fromInterface ps) () ()
-    fromInterface (Seq ps) = Sequence (map fromInterface ps) () ()
-    fromInterface (If e p1 p2) = Branch (fromInterface e) (toBlock p1) (toBlock p2) () ()
+    toInterface (ProcedureCall s k ps) = Call s k (map toInterface ps)
+    toInterface (Sequence ps) = Seq (map toInterface ps)
+    toInterface (Branch e b1 b2) = If (toInterface e) (toProg b1) (toProg b2)
+    toInterface (Switch e alts) = error "TODO: toInterface Switch"
+    toInterface (SeqLoop e pe b) = While (toProg pe) (toInterface e) (toProg b)
+    toInterface (ParLoop v e i b) = For (varName v) (toInterface e) i (toProg b)
+    toInterface (BlockProgram b) = Block (map toInterface $ locals b) (toInterface $ blockBody b)
+    fromInterface (Skip) = Empty
+    fromInterface (Comment b s) = AIR.Comment b s
+    fromInterface (lhs := rhs) = Assign (fromInterface lhs) (fromInterface rhs)
+    fromInterface (Call s k ps) = ProcedureCall s k (map fromInterface ps)
+    fromInterface (Seq ps) = Sequence (map fromInterface ps)
+    fromInterface (If e p1 p2) = Branch (fromInterface e) (toBlock p1) (toBlock p2)
 --    fromInterface (Switch scrut alts) = Switch (fromInterface scrut) (map toBlock alts) () () -- TODO: Add Switch in Prog.
-    fromInterface (While pe e p) = SeqLoop (fromInterface e) (toBlock pe) (toBlock p) () ()
+    fromInterface (While pe e p) = SeqLoop (fromInterface e) (toBlock pe) (toBlock p)
     fromInterface (For s e i p) = ParLoop
-        (AIR.Variable s (NumType Unsigned S32) Value ()) (fromInterface e) i (toBlock p) () ()
-    fromInterface (Block ds p) = BlockProgram (AIR.Block (map fromInterface ds) (fromInterface p) ()) ()
+        (AIR.Variable s (NumType Unsigned S32) Value) (fromInterface e) i (toBlock p)
+    fromInterface (Block ds p) = BlockProgram (AIR.Block (map fromInterface ds) (fromInterface p))
 
 instance Interface Param where
     type Repr Param = ActualParameter ()
-    toInterface (AIR.In e ()) = In (toInterface e)
-    toInterface (AIR.Out e ()) = Out (toInterface e)
-    toInterface (AIR.TypeParameter e AIR.Auto ()) = TypAuto (toInterface e)
-    toInterface (AIR.TypeParameter e AIR.Scalar ()) = TypScalar (toInterface e)
-    toInterface (AIR.FunParameter n k False ()) = Fn n k
-    toInterface (AIR.FunParameter n k True ()) = FnAddr n k
-    fromInterface (In e) = AIR.In (fromInterface e) ()
-    fromInterface (Out e) = AIR.Out (fromInterface e) ()
-    fromInterface (TypAuto e) = AIR.TypeParameter (fromInterface e) Auto ()
-    fromInterface (TypScalar e) = AIR.TypeParameter (fromInterface e) Scalar ()
-    fromInterface (Fn n k) = AIR.FunParameter n k False ()
-    fromInterface (FnAddr n k) = AIR.FunParameter n k True ()
+    toInterface (AIR.In e) = In (toInterface e)
+    toInterface (AIR.Out e) = Out (toInterface e)
+    toInterface (AIR.TypeParameter e AIR.Auto) = TypAuto (toInterface e)
+    toInterface (AIR.TypeParameter e AIR.Scalar) = TypScalar (toInterface e)
+    toInterface (AIR.FunParameter n k False) = Fn n k
+    toInterface (AIR.FunParameter n k True) = FnAddr n k
+    fromInterface (In e) = AIR.In (fromInterface e)
+    fromInterface (Out e) = AIR.Out (fromInterface e)
+    fromInterface (TypAuto e) = AIR.TypeParameter (fromInterface e) Auto
+    fromInterface (TypScalar e) = AIR.TypeParameter (fromInterface e) Scalar
+    fromInterface (Fn n k) = AIR.FunParameter n k False
+    fromInterface (FnAddr n k) = AIR.FunParameter n k True
 
 instance Interface Def where
     type Repr Def = Declaration ()
-    toInterface (Declaration v (Just e) ()) = Init (toInterface v) (toInterface e)
-    toInterface (Declaration v Nothing ()) = Def (toInterface v)
-    fromInterface (Init v e) = Declaration (fromInterface v) (Just $ fromInterface e) ()
-    fromInterface (Def v) = Declaration (fromInterface v) Nothing ()
+    toInterface (Declaration v (Just e)) = Init (toInterface v) (toInterface e)
+    toInterface (Declaration v Nothing) = Def (toInterface v)
+    fromInterface (Init v e) = Declaration (fromInterface v) (Just $ fromInterface e)
+    fromInterface (Def v) = Declaration (fromInterface v) Nothing
 
 instance Interface Block where
     type Repr Block = AIR.Block ()
-    toInterface (AIR.Block ds p ()) = Bl (map toInterface ds) (toInterface p)
-    fromInterface (Bl ds p) = AIR.Block (map fromInterface ds) (fromInterface p) ()
+    toInterface (AIR.Block ds p) = Bl (map toInterface ds) (toInterface p)
+    fromInterface (Bl ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
 
 instance Interface Var where
     type Repr Var = AIR.Variable ()
-    toInterface (AIR.Variable name typ Value ()) = Variable (toInterface typ) name
-    toInterface (AIR.Variable name typ AIR.Pointer ()) = Pointer (toInterface typ) name
-    fromInterface (Variable typ name) = AIR.Variable name (fromInterface typ) Value ()
-    fromInterface (Pointer typ name) = AIR.Variable name (fromInterface typ) AIR.Pointer ()
+    toInterface (AIR.Variable name typ Value) = Variable (toInterface typ) name
+    toInterface (AIR.Variable name typ AIR.Pointer) = Pointer (toInterface typ) name
+    fromInterface (Variable typ name) = AIR.Variable name (fromInterface typ) Value
+    fromInterface (Pointer typ name) = AIR.Variable name (fromInterface typ) AIR.Pointer
 
 toBlock :: Prog -> AIR.Block ()
-toBlock (Block ds p) = AIR.Block (map fromInterface ds) (fromInterface p) ()
-toBlock p = AIR.Block [] (fromInterface p) ()
+toBlock (Block ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
+toBlock p = AIR.Block [] (fromInterface p)
 
 toProg :: AIR.Block () -> Prog
-toProg (AIR.Block [] p ()) = toInterface p
-toProg (AIR.Block ds p ()) = Block (map toInterface ds) (toInterface p)
+toProg (AIR.Block [] p) = toInterface p
+toProg (AIR.Block ds p) = Block (map toInterface ds) (toInterface p)
 
 setLength :: Expr -> Expr -> Prog
 setLength arr len = Call "setLength" KNormal [Out arr, In len]

@@ -63,13 +63,13 @@ instance Transformation Precompilation where
 
 
 instance Transformable Precompilation Entity where
-        transform t s d x@(ProcDef n KMain i _ _ _ _)
+        transform t s d x@(ProcDef n KMain i _ _)
             = tr { result = (result tr){ procName = n' } }
           where
             d' = d { generatedImperativeParameterNames = map varName i }
             tr = defaultTransform t s d' x
             n' = originalFunctionName d
-        transform t s d x@(ProcDef n k _ _ _ _ _)
+        transform t s d x@(ProcDef n k _ _ _)
             | k `elem` procedureKindsToPrefix = tr { result = (result tr){ procName = n' } }
           where
             n' = prefix d n
@@ -86,17 +86,16 @@ instance Transformable Precompilation Variable where
       where
         newVar = v 
             { varName = (getVariableName d $ varName v) ++ varName v
-            , varLabel = ()
             }
 
 instance Transformable Precompilation ActualParameter where
-    transform _ s d (FunParameter n k addr _)
+    transform _ s d (FunParameter n k addr)
         | k `elem` procedureKindsToPrefix
-            = Result (FunParameter (prefix d n) k addr ()) s def
+            = Result (FunParameter (prefix d n) k addr) s def
     transform t s d x = defaultTransform t s d x
 
 instance Transformable Precompilation Program where
-    transform t s d c@(ProcedureCall n k _ _ _)
+    transform t s d c@(ProcedureCall n k _)
         | k `elem` procedureKindsToPrefix = tr { result = (result tr){ procCallName = n' } }
       where
         tr = defaultTransform t s d c

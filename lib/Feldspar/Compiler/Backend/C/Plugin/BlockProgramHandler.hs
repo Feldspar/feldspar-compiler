@@ -82,19 +82,19 @@ instance Transformable BlockProgramHandler Program where
 -- | Returns a block for constructs that support floating. Keep implementation
 -- in sync with newLocals below.
 getBlock :: Program t -> Maybe (Block t)
-getBlock (SeqLoop _ _ b _ _) = Just b
-getBlock (ParLoop _ _ _ b _ _) = Just b
-getBlock (BlockProgram b _) = Just b
+getBlock (SeqLoop _ _ b) = Just b
+getBlock (ParLoop _ _ _ b) = Just b
+getBlock (BlockProgram b) = Just b
 getBlock _ = Nothing
 
 
 -- | Sets the locals of a construct. Keep implementation in sync with getBlock
 -- above.
 newLocals :: Program t -> [Declaration t] -> Program t
-newLocals (SeqLoop c b' b l1 l2) d = SeqLoop c b' (b { locals = d }) l1 l2
-newLocals (ParLoop c b' s b l1 l2) d = ParLoop c b' s (b { locals = d }) l1 l2
-newLocals (BlockProgram b l) [] = blockBody b
-newLocals (BlockProgram b l) d = BlockProgram (b { locals = d }) l
+newLocals (SeqLoop c b' b) d = SeqLoop c b' (b { locals = d })
+newLocals (ParLoop c b' s b) d = ParLoop c b' s (b { locals = d })
+newLocals (BlockProgram b) [] = blockBody b
+newLocals (BlockProgram b) d = BlockProgram (b { locals = d })
 newLocals _ _ = error "newLocals and getBlock out of sync in BlockProgramHandler.hs"
 
 -- | True if a declaration is a initialized to a closed expression.

@@ -58,10 +58,10 @@ instance Transformable ConstantFolding Expression where
             tr = defaultTransform t s d f
             tr' x = tr {result = x}
             f' = result tr
-            isConstIntN n (ConstExpr (IntConst i _ _ _) _) = n == i
+            isConstIntN n (ConstExpr (IntConst i _)) = n == i
             isConstIntN _ _ = False
 
-            elimParamIf predicate flippable funCall@(FunctionCall (Function _ _ Infix) (x:xs) _ _)
+            elimParamIf predicate flippable funCall@(FunctionCall (Function _ _ Infix) (x:xs))
                 | predicate (head xs)      = x
                 | flippable && predicate x = head xs
                 | otherwise                = funCall

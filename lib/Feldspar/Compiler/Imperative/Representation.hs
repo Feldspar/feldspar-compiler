@@ -48,28 +48,14 @@ import Feldspar.Compiler.Error
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
 
--- ===============================================================================================
--- == Class defining semantic information attached to different nodes in the imperative program ==
--- ===============================================================================================
-
-class Annotation t (s :: * -> *) where
-    type Label t s
-
-instance Annotation () s where
-    type Label () s = ()
-
 -- =================================================
 -- == Data stuctures to store imperative programs ==
 -- =================================================
 
 data Module t = Module
     { entities                      :: [Entity t]
-    , moduleLabel                   :: Label t Module
     }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Module t)
-deriving instance (EqLabel t)   => Eq (Module t)
+    deriving (Typeable, Show, Eq)
 
 data Kind
     = KNormal   -- The normal one.
@@ -84,13 +70,10 @@ data Entity t
     = StructDef
         { structName                :: String
         , structMembers             :: [StructMember t]
-        , structLabel               :: Label t Struct
-        , definitionLabel           :: Label t Entity
         }
     | TypeDef
         { actualType                :: Type
         , typeName                  :: String
-        , definitionLabel           :: Label t Entity
         }
     | ProcDef
         { procName                  :: String
@@ -98,244 +81,165 @@ data Entity t
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         , procBody                  :: Block t
-        , procDefLabel              :: Label t ProcDef
-        , definitionLabel           :: Label t Entity
         }
     | ProcDecl
         { procName                  :: String
         , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
-        , procDeclLabel             :: Label t ProcDecl
-        , definitionLabel           :: Label t Entity
         }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Entity t)
-deriving instance (EqLabel t)   => Eq (Entity t) 
+    deriving (Typeable, Show, Eq)
 
 data StructMember t = StructMember
     { structMemberName              :: String
     , structMemberType              :: Type
-    , structMemberLabel             :: Label t StructMember
     }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (StructMember t)
-deriving instance (EqLabel t)   => Eq (StructMember t)
+    deriving (Typeable, Show, Eq)
 
 data Block t = Block
     { locals                        :: [Declaration t]
     , blockBody                     :: Program t
-    , blockLabel                    :: Label t Block
     }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Block t)
-deriving instance (EqLabel t)   => Eq (Block t)
+    deriving (Typeable, Show, Eq)
 
 data Program t
     = Empty
-        { emptyLabel                :: Label t Empty
-        , programLabel              :: Label t Program
+        {
         }
     | Comment
         { isBlockComment            :: Bool
         , commentValue              :: String
-        , commentLabel              :: Label t Comment
-        , programLabel              :: Label t Program
         }
     | Assign
         { lhs                       :: Expression t
         , rhs                       :: Expression t
-        , assignLabel               :: Label t Assign
-        , programLabel              :: Label t Program
         }
     | ProcedureCall
         { procCallName              :: String
         , procCallKind              :: Kind
         , procCallParams            :: [ActualParameter t]
-        , procCallLabel             :: Label t ProcedureCall
-        , programLabel              :: Label t Program
         }
     | Sequence
         { sequenceProgs             :: [Program t]
-        , sequenceLabel             :: Label t Sequence
-        , programLabel              :: Label t Program
         }
     | Branch
         { branchCond                :: Expression t
         , thenBlock                 :: Block t
         , elseBlock                 :: Block t
-        , branchLabel               :: Label t Branch
-        , programLabel              :: Label t Program
         }
     | Switch
         { scrutinee                 :: Expression t
         , alts                      :: [(Pattern t, Block t)]
-        , switchLabel               :: Label t Switch
-        , programLabel              :: Label t Program
         }
     | SeqLoop
         { sLoopCond                 :: Expression t
         , sLoopCondCalc             :: Block t
         , sLoopBlock                :: Block t
-        , sLoopLabel                :: Label t SeqLoop
-        , programLabel              :: Label t Program
         }
     | ParLoop
         { pLoopCounter              :: Variable t
         , pLoopBound                :: Expression t
         , pLoopStep                 :: Int
         , pLoopBlock                :: Block t
-        , pLoopLabel                :: Label t ParLoop
-        , programLabel              :: Label t Program
         }
     | BlockProgram
         { blockProgram              :: Block t
-        , programLabel              :: Label t Program
         }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Program t)
-deriving instance (EqLabel t)   => Eq (Program t)
+    deriving (Typeable, Show, Eq)
 
 data Pattern t
    = PatDefault
    | Pat (Constant t)
-     deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Pattern t)
-deriving instance (EqLabel t)   => Eq (Pattern t)
+     deriving (Typeable, Show, Eq)
 
 data ActualParameter t
     = In
         { inParam                   :: Expression t
-        , actParamLabel             :: Label t ActualParameter
         }
     | Out
         { outParam                  :: Expression t
-        , actParamLabel             :: Label t ActualParameter
         }
     | TypeParameter
         { typeParam                 :: Type
         , typeParamMode             :: TypeParameterMode
-        , actParamLabel             :: Label t ActualParameter
         }
     | FunParameter
         { funParamName              :: String
         , funParamKind              :: Kind
         , addressNeeded             :: Bool
-        , actParamLabel             :: Label t ActualParameter
         }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (ActualParameter t)
-deriving instance (EqLabel t)   => Eq (ActualParameter t)
+    deriving (Typeable, Show, Eq)
 
 data Declaration t = Declaration
     { declVar                       :: Variable t
     , initVal                       :: Maybe (Expression t)
-    , declLabel                     :: Label t Declaration
     }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Declaration t)
-deriving instance (EqLabel t)   => Eq (Declaration t)
+    deriving (Typeable, Show, Eq)
 
 data Expression t
     = VarExpr
         { var                       :: Variable t
-        , exprLabel                 :: Label t Expression
         }
     | ArrayElem
         { array                     :: Expression t
         , arrayIndex                :: Expression t
-        , arrayLabel                :: Label t ArrayElem
-        , exprLabel                 :: Label t Expression
         }
     | NativeElem
         { array                     :: Expression t
         , arrayIndex                :: Expression t
-        , arrayLabel                :: Label t ArrayElem
-        , exprLabel                 :: Label t Expression
         }
     | StructField
         { struct                    :: Expression t
         , fieldName                 :: String
-        , structFieldLabel          :: Label t StructField
-        , exprLabel                 :: Label t Expression
         }
     | ConstExpr
         { constExpr                 :: Constant t
-        , exprLabel                 :: Label t Expression
         }
     | FunctionCall
         { function                  :: Function
         , funCallParams             :: [Expression t]
-        , funCallLabel              :: Label t FunctionCall
-        , exprLabel                 :: Label t Expression
         }
     | Cast
         { castType                  :: Type
         , castExpr                  :: Expression t
-        , castLabel                 :: Label t Cast
-        , exprLabel                 :: Label t Expression
         }
     | SizeOf
         { sizeOf                    :: Either Type (Expression t)
-        , sizeOfLabel               :: Label t SizeOf
-        , exprLabel                 :: Label t Expression
         }
-    deriving Typeable
+    deriving (Typeable, Show, Eq)
 
-deriving instance (ShowLabel t) => Show (Expression t)
-deriving instance (EqLabel t)   => Eq (Expression t)
-
-data Function = Function {
-    funName                   :: String
-  , returnType                :: Type
-  , funMode                   :: FunctionMode
-} deriving (Eq, Show)
+data Function
+    = Function
+        { funName                   :: String
+        , returnType                :: Type
+        , funMode                   :: FunctionMode
+        }
+    deriving (Typeable, Show, Eq)
 
 data Constant t
     = IntConst
         { intValue                  :: Integer
         , intType                   :: Type
-        , intConstLabel             :: Label t IntConst
-        , constLabel                :: Label t Constant
         }
     | FloatConst
         { floatValue                :: Double
-        , floatConstLabel           :: Label t FloatConst
-        , constLabel                :: Label t Constant
         }
     | BoolConst
         { boolValue                 :: Bool
-        , boolConstLabel            :: Label t BoolConst
-        , constLabel                :: Label t Constant
         }
     | ComplexConst
-        { realPartComplexValue       :: Constant t
-        , imagPartComplexValue       :: Constant t
-        , complexConstLabel          :: Label t ComplexConst
-        , constLabel                 :: Label t Constant
+        { realPartComplexValue      :: Constant t
+        , imagPartComplexValue      :: Constant t
         }
-    deriving Typeable
+    deriving (Typeable, Show, Eq)
 
-deriving instance (ShowLabel t) => Show (Constant t)
-deriving instance (EqLabel t)   => Eq (Constant t)
-
-data Variable t = Variable
-    { varName                        :: String
-    , varType                        :: Type
-    , varRole                        :: VariableRole
-    , varLabel                       :: Label t Variable
-    }
-    deriving Typeable
-
-deriving instance (ShowLabel t) => Show (Variable t)
-deriving instance (EqLabel t)   => Eq (Variable t)
+data Variable t
+    = Variable
+        { varName                   :: String
+        , varType                   :: Type
+        , varRole                   :: VariableRole
+        }
+    deriving (Typeable, Show, Eq)
 
 -- ======================
 -- == Basic structures ==
@@ -387,6 +291,7 @@ data TypeParameterMode = Auto | Scalar
 isValue :: Expression t -> Bool
 isValue (ConstExpr {}) = True
 isValue _              = False
+
 ----------------------
 --   Type inference --
 ----------------------
@@ -399,14 +304,14 @@ instance HasType (Variable t) where
     type TypeOf (Variable t) = Type
     typeof Variable{..}      = varType
 
-instance (ShowLabel t) => HasType (Constant t) where
+instance HasType (Constant t) where
     type TypeOf (Constant t) = Type
     typeof IntConst{..}      = intType
     typeof FloatConst{}      = FloatType
     typeof BoolConst{}       = BoolType
     typeof ComplexConst{..}  = ComplexType $ typeof realPartComplexValue
 
-instance (ShowLabel t) => HasType (Expression t) where
+instance HasType (Expression t) where
     type TypeOf (Expression t) = Type
     typeof VarExpr{..}   = typeof var
     typeof ArrayElem{..} = decrArrayDepth $ typeof array
@@ -435,7 +340,7 @@ instance (ShowLabel t) => HasType (Expression t) where
     typeof Cast{..}         = castType
     typeof SizeOf{..}       = NumType Signed S32
 
-instance (ShowLabel t) => HasType (ActualParameter t) where
+instance HasType (ActualParameter t) where
     type TypeOf (ActualParameter t) = Type
     typeof In{..}            = typeof inParam
     typeof Out{..}           = typeof outParam
@@ -446,227 +351,3 @@ instance (ShowLabel t) => HasType (ActualParameter t) where
 reprError :: forall a. ErrorClass -> String -> a
 reprError = handleError "Feldspar.Compiler.Imperative.Representation"
 
--- =====================
--- == Technical types ==
--- =====================
-
-data Struct t
-data ProcDef t
-data ProcDecl t
-data Empty t
-data Comment t
-data Assign t
-data ProcedureCall t
-data Spawn t
-data Run t
-data Sequence t
-data Branch t
-data Switch t
-data SeqLoop t
-data ParLoop t
-data FunctionCall t
-data Cast t
-data SizeOf t
-data ArrayElem t
-data NativeElem t
-data StructField t
-data LeftFunCall t
-data IntConst t
-data FloatConst t
-data BoolConst t
-data ArrayConst t
-data ComplexConst t
-
--- ==========================
--- == Show and Eq instance ==
--- ==========================
-
-class ( Show (Label t Module)
-      , Show (Label t Entity)
-      , Show (Label t Struct)
-      , Show (Label t ProcDef)
-      , Show (Label t ProcDecl)
-      , Show (Label t StructMember)
-      , Show (Label t Block)
-      , Show (Label t Program)
-      , Show (Label t Empty)
-      , Show (Label t Comment)
-      , Show (Label t Assign)
-      , Show (Label t ProcedureCall)
-      , Show (Label t Spawn)
-      , Show (Label t Run)
-      , Show (Label t Sequence)
-      , Show (Label t Branch)
-      , Show (Label t Switch)
-      , Show (Label t SeqLoop)
-      , Show (Label t ParLoop)
-      , Show (Label t ActualParameter)
-      , Show (Label t Declaration)
-      , Show (Label t Expression)
-      , Show (Label t FunctionCall)
-      , Show (Label t Cast)
-      , Show (Label t SizeOf)
-      , Show (Label t ArrayElem)
-      , Show (Label t StructField)
-      , Show (Label t Constant)
-      , Show (Label t IntConst)
-      , Show (Label t FloatConst)
-      , Show (Label t BoolConst)
-      , Show (Label t ArrayConst)
-      , Show (Label t ComplexConst)
-      , Show (Label t Variable)
-      ) => ShowLabel t
-
-instance ( Show (Label t Module)
-         , Show (Label t Entity)
-         , Show (Label t Struct)
-         , Show (Label t ProcDef)
-         , Show (Label t ProcDecl)
-         , Show (Label t StructMember)
-         , Show (Label t Block)
-         , Show (Label t Program)
-         , Show (Label t Empty)
-         , Show (Label t Comment)
-         , Show (Label t Assign)
-         , Show (Label t ProcedureCall)
-         , Show (Label t Spawn)
-         , Show (Label t Run)
-         , Show (Label t Sequence)
-         , Show (Label t Branch)
-         , Show (Label t Switch)
-         , Show (Label t SeqLoop)
-         , Show (Label t ParLoop)
-         , Show (Label t ActualParameter)
-         , Show (Label t Declaration)
-         , Show (Label t Expression)
-         , Show (Label t FunctionCall)
-         , Show (Label t Cast)
-         , Show (Label t SizeOf)
-         , Show (Label t ArrayElem)
-         , Show (Label t StructField)
-         , Show (Label t Constant)
-         , Show (Label t IntConst)
-         , Show (Label t FloatConst)
-         , Show (Label t BoolConst)
-         , Show (Label t ArrayConst)
-         , Show (Label t ComplexConst)
-         , Show (Label t Variable)
-         ) => ShowLabel t
-
-class ( Eq (Label t Module)
-      , Eq (Label t Entity)
-      , Eq (Label t Struct)
-      , Eq (Label t ProcDef)
-      , Eq (Label t ProcDecl)
-      , Eq (Label t StructMember)
-      , Eq (Label t Block)
-      , Eq (Label t Program)
-      , Eq (Label t Empty)
-      , Eq (Label t Comment)
-      , Eq (Label t Assign)
-      , Eq (Label t ProcedureCall)
-      , Eq (Label t Spawn)
-      , Eq (Label t Run)
-      , Eq (Label t Sequence)
-      , Eq (Label t Branch)
-      , Eq (Label t Switch)
-      , Eq (Label t SeqLoop)
-      , Eq (Label t ParLoop)
-      , Eq (Label t ActualParameter)
-      , Eq (Label t Declaration)
-      , Eq (Label t Expression)
-      , Eq (Label t FunctionCall)
-      , Eq (Label t Cast)
-      , Eq (Label t SizeOf)
-      , Eq (Label t StructField)
-      , Eq (Label t ArrayElem)
-      , Eq (Label t Constant)
-      , Eq (Label t IntConst)
-      , Eq (Label t FloatConst)
-      , Eq (Label t BoolConst)
-      , Eq (Label t ArrayConst)
-      , Eq (Label t ComplexConst)
-      , Eq (Label t Variable)
-      ) => EqLabel t
-
-instance ( Eq (Label t Module)
-         , Eq (Label t Entity)
-         , Eq (Label t Struct)
-         , Eq (Label t ProcDef)
-         , Eq (Label t ProcDecl)
-         , Eq (Label t StructMember)
-         , Eq (Label t Block)
-         , Eq (Label t Program)
-         , Eq (Label t Empty)
-         , Eq (Label t Comment)
-         , Eq (Label t Assign)
-         , Eq (Label t ProcedureCall)
-         , Eq (Label t Spawn)
-         , Eq (Label t Run)
-         , Eq (Label t Sequence)
-         , Eq (Label t Branch)
-         , Eq (Label t Switch)
-         , Eq (Label t SeqLoop)
-         , Eq (Label t ParLoop)
-         , Eq (Label t ActualParameter)
-         , Eq (Label t Declaration)
-         , Eq (Label t Expression)
-         , Eq (Label t FunctionCall)
-         , Eq (Label t Cast)
-         , Eq (Label t SizeOf)
-         , Eq (Label t StructField)
-         , Eq (Label t ArrayElem)
-         , Eq (Label t Constant)
-         , Eq (Label t IntConst)
-         , Eq (Label t FloatConst)
-         , Eq (Label t BoolConst)
-         , Eq (Label t ArrayConst)
-         , Eq (Label t ComplexConst)
-         , Eq (Label t Variable)
-         ) => EqLabel t
-
--- * Set and get labels
-
-class Labeled c where
-    label       :: c t -> Label t c
-    setLabel    :: c t -> Label t c -> c t
-
-instance Labeled Module where
-    label = moduleLabel
-    setLabel c lab = c{ moduleLabel = lab }
-
-instance Labeled Entity where
-    label = definitionLabel
-    setLabel c lab = c{ definitionLabel = lab }
-
-instance Labeled Program where
-    label = programLabel
-    setLabel c lab = c{ programLabel = lab }
-
-instance Labeled Declaration where
-    label = declLabel
-    setLabel c lab = c{ declLabel = lab }
-
-instance Labeled Constant where
-    label = constLabel
-    setLabel c lab = c{ constLabel = lab }
-
-instance Labeled StructMember where
-    label = structMemberLabel
-    setLabel c lab = c{ structMemberLabel = lab }
-
-instance Labeled Variable where
-    label = varLabel
-    setLabel c lab = c{ varLabel = lab }
-
-instance Labeled Expression where
-    label = exprLabel
-    setLabel c lab = c{ exprLabel = lab }
-
-instance Labeled ActualParameter where
-    label = actParamLabel
-    setLabel c lab = c{ actParamLabel = lab }
-
-instance Labeled Block where
-    label = blockLabel
-    setLabel c lab = c{ blockLabel = lab }

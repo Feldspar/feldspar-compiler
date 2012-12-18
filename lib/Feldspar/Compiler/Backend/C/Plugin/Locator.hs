@@ -262,5 +262,5 @@ myShow (ParLoop count bound step block inf1 _)
 myShow x = show x
 
 myShowB :: Block DebugToCSemanticInfo -> String
-myShowB (Block ls prg inf) = "Block\n" ++ ind show ls ++"\n" ++ ind myShow prg ++ show inf
+myShowB (Block ls prg) = "Block\n" ++ ind show ls ++"\n" ++ ind myShow prg
 

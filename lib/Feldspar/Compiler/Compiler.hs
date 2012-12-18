@@ -53,7 +53,7 @@ import Feldspar.Compiler.Imperative.Plugin.ConstantFolding
 import Feldspar.Compiler.Imperative.Plugin.Free
 import Feldspar.Compiler.Imperative.Plugin.IVars
 import Feldspar.Compiler.Imperative.Plugin.Naming
-import Feldspar.Compiler.Imperative.Plugin.Unroll
+--import Feldspar.Compiler.Imperative.Plugin.Unroll
 
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
@@ -70,8 +70,8 @@ data SplitCompToCCoreResult = SplitCompToCCoreResult {
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
-    smdHeader = Module (hdr ++ createProcDecls (entities m)) (moduleLabel m),
-    smdSource = Module body (moduleLabel m)
+    smdHeader = Module (hdr ++ createProcDecls (entities m)),
+    smdSource = Module body
 } where
     (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
@@ -81,7 +81,7 @@ moduleSplitter m = SplitModuleDescriptor {
     createProcDecls :: [Entity ()] -> [Entity ()]
     createProcDecls = foldr ((++) . defToDecl) []
     defToDecl :: Entity () -> [Entity ()]
-    defToDecl (ProcDef n knd inp outp _ l1 l2) = [ProcDecl n knd inp outp l1 l2]
+    defToDecl (ProcDef n knd inp outp _) = [ProcDecl n knd inp outp]
     defToDecl _ = []
 
 moduleToCCore
@@ -158,7 +158,7 @@ pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
 --    . executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo)
 --    . executePlugin ConstantFolding ()
-    . executePlugin UnrollPlugin (unrollExternalInfo externalInfo)
+    . executePlugin ConstantFolding ()
     . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
 --    . executePlugin Free ()
@@ -169,7 +169,7 @@ pluginChain externalInfo
 
 data ExternalInfoCollection = ExternalInfoCollection {
       precompilationExternalInfo          :: ExternalInfo Precompilation
-    , unrollExternalInfo                  :: ExternalInfo UnrollPlugin
+--    , unrollExternalInfo                  :: ExternalInfo UnrollPlugin
     , primitivesExternalInfo              :: ExternalInfo RulePlugin
     , ruleExternalInfo                    :: ExternalInfo RulePlugin
     , typeDefinitionGeneratorExternalInfo :: ExternalInfo TypeDefinitionGenerator
@@ -187,7 +187,7 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
       , inputParametersDescriptor = buildInParamDescriptor prg
       , compilationMode           = compMode
       }
-    , unrollExternalInfo                  = unroll opt
+--    , unrollExternalInfo                  = unroll opt
     , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo                    = opt
     , typeDefinitionGeneratorExternalInfo = opt

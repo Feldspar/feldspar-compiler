@@ -66,7 +66,7 @@ instance Transformable GlobalCollector Entity where
         transform t s _ = defaultTransform t s False
 
 instance Transformable GlobalCollector Variable where
-        transform _ s d v@(Variable name typ _ ()) = Result v s' () where
+        transform _ s d v@(Variable name typ _) = Result v s' () where
             s'
              | d            = Map.insert name typ s
              | otherwise    = s
@@ -109,21 +109,21 @@ instance Transformable TypeCheck Block where
         }
         where
             tr = defaultTransform t s (inDecl d False) b   -- we are'n in declaration (correct the procedure's change)
-            mkSeq (Empty _ _) x = x
-            mkSeq p (Sequence ps _ _) = Sequence (p:ps) () ()
-            mkSeq p p2 = Sequence [p, p2] () ()
-            err [] = Empty () ()
-            err x  = Comment True (listprint id "\n " $ uniq x) () ()
+            mkSeq Empty x = x
+            mkSeq p (Sequence ps) = Sequence (p:ps)
+            mkSeq p p2 = Sequence [p, p2]
+            err [] = Empty
+            err x  = Comment True (listprint id "\n " $ uniq x)
             uniq [] = []
             uniq (x:xs) = x : uniq (filter (/= x) xs)
 
 instance Transformable TypeCheck Declaration where
-        transform t s d (Declaration v i inf) = Result (Declaration (result tr1) (result1 tr2) $ convert inf) (state1 tr2) (combine (up tr1) (up1 tr2)) where
+        transform t s d (Declaration v i) = Result (Declaration (result tr1) (result1 tr2)) (state1 tr2) (combine (up tr1) (up1 tr2)) where
             tr1 = transform t s (inDecl d True) v
             tr2 = transform1 t (state tr1) d i
 
 instance Transformable TypeCheck Program where
-        transform t s d (ParLoop v b i p inf1 inf2) = Result (ParLoop (result tr1) (result tr2) i (result tr3) (convert inf1) $ convert inf2) s' (foldl combine (up tr1) [up tr2, up tr3]) where
+        transform t s d (ParLoop v b i p) = Result (ParLoop (result tr1) (result tr2) i (result tr3)) s' (foldl combine (up tr1) [up tr2, up tr3]) where
             tr1 = transform t s (inDecl d True) v     -- loop variable is an undeclared local
             tr2 = transform t (state tr1) d b
             tr3 = transform t (state tr2) d p
@@ -131,7 +131,7 @@ instance Transformable TypeCheck Program where
         transform t s d p = defaultTransform t s d p
 
 instance Transformable TypeCheck Variable where
-        transform _ s d v@(Variable name typ _ ()) 
+        transform _ s d v@(Variable name typ _)
             | inDeclaration d = Result v (Map.insert name typ s) def
             | otherwise       = Result v s u' where
                 u' = case Map.lookup name allVar of
@@ -156,7 +156,7 @@ instance Transformable TypeCorrector Entity where
     transform _ s _ p = Result p s def -- just definitions, not implementation, not need check/correct
 
 instance Transformable TypeCorrector Variable where
-    transform _ ls gs v@(Variable name typ _ ()) = Result v' (Map.insert name typ' ls) def where
+    transform _ ls gs v@(Variable name typ _) = Result v' (Map.insert name typ' ls) def where
         v' = v {varType = typ'}
         typ' = case Map.lookup name allVar of
             Just typ2
