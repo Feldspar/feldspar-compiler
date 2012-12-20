@@ -37,7 +37,7 @@ import Data.List (partition)
 
 import Feldspar.Transformation
 
-import Feldspar.Compiler.Imperative.Representation (isScalarType)
+import Feldspar.Compiler.Imperative.Representation (isValue)
 -- ===========================================================================
 --  == Plugin for floating variable declarations.
 -- ===========================================================================
@@ -77,7 +77,7 @@ instance Transformable BlockProgramHandler Program where
         _ -> tr
       where
         tr = defaultTransform t s d p
-        splt b = partition scalarValueOrUninitialized (locals b)
+        splt b = partition valueOrUninitialized (locals b)
 
 -- | Returns a block for constructs that support floating. Keep implementation
 -- in sync with newLocals below.
@@ -97,11 +97,10 @@ newLocals (BlockProgram b l) [] = blockBody b
 newLocals (BlockProgram b l) d = BlockProgram (b { locals = d }) l
 newLocals _ _ = error "newLocals and getBlock out of sync in BlockProgramHandler.hs"
 
--- | True if a declaration is a scalar value or a complex type that is
--- not initialized.
-scalarValueOrUninitialized :: Declaration t -> Bool
-scalarValueOrUninitialized (Declaration {..})
-  | Just t <- initVal = isScalarType (varType declVar)
+-- | True if a declaration is a initialized to a closed expression.
+valueOrUninitialized :: Declaration t -> Bool
+valueOrUninitialized (Declaration {..})
+  | Just iv <- initVal = isValue iv
   | otherwise = True
 
 instance Plugin BlockProgramHandler where

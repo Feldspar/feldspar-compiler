@@ -370,15 +370,10 @@ data TypeParameterMode = Auto | Scalar
 --   Query functions --
 -----------------------
 
--- | True if the type is a scalar.
-isScalarType :: Type -> Bool
-isScalarType VoidType     = True
-isScalarType BoolType     = True
-isScalarType BitType      = True
-isScalarType FloatType    = True
-isScalarType (NumType {}) = True
-isScalarType _        = False
-
+-- | True if the expression is a value.
+isValue :: Expression t -> Bool
+isValue (ConstExpr {}) = True
+isValue _              = False
 ----------------------
 --   Type inference --
 ----------------------
