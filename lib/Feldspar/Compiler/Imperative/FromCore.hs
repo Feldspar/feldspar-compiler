@@ -111,16 +111,16 @@ fromCore :: SyntacticFeld a => String -> a -> Module ()
 fromCore funname
     = fromInterface
     . compileProgTop funname []
-    . reifyFeld N32
+    . reifyFeld defaultFeldOpts N32
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => a -> Mod
-getCore' prog = compileProgTop "test" [] (reifyFeld N32 prog)
+getCore' prog = compileProgTop "test" [] (reifyFeld defaultFeldOpts N32 prog)
 
 -- | Create a list where each element represents the number of variables needed
 -- to as arguments
 buildInParamDescriptor :: SyntacticFeld a => a -> [Int]
-buildInParamDescriptor = go . reifyFeld N32
+buildInParamDescriptor = go . reifyFeld defaultFeldOpts N32
   where
     go :: (Project (CLambda Type) dom) => ASTF (Decor info dom) a -> [Int]
     go (lam :$ body)
