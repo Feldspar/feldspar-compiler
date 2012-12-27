@@ -259,8 +259,13 @@ compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ 
 mkVarName :: VarId -> String
 mkVarName v = 'v' : show v
 
+-- | Construct a variable.
 mkVar :: Type -> VarId -> Expr
 mkVar t = Var t . mkVarName
+
+-- | Construct a pointer.
+mkRef :: Type -> VarId -> Expr
+mkRef t = Ptr t . mkVarName
 
 mkVariable :: Type -> VarId -> Var
 mkVariable t = Variable t . mkVarName
