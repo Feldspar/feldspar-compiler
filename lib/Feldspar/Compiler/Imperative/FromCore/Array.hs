@@ -90,7 +90,7 @@ instance ( Compile dom dom
                 sst = infoSize $ getInfo step
             let ix@(Var _ name) = mkVar (compileTypeRep tix six) v
             len' <- mkLength len (infoType $ getInfo len) six
-            let st = Ptr (compileTypeRep tst sst) $ 'v' : show s
+            let st = mkRef (compileTypeRep tst sst) s
             declare st
             (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg (loc :!: ix) step
             tellProg [initArray loc len']
