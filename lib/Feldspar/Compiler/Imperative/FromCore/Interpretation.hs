@@ -252,7 +252,7 @@ compileTypeRep (ArrayType a) (rs :> es) = SizedArray rs $ compileTypeRep a es
 compileTypeRep (MArrType a) (rs :> es)  = SizedArray rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (IVarType a) _           = IVar $ compileTypeRep a $ defaultSize a
-compileTypeRep (FunType _ b) sz         = compileTypeRep b sz
+compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
 compileTypeRep (FValType a) sz          = IVar $ compileTypeRep a sz
 compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 

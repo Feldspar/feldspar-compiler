@@ -108,7 +108,7 @@ instance ( Compile dom dom
             let t = argType $ infoType $ getInfo lam1
             let sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
             let tr' = resType $ infoType $ getInfo lam2
-            let sr' = infoSize $ getInfo lam2
+            let sr' = snd $ infoSize $ getInfo lam2
             let ix@(Var _ name) = mkVar (compileTypeRep t sz) v
             len' <- mkLength len (infoType $ getInfo len) sz
             tmp       <- freshVar "seq" tr' sr'
