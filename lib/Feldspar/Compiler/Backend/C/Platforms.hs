@@ -313,7 +313,7 @@ traceRules = [rule trace]
             trc :: Prog -> [Action (Repr Prog)]
             trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]
             trcCall = Call (extend' "trace" t) [In trcVar, In lab]
-            frame (ProcDf pname ins outs prg) = [replaceWith $ ProcDf pname ins outs prg']
+            frame (ProcDf pname knd ins outs prg) = [replaceWith $ ProcDf pname knd ins outs prg']
               where
                 prg' = case prg of
                     Seq (Call "traceStart" [] : _) -> prg

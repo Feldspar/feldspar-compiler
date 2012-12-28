@@ -71,6 +71,14 @@ data Module t = Module
 deriving instance (ShowLabel t) => Show (Module t)
 deriving instance (EqLabel t)   => Eq (Module t)
 
+data Kind
+    = KNormal
+    | KMain
+    | KNoInline
+    | KTask
+    | KTaskCore
+    deriving (Eq,Show,Typeable)
+
 data Entity t
     = StructDef
         { structName                :: String
@@ -85,6 +93,7 @@ data Entity t
         }
     | ProcDef
         { procName                  :: String
+        , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         , procBody                  :: Block t
@@ -93,6 +102,7 @@ data Entity t
         }
     | ProcDecl
         { procName                  :: String
+        , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         , procDeclLabel             :: Label t ProcDecl

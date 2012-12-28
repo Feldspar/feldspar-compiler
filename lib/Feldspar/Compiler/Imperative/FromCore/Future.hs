@@ -39,6 +39,7 @@ import Language.Syntactic
 import Feldspar.Core.Types (Type)
 import Feldspar.Core.Constructs.Future
 
+import Feldspar.Compiler.Imperative.Representation (Kind(..))
 import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import qualified Feldspar.Compiler.Imperative.Frontend as Front
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
@@ -60,11 +61,11 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
         let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName vs [] b]
+        tellDef [ProcDf coreName KTaskCore vs [] b]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName vs
-        tellDef [ProcDf taskName [] [Front.Variable Void "params"] runTask]
+        tellDef [ProcDf taskName KTask [] [Front.Variable Void "params"] runTask]
         -- Spawn:
         tellProg [iVarInit loc]
         tellProg [spawn taskName vs]

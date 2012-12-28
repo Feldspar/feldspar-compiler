@@ -51,7 +51,7 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation (Module)
+import Feldspar.Compiler.Imperative.Representation (Module,Kind(..))
 import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -100,7 +100,7 @@ compileProgTop funname args a = Mod defs
     outLoc   = Ptr outType "out"
     results  = snd $ evalRWS (compileProg outLoc a) initReader initState
     Bl ds p  = block results
-    defs     = def results ++ [ProcDf funname ins [outParam] (Block ds p)]
+    defs     = def results ++ [ProcDf funname KMain ins [outParam] (Block ds p)]
 
 class    SyntacticFeld a => Compilable a internal | a -> internal
 instance SyntacticFeld a => Compilable a ()

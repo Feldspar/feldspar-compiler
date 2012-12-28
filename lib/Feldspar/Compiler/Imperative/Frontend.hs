@@ -49,8 +49,8 @@ data Mod = Mod [Ent]
 
 data Ent
     = StructD String [(String, Type)]
-    | ProcDf String [Var] [Var] Prog
-    | ProcDcl String [Var] [Var]
+    | ProcDf String Kind [Var] [Var] Prog
+    | ProcDcl String Kind [Var] [Var]
     deriving (Eq,Show)
 
 data Type
@@ -159,17 +159,17 @@ instance Interface Ent where
     type Repr Ent = AIR.Entity ()
     toInterface (AIR.StructDef name members () ()) =
         StructD name (map (\(StructMember mname mtyp ())->(mname,toInterface mtyp)) members)
-    toInterface (AIR.ProcDef name inparams outparams body () ()) =
-        ProcDf name (map toInterface inparams) (map toInterface outparams) (toProg body)
-    toInterface (AIR.ProcDecl name inparams outparams () ()) =
-        ProcDcl name (map toInterface inparams) (map toInterface outparams)
+    toInterface (AIR.ProcDef name knd inparams outparams body () ()) =
+        ProcDf name knd (map toInterface inparams) (map toInterface outparams) (toProg body)
+    toInterface (AIR.ProcDecl name knd inparams outparams () ()) =
+        ProcDcl name knd (map toInterface inparams) (map toInterface outparams)
     toInterface AIR.TypeDef{} = error "TypeDef not handled"
     fromInterface (StructD name members) =
         AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname (fromInterface mtyp) ())) members) () ()
-    fromInterface (ProcDf name inparams outparams body) =
-        AIR.ProcDef name (map fromInterface inparams) (map fromInterface outparams) (toBlock body) () ()
-    fromInterface (ProcDcl name inparams outparams) =
-        AIR.ProcDecl name (map fromInterface inparams) (map fromInterface outparams) () ()
+    fromInterface (ProcDf name knd inparams outparams body) =
+        AIR.ProcDef name knd (map fromInterface inparams) (map fromInterface outparams) (toBlock body) () ()
+    fromInterface (ProcDcl name knd inparams outparams) =
+        AIR.ProcDecl name knd (map fromInterface inparams) (map fromInterface outparams) () ()
 
 instance Interface Type where
     type Repr Type = AIR.Type

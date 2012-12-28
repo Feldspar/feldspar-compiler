@@ -90,7 +90,7 @@ moduleSplitter m = SplitModuleDescriptor {
     createProcDecls = foldr ((++) . convertProcDefToProcDecl) []
     convertProcDefToProcDecl :: Entity () -> [Entity ()]
     convertProcDefToProcDecl e = case e of
-        ProcDef n inparams outparams _ label1 label2 -> [ProcDecl n inparams outparams label1 label2]
+        ProcDef n knd inparams outparams _ label1 label2 -> [ProcDecl n knd inparams outparams label1 label2]
         _ -> []
 
 separateAndCompileToCCore :: (Compilable t internal)

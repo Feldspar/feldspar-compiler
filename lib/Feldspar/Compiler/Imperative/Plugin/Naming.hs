@@ -67,13 +67,13 @@ instance Transformation Precompilation where
 
 
 instance Transformable Precompilation Entity where
-        transform t s d x@(ProcDef n i _ _ _ _)
+        transform t s d x@(ProcDef n k i _ _ _ _)
             | n == "PLACEHOLDER" = tr { result = (result tr){ procName = n' } }
           where
             d' = d { generatedImperativeParameterNames = map varName i }
             tr = defaultTransform t s d' x
             n' = originalFunctionName d
-        transform t s d x@(ProcDef n _ _ _ _ _)
+        transform t s d x@(ProcDef n _ _ _ _ _ _)
             | any (n `isPrefixOf`) proceduresToPrefix = tr { result = (result tr){ procName = n' } }
           where
             n' = prefix d n
