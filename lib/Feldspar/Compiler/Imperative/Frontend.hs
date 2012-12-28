@@ -74,7 +74,6 @@ data Expr
     | Ptr Type String
     | Lit EConst
     | LitI Type Integer
-    | LitF Double
     | LitC Expr Expr
     | Expr :!: Expr
     | Expr :.: String
@@ -88,6 +87,7 @@ data Expr
 
 data EConst
     = EBool Bool
+    | EFloat Double
     deriving (Eq,Show)
 
 data Prog
@@ -229,7 +229,7 @@ instance Interface Expr where
     toInterface (ConstExpr (BoolConst True () ()) ()) = litB True
     toInterface (ConstExpr (BoolConst False () ()) ()) = litB False
     toInterface (ConstExpr (IntConst x t () ()) ()) = LitI (toInterface t) x
-    toInterface (ConstExpr (FloatConst x () ()) ()) = LitF x
+    toInterface (ConstExpr (FloatConst x () ()) ()) = litF x
     toInterface (ConstExpr (ComplexConst r i () ()) ()) = LitC (toInterface $ ConstExpr r ()) (toInterface $ ConstExpr i ())
     toInterface (FunctionCall (Function name t Prefix) ps () ()) = Fun (toInterface t) name $ map toInterface ps
     toInterface (FunctionCall (Function name t Infix) ps () ()) = Binop (toInterface t) name $ map toInterface ps
@@ -241,7 +241,7 @@ instance Interface Expr where
     fromInterface (Lit (EBool True)) = ConstExpr (BoolConst True () ()) ()
     fromInterface (Lit (EBool False)) = ConstExpr (BoolConst False () ()) ()
     fromInterface (LitI t x) = ConstExpr (IntConst x (fromInterface t) () ()) ()
-    fromInterface (LitF x) = ConstExpr (FloatConst x () ()) ()
+    fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x () ()) ()
     fromInterface (LitC (fromInterface -> (ConstExpr r ())) (fromInterface -> (ConstExpr i ()))) =
         ConstExpr (ComplexConst r i () ()) ()
     fromInterface (LitC _ _) = error "Illegal LitC" -- TODO (?)
@@ -467,6 +467,9 @@ intSigned U32 = Just False
 intSigned U40 = Just False
 intSigned U64 = Just False
 intSigned _   = Nothing
+
+litF :: Double -> Expr
+litF n = Lit (EFloat n)
 
 litB :: Bool -> Expr
 litB True = Lit (EBool True)

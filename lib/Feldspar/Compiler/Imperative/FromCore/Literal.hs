@@ -61,7 +61,7 @@ literal :: TypeRep a -> Size a -> a -> CodeWriter Expr
 literal UnitType        _  ()     = return $ LitI I32 0
 literal BoolType        _  a      = return $ litB a
 literal trep@IntType{}  sz a      = return $ LitI (compileTypeRep trep sz) (toInteger a)
-literal FloatType       _  a      = return $ LitF $ float2Double a
+literal FloatType       _  a      = return $ litF $ float2Double a
 literal (ComplexType t) _  (r:+i) = do re <- literal t (defaultSize t) r
                                        ie <- literal t (defaultSize t) i
                                        return $ LitC re ie
