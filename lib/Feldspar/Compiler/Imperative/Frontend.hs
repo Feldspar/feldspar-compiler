@@ -73,7 +73,6 @@ data Expr
     = Var Type String
     | Ptr Type String
     | Lit EConst
-    | LitI Type Integer
     | LitC Expr Expr
     | Expr :!: Expr
     | Expr :.: String
@@ -88,6 +87,7 @@ data Expr
 data EConst
     = EBool Bool
     | EFloat Double
+    | EInt Type Integer
     deriving (Eq,Show)
 
 data Prog
@@ -228,7 +228,7 @@ instance Interface Expr where
     toInterface (StructField str field () ()) = toInterface str :.: field
     toInterface (ConstExpr (BoolConst True () ()) ()) = litB True
     toInterface (ConstExpr (BoolConst False () ()) ()) = litB False
-    toInterface (ConstExpr (IntConst x t () ()) ()) = LitI (toInterface t) x
+    toInterface (ConstExpr (IntConst x t () ()) ()) = litI (toInterface t) x
     toInterface (ConstExpr (FloatConst x () ()) ()) = litF x
     toInterface (ConstExpr (ComplexConst r i () ()) ()) = LitC (toInterface $ ConstExpr r ()) (toInterface $ ConstExpr i ())
     toInterface (FunctionCall (Function name t Prefix) ps () ()) = Fun (toInterface t) name $ map toInterface ps
@@ -240,7 +240,7 @@ instance Interface Expr where
     fromInterface (Ptr t name) = VarExpr (AIR.Variable name (fromInterface t) AIR.Pointer ()) ()
     fromInterface (Lit (EBool True)) = ConstExpr (BoolConst True () ()) ()
     fromInterface (Lit (EBool False)) = ConstExpr (BoolConst False () ()) ()
-    fromInterface (LitI t x) = ConstExpr (IntConst x (fromInterface t) () ()) ()
+    fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x (fromInterface t) () ()) ()
     fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x () ()) ()
     fromInterface (LitC (fromInterface -> (ConstExpr r ())) (fromInterface -> (ConstExpr i ()))) =
         ConstExpr (ComplexConst r i () ()) ()
@@ -342,7 +342,7 @@ initArray :: Expr -> Expr -> Prog
 initArray arr len = Call "initArray" [Out arr, In s, In len]
   where
     s
-        | isArray t = Binop U32 "-" [LitI U32 0,SizeofT t]
+        | isArray t = Binop U32 "-" [litI U32 0,SizeofT t]
         | otherwise = SizeofT t
     t = case typeof arr of
         SizedArray _ e -> e
@@ -356,7 +356,7 @@ freeArray arr = Call "freeArray" [Out $ varToExpr arr]
 
 arrayLength :: Expr -> Expr
 arrayLength arr
-  | Just r <- chaseArray arr = LitI U32 $ fromIntegral (upperBound r)
+  | Just r <- chaseArray arr = litI U32 $ fromIntegral (upperBound r)
   | otherwise = Fun U32 "getLength" [arr]
 
 chaseArray :: Expr -> Maybe (Range Length)
@@ -475,8 +475,11 @@ litB :: Bool -> Expr
 litB True = Lit (EBool True)
 litB False = Lit (EBool False)
 
+litI :: Type -> Integer -> Expr
+litI t n = Lit (EInt t n)
+
 litI32 :: Integer -> Expr
-litI32 n = LitI I32 n
+litI32 n = Lit (EInt I32 n)
 
 isArray :: Type -> Bool
 isArray (SizedArray _ _) = True

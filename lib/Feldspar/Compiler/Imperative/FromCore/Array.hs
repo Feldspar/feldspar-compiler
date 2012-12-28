@@ -138,7 +138,7 @@ instance ( Compile dom dom
             (_, Bl ds2 (Seq b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (loc :!: ix2) body2
             tellProg [initArray loc len]
             assign ix2 len
-            tellProg [For name len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (Binop U32 "+" [ix2, (LitI U32 1)])]))]
+            tellProg [For name len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (Binop U32 "+" [ix2, (litI U32 1)])]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
