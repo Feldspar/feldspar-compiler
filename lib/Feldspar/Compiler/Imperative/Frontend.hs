@@ -73,7 +73,6 @@ data Expr
     = Var Type String
     | Ptr Type String
     | Lit EConst
-    | LitC Expr Expr
     | Expr :!: Expr
     | Expr :.: String
     | NativeElem Expr Expr
@@ -88,6 +87,8 @@ data EConst
     = EBool Bool
     | EFloat Double
     | EInt Type Integer
+    | EComplex Expr Expr -- Asymmetry, should be some kind of number.
+                         -- Necessary for Literal.hs.
     deriving (Eq,Show)
 
 data Prog
@@ -230,7 +231,7 @@ instance Interface Expr where
     toInterface (ConstExpr (BoolConst False () ()) ()) = litB False
     toInterface (ConstExpr (IntConst x t () ()) ()) = litI (toInterface t) x
     toInterface (ConstExpr (FloatConst x () ()) ()) = litF x
-    toInterface (ConstExpr (ComplexConst r i () ()) ()) = LitC (toInterface $ ConstExpr r ()) (toInterface $ ConstExpr i ())
+    toInterface (ConstExpr (ComplexConst r i () ()) ()) = litC (toInterface $ ConstExpr r ()) (toInterface $ ConstExpr i ())
     toInterface (FunctionCall (Function name t Prefix) ps () ()) = Fun (toInterface t) name $ map toInterface ps
     toInterface (FunctionCall (Function name t Infix) ps () ()) = Binop (toInterface t) name $ map toInterface ps
     toInterface (AIR.Cast t e () ()) = Cast (toInterface t) (toInterface e)
@@ -242,9 +243,11 @@ instance Interface Expr where
     fromInterface (Lit (EBool False)) = ConstExpr (BoolConst False () ()) ()
     fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x (fromInterface t) () ()) ()
     fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x () ()) ()
-    fromInterface (LitC (fromInterface -> (ConstExpr r ())) (fromInterface -> (ConstExpr i ()))) =
-        ConstExpr (ComplexConst r i () ()) ()
-    fromInterface (LitC _ _) = error "Illegal LitC" -- TODO (?)
+    fromInterface (Lit (EComplex
+                        (fromInterface -> (ConstExpr r ()))
+                        (fromInterface -> (ConstExpr i ())))) =
+                        ConstExpr (ComplexConst r i () ()) ()
+    fromInterface (Lit (EComplex _ _)) = error "Internal compiler error for LitC"
     fromInterface (Binop t name es) = FunctionCall (Function name (fromInterface t) Infix) (map fromInterface es) () ()
     fromInterface (Fun t name es) = FunctionCall (Function name (fromInterface t) Prefix) (map fromInterface es) () ()
     fromInterface (Cast t e) = AIR.Cast (fromInterface t) (fromInterface e) () ()
@@ -474,6 +477,9 @@ litF n = Lit (EFloat n)
 litB :: Bool -> Expr
 litB True = Lit (EBool True)
 litB False = Lit (EBool False)
+
+litC :: Expr -> Expr -> Expr
+litC r i = Lit (EComplex r i)
 
 litI :: Type -> Integer -> Expr
 litI t n = Lit (EInt t n)

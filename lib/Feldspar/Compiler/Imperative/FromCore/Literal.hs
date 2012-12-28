@@ -64,7 +64,7 @@ literal trep@IntType{}  sz a      = return $ litI (compileTypeRep trep sz) (toIn
 literal FloatType       _  a      = return $ litF $ float2Double a
 literal (ComplexType t) _  (r:+i) = do re <- literal t (defaultSize t) r
                                        ie <- literal t (defaultSize t) i
-                                       return $ LitC re ie
+                                       return $ litC re ie
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
