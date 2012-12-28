@@ -58,13 +58,13 @@ instance Compile (Literal :|| Core.Type) dom
     compileProgSym (C' (Literal a)) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter Expr
-literal UnitType        _  ()     = return $ LitI I32 0
+literal UnitType        _  ()     = return $ litI I32 0
 literal BoolType        _  a      = return $ litB a
-literal trep@IntType{}  sz a      = return $ LitI (compileTypeRep trep sz) (toInteger a)
-literal FloatType       _  a      = return $ LitF $ float2Double a
+literal trep@IntType{}  sz a      = return $ litI (compileTypeRep trep sz) (toInteger a)
+literal FloatType       _  a      = return $ litF $ float2Double a
 literal (ComplexType t) _  (r:+i) = do re <- literal t (defaultSize t) r
                                        ie <- literal t (defaultSize t) i
-                                       return $ LitC re ie
+                                       return $ litC re ie
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
@@ -72,8 +72,8 @@ literal t s a = do loc <- freshVar "x" t s
 literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
 literalLoc loc (ArrayType t) (rs :> es) e
     = do
-        tellProg [initArray loc $ LitI I32 $ toInteger $ upperBound rs]
-        zipWithM_ (writeElement t es) (map (LitI I32) [0..]) e
+        tellProg [initArray loc $ litI I32 $ toInteger $ upperBound rs]
+        zipWithM_ (writeElement t es) (map (litI I32) [0..]) e
   where writeElement :: TypeRep a -> Size a -> Expr -> a -> CodeWriter ()
         writeElement ty sz ix x = do
             literalLoc (loc :!: ix) ty sz x
