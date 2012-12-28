@@ -225,6 +225,7 @@ data ActualParameter t
         }
     | FunParameter
         { funParamName              :: String
+        , funParamKind              :: Kind
         , addressNeeded             :: Bool
         , actParamLabel             :: Label t ActualParameter
         }

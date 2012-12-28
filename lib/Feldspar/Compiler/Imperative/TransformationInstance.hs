@@ -126,7 +126,7 @@ instance (Transformable t Expression, Conversion t ActualParameter)
         defaultTransform t s d (Out p inf) = Result (Out (result tr) $ convert inf) (state tr) (up tr) where
             tr = transform t s d p
         defaultTransform _ s _ (TypeParameter p r inf) = Result (TypeParameter p r $ convert inf) s def
-        defaultTransform _ s _ (FunParameter n b inf) = Result (FunParameter n b $ convert inf) s def
+        defaultTransform _ s _ (FunParameter n k b inf) = Result (FunParameter n k b $ convert inf) s def
 
 instance (Transformable t Variable, Transformable1 t Maybe Expression, Conversion t Declaration)
     => DefaultTransformable t Declaration where

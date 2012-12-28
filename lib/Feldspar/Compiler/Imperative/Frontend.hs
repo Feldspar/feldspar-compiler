@@ -116,8 +116,8 @@ data Param
     | Out Expr
     | TypAuto Type
     | TypScalar Type
-    | Fn String
-    | FnAddr String
+    | Fn String Kind
+    | FnAddr String Kind
     deriving (Eq,Show)
 
 data Block = Bl [Def] Prog
@@ -287,14 +287,14 @@ instance Interface Param where
     toInterface (AIR.Out e ()) = Out (toInterface e)
     toInterface (AIR.TypeParameter e AIR.Auto ()) = TypAuto (toInterface e)
     toInterface (AIR.TypeParameter e AIR.Scalar ()) = TypScalar (toInterface e)
-    toInterface (AIR.FunParameter n False ()) = Fn n
-    toInterface (AIR.FunParameter n True ()) = FnAddr n
+    toInterface (AIR.FunParameter n k False ()) = Fn n k
+    toInterface (AIR.FunParameter n k True ()) = FnAddr n k
     fromInterface (In e) = AIR.In (fromInterface e) ()
     fromInterface (Out e) = AIR.Out (fromInterface e) ()
     fromInterface (TypAuto e) = AIR.TypeParameter (fromInterface e) Auto ()
     fromInterface (TypScalar e) = AIR.TypeParameter (fromInterface e) Scalar ()
-    fromInterface (Fn n) = AIR.FunParameter n False ()
-    fromInterface (FnAddr n) = AIR.FunParameter n True ()
+    fromInterface (Fn n k) = AIR.FunParameter n k False ()
+    fromInterface (FnAddr n k) = AIR.FunParameter n k True ()
 
 instance Interface Def where
     type Repr Def = Declaration ()
@@ -397,7 +397,7 @@ spawn :: String -> [Var] -> Prog
 spawn taskName vs = Call spawnName KTask allParams
   where
     spawnName = "spawn" ++ show (length vs)
-    taskParam = FnAddr taskName
+    taskParam = FnAddr taskName KTask
     typeParams = map (TypAuto . vType) vs
     varParams = map (\v -> In $ Var (vType v) (vName v)) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
@@ -407,7 +407,7 @@ run taskName vs = Call runName KTaskCore allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map (TypAuto . vType) vs
-    taskParam = Fn taskName
+    taskParam = Fn taskName KTask
     allParams = taskParam : typeParams
     
 instance Show Type

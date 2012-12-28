@@ -94,9 +94,9 @@ instance Transformable Precompilation Variable where
             }
 
 instance Transformable Precompilation ActualParameter where
-    transform _ s d (FunParameter n addr _)
+    transform _ s d (FunParameter n k addr _)
         | any (n `isPrefixOf`) proceduresToPrefix
-            = Result (FunParameter (prefix d n) addr ()) s def
+            = Result (FunParameter (prefix d n) k addr ()) s def
     transform t s d x = defaultTransform t s d x
 
 instance Transformable Precompilation Program where

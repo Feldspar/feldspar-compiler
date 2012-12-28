@@ -682,9 +682,9 @@ transformActParam _ pos (PEnv {..}) (TypeParameter typ mode _) _ = Result newPar
             (_, np) <- StateMonad.get
             return (pos,np)
 
-transformActParam _ pos _ (FunParameter n addr _) _ = Result newParam (snd newInf) cRep 
+transformActParam _ pos _ (FunParameter n k addr _) _ = Result newParam (snd newInf) cRep 
     where
-        newParam = FunParameter n addr newInf
+        newParam = FunParameter n k addr newInf
         (newInf, (cRep, _)) = runState pos $ do
             let addrOp
                     | addr      = "&"
