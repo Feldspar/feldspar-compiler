@@ -100,7 +100,7 @@ instance Transformable Precompilation ActualParameter where
     transform t s d x = defaultTransform t s d x
 
 instance Transformable Precompilation Program where
-    transform t s d c@(ProcedureCall n _ _ _)
+    transform t s d c@(ProcedureCall n k _ _ _)
         | any (n `isPrefixOf`) proceduresToPrefix = tr { result = (result tr){ procCallName = n' } }
       where
         tr = defaultTransform t s d c

@@ -209,7 +209,7 @@ getPrgProcCall pos procedure = up res where
     res = transform GetPrgProcCall () pos procedure
 
 instance Transformable GetPrgProcCall Program where
-    transform _ () pos pc@(ProcedureCall _ _ inf1 _) = Result pc () info where
+    transform _ () pos pc@(ProcedureCall _ _ _ inf1 _) = Result pc () info where
         info  = if contains pos inf1 then (True,pc) else def
     transform t () pos pr = defaultTransform t () pos pr
 

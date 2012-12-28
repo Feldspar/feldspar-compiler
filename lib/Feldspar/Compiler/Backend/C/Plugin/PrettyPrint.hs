@@ -554,7 +554,7 @@ instance Transformable DebugToC Program where
                 (_, (nl, _)) <- StateMonad.get
                 return (nlhs, nrhs, (pos,(nl,indent)))
 
-    transform t pos down@(PEnv {..}) (ProcedureCall n param _ _) = Result (ProcedureCall n (result1 newParam) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(PEnv {..}) (ProcedureCall n k param _ _) = Result (ProcedureCall n k (result1 newParam) newInf newInf) (snd newInf) cRep 
         where
             ((newParam, newInf), (cRep, _)) = runState pos $ do
                 indenter down

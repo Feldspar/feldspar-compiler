@@ -62,5 +62,5 @@ instance Compile dom dom => Compile (NoInline :|| Type) dom
         let funname = "noinline" ++ show funId
         tellDef [ProcDf funname KNoInline ins outs b]
         let ins' = map (\v -> Front.In $ Front.Var (vType v) (Front.vName v)) ins
-        tellProg [Call funname $ ins' ++ [Out loc]]
+        tellProg [Call funname KNoInline $ ins' ++ [Out loc]]
 

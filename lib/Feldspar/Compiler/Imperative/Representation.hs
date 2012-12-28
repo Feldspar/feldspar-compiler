@@ -72,11 +72,13 @@ deriving instance (ShowLabel t) => Show (Module t)
 deriving instance (EqLabel t)   => Eq (Module t)
 
 data Kind
-    = KNormal
-    | KMain
-    | KNoInline
-    | KTask
-    | KTaskCore
+    = KNormal   -- The normal one.
+    | KMain     -- This is what fromCore was called on.
+    | KNoInline -- NoInline attribute.
+    | KTask     -- The task sent to the run queue.
+    | KTaskCore -- The work to do.
+    | KIVar     -- IVar related functions.
+    | KTrace    -- Tracing related functions.
     deriving (Eq,Show,Typeable)
 
 data Entity t
@@ -152,6 +154,7 @@ data Program t
         }
     | ProcedureCall
         { procCallName              :: String
+        , procCallKind              :: Kind
         , procCallParams            :: [ActualParameter t]
         , procCallLabel             :: Label t ProcedureCall
         , programLabel              :: Label t Program

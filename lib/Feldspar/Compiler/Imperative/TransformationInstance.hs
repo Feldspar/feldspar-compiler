@@ -93,7 +93,7 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
         defaultTransform t s d (Assign l r inf1 inf2) = Result (Assign (result tr1) (result tr2) (convert inf1) $ convert inf2) (state tr2) (combine (up tr1) (up tr2)) where
             tr1 = transform t s d l
             tr2 = transform t (state tr1) d r
-        defaultTransform t s d (ProcedureCall f par inf1 inf2) = Result (ProcedureCall f (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
+        defaultTransform t s d (ProcedureCall f k par inf1 inf2) = Result (ProcedureCall f k (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
             tr = transform1 t s d par
         defaultTransform t s d (Sequence p inf1 inf2) = Result (Sequence (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
             tr = transform1 t s d p

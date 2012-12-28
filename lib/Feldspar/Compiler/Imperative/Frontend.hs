@@ -91,7 +91,7 @@ data Prog
     = Skip
     | Comment Bool {-BlockComment-} String
     | Expr := Expr
-    | Call String [Param]
+    | Call String Kind [Param]
     | Seq [Prog]
     | If Expr Prog Prog
     | While Prog Expr Prog
@@ -256,7 +256,7 @@ instance Interface Prog where
     toInterface (Empty () ()) = Skip
     toInterface (AIR.Comment b s () ()) = Comment b s
     toInterface Assign{..} = toInterface lhs := toInterface rhs
-    toInterface (ProcedureCall s ps () ()) = Call s (map toInterface ps)
+    toInterface (ProcedureCall s k ps () ()) = Call s k (map toInterface ps)
     toInterface (Sequence ps () ()) = Seq (map toInterface ps)
     toInterface (Branch e b1 b2 () ()) = If (toInterface e) (toProg b1) (toProg b2)
     toInterface (Switch e alts () ()) = error "TODO: toInterface Switch"
@@ -266,7 +266,7 @@ instance Interface Prog where
     fromInterface (Skip) = Empty () ()
     fromInterface (Comment b s) = AIR.Comment b s () ()
     fromInterface (lhs := rhs) = Assign (fromInterface lhs) (fromInterface rhs) () ()
-    fromInterface (Call s ps) = ProcedureCall s (map fromInterface ps) () ()
+    fromInterface (Call s k ps) = ProcedureCall s k (map fromInterface ps) () ()
     fromInterface (Seq ps) = Sequence (map fromInterface ps) () ()
     fromInterface (If e p1 p2) = Branch (fromInterface e) (toBlock p1) (toBlock p2) () ()
 --    fromInterface (Switch scrut alts) = Switch (fromInterface scrut) (map toBlock alts) () () -- TODO: Add Switch in Prog.
@@ -318,7 +318,7 @@ toProg (AIR.Block [] p ()) = toInterface p
 toProg (AIR.Block ds p ()) = Block (map toInterface ds) (toInterface p)
 
 setLength :: Expr -> Expr -> Prog
-setLength arr len = Call "setLength" [Out arr, In len]
+setLength arr len = Call "setLength" KNormal [Out arr, In len]
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
@@ -327,16 +327,16 @@ copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
     | outExp == (head inExp)
       && null (tail inExp) = Skip
-    | otherwise            = Call "copy" (Out outExp:map In inExp)
+    | otherwise            = Call "copy" KNormal (Out outExp:map In inExp)
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
-copyProgPos outExp shift inExp = Call "copyArrayPos" [Out outExp, In shift, In inExp]
+copyProgPos outExp shift inExp = Call "copyArrayPos" KNormal [Out outExp, In shift, In inExp]
 
 copyProgLen :: Expr -> Expr -> Expr -> Prog
-copyProgLen outExp inExp len = Call "copyArrayLen" [Out outExp, In inExp, In len]
+copyProgLen outExp inExp len = Call "copyArrayLen" KNormal [Out outExp, In inExp, In len]
 
 initArray :: Expr -> Expr -> Prog
-initArray arr len = Call "initArray" [Out arr, In s, In len]
+initArray arr len = Call "initArray" KNormal [Out arr, In s, In len]
   where
     s
         | isArray t = Binop U32 "-" [LitI U32 0,SizeofT t]
@@ -349,7 +349,7 @@ assignProg :: Expr -> Expr -> Prog
 assignProg inExp outExp = copyProg inExp [outExp]
 
 freeArray :: Var -> Prog
-freeArray arr = Call "freeArray" [Out $ varToExpr arr]
+freeArray arr = Call "freeArray" KNormal [Out $ varToExpr arr]
 
 arrayLength :: Expr -> Expr
 arrayLength arr
@@ -371,24 +371,24 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
         go _ _ = Nothing
 
 iVarInit :: Expr -> Prog
-iVarInit var = Call "ivar_init" [Out var]
+iVarInit var = Call "ivar_init" KIVar [Out var]
 
 iVarGet :: Expr -> Expr -> Prog
 iVarGet loc ivar 
-    | isArray typ   = Call "ivar_get_array" [Out loc, In ivar]
-    | otherwise     = Call "ivar_get" [TypScalar typ, Out loc, In ivar]
+    | isArray typ   = Call "ivar_get_array" KIVar [Out loc, In ivar]
+    | otherwise     = Call "ivar_get" KIVar [TypScalar typ, Out loc, In ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expr -> Expr -> Prog
 iVarPut ivar msg
-    | isArray typ   = Call "ivar_put_array" [In ivar, Out msg]
-    | otherwise     = Call "ivar_put" [TypAuto typ, In ivar, Out msg]
+    | isArray typ   = Call "ivar_put_array" KIVar [In ivar, Out msg]
+    | otherwise     = Call "ivar_put" KIVar [TypAuto typ, In ivar, Out msg]
       where
         typ = typeof msg
 
 spawn :: String -> [Var] -> Prog
-spawn taskName vs = Call spawnName allParams
+spawn taskName vs = Call spawnName KTask allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FnAddr taskName
@@ -397,7 +397,7 @@ spawn taskName vs = Call spawnName allParams
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Var] -> Prog
-run taskName vs = Call runName allParams
+run taskName vs = Call runName KTaskCore allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map (TypAuto . vType) vs
