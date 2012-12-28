@@ -67,8 +67,8 @@ instance Transformation Precompilation where
 
 
 instance Transformable Precompilation Entity where
-        transform t s d x@(ProcDef n k i _ _ _ _)
-            | n == "PLACEHOLDER" = tr { result = (result tr){ procName = n' } }
+        transform t s d x@(ProcDef n KMain i _ _ _ _)
+            = tr { result = (result tr){ procName = n' } }
           where
             d' = d { generatedImperativeParameterNames = map varName i }
             tr = defaultTransform t s d' x

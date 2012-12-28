@@ -229,7 +229,7 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
     , typeDefinitionGeneratorExternalInfo = opt
     , variableRoleAssignerExternalInfo    = ()
     , typeCorrectorExternalInfo           = False
-    } $ fromCore "PLACEHOLDER" prg
+    } $ fromCore (ofn fixedOriginalFunctionSignature) prg
   where
     ofn = NameExtractor.originalFunctionName
     fixedOriginalFunctionSignature = originalFunctionSignatureParam {
