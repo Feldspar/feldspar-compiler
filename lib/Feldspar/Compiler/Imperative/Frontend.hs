@@ -72,8 +72,7 @@ data Type
 data Expr
     = Var Type String
     | Ptr Type String
-    | Tr
-    | Fl
+    | Lit EConst
     | LitI Type Integer
     | LitF Double
     | LitC Expr Expr
@@ -85,6 +84,10 @@ data Expr
     | Cast Type Expr
     | SizeofE Expr
     | SizeofT Type
+    deriving (Eq,Show)
+
+data EConst
+    = EBool Bool
     deriving (Eq,Show)
 
 data Prog
@@ -223,8 +226,8 @@ instance Interface Expr where
     toInterface (ArrayElem arr idx () ()) = toInterface arr :!: toInterface idx
     toInterface (AIR.NativeElem arr idx () ()) = NativeElem (toInterface arr) (toInterface idx)
     toInterface (StructField str field () ()) = toInterface str :.: field
-    toInterface (ConstExpr (BoolConst True () ()) ()) = Tr
-    toInterface (ConstExpr (BoolConst False () ()) ()) = Fl
+    toInterface (ConstExpr (BoolConst True () ()) ()) = litB True
+    toInterface (ConstExpr (BoolConst False () ()) ()) = litB False
     toInterface (ConstExpr (IntConst x t () ()) ()) = LitI (toInterface t) x
     toInterface (ConstExpr (FloatConst x () ()) ()) = LitF x
     toInterface (ConstExpr (ComplexConst r i () ()) ()) = LitC (toInterface $ ConstExpr r ()) (toInterface $ ConstExpr i ())
@@ -235,8 +238,8 @@ instance Interface Expr where
     toInterface (SizeOf (Right e) () ()) = SizeofE $ toInterface e
     fromInterface (Var t name) = VarExpr (AIR.Variable name (fromInterface t) Value ()) ()
     fromInterface (Ptr t name) = VarExpr (AIR.Variable name (fromInterface t) AIR.Pointer ()) ()
-    fromInterface (Tr) = ConstExpr (BoolConst True () ()) ()
-    fromInterface (Fl) = ConstExpr (BoolConst False () ()) ()
+    fromInterface (Lit (EBool True)) = ConstExpr (BoolConst True () ()) ()
+    fromInterface (Lit (EBool False)) = ConstExpr (BoolConst False () ()) ()
     fromInterface (LitI t x) = ConstExpr (IntConst x (fromInterface t) () ()) ()
     fromInterface (LitF x) = ConstExpr (FloatConst x () ()) ()
     fromInterface (LitC (fromInterface -> (ConstExpr r ())) (fromInterface -> (ConstExpr i ()))) =
@@ -466,8 +469,8 @@ intSigned U64 = Just False
 intSigned _   = Nothing
 
 litB :: Bool -> Expr
-litB True = Tr
-litB False = Fl
+litB True = Lit (EBool True)
+litB False = Lit (EBool False)
 
 litI32 :: Integer -> Expr
 litI32 n = LitI I32 n
