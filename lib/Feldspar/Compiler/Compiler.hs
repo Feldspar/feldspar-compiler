@@ -200,7 +200,7 @@ pluginChain externalInfo
     . executePlugin IVarPlugin ()
 --    . executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo)
     . executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo)
-    . executePlugin BlockProgramHandler ()
+--    . executePlugin BlockProgramHandler ()
 
 data ExternalInfoCollection = ExternalInfoCollection {
       precompilationExternalInfo          :: ExternalInfo Precompilation

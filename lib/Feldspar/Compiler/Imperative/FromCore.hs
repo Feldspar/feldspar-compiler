@@ -99,8 +99,9 @@ compileProgTop funname args a = Mod defs
     outParam = Pointer outType "out"
     outLoc   = Ptr outType "out"
     results  = snd $ evalRWS (compileProg outLoc a) initReader initState
+    decls    = decl results
     Bl ds p  = block results
-    defs     = def results ++ [ProcDf funname ins [outParam] (Block ds p)]
+    defs     = def results ++ [ProcDf funname ins [outParam] (Block (ds ++ decls) p)]
 
 class    SyntacticFeld a => Compilable a internal | a -> internal
 instance SyntacticFeld a => Compilable a ()

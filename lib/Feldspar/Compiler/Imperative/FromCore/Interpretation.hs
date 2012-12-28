@@ -67,15 +67,18 @@ initReader = Readers [] ""
 
 data Writers = Writers { block :: Block -- ^ collects code within one block
                        , def   :: [Ent] -- ^ collects top level definitions
+                       , decl  :: [Def] -- ^ collects top level variable declarations
                        }
 
 instance Monoid Writers
   where
     mempty      = Writers { block    = mempty
                           , def      = mempty
+                          , decl     = mempty
                           }
     mappend a b = Writers { block    = mappend (block a) (block b)
                           , def      = mappend (def   a) (def   b)
+                          , decl     = mappend (decl  a) (decl  b)
                           }
 
 type Task = [Prog]
@@ -293,10 +296,14 @@ tellDef :: [Ent] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
 tellProg :: [Prog] -> CodeWriter ()
+tellProg [Block [] ps] = tell $ mempty {block = Bl [] $ Seq [ps]}
 tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
 
 tellDecl :: [Def] -> CodeWriter ()
-tellDecl ds = tell $ mempty {block = Bl ds $ Seq []}
+tellDecl ds = do
+                 let code | True = mempty {decl=ds}
+                          | otherwise = mempty {block = Bl ds $ Seq []}
+                 tell code
 
 assign :: Location -> Expr -> CodeWriter ()
 assign lhs rhs = tellProg [copyProg lhs [rhs]]
