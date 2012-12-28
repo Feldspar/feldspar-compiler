@@ -403,7 +403,7 @@ spawn taskName vs = Call spawnName KTask allParams
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Var] -> Prog
-run taskName vs = Call runName KTaskCore allParams
+run taskName vs = Call runName KTask allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map (TypAuto . vType) vs

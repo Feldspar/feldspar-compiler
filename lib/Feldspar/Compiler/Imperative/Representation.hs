@@ -75,8 +75,7 @@ data Kind
     = KNormal   -- The normal one.
     | KMain     -- This is what fromCore was called on.
     | KNoInline -- NoInline attribute.
-    | KTask     -- The task sent to the run queue.
-    | KTaskCore -- The work to do.
+    | KTask     -- A task.
     | KIVar     -- IVar related functions.
     | KTrace    -- Tracing related functions.
     deriving (Eq,Show,Typeable)

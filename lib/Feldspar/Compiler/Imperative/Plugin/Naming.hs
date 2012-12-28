@@ -31,8 +31,6 @@
 
 module Feldspar.Compiler.Imperative.Plugin.Naming where
 
-import Data.List (isPrefixOf)
-
 import Feldspar.Transformation
 
 import qualified Feldspar.NameExtractor as Precompiler
@@ -73,8 +71,8 @@ instance Transformable Precompilation Entity where
             d' = d { generatedImperativeParameterNames = map varName i }
             tr = defaultTransform t s d' x
             n' = originalFunctionName d
-        transform t s d x@(ProcDef n _ _ _ _ _ _)
-            | any (n `isPrefixOf`) proceduresToPrefix = tr { result = (result tr){ procName = n' } }
+        transform t s d x@(ProcDef n k _ _ _ _ _)
+            | k `elem` procedureKindsToPrefix = tr { result = (result tr){ procName = n' } }
           where
             n' = prefix d n
             tr = defaultTransform t s d' x
@@ -95,20 +93,20 @@ instance Transformable Precompilation Variable where
 
 instance Transformable Precompilation ActualParameter where
     transform _ s d (FunParameter n k addr _)
-        | any (n `isPrefixOf`) proceduresToPrefix
+        | k `elem` procedureKindsToPrefix
             = Result (FunParameter (prefix d n) k addr ()) s def
     transform t s d x = defaultTransform t s d x
 
 instance Transformable Precompilation Program where
     transform t s d c@(ProcedureCall n k _ _ _)
-        | any (n `isPrefixOf`) proceduresToPrefix = tr { result = (result tr){ procCallName = n' } }
+        | k `elem` procedureKindsToPrefix = tr { result = (result tr){ procCallName = n' } }
       where
         tr = defaultTransform t s d c
         n' = prefix d n
     transform t s d x = defaultTransform t s d x
 
-proceduresToPrefix :: [String]
-proceduresToPrefix = ["noinline", "task"]
+procedureKindsToPrefix :: [Kind]
+procedureKindsToPrefix = [KNoInline, KTask]
 
 prefix :: SignatureInformation -> String -> String
 prefix d n = originalFunctionName d ++ "_" ++ n

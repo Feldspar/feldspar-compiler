@@ -61,7 +61,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
         let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName KTaskCore vs [] b]
+        tellDef [ProcDf coreName KTask vs [] b]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName vs
