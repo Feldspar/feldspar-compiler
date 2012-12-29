@@ -71,6 +71,15 @@ data Module t = Module
 deriving instance (ShowLabel t) => Show (Module t)
 deriving instance (EqLabel t)   => Eq (Module t)
 
+data Kind
+    = KNormal   -- The normal one.
+    | KMain     -- This is what fromCore was called on.
+    | KNoInline -- NoInline attribute.
+    | KTask     -- A task.
+    | KIVar     -- IVar related functions.
+    | KTrace    -- Tracing related functions.
+    deriving (Eq,Show,Typeable)
+
 data Entity t
     = StructDef
         { structName                :: String
@@ -85,6 +94,7 @@ data Entity t
         }
     | ProcDef
         { procName                  :: String
+        , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         , procBody                  :: Block t
@@ -93,6 +103,7 @@ data Entity t
         }
     | ProcDecl
         { procName                  :: String
+        , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         , procDeclLabel             :: Label t ProcDecl
@@ -142,6 +153,7 @@ data Program t
         }
     | ProcedureCall
         { procCallName              :: String
+        , procCallKind              :: Kind
         , procCallParams            :: [ActualParameter t]
         , procCallLabel             :: Label t ProcedureCall
         , programLabel              :: Label t Program
@@ -212,6 +224,7 @@ data ActualParameter t
         }
     | FunParameter
         { funParamName              :: String
+        , funParamKind              :: Kind
         , addressNeeded             :: Bool
         , actParamLabel             :: Label t ActualParameter
         }

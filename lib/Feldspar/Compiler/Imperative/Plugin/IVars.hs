@@ -54,15 +54,15 @@ instance Plugin IVarPlugin
 instance Transformable IVarPlugin Entity where
     transform t _ _ p@ProcDef{} = defaultTransform t () (isTask p) p
       where
-        isTask proc = "task" `isPrefixOf` procName proc    -- TODO: this is hacky :)
+        isTask proc = KTask == procKind proc
     transform t _ d p = defaultTransform t () d p
 
 instance Transformable IVarPlugin Program where
-    transform _ _ d (ProcedureCall name ps _ _)
-        | "ivar_get" `isPrefixOf` name
+    transform _ _ d (ProcedureCall name k ps _ _)
+        | k == KIVar && "ivar_get" `isPrefixOf` name
         = Result pc' () ()
       where
-        pc' = ProcedureCall name' ps () ()
+        pc' = ProcedureCall name' k ps () ()
         name' | d           = name
               | otherwise   = name ++ "_nontask"
     transform t _ d x = defaultTransform t () d x
@@ -76,7 +76,7 @@ instance Transformable IVarPlugin Block where
         isIVar v = case varType v of
             IVarType _  -> True
             _           -> False
-        ivarFun s v = ProcedureCall ("ivar_" ++ s) [p] () ()
+        ivarFun s v = ProcedureCall ("ivar_" ++ s) KIVar [p] () ()
           where
             p = Out (VarExpr v ()) ()
         destrs = map (ivarFun "destroy") iVars

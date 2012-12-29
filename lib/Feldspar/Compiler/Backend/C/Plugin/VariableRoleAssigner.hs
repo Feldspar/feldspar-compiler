@@ -57,7 +57,7 @@ instance Transformable VariableRoleAssigner Variable where
         transform _ _ d v = Result (v {varLabel = ()}) () ()
 
 instance Transformable VariableRoleAssigner Entity where
-        transform t s _ p@(ProcDef _ i o _ _ _) = defaultTransform t s d' p where
+        transform t s _ p@(ProcDef _ _ i o _ _ _) = defaultTransform t s d' p where
             d' = Parameters
                     { inParametersVRA = map varName i
                     , outParametersVRA = map varName o

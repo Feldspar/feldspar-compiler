@@ -394,8 +394,8 @@ instance Transformable DebugToC Entity where
                 StateMonad.put (crep, (cl, indent))
                 return (pos, (cl, indent))
 
-    transform t pos down@(PEnv {..}) (ProcDef n inp outp body _ _) =
-      Result (ProcDef n (result1 newInParam) (result1 newOutParam) (result newBody) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (ProcDef n k inp outp body _ _) =
+      Result (ProcDef n k (result1 newInParam) (result1 newOutParam) (result newBody) newInf newInf) (snd newInf) cRep
         where
             ((newInParam, newOutParam, newBody, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -417,8 +417,8 @@ instance Transformable DebugToC Entity where
                 (_, (nl, _)) <- StateMonad.get
                 return (ninp, noutp, nb, (pos,(nl,indent)))
 
-    transform t pos down@(PEnv {..}) (ProcDecl n inp outp _ _) =
-      Result (ProcDecl n (result1 newInParam) (result1 newOutParam) newInf newInf) (snd newInf) cRep
+    transform t pos down@(PEnv {..}) (ProcDecl n knd inp outp _ _) =
+      Result (ProcDecl n knd (result1 newInParam) (result1 newOutParam) newInf newInf) (snd newInf) cRep
         where
             ((newInParam, newOutParam, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -554,7 +554,7 @@ instance Transformable DebugToC Program where
                 (_, (nl, _)) <- StateMonad.get
                 return (nlhs, nrhs, (pos,(nl,indent)))
 
-    transform t pos down@(PEnv {..}) (ProcedureCall n param _ _) = Result (ProcedureCall n (result1 newParam) newInf newInf) (snd newInf) cRep 
+    transform t pos down@(PEnv {..}) (ProcedureCall n k param _ _) = Result (ProcedureCall n k (result1 newParam) newInf newInf) (snd newInf) cRep 
         where
             ((newParam, newInf), (cRep, _)) = runState pos $ do
                 indenter down
@@ -682,9 +682,9 @@ transformActParam _ pos (PEnv {..}) (TypeParameter typ mode _) _ = Result newPar
             (_, np) <- StateMonad.get
             return (pos,np)
 
-transformActParam _ pos _ (FunParameter n addr _) _ = Result newParam (snd newInf) cRep 
+transformActParam _ pos _ (FunParameter n k addr _) _ = Result newParam (snd newInf) cRep 
     where
-        newParam = FunParameter n addr newInf
+        newParam = FunParameter n k addr newInf
         (newInf, (cRep, _)) = runState pos $ do
             let addrOp
                     | addr      = "&"

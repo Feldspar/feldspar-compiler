@@ -42,6 +42,7 @@ import Language.Syntactic
 import Feldspar.Core.Types (Type)
 import Feldspar.Core.Constructs.NoInline
 import Feldspar.Transformation (transform, Result(..))
+import Feldspar.Compiler.Imperative.Representation (Kind(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
 import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
@@ -59,7 +60,7 @@ instance Compile dom dom => Compile (NoInline :|| Type) dom
         let (ins,outs) = partition isInParam vs
         funId  <- freshId
         let funname = "noinline" ++ show funId
-        tellDef [ProcDf funname ins outs b]
+        tellDef [ProcDf funname KNoInline ins outs b]
         let ins' = map (\v -> Front.In $ Front.Var (vType v) (Front.vName v)) ins
-        tellProg [Call funname $ ins' ++ [Out loc]]
+        tellProg [Call funname KNoInline $ ins' ++ [Out loc]]
 

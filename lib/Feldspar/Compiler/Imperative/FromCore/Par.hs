@@ -117,11 +117,11 @@ instance ( Compile dom dom
         let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName vs [] b]
+        tellDef [ProcDf coreName AIR.KTask vs [] b]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName vs
-        tellDef [ProcDf taskName [] [Front.Variable Void "params"] runTask]
+        tellDef [ProcDf taskName AIR.KTask [] [Front.Variable Void "params"] runTask]
         -- Spawn:
         tellProg [spawn taskName vs]
 

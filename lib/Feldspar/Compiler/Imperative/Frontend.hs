@@ -49,8 +49,8 @@ data Mod = Mod [Ent]
 
 data Ent
     = StructD String [(String, Type)]
-    | ProcDf String [Var] [Var] Prog
-    | ProcDcl String [Var] [Var]
+    | ProcDf String Kind [Var] [Var] Prog
+    | ProcDcl String Kind [Var] [Var]
     deriving (Eq,Show)
 
 data Type
@@ -95,7 +95,7 @@ data Prog
     = Skip
     | Comment Bool {-BlockComment-} String
     | Expr := Expr
-    | Call String [Param]
+    | Call String Kind [Param]
     | Seq [Prog]
     | If Expr Prog Prog
     | While Prog Expr Prog
@@ -116,8 +116,8 @@ data Param
     | Out Expr
     | TypAuto Type
     | TypScalar Type
-    | Fn String
-    | FnAddr String
+    | Fn String Kind
+    | FnAddr String Kind
     deriving (Eq,Show)
 
 data Block = Bl [Def] Prog
@@ -163,17 +163,17 @@ instance Interface Ent where
     type Repr Ent = AIR.Entity ()
     toInterface (AIR.StructDef name members () ()) =
         StructD name (map (\(StructMember mname mtyp ())->(mname,toInterface mtyp)) members)
-    toInterface (AIR.ProcDef name inparams outparams body () ()) =
-        ProcDf name (map toInterface inparams) (map toInterface outparams) (toProg body)
-    toInterface (AIR.ProcDecl name inparams outparams () ()) =
-        ProcDcl name (map toInterface inparams) (map toInterface outparams)
+    toInterface (AIR.ProcDef name knd inparams outparams body () ()) =
+        ProcDf name knd (map toInterface inparams) (map toInterface outparams) (toProg body)
+    toInterface (AIR.ProcDecl name knd inparams outparams () ()) =
+        ProcDcl name knd (map toInterface inparams) (map toInterface outparams)
     toInterface AIR.TypeDef{} = error "TypeDef not handled"
     fromInterface (StructD name members) =
         AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname (fromInterface mtyp) ())) members) () ()
-    fromInterface (ProcDf name inparams outparams body) =
-        AIR.ProcDef name (map fromInterface inparams) (map fromInterface outparams) (toBlock body) () ()
-    fromInterface (ProcDcl name inparams outparams) =
-        AIR.ProcDecl name (map fromInterface inparams) (map fromInterface outparams) () ()
+    fromInterface (ProcDf name knd inparams outparams body) =
+        AIR.ProcDef name knd (map fromInterface inparams) (map fromInterface outparams) (toBlock body) () ()
+    fromInterface (ProcDcl name knd inparams outparams) =
+        AIR.ProcDecl name knd (map fromInterface inparams) (map fromInterface outparams) () ()
 
 instance Interface Type where
     type Repr Type = AIR.Type
@@ -262,7 +262,7 @@ instance Interface Prog where
     toInterface (Empty () ()) = Skip
     toInterface (AIR.Comment b s () ()) = Comment b s
     toInterface Assign{..} = toInterface lhs := toInterface rhs
-    toInterface (ProcedureCall s ps () ()) = Call s (map toInterface ps)
+    toInterface (ProcedureCall s k ps () ()) = Call s k (map toInterface ps)
     toInterface (Sequence ps () ()) = Seq (map toInterface ps)
     toInterface (Branch e b1 b2 () ()) = If (toInterface e) (toProg b1) (toProg b2)
     toInterface (Switch e alts () ()) = error "TODO: toInterface Switch"
@@ -272,7 +272,7 @@ instance Interface Prog where
     fromInterface (Skip) = Empty () ()
     fromInterface (Comment b s) = AIR.Comment b s () ()
     fromInterface (lhs := rhs) = Assign (fromInterface lhs) (fromInterface rhs) () ()
-    fromInterface (Call s ps) = ProcedureCall s (map fromInterface ps) () ()
+    fromInterface (Call s k ps) = ProcedureCall s k (map fromInterface ps) () ()
     fromInterface (Seq ps) = Sequence (map fromInterface ps) () ()
     fromInterface (If e p1 p2) = Branch (fromInterface e) (toBlock p1) (toBlock p2) () ()
 --    fromInterface (Switch scrut alts) = Switch (fromInterface scrut) (map toBlock alts) () () -- TODO: Add Switch in Prog.
@@ -287,14 +287,14 @@ instance Interface Param where
     toInterface (AIR.Out e ()) = Out (toInterface e)
     toInterface (AIR.TypeParameter e AIR.Auto ()) = TypAuto (toInterface e)
     toInterface (AIR.TypeParameter e AIR.Scalar ()) = TypScalar (toInterface e)
-    toInterface (AIR.FunParameter n False ()) = Fn n
-    toInterface (AIR.FunParameter n True ()) = FnAddr n
+    toInterface (AIR.FunParameter n k False ()) = Fn n k
+    toInterface (AIR.FunParameter n k True ()) = FnAddr n k
     fromInterface (In e) = AIR.In (fromInterface e) ()
     fromInterface (Out e) = AIR.Out (fromInterface e) ()
     fromInterface (TypAuto e) = AIR.TypeParameter (fromInterface e) Auto ()
     fromInterface (TypScalar e) = AIR.TypeParameter (fromInterface e) Scalar ()
-    fromInterface (Fn n) = AIR.FunParameter n False ()
-    fromInterface (FnAddr n) = AIR.FunParameter n True ()
+    fromInterface (Fn n k) = AIR.FunParameter n k False ()
+    fromInterface (FnAddr n k) = AIR.FunParameter n k True ()
 
 instance Interface Def where
     type Repr Def = Declaration ()
@@ -324,7 +324,7 @@ toProg (AIR.Block [] p ()) = toInterface p
 toProg (AIR.Block ds p ()) = Block (map toInterface ds) (toInterface p)
 
 setLength :: Expr -> Expr -> Prog
-setLength arr len = Call "setLength" [Out arr, In len]
+setLength arr len = Call "setLength" KNormal [Out arr, In len]
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
@@ -333,16 +333,16 @@ copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
     | outExp == (head inExp)
       && null (tail inExp) = Skip
-    | otherwise            = Call "copy" (Out outExp:map In inExp)
+    | otherwise            = Call "copy" KNormal (Out outExp:map In inExp)
 
 copyProgPos :: Expr -> Expr -> Expr -> Prog
-copyProgPos outExp shift inExp = Call "copyArrayPos" [Out outExp, In shift, In inExp]
+copyProgPos outExp shift inExp = Call "copyArrayPos" KNormal [Out outExp, In shift, In inExp]
 
 copyProgLen :: Expr -> Expr -> Expr -> Prog
-copyProgLen outExp inExp len = Call "copyArrayLen" [Out outExp, In inExp, In len]
+copyProgLen outExp inExp len = Call "copyArrayLen" KNormal [Out outExp, In inExp, In len]
 
 initArray :: Expr -> Expr -> Prog
-initArray arr len = Call "initArray" [Out arr, In s, In len]
+initArray arr len = Call "initArray" KNormal [Out arr, In s, In len]
   where
     s
         | isArray t = Binop U32 "-" [litI U32 0,SizeofT t]
@@ -355,7 +355,7 @@ assignProg :: Expr -> Expr -> Prog
 assignProg inExp outExp = copyProg inExp [outExp]
 
 freeArray :: Var -> Prog
-freeArray arr = Call "freeArray" [Out $ varToExpr arr]
+freeArray arr = Call "freeArray" KNormal [Out $ varToExpr arr]
 
 arrayLength :: Expr -> Expr
 arrayLength arr
@@ -377,37 +377,37 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
         go _ _ = Nothing
 
 iVarInit :: Expr -> Prog
-iVarInit var = Call "ivar_init" [Out var]
+iVarInit var = Call "ivar_init" KIVar [Out var]
 
 iVarGet :: Expr -> Expr -> Prog
 iVarGet loc ivar 
-    | isArray typ   = Call "ivar_get_array" [Out loc, In ivar]
-    | otherwise     = Call "ivar_get" [TypScalar typ, Out loc, In ivar]
+    | isArray typ   = Call "ivar_get_array" KIVar [Out loc, In ivar]
+    | otherwise     = Call "ivar_get" KIVar [TypScalar typ, Out loc, In ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expr -> Expr -> Prog
 iVarPut ivar msg
-    | isArray typ   = Call "ivar_put_array" [In ivar, Out msg]
-    | otherwise     = Call "ivar_put" [TypAuto typ, In ivar, Out msg]
+    | isArray typ   = Call "ivar_put_array" KIVar [In ivar, Out msg]
+    | otherwise     = Call "ivar_put" KIVar [TypAuto typ, In ivar, Out msg]
       where
         typ = typeof msg
 
 spawn :: String -> [Var] -> Prog
-spawn taskName vs = Call spawnName allParams
+spawn taskName vs = Call spawnName KTask allParams
   where
     spawnName = "spawn" ++ show (length vs)
-    taskParam = FnAddr taskName
+    taskParam = FnAddr taskName KTask
     typeParams = map (TypAuto . vType) vs
     varParams = map (\v -> In $ Var (vType v) (vName v)) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Var] -> Prog
-run taskName vs = Call runName allParams
+run taskName vs = Call runName KTask allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map (TypAuto . vType) vs
-    taskParam = Fn taskName
+    taskParam = Fn taskName KTask
     allParams = taskParam : typeParams
     
 instance Show Type
