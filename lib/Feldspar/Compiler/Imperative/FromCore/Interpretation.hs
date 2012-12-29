@@ -292,6 +292,11 @@ declare (Var t s) = tellDecl [Def (Variable t s)]
 declare (Ptr t s) = tellDecl [Def (Pointer t s)]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
+initialize :: Expr -> Expr -> CodeWriter ()
+initialize (Var t s) e = tellDecl [Init (Variable t s) e]
+initialize (Ptr t s) e = tellDecl [Init (Pointer t s) e]
+initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
+
 tellDef :: [Ent] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
