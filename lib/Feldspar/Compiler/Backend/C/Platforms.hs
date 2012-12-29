@@ -168,6 +168,8 @@ flattenCopy k dst (t:ts) (l:ls) cLen =
   (Call "copyArrayPos" k [dst, In cLen, t]):flattenCopy k dst ts ls (ePlus cLen l)
 
 ePlus :: Expr -> Expr -> Expr
+ePlus (Lit (EInt _ 0)) e = e
+ePlus e (Lit (EInt _ 0)) = e
 ePlus e1 e2 = Binop I32 "+" [e1, e2]
 
 c99Rules :: [Rule]
