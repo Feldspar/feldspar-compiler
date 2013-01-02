@@ -196,7 +196,7 @@ pluginChain externalInfo
     . executePlugin UnrollPlugin (unrollExternalInfo externalInfo)
     . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
-    . executePlugin Free ()
+--    . executePlugin Free ()
     . executePlugin IVarPlugin ()
 --    . executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo)
     . executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo)

@@ -357,6 +357,11 @@ assignProg inExp outExp = copyProg inExp [outExp]
 freeArray :: Var -> Prog
 freeArray arr = Call "freeArray" KNormal [Out $ varToExpr arr]
 
+freeArrays :: [Def] -> [Prog]
+freeArrays defs = map freeArray arrays
+  where
+    arrays = filter (isArray . typeof) $ map dVar defs
+
 arrayLength :: Expr -> Expr
 arrayLength arr
   | Just r <- chaseArray arr = litI U32 $ fromIntegral (upperBound r)
@@ -494,6 +499,10 @@ isArray _ = False
 vType :: Var -> Type
 vType (Variable t _) = t
 vType (Pointer t _) = t
+
+dVar :: Def -> Var
+dVar (Def v)    = v
+dVar (Init v _) = v
 
 vName :: Var -> String
 vName (Variable _ s) = s

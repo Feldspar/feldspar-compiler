@@ -65,9 +65,10 @@ data Readers = Readers { alias :: [(VarId, Expr)] -- ^ variable aliasing
 initReader :: Readers
 initReader = Readers [] ""
 
-data Writers = Writers { block :: Block -- ^ collects code within one block
-                       , def   :: [Ent] -- ^ collects top level definitions
-                       , decl  :: [Def] -- ^ collects top level variable declarations
+data Writers = Writers { block    :: Block  -- ^ collects code within one block
+                       , def      :: [Ent]  -- ^ collects top level definitions
+                       , decl     :: [Def]  -- ^ collects top level variable declarations
+                       , postlude :: [Prog] -- ^ collects postlude code (freeing memory, etc)
                        }
 
 instance Monoid Writers
@@ -75,10 +76,12 @@ instance Monoid Writers
     mempty      = Writers { block    = mempty
                           , def      = mempty
                           , decl     = mempty
+                          , postlude = mempty
                           }
-    mappend a b = Writers { block    = mappend (block a) (block b)
-                          , def      = mappend (def   a) (def   b)
-                          , decl     = mappend (decl  a) (decl  b)
+    mappend a b = Writers { block    = mappend (block    a) (block    b)
+                          , def      = mappend (def      a) (def      b)
+                          , decl     = mappend (decl     a) (decl     b)
+                          , postlude = mappend (postlude a) (postlude b)
                           }
 
 type Task = [Prog]
@@ -306,8 +309,9 @@ tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
 
 tellDecl :: [Def] -> CodeWriter ()
 tellDecl ds = do
-                 let code | True = mempty {decl=ds}
-                          | otherwise = mempty {block = Bl ds $ Seq []}
+                 let frees = freeArrays ds
+                     code | True = mempty {decl=ds, postlude = frees}
+                          | otherwise = mempty {block = Bl ds $ Seq [], postlude = frees}
                  tell code
 
 assign :: Location -> Expr -> CodeWriter ()
