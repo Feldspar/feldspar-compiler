@@ -68,7 +68,7 @@ initReader = Readers [] ""
 data Writers = Writers { block    :: Block  -- ^ collects code within one block
                        , def      :: [Ent]  -- ^ collects top level definitions
                        , decl     :: [Def]  -- ^ collects top level variable declarations
-                       , postlude :: [Prog] -- ^ collects postlude code (freeing memory, etc)
+                       , epilogue :: [Prog] -- ^ collects postlude code (freeing memory, etc)
                        }
 
 instance Monoid Writers
@@ -76,12 +76,12 @@ instance Monoid Writers
     mempty      = Writers { block    = mempty
                           , def      = mempty
                           , decl     = mempty
-                          , postlude = mempty
+                          , epilogue = mempty
                           }
     mappend a b = Writers { block    = mappend (block    a) (block    b)
                           , def      = mappend (def      a) (def      b)
                           , decl     = mappend (decl     a) (decl     b)
-                          , postlude = mappend (postlude a) (postlude b)
+                          , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
 type Task = [Prog]
@@ -310,8 +310,8 @@ tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
 tellDecl :: [Def] -> CodeWriter ()
 tellDecl ds = do
                  let frees = freeArrays ds
-                     code | True = mempty {decl=ds, postlude = frees}
-                          | otherwise = mempty {block = Bl ds $ Seq [], postlude = frees}
+                     code | True = mempty {decl=ds, epilogue = frees}
+                          | otherwise = mempty {block = Bl ds $ Seq [], epilogue = frees}
                  tell code
 
 assign :: Location -> Expr -> CodeWriter ()

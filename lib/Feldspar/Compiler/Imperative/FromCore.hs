@@ -100,7 +100,7 @@ compileProgTop funname args a = Mod defs
     outLoc   = Ptr outType "out"
     results  = snd $ evalRWS (compileProg outLoc a) initReader initState
     decls    = decl results
-    post     = postlude results
+    post     = epilogue results
     Bl ds p  = block results
     defs     = def results ++ [ProcDf funname KMain ins [outParam] (Block (ds ++ decls) (Seq (p:post)))]
 
