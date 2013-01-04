@@ -87,14 +87,11 @@ stripName :: Name -> String
 stripName (Ident a) = a
 stripName (Symbol a) = a
 
-stripModule2 :: Module -> ModuleName
-stripModule2 (Module _ b _ _ _ _ _) = b
-
-stripModuleName :: ModuleName -> String
-stripModuleName (ModuleName x) = x
+moduleName :: Module -> String
+moduleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
 getModuleName :: FilePath -> String -> String -- filename, filecontents -> modulename
-getModuleName fileName = stripModuleName . stripModule2 . fromParseResult . customizedParse fileName
+getModuleName fileName = moduleName . fromParseResult . customizedParse fileName
 
 usedExtensions :: [Extension]
 usedExtensions = glasgowExts ++ [ExplicitForAll]
