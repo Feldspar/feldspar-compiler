@@ -56,26 +56,24 @@ warning msg retval = unsafePerformIO $ do
 
 -- Module SrcLoc ModuleName [OptionPragma] (Maybe WarningText) (Maybe [ExportSpec]) [ImportDecl] [Decl]
 stripModule :: Module -> [Decl]
-stripModule x = case x of
-        Module _ _ _ _ _ _ g -> g
+stripModule (Module _ _ _ _ _ _ g) = g
 
 stripFunBind :: Decl -> OriginalFunctionSignature
-stripFunBind x = case x of
-        FunBind [Match _ b c _ _ _] ->
-            OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
+stripFunBind (FunBind [Match _ b c _ _ _])
+  = OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
             -- "Match SrcLoc Name [Pat] (Maybe Type) Rhs Binds"
-        FunBind l@(Match _ b _ _ _ _ : _) | length l > 1 -> warning
+stripFunBind (FunBind l@(Match _ b _ _ _ _ : tl)) | not (null tl) = warning
             ("Ignoring function " ++ stripName b ++
             ": multi-pattern function definitions are not compilable as Feldspar functions.") ignore
-        PatBind _ b _ _ _ -> case stripPattern b of
+stripFunBind (PatBind _ b _ _ _) = case stripPattern b of
             Just functionName -> OriginalFunctionSignature functionName [] -- parameterless declarations (?)
             Nothing           -> nameExtractorError InternalError ("Unsupported pattern binding: " ++ show b)
-        TypeSig{} -> ignore --head b -- we don't need the type signature (yet)
-        DataDecl{} -> ignore
-        InstDecl{} -> ignore
+stripFunBind TypeSig{} = ignore -- we don't need the type signature (yet)
+stripFunBind DataDecl{} = ignore
+stripFunBind InstDecl{} = ignore
         -- TypeDecl  SrcLoc Name [TyVarBind] Type
-        TypeDecl{} -> ignore
-        unknown -> nameExtractorError InternalError ("Unexpected language element [SFB/1]: " ++ show unknown
+stripFunBind TypeDecl{} = ignore
+stripFunBind unknown = nameExtractorError InternalError ("Unexpected language element [SFB/1]: " ++ show unknown
                                                 ++ "\nPlease file a feature request with an example attached.")
 
 stripPattern :: Pat -> Maybe String
