@@ -28,6 +28,7 @@
 
 module Feldspar.NameExtractor where
 
+import Data.Maybe (catMaybes)
 import System.IO
 import System.IO.Unsafe
 import Language.Haskell.Exts
@@ -46,8 +47,7 @@ neutralName :: String
 neutralName = "\\"++ r 4 ++"/\\"++ r 7 ++"\n )  ( ')"++ r 6 ++"\n(  /  )"++ r 7 ++"\n \\(__)|"
     where r n = replicate n ' '
 
-ignore :: OriginalFunctionSignature
-ignore = OriginalFunctionSignature neutralName []
+ignore = Nothing
 
 warning :: String -> a -> a
 warning msg retval = unsafePerformIO $ do
@@ -58,15 +58,15 @@ warning msg retval = unsafePerformIO $ do
 stripModule :: Module -> [Decl]
 stripModule (Module _ _ _ _ _ _ g) = g
 
-stripFunBind :: Decl -> OriginalFunctionSignature
+stripFunBind :: Decl -> Maybe OriginalFunctionSignature
 stripFunBind (FunBind [Match _ b c _ _ _])
-  = OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
+  = Just $ OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
             -- "Match SrcLoc Name [Pat] (Maybe Type) Rhs Binds"
 stripFunBind (FunBind l@(Match _ b _ _ _ _ : tl)) | not (null tl) = warning
             ("Ignoring function " ++ stripName b ++
             ": multi-pattern function definitions are not compilable as Feldspar functions.") ignore
 stripFunBind (PatBind _ b _ _ _) = case stripPattern b of
-            Just functionName -> OriginalFunctionSignature functionName [] -- parameterless declarations (?)
+            Just functionName -> Just $ OriginalFunctionSignature functionName [] -- parameterless declarations (?)
             Nothing           -> nameExtractorError InternalError ("Unsupported pattern binding: " ++ show b)
 stripFunBind TypeSig{} = ignore -- we don't need the type signature (yet)
 stripFunBind DataDecl{} = ignore
@@ -112,25 +112,18 @@ customizedParse fileName = parseFileContentsWithMode
 
 getFullDeclarationListWithParameterList :: FilePath -> String -> [OriginalFunctionSignature]
 getFullDeclarationListWithParameterList fileName fileContents =
-    map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents )
-
-functionNameNeeded :: String -> Bool
-functionNameNeeded functionName = functionName /= neutralName
-
-stripUnnecessary :: [String] -> [String]
-stripUnnecessary = filter functionNameNeeded
+    catMaybes $ map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents )
 
 printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
 printParameterListOfFunction = getParameterList
 
 -- The interface
 getDeclarationList :: FilePath -> String -> [String] -- filename, filecontents -> Stringlist
-getDeclarationList fileName = stripUnnecessary . map originalFunctionName . getFullDeclarationListWithParameterList fileName
+getDeclarationList fileName = map originalFunctionName . getFullDeclarationListWithParameterList fileName
 
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
 getExtendedDeclarationList fileName fileContents =
-  filter (functionNameNeeded . originalFunctionName)
-    (getFullDeclarationListWithParameterList fileName fileContents)
+    getFullDeclarationListWithParameterList fileName fileContents
 
 getParameterListOld :: FilePath -> String -> String -> [Maybe String]
 getParameterListOld fileName fileContents funName = originalParameterNames $ head $
