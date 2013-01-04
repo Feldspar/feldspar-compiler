@@ -110,16 +110,12 @@ customizedParse fileName = parseFileContentsWithMode
     , parseFilename = fileName
     })
 
-getFullDeclarationListWithParameterList :: FilePath -> String -> [OriginalFunctionSignature]
-getFullDeclarationListWithParameterList fileName fileContents =
-    catMaybes $ map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents )
-
 printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
 printParameterListOfFunction = getParameterList
 
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
-getExtendedDeclarationList fileName fileContents =
-    getFullDeclarationListWithParameterList fileName fileContents
+getExtendedDeclarationList fileName fileContents
+  = catMaybes $ map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents)  
 
 getParameterListOld :: FilePath -> String -> String -> [Maybe String]
 getParameterListOld fileName fileContents funName = originalParameterNames $ head $
