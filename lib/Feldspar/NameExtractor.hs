@@ -120,18 +120,6 @@ functionNameNeeded functionName = functionName /= neutralName
 stripUnnecessary :: [String] -> [String]
 stripUnnecessary = filter functionNameNeeded
 
-printDeclarationList :: FilePath -> IO (String -> [String])
-printDeclarationList fileName = do
-    handle <- openFile fileName ReadMode
-    fileContents <- hGetContents handle
-    return $ getDeclarationList fileContents
-
-printDeclarationListWithParameterList :: FilePath -> IO ()
-printDeclarationListWithParameterList fileName = do
-    handle <- openFile fileName ReadMode
-    fileContents <- hGetContents handle
-    print $ filter (functionNameNeeded . originalFunctionName) (getFullDeclarationListWithParameterList fileName fileContents)
-
 printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
 printParameterListOfFunction = getParameterList
 
