@@ -43,10 +43,6 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
 nameExtractorError :: ErrorClass -> String -> a
 nameExtractorError = handleError "NameExtractor"
 
-neutralName :: String
-neutralName = "\\"++ r 4 ++"/\\"++ r 7 ++"\n )  ( ')"++ r 6 ++"\n(  /  )"++ r 7 ++"\n \\(__)|"
-    where r n = replicate n ' '
-
 ignore = Nothing
 
 warning :: String -> a -> a
@@ -107,21 +103,6 @@ customizedParse fileName = parseFileContentsWithMode
     , parseFilename = fileName
     })
 
-printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
-printParameterListOfFunction = getParameterList
-
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
 getExtendedDeclarationList fileName fileContents
   = catMaybes $ map stripFunBind (declarations $ fromParseResult $ customizedParse fileName fileContents)  
-
-getParameterListOld :: FilePath -> String -> String -> [Maybe String]
-getParameterListOld fileName fileContents funName = originalParameterNames $ head $
-  filter ((==funName) . originalFunctionName)
-    (getExtendedDeclarationList fileName fileContents)
-
-getParameterList :: FilePath -> String -> IO [Maybe String]
-getParameterList fileName funName = do
-    handle <- openFile fileName ReadMode
-    fileContents <- hGetContents handle
-    return $ originalParameterNames $ head $
-        filter ((==funName) . originalFunctionName) (getExtendedDeclarationList fileName fileContents)
