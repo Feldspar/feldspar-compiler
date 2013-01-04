@@ -74,7 +74,6 @@ stripFunBind unknown = nameExtractorError InternalError ("Unexpected language el
 
 stripPattern :: Pat -> Maybe String
 stripPattern (PVar x)         = Just $ stripName x
-stripPattern PWildCard        = Nothing
 stripPattern (PAsPat x _)     = Just $ stripName x
 stripPattern (PParen pattern) = stripPattern pattern
 stripPattern _                = Nothing
@@ -86,21 +85,13 @@ stripName (Symbol a) = a
 getModuleName :: Module -> String
 getModuleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
-usedExtensions :: [Extension]
-usedExtensions = glasgowExts ++ [ExplicitForAll]
-
--- Ultimate debug function
-getParseOutput :: FilePath -> IO (ParseResult Module)
-getParseOutput = parseFileWithMode (defaultParseMode { extensions = usedExtensions })
-
 parse :: FilePath -> String -> Module
 parse fileName contents = fromParseResult $ parseFileContentsWithMode
   (defaultParseMode
-    { extensions    = usedExtensions
+    { extensions    = glasgowExts ++ [ExplicitForAll]
     , parseFilename = fileName
     })
   contents
 
 getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]
-getExtendedDeclarationList mod
-  = catMaybes $ map stripFunBind (declarations mod)
+getExtendedDeclarationList mod = catMaybes $ map stripFunBind (declarations mod)
