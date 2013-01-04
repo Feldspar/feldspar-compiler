@@ -112,20 +112,12 @@ prefix :: SignatureInformation -> String -> String
 prefix d n = originalFunctionName d ++ "_" ++ n
 
 getVariableName :: SignatureInformation -> String -> Maybe String
-getVariableName siginf origname = case originalParameterNames siginf of
-    Just originalParameterNameList ->
-        if length (generatedImperativeParameterNames siginf) == length originalParameterNameList then
-            case searchResults of
-                [] -> Nothing
-                _  -> snd $ head searchResults
-        else
-            Nothing
-            -- precompilationError InternalError $ "parameter name list length mismatch:" ++
-                    -- show (generatedImperativeParameterNames signatureInformation) ++ " " ++ show originalParameterNameList
-        where
-            searchResults = filter ((origname ==).fst)
-                                   (zip (generatedImperativeParameterNames siginf) originalParameterNameList)
-    Nothing -> Nothing
+getVariableName siginf origname
+  | Just originalParameterNameList <- originalParameterNames siginf
+  , length (generatedImperativeParameterNames siginf) == length originalParameterNameList
+  , (r:_) <- filter ((origname ==).fst) (zip (generatedImperativeParameterNames siginf) originalParameterNameList)
+  = snd r
+  | otherwise = Nothing
 
 maybeStr2Str :: Maybe String -> String
 maybeStr2Str (Just s) = s ++ "_"
