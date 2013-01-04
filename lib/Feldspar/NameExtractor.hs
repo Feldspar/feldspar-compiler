@@ -117,10 +117,6 @@ getFullDeclarationListWithParameterList fileName fileContents =
 printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
 printParameterListOfFunction = getParameterList
 
--- The interface
-getDeclarationList :: FilePath -> String -> [String] -- filename, filecontents -> Stringlist
-getDeclarationList fileName = map originalFunctionName . getFullDeclarationListWithParameterList fileName
-
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
 getExtendedDeclarationList fileName fileContents =
     getFullDeclarationListWithParameterList fileName fileContents
