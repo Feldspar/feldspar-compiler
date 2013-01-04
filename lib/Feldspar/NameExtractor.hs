@@ -83,11 +83,8 @@ stripName :: Name -> String
 stripName (Ident a) = a
 stripName (Symbol a) = a
 
-moduleName :: Module -> String
-moduleName (Module _ (ModuleName n) _ _ _ _ _) = n
-
-getModuleName :: FilePath -> String -> String -- filename, filecontents -> modulename
-getModuleName fileName = moduleName . fromParseResult . parse fileName
+getModuleName :: Module -> String
+getModuleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
 usedExtensions :: [Extension]
 usedExtensions = glasgowExts ++ [ExplicitForAll]
@@ -96,13 +93,14 @@ usedExtensions = glasgowExts ++ [ExplicitForAll]
 getParseOutput :: FilePath -> IO (ParseResult Module)
 getParseOutput = parseFileWithMode (defaultParseMode { extensions = usedExtensions })
 
-parse :: FilePath -> FilePath -> ParseResult Module
-parse fileName = parseFileContentsWithMode
+parse :: FilePath -> String -> Module
+parse fileName contents = fromParseResult $ parseFileContentsWithMode
   (defaultParseMode
     { extensions    = usedExtensions
     , parseFilename = fileName
     })
+  contents
 
-getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
-getExtendedDeclarationList fileName fileContents
-  = catMaybes $ map stripFunBind (declarations $ fromParseResult $ parse fileName fileContents)  
+getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]
+getExtendedDeclarationList mod
+  = catMaybes $ map stripFunBind (declarations mod)
