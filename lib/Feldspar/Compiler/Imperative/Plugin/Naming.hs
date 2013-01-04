@@ -127,9 +127,6 @@ data PrecompilationExternalInfo = PrecompilationExternalInfo {
     compilationMode :: CompilationMode
 }
 
-addPostfixNumberToMaybeString :: (Maybe String, Int) -> Maybe String
-addPostfixNumberToMaybeString (ms, num) = ms >>= \s -> return $ s ++ show num
-
 inflate :: Int -> [Maybe String] -> [Maybe String]
 inflate target list | length list <  target = inflate target (list++[Nothing])
                     | length list == target = list
