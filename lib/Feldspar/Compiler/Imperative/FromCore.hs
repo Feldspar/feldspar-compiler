@@ -131,7 +131,3 @@ buildInParamDescriptor = go . reifyFeld defaultFeldOpts N32
   -- When we convert a struct to a set of variables the 1 has to replaced
   -- with an implementation that calculates the apropriate value.
     go _ = []
-
-numArgs :: SyntacticFeld a => a -> Int
-numArgs = length . buildInParamDescriptor
-

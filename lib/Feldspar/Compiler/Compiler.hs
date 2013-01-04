@@ -220,7 +220,6 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
     precompilationExternalInfo = PrecompilationExternalInfo {
         originalFunctionSignature = fixedOriginalFunctionSignature
       , inputParametersDescriptor = buildInParamDescriptor prg
-      , numberOfFunctionArguments = numArgs prg
       , compilationMode           = compMode
       }
     , unrollExternalInfo                  = unroll opt
