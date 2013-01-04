@@ -140,14 +140,12 @@ inflate target list | length list <  target = inflate target (list++[Nothing])
 
 -- Replicates each element of the [parameter list given by the precompiler] based on the input parameter descriptor
 parameterNameListConsolidator :: PrecompilationExternalInfo -> [Maybe String]
-parameterNameListConsolidator externalInfo =
-    if numberOfFunctionArguments externalInfo == length (inputParametersDescriptor externalInfo)
-    then
-        concatMap (uncurry replicate)
-            (zip (inputParametersDescriptor externalInfo)
-                 (Precompiler.originalParameterNames $ originalFunctionSignature externalInfo))
-    else
-        precompilationError InternalError "numArgs should be equal to the length of the input parameters' descriptor"
+parameterNameListConsolidator eInf
+  | length (inputParametersDescriptor eInf) == numberOfFunctionArguments eInf
+  = concatMap (uncurry replicate)
+      (zip (inputParametersDescriptor eInf)
+        (Precompiler.originalParameterNames $ originalFunctionSignature eInf))
+  | otherwise = precompilationError InternalError "numArgs should be equal to the length of the input parameters' descriptor"
 
 instance Plugin Precompilation where
     type ExternalInfo Precompilation = PrecompilationExternalInfo
