@@ -31,7 +31,7 @@ module Feldspar.NameExtractor where
 import Data.Maybe (catMaybes)
 import System.IO
 import System.IO.Unsafe
-import Language.Haskell.Exts
+import Language.Haskell.Exts hiding (parse)
 import Feldspar.Compiler.Error
 import Feldspar.Compiler.Backend.C.Library
 
@@ -87,7 +87,7 @@ moduleName :: Module -> String
 moduleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
 getModuleName :: FilePath -> String -> String -- filename, filecontents -> modulename
-getModuleName fileName = moduleName . fromParseResult . customizedParse fileName
+getModuleName fileName = moduleName . fromParseResult . parse fileName
 
 usedExtensions :: [Extension]
 usedExtensions = glasgowExts ++ [ExplicitForAll]
@@ -96,8 +96,8 @@ usedExtensions = glasgowExts ++ [ExplicitForAll]
 getParseOutput :: FilePath -> IO (ParseResult Module)
 getParseOutput = parseFileWithMode (defaultParseMode { extensions = usedExtensions })
 
-customizedParse :: FilePath -> FilePath -> ParseResult Module
-customizedParse fileName = parseFileContentsWithMode
+parse :: FilePath -> FilePath -> ParseResult Module
+parse fileName = parseFileContentsWithMode
   (defaultParseMode
     { extensions    = usedExtensions
     , parseFilename = fileName
@@ -105,4 +105,4 @@ customizedParse fileName = parseFileContentsWithMode
 
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
 getExtendedDeclarationList fileName fileContents
-  = catMaybes $ map stripFunBind (declarations $ fromParseResult $ customizedParse fileName fileContents)  
+  = catMaybes $ map stripFunBind (declarations $ fromParseResult $ parse fileName fileContents)  
