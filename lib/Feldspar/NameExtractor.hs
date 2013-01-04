@@ -55,8 +55,8 @@ warning msg retval = unsafePerformIO $ do
     return retval
 
 -- Module SrcLoc ModuleName [OptionPragma] (Maybe WarningText) (Maybe [ExportSpec]) [ImportDecl] [Decl]
-stripModule :: Module -> [Decl]
-stripModule (Module _ _ _ _ _ _ g) = g
+declarations :: Module -> [Decl]
+declarations (Module _ _ _ _ _ _ g) = g
 
 stripFunBind :: Decl -> Maybe OriginalFunctionSignature
 stripFunBind (FunBind [Match _ b c _ _ _])
@@ -115,7 +115,7 @@ printParameterListOfFunction = getParameterList
 
 getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
 getExtendedDeclarationList fileName fileContents
-  = catMaybes $ map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents)  
+  = catMaybes $ map stripFunBind (declarations $ fromParseResult $ customizedParse fileName fileContents)  
 
 getParameterListOld :: FilePath -> String -> String -> [Maybe String]
 getParameterListOld fileName fileContents funName = originalParameterNames $ head $
