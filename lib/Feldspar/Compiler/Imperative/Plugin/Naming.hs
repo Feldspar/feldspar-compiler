@@ -112,9 +112,9 @@ prefix :: SignatureInformation -> String -> String
 prefix d n = originalFunctionName d ++ "_" ++ n
 
 getVariableName :: SignatureInformation -> String -> Maybe String
-getVariableName signatureInformation origname = case originalParameterNames signatureInformation of
+getVariableName siginf origname = case originalParameterNames siginf of
     Just originalParameterNameList ->
-        if length (generatedImperativeParameterNames signatureInformation) == length originalParameterNameList then
+        if length (generatedImperativeParameterNames siginf) == length originalParameterNameList then
             case searchResults of
                 [] -> Nothing
                 _  -> snd $ head searchResults
@@ -124,7 +124,7 @@ getVariableName signatureInformation origname = case originalParameterNames sign
                     -- show (generatedImperativeParameterNames signatureInformation) ++ " " ++ show originalParameterNameList
         where
             searchResults = filter ((origname ==).fst)
-                                   (zip (generatedImperativeParameterNames signatureInformation) originalParameterNameList)
+                                   (zip (generatedImperativeParameterNames siginf) originalParameterNameList)
     Nothing -> Nothing
 
 maybeStr2Str :: Maybe String -> String
