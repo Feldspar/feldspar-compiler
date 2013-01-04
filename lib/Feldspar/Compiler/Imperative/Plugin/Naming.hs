@@ -85,7 +85,7 @@ instance Transformable Precompilation Variable where
     transform _ s d v = Result newVar s def
       where
         newVar = v 
-            { varName = maybeStr2Str (getVariableName d $ varName v) ++ varName v
+            { varName = (getVariableName d $ varName v) ++ varName v
             , varLabel = ()
             }
 
@@ -109,17 +109,13 @@ procedureKindsToPrefix = [KNoInline, KTask]
 prefix :: SignatureInformation -> String -> String
 prefix d n = originalFunctionName d ++ "_" ++ n
 
-getVariableName :: SignatureInformation -> String -> Maybe String
+getVariableName :: SignatureInformation -> String -> String
 getVariableName siginf origname
   | Just originalParameterNameList <- originalParameterNames siginf
   , length (generatedImperativeParameterNames siginf) == length originalParameterNameList
-  , (r:_) <- filter ((origname ==).fst) (zip (generatedImperativeParameterNames siginf) originalParameterNameList)
-  = snd r
-  | otherwise = Nothing
-
-maybeStr2Str :: Maybe String -> String
-maybeStr2Str (Just s) = s ++ "_"
-maybeStr2Str Nothing = ""
+  , ((_, Just r):_) <- filter ((origname ==).fst) (zip (generatedImperativeParameterNames siginf) originalParameterNameList)
+  = r ++ "_"
+  | otherwise = ""
 
 data PrecompilationExternalInfo = PrecompilationExternalInfo {
     originalFunctionSignature :: Precompiler.OriginalFunctionSignature, 
