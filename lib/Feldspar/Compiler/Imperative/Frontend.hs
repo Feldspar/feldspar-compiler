@@ -36,7 +36,7 @@ import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, Spawn, Run, NativeArray, NativeElem)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, NativeArray, NativeElem)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
