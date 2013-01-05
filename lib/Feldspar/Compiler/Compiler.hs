@@ -158,7 +158,7 @@ pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
 --    . executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo)
 --    . executePlugin ConstantFolding ()
-    . executePlugin ConstantFolding ()
+--    . executePlugin ConstantFolding ()
     . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
 --    . executePlugin Free ()
