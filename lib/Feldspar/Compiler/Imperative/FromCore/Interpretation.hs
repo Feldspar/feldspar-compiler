@@ -309,7 +309,7 @@ tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
 
 tellDecl :: [Def] -> CodeWriter ()
 tellDecl ds = do
-                 let frees = freeArrays ds
+                 let frees = freeArrays ds ++ freeIVars ds
                      code | True = mempty {decl=ds, epilogue = frees}
                           | otherwise = mempty {block = Bl ds $ Seq [], epilogue = frees}
                  tell code
