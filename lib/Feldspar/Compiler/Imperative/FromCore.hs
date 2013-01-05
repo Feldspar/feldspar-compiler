@@ -39,6 +39,8 @@
 module Feldspar.Compiler.Imperative.FromCore where
 
 
+import Data.List (nub)
+
 import Control.Monad.RWS
 
 import Language.Syntactic
@@ -73,6 +75,8 @@ import Feldspar.Compiler.Imperative.FromCore.SizeProp ()
 import Feldspar.Compiler.Imperative.FromCore.SourceInfo ()
 import Feldspar.Compiler.Imperative.FromCore.Tuple ()
 
+import Feldspar.Compiler.Backend.C.Options (Options(..))
+
 instance Compile FeldDom FeldDom
   where
     compileProgSym (C' a) = compileProgSym a
@@ -84,40 +88,40 @@ instance Compile Empty dom
     compileExprSym _ = error "Can't compile Empty"
 
 compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    String -> [Var] -> ASTF (Decor Info dom) a -> Mod
-compileProgTop funname args (lam :$ body)
+    Options -> String -> [Var] -> ASTF (Decor Info dom) a -> Mod
+compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
           sa  = defaultSize ta
           var = mkVariable (compileTypeRep ta sa) v
-       in compileProgTop funname (var:args) body
-compileProgTop funname args a = Mod defs
+       in compileProgTop opt funname (var:args) body
+compileProgTop opt funname args a = Mod defs
   where
     ins      = reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
     outParam = Pointer outType "out"
     outLoc   = Ptr outType "out"
-    results  = snd $ evalRWS (compileProg outLoc a) initReader initState
+    results  = snd $ evalRWS (compileProg outLoc a) (initReader opt) initState
     decls    = decl results
     post     = epilogue results
     Bl ds p  = block results
-    defs     = def results ++ [ProcDf funname KMain ins [outParam] (Block (ds ++ decls) (Seq (p:post)))]
+    defs     = (nub $ def results) ++ [ProcDf funname KMain ins [outParam] (Block (ds ++ decls) (Seq (p:post)))]
 
 class    SyntacticFeld a => Compilable a internal | a -> internal
 instance SyntacticFeld a => Compilable a ()
   -- TODO This class should be replaced by (Syntactic a FeldDomainAll) (or a
   --      similar alias) everywhere. The second parameter is not needed.
 
-fromCore :: SyntacticFeld a => String -> a -> Module ()
-fromCore funname
+fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
+fromCore opt funname
     = fromInterface
-    . compileProgTop funname []
+    . compileProgTop opt funname []
     . reifyFeld defaultFeldOpts N32
 
 -- | Get the generated core for a program.
-getCore' :: SyntacticFeld a => a -> Mod
-getCore' prog = compileProgTop "test" [] (reifyFeld defaultFeldOpts N32 prog)
+getCore' :: SyntacticFeld a => Options -> a -> Mod
+getCore' opts prog = compileProgTop opts "test" [] (reifyFeld defaultFeldOpts N32 prog)
 
 -- | Create a list where each element represents the number of variables needed
 -- to as arguments

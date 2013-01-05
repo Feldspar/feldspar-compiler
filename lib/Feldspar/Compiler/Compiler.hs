@@ -156,7 +156,7 @@ noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 pluginChain :: ExternalInfoCollection -> Module () -> Module ()
 pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
-    . executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo)
+--    . executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo)
 --    . executePlugin ConstantFolding ()
     . executePlugin UnrollPlugin (unrollExternalInfo externalInfo)
     . executePlugin Precompilation (precompilationExternalInfo externalInfo)
@@ -193,7 +193,7 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
     , typeDefinitionGeneratorExternalInfo = opt
     , variableRoleAssignerExternalInfo    = ()
     , typeCorrectorExternalInfo           = False
-    } $ fromCore (ofn fixedOriginalFunctionSignature) prg
+    } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
   where
     ofn = NameExtractor.originalFunctionName
     fixedOriginalFunctionSignature = originalFunctionSignatureParam {

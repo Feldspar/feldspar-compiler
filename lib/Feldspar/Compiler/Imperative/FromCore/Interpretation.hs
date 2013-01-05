@@ -53,17 +53,21 @@ import qualified Feldspar.Core.Constructs.Binding as Core
 import qualified Feldspar.Core.Constructs.Literal as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (typeof)
+import Feldspar.Compiler.Imperative.Representation (typeof, Place(..))
+
+import Feldspar.Compiler.Backend.C.Options (Options(..))
+import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
 
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
 
 data Readers = Readers { alias :: [(VarId, Expr)] -- ^ variable aliasing
                        , sourceInfo :: SourceInfo -- ^ Surrounding source info
+                       , backendOpts :: Options -- ^ Options for the backend.
                        }
 
-initReader :: Readers
-initReader = Readers [] ""
+initReader :: Options -> Readers
+initReader opts = Readers [] "" opts
 
 data Writers = Writers { block    :: Block  -- ^ collects code within one block
                        , def      :: [Ent]  -- ^ collects top level definitions
@@ -308,11 +312,32 @@ tellProg [Block [] ps] = tell $ mempty {block = Bl [] $ Seq [ps]}
 tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
 
 tellDecl :: [Def] -> CodeWriter ()
-tellDecl ds = do
+tellDecl ds = do rs <- ask
                  let frees = freeArrays ds
-                     code | True = mempty {decl=ds, epilogue = frees}
-                          | otherwise = mempty {block = Bl ds $ Seq [], epilogue = frees}
+                     defs = getTypes (backendOpts rs) ds
+                     code | True = mempty {decl=ds, epilogue = frees, def = defs}
+                          | otherwise = mempty {block = Bl ds $ Seq [], epilogue = frees, def = defs}
                  tell code
+
+getTypes :: Options -> [Def] -> [Ent]
+getTypes opts defs = mkDef comps
+  where
+    comps = filter (isComposite) $ map (typeof . dVar) defs
+    -- There are other composite types that are not flagged as such by this
+    -- version of isComposite, so keep it private.
+    isComposite :: Type -> Bool
+    isComposite (Struct {}) = True
+    isComposite e = isArray e
+    -- TODO: There is nothing in the frontend for naming structures in
+    -- Prog, that is done in CodeGeneration by toC. We should combine
+    -- Prog and Program into a single format and untangle naming from
+    -- prettyprinting.
+    mkDef [] = []
+    mkDef (typ:typs)
+      | s@(Struct members) <- typ
+      = mkDef (map snd members) ++ (StructD (toC opts Declaration_pl (fromInterface s)) members):mkDef typs
+      | (SizedArray _ typ2) <- typ = mkDef (typ2:typs)
+      | otherwise = mkDef typs
 
 assign :: Location -> Expr -> CodeWriter ()
 assign lhs rhs = tellProg [copyProg lhs [rhs]]
