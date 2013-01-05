@@ -96,12 +96,12 @@ moduleSplitter m = SplitModuleDescriptor {
 separateAndCompileToCCore :: (Compilable t internal)
   => (Module ()
   -> [Module ()])
-  -> CompilationMode -> t -> IncludesNeeded
+  -> CompilationMode -> t
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> [(CompToCCoreResult, Module ())]
 separateAndCompileToCCore
   moduleSeparator
-  compMode prg needed
+  compMode prg
   functionSignature coreOptions =
     pack <$> separatedModules
       where
@@ -111,7 +111,7 @@ separateAndCompileToCCore
           moduleSeparator $
           executePluginChain' compMode prg functionSignature coreOptions
 
-        compToCWithInfo = moduleToCCore needed coreOptions
+        compToCWithInfo = moduleToCCore IncludesNeeded coreOptions
 
 moduleToCCore
   :: IncludesNeeded -> Options -> Module ()
@@ -140,7 +140,7 @@ compileToCCore
 compileToCCore compMode prg
   funSig coreOptions =
     createSplit $ fst <$> separateAndCompileToCCore headerAndSource
-      compMode prg IncludesNeeded funSig coreOptions
+      compMode prg funSig coreOptions
   where
     headerAndSource modules = [header, source]
       where (SplitModuleDescriptor header source) = moduleSplitter modules
