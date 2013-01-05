@@ -82,24 +82,6 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl (ProcDef n knd inp outp _ l1 l2) = [ProcDecl n knd inp outp l1 l2]
     defToDecl _ = []
 
-separateAndCompileToCCore :: (Compilable t internal)
-  => CompilationMode -> t
-  -> NameExtractor.OriginalFunctionSignature -> Options
-  -> SplitCompToCCoreResult
-separateAndCompileToCCore
-  compMode prg
-  functionSignature coreOptions =
-    createSplit $ moduleToCCore coreOptions <$> separatedModules
-      where
-        separatedModules =
-          moduleSeparator $
-          executePluginChain' compMode prg functionSignature coreOptions
-
-        moduleSeparator modules = [header, source]
-          where (SplitModuleDescriptor header source) = moduleSplitter modules
-
-        createSplit [header, source] = SplitCompToCCoreResult header source
-
 moduleToCCore
   :: Options -> Module ()
   -> CompToCCoreResult DebugToCSemanticInfo
@@ -117,8 +99,16 @@ compileToCCore
   -> SplitCompToCCoreResult
 compileToCCore compMode prg
   funSig coreOptions =
-    separateAndCompileToCCore
-      compMode prg funSig coreOptions
+    createSplit $ moduleToCCore coreOptions <$> separatedModules
+      where
+        separatedModules =
+          moduleSeparator $
+          executePluginChain' compMode prg funSig coreOptions
+
+        moduleSeparator modules = [header, source]
+          where (SplitModuleDescriptor header source) = moduleSplitter modules
+
+        createSplit [header, source] = SplitCompToCCoreResult header source
 
 genIncludeLinesCore :: [String] -> (String, Int)
 genIncludeLinesCore []   = ("", 1)
