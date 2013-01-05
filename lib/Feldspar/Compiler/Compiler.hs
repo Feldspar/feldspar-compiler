@@ -31,6 +31,7 @@
 
 module Feldspar.Compiler.Compiler where
 
+import Data.List (partition)
 import System.FilePath
 import Data.Typeable as DT
 import Control.Arrow
@@ -57,76 +58,39 @@ import Feldspar.Compiler.Imperative.Plugin.Unroll
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
 
-type Position = (Int, Int)
-
 data SplitModuleDescriptor = SplitModuleDescriptor {
     smdSource :: Module (),
     smdHeader :: Module ()
 }
 
-data CompToCCoreResult = CompToCCoreResult {
-    sourceCode      :: String,
-    endPosition     :: Position,
-    debugModule     :: Module DebugToCSemanticInfo
-}
-
 data SplitCompToCCoreResult = SplitCompToCCoreResult {
-    sctccrSource :: CompToCCoreResult,
-    sctccrHeader :: CompToCCoreResult
+    sctccrSource :: CompToCCoreResult DebugToCSemanticInfo,
+    sctccrHeader :: CompToCCoreResult DebugToCSemanticInfo
 }
-
-data IncludesNeeded = IncludesNeeded | NoIncludesNeeded { incneedLineNum :: Int }
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
-    smdHeader = Module (filter belongsToHeader (entities m) ++ createProcDecls (entities m)) (moduleLabel m),
-    smdSource = Module (filter (not . belongsToHeader) $ entities m) (moduleLabel m)
+    smdHeader = Module (hdr ++ createProcDecls (entities m)) (moduleLabel m),
+    smdSource = Module body (moduleLabel m)
 } where
+    (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
     belongsToHeader StructDef{} = True
     belongsToHeader ProcDecl{}  = True
     belongsToHeader _           = False
     createProcDecls :: [Entity ()] -> [Entity ()]
-    createProcDecls = foldr ((++) . convertProcDefToProcDecl) []
-    convertProcDefToProcDecl :: Entity () -> [Entity ()]
-    convertProcDefToProcDecl e = case e of
-        ProcDef n knd inparams outparams _ label1 label2 -> [ProcDecl n knd inparams outparams label1 label2]
-        _ -> []
-
-separateAndCompileToCCore :: (Compilable t internal)
-  => (Module ()
-  -> [Module ()])
-  -> CompilationMode -> t
-  -> NameExtractor.OriginalFunctionSignature -> Options
-  -> [(CompToCCoreResult, Module ())]
-separateAndCompileToCCore
-  moduleSeparator
-  compMode prg
-  functionSignature coreOptions =
-    pack <$> separatedModules
-      where
-        pack = compToCWithInfo &&& id
-
-        separatedModules =
-          moduleSeparator $
-          executePluginChain' compMode prg functionSignature coreOptions
-
-        compToCWithInfo = moduleToCCore coreOptions
+    createProcDecls = foldr ((++) . defToDecl) []
+    defToDecl :: Entity () -> [Entity ()]
+    defToDecl (ProcDef n knd inp outp _ l1 l2) = [ProcDecl n knd inp outp l1 l2]
+    defToDecl _ = []
 
 moduleToCCore
   :: Options -> Module ()
-  -> CompToCCoreResult
-moduleToCCore opts mdl =
-  CompToCCoreResult {
-    sourceCode      = incls ++ moduleSrc
-  , endPosition     = endPos
-  , debugModule     = dbgModule
-  }
+  -> CompToCCoreResult DebugToCSemanticInfo
+moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
+    res = compToCWithInfos opts lineNum mdl
     (incls, lineNum) = genIncludeLines opts Nothing
-
-    (dbgModule, (moduleSrc, endPos)) =
-      compToCWithInfos opts lineNum mdl
 
 
 -- | Compiler core
@@ -137,13 +101,16 @@ compileToCCore
   -> SplitCompToCCoreResult
 compileToCCore compMode prg
   funSig coreOptions =
-    createSplit $ fst <$> separateAndCompileToCCore headerAndSource
-      compMode prg funSig coreOptions
-  where
-    headerAndSource modules = [header, source]
-      where (SplitModuleDescriptor header source) = moduleSplitter modules
+    createSplit $ moduleToCCore coreOptions <$> separatedModules
+      where
+        separatedModules =
+          moduleSeparator $
+          executePluginChain' compMode prg funSig coreOptions
 
-    createSplit [header, source] = SplitCompToCCoreResult header source
+        moduleSeparator modules = [header, source]
+          where (SplitModuleDescriptor header source) = moduleSplitter modules
+
+        createSplit [header, source] = SplitCompToCCoreResult header source
 
 genIncludeLinesCore :: [String] -> (String, Int)
 genIncludeLinesCore []   = ("", 1)

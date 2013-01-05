@@ -62,6 +62,7 @@ import Control.Monad.CatchIO
 -- ====================================== Other imports ==================================
 import Data.List
 import Data.Maybe (fromMaybe)
+import Data.Either (lefts)
 import Debug.Trace
 import Language.Haskell.Interpreter
 
@@ -71,7 +72,7 @@ data CompilationError =
     | InternalErrorCall String
 
 compileFunction :: String -> String -> CoreOptions.Options -> OriginalFunctionSignature
-                -> Interpreter (String, Either SplitModuleDescriptor CompilationError)
+                -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
 compileFunction inFileName outFileName coreOptions originalFunctionSignature = do
     let functionName = originalFunctionName originalFunctionSignature
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
@@ -86,18 +87,17 @@ compileFunction inFileName outFileName coreOptions originalFunctionSignature = d
                                       hPutStrLn temph $ sourceCode $ sctccrHeader core)
                                   (do hClose temph
                                       removeFileIfPossible tempfile)
-        return (functionName, Left splitModuleDescriptor)
+        return $ Left (functionName, splitModuleDescriptor)
 
 compileAllFunctions :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature]
-                    -> Interpreter [(String, Either SplitModuleDescriptor CompilationError)]
+                    -> Interpreter [Either (String, SplitModuleDescriptor) (String, CompilationError)]
 compileAllFunctions inFileName outFileName options []     = return []
 compileAllFunctions inFileName outFileName options (x:xs) = do
     let functionName = originalFunctionName x
     resultCurrent <- catchError (compileFunction inFileName outFileName options x)
-                              (\(e::InterpreterError) -> return (functionName, Right $ InterpreterError e))
+                              (\(e::InterpreterError) -> return $ Right (functionName, InterpreterError e))
                           `Control.Monad.CatchIO.catch`
-                          (\msg -> return (functionName,
-                                           Right $ InternalErrorCall $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)))
+                          (\msg -> return $ Right (functionName, InternalErrorCall (errorPrefix ++ show (msg::Control.Exception.ErrorCall))))
     resultRest <- compileAllFunctions inFileName outFileName options xs
     return $ resultCurrent : resultRest
 
@@ -122,9 +122,9 @@ mergeModules l@(x:xs) = Module {
 padFunctionName :: String -> String
 padFunctionName n = StandaloneLib.rpadWith 50 '.' $ "Function " ++ n
 
-writeErrors :: (String, Either a CompilationError) -> IO ()
-writeErrors (functionName, Left x) = return ()
-writeErrors (functionName, Right err) = case err of 
+writeErrors :: Either a (String, CompilationError) -> IO ()
+writeErrors Left{} = return ()
+writeErrors (Right (functionName, err)) = case err of
     InterpreterError ie -> do
         withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
         printInterpreterError ie
@@ -132,20 +132,13 @@ writeErrors (functionName, Right err) = case err of
         withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
         withColor Red $ putStrLn ec
 
-writeSummary :: (String, Either a CompilationError) -> IO ()
-writeSummary (functionName, Left x) = do
+writeSummary :: Either (String, a) (String, CompilationError) -> IO ()
+writeSummary (Left (functionName, x)) = do
     withColor Cyan $ putStr $ padFunctionName functionName
     withColor Green $ putStrLn "[OK]"
-writeSummary (functionName, Right msg) = do
+writeSummary (Right (functionName, msg)) = do
     withColor Cyan $ putStr $ padFunctionName functionName
     withColor Red $ putStrLn "[FAILED]"
-
-filterLefts :: [(String, Either a b)] -> [a]
-filterLefts [] = []
-filterLefts [(_,Left x)]  = [x]
-filterLefts [(_,Right _)] = []
-filterLefts ((_,Left x):xs)  = x : filterLefts xs
-filterLefts ((_,Right _):xs) = filterLefts xs
 
 -- | Interpreter body for multi-function compilation
 multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature] -> Interpreter (IO ())
@@ -159,14 +152,14 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeErrors modules
         withColor Blue $ putStrLn "\n================= [ Summary of compilation results ] =================\n"
         mapM_ writeSummary modules
-        let mergedCModules = mergeModules $ map smdSource $ filterLefts modules
-        let mergedHModules = mergeModules $ map smdHeader $ filterLefts modules
+        let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
+        let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
         let cCompToCResult = compToCWithInfos coreOptions cLineNum mergedCModules
         let hCompToCResult = compToCWithInfos coreOptions hLineNum mergedHModules
-        appendFile (makeCFileName outFileName) (fst $ snd cCompToCResult) `Control.Exception.catch` errorHandler
-        appendFile (makeHFileName outFileName) (fst $ snd hCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugCFileName outFileName) (show $ fst cCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugHFileName outFileName) (show $ fst hCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile (makeCFileName outFileName) (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile (makeHFileName outFileName) (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile (makeDebugCFileName outFileName) (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile (makeDebugHFileName outFileName) (show $ debugModule hCompToCResult) `Control.Exception.catch` errorHandler
     return $ return ()
     where
         errorHandler msg = withColor Red $ putStrLn $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)
