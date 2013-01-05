@@ -111,25 +111,23 @@ separateAndCompileToCCore
           moduleSeparator $
           executePluginChain' compMode prg functionSignature coreOptions
 
-        compToCWithInfo = moduleToCCore IncludesNeeded coreOptions
+        compToCWithInfo = moduleToCCore coreOptions
 
 moduleToCCore
-  :: IncludesNeeded -> Options -> Module ()
+  :: Options -> Module ()
   -> CompToCCoreResult
-moduleToCCore needed opts mdl =
+moduleToCCore opts mdl =
   CompToCCoreResult {
     sourceCode      = incls ++ moduleSrc
   , endPosition     = endPos
   , debugModule     = dbgModule
   }
   where
-    (incls, lineNum) = genInclude needed
+    (incls, lineNum) = genIncludeLines opts Nothing
 
     (dbgModule, (moduleSrc, endPos)) =
       compToCWithInfos opts lineNum mdl
 
-    genInclude IncludesNeeded         = genIncludeLines opts Nothing
-    genInclude (NoIncludesNeeded ln)  = ("", ln)
 
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
