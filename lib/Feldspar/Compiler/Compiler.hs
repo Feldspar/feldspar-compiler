@@ -98,15 +98,13 @@ separateAndCompileToCCore :: (Compilable t internal)
   -> [Module ()])
   -> CompilationMode -> t
   -> NameExtractor.OriginalFunctionSignature -> Options
-  -> [(CompToCCoreResult, Module ())]
+  -> [CompToCCoreResult]
 separateAndCompileToCCore
   moduleSeparator
   compMode prg
   functionSignature coreOptions =
-    pack <$> separatedModules
+    compToCWithInfo <$> separatedModules
       where
-        pack = compToCWithInfo &&& id
-
         separatedModules =
           moduleSeparator $
           executePluginChain' compMode prg functionSignature coreOptions
@@ -137,7 +135,7 @@ compileToCCore
   -> SplitCompToCCoreResult
 compileToCCore compMode prg
   funSig coreOptions =
-    createSplit $ fst <$> separateAndCompileToCCore headerAndSource
+    createSplit $ separateAndCompileToCCore headerAndSource
       compMode prg funSig coreOptions
   where
     headerAndSource modules = [header, source]
