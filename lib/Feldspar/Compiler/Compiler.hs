@@ -75,8 +75,6 @@ data SplitCompToCCoreResult = SplitCompToCCoreResult {
     sctccrHeader :: CompToCCoreResult
 }
 
-data IncludesNeeded = IncludesNeeded | NoIncludesNeeded { incneedLineNum :: Int }
-
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
     smdHeader = Module (filter belongsToHeader (entities m) ++ createProcDecls (entities m)) (moduleLabel m),
