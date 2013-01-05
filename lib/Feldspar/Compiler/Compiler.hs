@@ -134,10 +134,10 @@ moduleToCCore needed opts mdl =
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
-  :: (Compilable t internal) => CompilationMode -> t -> Maybe String -> IncludesNeeded
+  :: (Compilable t internal) => CompilationMode -> t -> IncludesNeeded
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> SplitCompToCCoreResult
-compileToCCore compMode prg _ includesNeeded
+compileToCCore compMode prg includesNeeded
   funSig coreOptions =
     createSplit $ fst <$> separateAndCompileToCCore headerAndSource
       compMode prg includesNeeded funSig coreOptions

@@ -69,7 +69,7 @@ compile prg fileName functionName opts = do
   where
     hfile = makeHFileName fileName
     cfile = makeCFileName fileName
-    compilationResult = compileToCCore Interactive prg (Just fileName) IncludesNeeded
+    compilationResult = compileToCCore Interactive prg IncludesNeeded
                                        (NameExtractor.OriginalFunctionSignature functionName []) opts
 
     withIncludeGuard code = unlines [ "#ifndef " ++ guardName
@@ -98,11 +98,11 @@ icompile' opts functionName prg = do
     putStrLn "=============== Source ================"
     putStrLn $ sourceCode $ sctccrSource compilationResult
   where
-    compilationResult = compileToCCore Interactive prg Nothing IncludesNeeded
+    compilationResult = compileToCCore Interactive prg IncludesNeeded
                                        (NameExtractor.OriginalFunctionSignature functionName []) opts
 
 icompileWithInfos :: (Compilable t internal) => t -> String -> Options -> SplitCompToCCoreResult
-icompileWithInfos prg functionName = compileToCCore Interactive prg Nothing IncludesNeeded
+icompileWithInfos prg functionName = compileToCCore Interactive prg IncludesNeeded
                                                           (NameExtractor.OriginalFunctionSignature functionName [])
 
 -- | Get the generated core for a program.
