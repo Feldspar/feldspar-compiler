@@ -92,13 +92,10 @@ moduleSplitter m = SplitModuleDescriptor {
         _ -> []
 
 separateAndCompileToCCore :: (Compilable t internal)
-  => (Module ()
-  -> [Module ()])
-  -> CompilationMode -> t
+  => CompilationMode -> t
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> [CompToCCoreResult]
 separateAndCompileToCCore
-  moduleSeparator
   compMode prg
   functionSignature coreOptions =
     compToCWithInfo <$> separatedModules
@@ -108,6 +105,9 @@ separateAndCompileToCCore
           executePluginChain' compMode prg functionSignature coreOptions
 
         compToCWithInfo = moduleToCCore coreOptions
+
+        moduleSeparator modules = [header, source]
+          where (SplitModuleDescriptor header source) = moduleSplitter modules
 
 moduleToCCore
   :: Options -> Module ()
@@ -133,12 +133,9 @@ compileToCCore
   -> SplitCompToCCoreResult
 compileToCCore compMode prg
   funSig coreOptions =
-    createSplit $ separateAndCompileToCCore headerAndSource
+    createSplit $ separateAndCompileToCCore
       compMode prg funSig coreOptions
   where
-    headerAndSource modules = [header, source]
-      where (SplitModuleDescriptor header source) = moduleSplitter modules
-
     createSplit [header, source] = SplitCompToCCoreResult header source
 
 genIncludeLinesCore :: [String] -> (String, Int)
