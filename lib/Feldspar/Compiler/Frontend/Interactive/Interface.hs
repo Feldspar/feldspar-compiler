@@ -106,7 +106,7 @@ icompileWithInfos prg functionName = compileToCCore Interactive prg
                                                           (NameExtractor.OriginalFunctionSignature functionName [])
 
 -- | Get the generated core for a program.
-getCore prog = getCore' prog
+getCore prog = getCore' defaultOptions prog
 
 -- | Print the generated core for a program.
-printCore prog = print $ getCore' prog
+printCore prog = print $ getCore' defaultOptions prog
