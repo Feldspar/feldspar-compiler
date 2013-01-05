@@ -163,10 +163,10 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         let mergedHModules = mergeModules $ map smdHeader $ filterLefts modules
         let cCompToCResult = compToCWithInfos coreOptions cLineNum mergedCModules
         let hCompToCResult = compToCWithInfos coreOptions hLineNum mergedHModules
-        appendFile (makeCFileName outFileName) (fst $ snd cCompToCResult) `Control.Exception.catch` errorHandler
-        appendFile (makeHFileName outFileName) (fst $ snd hCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugCFileName outFileName) (show $ fst cCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugHFileName outFileName) (show $ fst hCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile (makeCFileName outFileName) (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile (makeHFileName outFileName) (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile (makeDebugCFileName outFileName) (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile (makeDebugHFileName outFileName) (show $ debugModule hCompToCResult) `Control.Exception.catch` errorHandler
     return $ return ()
     where
         errorHandler msg = withColor Red $ putStrLn $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)

@@ -99,3 +99,15 @@ replaceWith = Replace . fromInterface
 
 propagate :: (Interface t, Typeable (Repr t)) => (t -> [Action (Repr t)]) -> Action t'
 propagate = Propagate . rule
+
+-- Belongs in some other module, but temporarily resides here to avoid
+-- cyclic imports.
+type Position = (Int, Int)
+
+-- Belongs in some other module, but temporarily resides here to avoid
+-- cyclic imports.
+data CompToCCoreResult t = CompToCCoreResult {
+    sourceCode      :: String,
+    endPosition     :: Position,
+    debugModule     :: Module t
+}

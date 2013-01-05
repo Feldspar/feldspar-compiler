@@ -57,22 +57,14 @@ import Feldspar.Compiler.Imperative.Plugin.Unroll
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
 
-type Position = (Int, Int)
-
 data SplitModuleDescriptor = SplitModuleDescriptor {
     smdSource :: Module (),
     smdHeader :: Module ()
 }
 
-data CompToCCoreResult = CompToCCoreResult {
-    sourceCode      :: String,
-    endPosition     :: Position,
-    debugModule     :: Module DebugToCSemanticInfo
-}
-
 data SplitCompToCCoreResult = SplitCompToCCoreResult {
-    sctccrSource :: CompToCCoreResult,
-    sctccrHeader :: CompToCCoreResult
+    sctccrSource :: CompToCCoreResult DebugToCSemanticInfo,
+    sctccrHeader :: CompToCCoreResult DebugToCSemanticInfo
 }
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
@@ -111,18 +103,11 @@ separateAndCompileToCCore
 
 moduleToCCore
   :: Options -> Module ()
-  -> CompToCCoreResult
-moduleToCCore opts mdl =
-  CompToCCoreResult {
-    sourceCode      = incls ++ moduleSrc
-  , endPosition     = endPos
-  , debugModule     = dbgModule
-  }
+  -> CompToCCoreResult DebugToCSemanticInfo
+moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
+    res = compToCWithInfos opts lineNum mdl
     (incls, lineNum) = genIncludeLines opts Nothing
-
-    (dbgModule, (moduleSrc, endPos)) =
-      compToCWithInfos opts lineNum mdl
 
 
 -- | Compiler core
