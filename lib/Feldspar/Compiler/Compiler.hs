@@ -134,13 +134,13 @@ moduleToCCore needed opts mdl =
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
-  :: (Compilable t internal) => CompilationMode -> t -> IncludesNeeded
+  :: (Compilable t internal) => CompilationMode -> t
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> SplitCompToCCoreResult
-compileToCCore compMode prg includesNeeded
+compileToCCore compMode prg
   funSig coreOptions =
     createSplit $ fst <$> separateAndCompileToCCore headerAndSource
-      compMode prg includesNeeded funSig coreOptions
+      compMode prg IncludesNeeded funSig coreOptions
   where
     headerAndSource modules = [header, source]
       where (SplitModuleDescriptor header source) = moduleSplitter modules

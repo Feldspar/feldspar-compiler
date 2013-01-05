@@ -152,4 +152,4 @@ standaloneCompile prg inputFileName outputFileName originalFunctionSignature opt
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult
   where
-    compilationResult = compileToCCore Standalone prg IncludesNeeded originalFunctionSignature opts
+    compilationResult = compileToCCore Standalone prg originalFunctionSignature opts
