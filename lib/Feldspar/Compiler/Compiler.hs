@@ -98,13 +98,11 @@ separateAndCompileToCCore :: (Compilable t internal)
 separateAndCompileToCCore
   compMode prg
   functionSignature coreOptions =
-    compToCWithInfo <$> separatedModules
+    moduleToCCore coreOptions <$> separatedModules
       where
         separatedModules =
           moduleSeparator $
           executePluginChain' compMode prg functionSignature coreOptions
-
-        compToCWithInfo = moduleToCCore coreOptions
 
         moduleSeparator modules = [header, source]
           where (SplitModuleDescriptor header source) = moduleSplitter modules
