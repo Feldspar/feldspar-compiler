@@ -77,11 +77,10 @@ moduleSplitter m = SplitModuleDescriptor {
     belongsToHeader ProcDecl{}  = True
     belongsToHeader _           = False
     createProcDecls :: [Entity ()] -> [Entity ()]
-    createProcDecls = foldr ((++) . convertProcDefToProcDecl) []
-    convertProcDefToProcDecl :: Entity () -> [Entity ()]
-    convertProcDefToProcDecl e = case e of
-        ProcDef n knd inparams outparams _ label1 label2 -> [ProcDecl n knd inparams outparams label1 label2]
-        _ -> []
+    createProcDecls = foldr ((++) . defToDecl) []
+    defToDecl :: Entity () -> [Entity ()]
+    defToDecl (ProcDef n knd inp outp _ l1 l2) = [ProcDecl n knd inp outp l1 l2]
+    defToDecl _ = []
 
 separateAndCompileToCCore :: (Compilable t internal)
   => CompilationMode -> t
