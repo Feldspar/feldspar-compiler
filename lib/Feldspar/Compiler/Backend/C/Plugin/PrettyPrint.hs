@@ -179,7 +179,7 @@ compToC ((opts, plc), line) procedure = (up res, state res) where
     res = transform DebugToC (line, 0)
                     (PEnv {options = opts, place = plc, indent = 0}) procedure
 
-compToCWithInfos :: Options -> Int -> Module () -> CompToCCoreResult DebugToCSemanticInfo -- (Module DebugToCSemanticInfo, (String, (Int, Int)))
+compToCWithInfos :: Options -> Int -> Module () -> CompToCCoreResult DebugToCSemanticInfo
 compToCWithInfos opts line procedure =
   CompToCCoreResult {
     sourceCode      = up res
