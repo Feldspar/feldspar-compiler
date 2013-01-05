@@ -179,10 +179,10 @@ compToC ((opts, plc), line) procedure = (up res, state res) where
     res = transform DebugToC (line, 0)
                     (PEnv {options = opts, place = plc, indent = 0}) procedure
 
-compToCWithInfos :: Options -> Place -> Int -> Module () -> (Module DebugToCSemanticInfo, (String, (Int, Int)))
-compToCWithInfos opts plc line procedure = (result res, (up res, state res)) where
+compToCWithInfos :: Options -> Int -> Module () -> (Module DebugToCSemanticInfo, (String, (Int, Int)))
+compToCWithInfos opts line procedure = (result res, (up res, state res)) where
     res = transform DebugToC (line, 0)
-                    (PEnv {options = opts, place = plc, indent = 0}) procedure
+                    (PEnv {options = opts, place = Declaration_pl, indent = 0}) procedure
 
 instance Transformable DebugToC Variable where
     transform _ pos (PEnv {..}) x@(Variable vname typ role _) = Result (Variable vname typ role newInf) (snd newInf) cRep

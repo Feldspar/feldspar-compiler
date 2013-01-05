@@ -96,12 +96,12 @@ moduleSplitter m = SplitModuleDescriptor {
 separateAndCompileToCCore :: (Compilable t internal)
   => (Module ()
   -> [Module ()])
-  -> CompilationMode -> t -> IncludesNeeded
+  -> CompilationMode -> t
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> [(CompToCCoreResult, Module ())]
 separateAndCompileToCCore
   moduleSeparator
-  compMode prg needed
+  compMode prg
   functionSignature coreOptions =
     pack <$> separatedModules
       where
@@ -111,36 +111,34 @@ separateAndCompileToCCore
           moduleSeparator $
           executePluginChain' compMode prg functionSignature coreOptions
 
-        compToCWithInfo = moduleToCCore needed coreOptions
+        compToCWithInfo = moduleToCCore coreOptions
 
 moduleToCCore
-  :: IncludesNeeded -> Options -> Module ()
+  :: Options -> Module ()
   -> CompToCCoreResult
-moduleToCCore needed opts mdl =
+moduleToCCore opts mdl =
   CompToCCoreResult {
     sourceCode      = incls ++ moduleSrc
   , endPosition     = endPos
   , debugModule     = dbgModule
   }
   where
-    (incls, lineNum) = genInclude needed
+    (incls, lineNum) = genIncludeLines opts Nothing
 
     (dbgModule, (moduleSrc, endPos)) =
-      compToCWithInfos opts Declaration_pl lineNum mdl
+      compToCWithInfos opts lineNum mdl
 
-    genInclude IncludesNeeded         = genIncludeLines opts Nothing
-    genInclude (NoIncludesNeeded ln)  = ("", ln)
 
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
-  :: (Compilable t internal) => CompilationMode -> t -> Maybe String -> IncludesNeeded
+  :: (Compilable t internal) => CompilationMode -> t
   -> NameExtractor.OriginalFunctionSignature -> Options
   -> SplitCompToCCoreResult
-compileToCCore compMode prg _ includesNeeded
+compileToCCore compMode prg
   funSig coreOptions =
     createSplit $ fst <$> separateAndCompileToCCore headerAndSource
-      compMode prg includesNeeded funSig coreOptions
+      compMode prg funSig coreOptions
   where
     headerAndSource modules = [header, source]
       where (SplitModuleDescriptor header source) = moduleSplitter modules
