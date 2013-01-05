@@ -398,6 +398,14 @@ iVarPut ivar msg
       where
         typ = typeof msg
 
+iVarDestroy :: Var -> Prog
+iVarDestroy v = Call "ivar_destroy" KIVar [Out $ varToExpr v]
+
+freeIVars :: [Def] -> [Prog]
+freeIVars defs = map iVarDestroy ivars
+  where
+    ivars = filter (isIVar . typeof) $ map dVar defs
+
 spawn :: String -> [Var] -> Prog
 spawn taskName vs = Call spawnName KTask allParams
   where
@@ -495,6 +503,10 @@ litI32 n = Lit (EInt I32 n)
 isArray :: Type -> Bool
 isArray (SizedArray _ _) = True
 isArray _ = False
+
+isIVar :: Type -> Bool
+isIVar (IVar _ ) = True
+isIVar _ = False
 
 vType :: Var -> Type
 vType (Variable t _) = t

@@ -67,6 +67,7 @@ instance Transformable IVarPlugin Program where
               | otherwise   = name ++ "_nontask"
     transform t _ d x = defaultTransform t () d x
 
+{-
 instance Transformable IVarPlugin Block where
     transform t _ d b = Result b{ blockBody = body' } () ()
       where
@@ -80,3 +81,4 @@ instance Transformable IVarPlugin Block where
           where
             p = Out (VarExpr v ()) ()
         destrs = map (ivarFun "destroy") iVars
+-}
