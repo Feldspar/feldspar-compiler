@@ -37,8 +37,6 @@ import qualified Feldspar.NameExtractor as Precompiler
 import Feldspar.Compiler.Error
 import Feldspar.Compiler.Backend.C.Library
 
-import System.IO.Unsafe
-
 -- ===========================================================================
 --  == Precompilation plugin
 -- ===========================================================================
@@ -87,7 +85,7 @@ instance Transformable Precompilation Variable where
     transform _ s d v = Result newVar s def
       where
         newVar = v 
-            { varName = maybeStr2Str (getVariableName d $ varName v) ++ varName v
+            { varName = (getVariableName d $ varName v) ++ varName v
             , varLabel = ()
             }
 
@@ -111,35 +109,19 @@ procedureKindsToPrefix = [KNoInline, KTask]
 prefix :: SignatureInformation -> String -> String
 prefix d n = originalFunctionName d ++ "_" ++ n
 
-getVariableName :: SignatureInformation -> String -> Maybe String
-getVariableName signatureInformation origname = case originalParameterNames signatureInformation of
-    Just originalParameterNameList ->
-        if length (generatedImperativeParameterNames signatureInformation) == length originalParameterNameList then
-            case searchResults of
-                [] -> Nothing
-                _  -> snd $ head searchResults
-        else
-            Nothing
-            -- precompilationError InternalError $ "parameter name list length mismatch:" ++
-                    -- show (generatedImperativeParameterNames signatureInformation) ++ " " ++ show originalParameterNameList
-        where
-            searchResults = filter ((origname ==).fst)
-                                   (zip (generatedImperativeParameterNames signatureInformation) originalParameterNameList)
-    Nothing -> Nothing
-
-maybeStr2Str :: Maybe String -> String
-maybeStr2Str (Just s) = s ++ "_"
-maybeStr2Str Nothing = ""
+getVariableName :: SignatureInformation -> String -> String
+getVariableName siginf origname
+  | Just originalParameterNameList <- originalParameterNames siginf
+  , length (generatedImperativeParameterNames siginf) == length originalParameterNameList
+  , ((_, Just r):_) <- filter ((origname ==).fst) (zip (generatedImperativeParameterNames siginf) originalParameterNameList)
+  = r ++ "_"
+  | otherwise = ""
 
 data PrecompilationExternalInfo = PrecompilationExternalInfo {
     originalFunctionSignature :: Precompiler.OriginalFunctionSignature, 
     inputParametersDescriptor :: [Int],
-    numberOfFunctionArguments :: Int,
     compilationMode :: CompilationMode
 }
-
-addPostfixNumberToMaybeString :: (Maybe String, Int) -> Maybe String
-addPostfixNumberToMaybeString (ms, num) = ms >>= \s -> return $ s ++ show num
 
 inflate :: Int -> [Maybe String] -> [Maybe String]
 inflate target list | length list <  target = inflate target (list++[Nothing])
@@ -148,14 +130,10 @@ inflate target list | length list <  target = inflate target (list++[Nothing])
 
 -- Replicates each element of the [parameter list given by the precompiler] based on the input parameter descriptor
 parameterNameListConsolidator :: PrecompilationExternalInfo -> [Maybe String]
-parameterNameListConsolidator externalInfo =
-    if numberOfFunctionArguments externalInfo == length (inputParametersDescriptor externalInfo)
-    then
-        concatMap (uncurry replicate)
-            (zip (inputParametersDescriptor externalInfo)
-                 (Precompiler.originalParameterNames $ originalFunctionSignature externalInfo))
-    else
-        precompilationError InternalError "numArgs should be equal to the length of the input parameters' descriptor"
+parameterNameListConsolidator eInf
+  = concatMap (uncurry replicate)
+      (zip (inputParametersDescriptor eInf)
+        (Precompiler.originalParameterNames $ originalFunctionSignature eInf))
 
 instance Plugin Precompilation where
     type ExternalInfo Precompilation = PrecompilationExternalInfo
@@ -164,29 +142,7 @@ instance Plugin Precompilation where
             originalFunctionName = Precompiler.originalFunctionName $ originalFunctionSignature externalInfo,
             generatedImperativeParameterNames = precompilationError InternalError "GIPN should have been overwritten", 
             originalParameterNames = case compilationMode externalInfo of
-                Standalone ->
-                    if -- ultimate check, should be enough...
-                        numberOfFunctionArguments externalInfo ==
-                        length (Precompiler.originalParameterNames $ originalFunctionSignature externalInfo)
-                    then
-                        Just $ parameterNameListConsolidator externalInfo
-                    else
-                        unsafePerformIO $ do
-                            withColor Yellow $ putStrLn $ unwords [ "[WARNING @ PluginArch/Naming]:"
-                                                                  , " not enough named parameters in function "
-                                                                  , Precompiler.originalFunctionName (originalFunctionSignature externalInfo)
-                                                                  ]
-                            withColor Yellow $ putStrLn $ "numArgs: " ++ show (numberOfFunctionArguments externalInfo) ++
-                                ", parameter list: " ++ show (Precompiler.originalParameterNames $
-                                      originalFunctionSignature externalInfo) 
-                            return $ Just $ parameterNameListConsolidator (externalInfo {
-                                originalFunctionSignature = (originalFunctionSignature externalInfo) {
-                                    Precompiler.originalParameterNames =
-                                        inflate (numberOfFunctionArguments externalInfo) $
-                                        Precompiler.originalParameterNames $
-                                        originalFunctionSignature externalInfo
-                                }
-                            })
+                Standalone -> Just $ parameterNameListConsolidator externalInfo
                 Interactive -> Nothing -- no parameter name handling in interactive mode
          } procedure
 

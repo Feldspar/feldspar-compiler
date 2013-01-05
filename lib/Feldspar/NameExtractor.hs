@@ -28,9 +28,10 @@
 
 module Feldspar.NameExtractor where
 
+import Data.Maybe (catMaybes)
 import System.IO
 import System.IO.Unsafe
-import Language.Haskell.Exts
+import Language.Haskell.Exts hiding (parse)
 import Feldspar.Compiler.Error
 import Feldspar.Compiler.Backend.C.Library
 
@@ -42,12 +43,7 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
 nameExtractorError :: ErrorClass -> String -> a
 nameExtractorError = handleError "NameExtractor"
 
-neutralName :: String
-neutralName = "\\"++ r 4 ++"/\\"++ r 7 ++"\n )  ( ')"++ r 6 ++"\n(  /  )"++ r 7 ++"\n \\(__)|"
-    where r n = replicate n ' '
-
-ignore :: OriginalFunctionSignature
-ignore = OriginalFunctionSignature neutralName []
+ignore = Nothing
 
 warning :: String -> a -> a
 warning msg retval = unsafePerformIO $ do
@@ -55,32 +51,29 @@ warning msg retval = unsafePerformIO $ do
     return retval
 
 -- Module SrcLoc ModuleName [OptionPragma] (Maybe WarningText) (Maybe [ExportSpec]) [ImportDecl] [Decl]
-stripModule :: Module -> [Decl]
-stripModule x = case x of
-        Module _ _ _ _ _ _ g -> g
+declarations :: Module -> [Decl]
+declarations (Module _ _ _ _ _ _ g) = g
 
-stripFunBind :: Decl -> OriginalFunctionSignature
-stripFunBind x = case x of
-        FunBind [Match _ b c _ _ _] ->
-            OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
+stripFunBind :: Decl -> Maybe OriginalFunctionSignature
+stripFunBind (FunBind [Match _ b c _ _ _])
+  = Just $ OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
             -- "Match SrcLoc Name [Pat] (Maybe Type) Rhs Binds"
-        FunBind l@(Match _ b _ _ _ _ : _) | length l > 1 -> warning
+stripFunBind (FunBind l@(Match _ b _ _ _ _ : tl)) | not (null tl) = warning
             ("Ignoring function " ++ stripName b ++
             ": multi-pattern function definitions are not compilable as Feldspar functions.") ignore
-        PatBind _ b _ _ _ -> case stripPattern b of
-            Just functionName -> OriginalFunctionSignature functionName [] -- parameterless declarations (?)
+stripFunBind (PatBind _ b _ _ _) = case stripPattern b of
+            Just functionName -> Just $ OriginalFunctionSignature functionName [] -- parameterless declarations (?)
             Nothing           -> nameExtractorError InternalError ("Unsupported pattern binding: " ++ show b)
-        TypeSig{} -> ignore --head b -- we don't need the type signature (yet)
-        DataDecl{} -> ignore
-        InstDecl{} -> ignore
+stripFunBind TypeSig{} = ignore -- we don't need the type signature (yet)
+stripFunBind DataDecl{} = ignore
+stripFunBind InstDecl{} = ignore
         -- TypeDecl  SrcLoc Name [TyVarBind] Type
-        TypeDecl{} -> ignore
-        unknown -> nameExtractorError InternalError ("Unexpected language element [SFB/1]: " ++ show unknown
+stripFunBind TypeDecl{} = ignore
+stripFunBind unknown = nameExtractorError InternalError ("Unexpected language element [SFB/1]: " ++ show unknown
                                                 ++ "\nPlease file a feature request with an example attached.")
 
 stripPattern :: Pat -> Maybe String
 stripPattern (PVar x)         = Just $ stripName x
-stripPattern PWildCard        = Nothing
 stripPattern (PAsPat x _)     = Just $ stripName x
 stripPattern (PParen pattern) = stripPattern pattern
 stripPattern _                = Nothing
@@ -89,71 +82,16 @@ stripName :: Name -> String
 stripName (Ident a) = a
 stripName (Symbol a) = a
 
-stripModule2 :: Module -> ModuleName
-stripModule2 (Module _ b _ _ _ _ _) = b
+getModuleName :: Module -> String
+getModuleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
-stripModuleName :: ModuleName -> String
-stripModuleName (ModuleName x) = x
-
-getModuleName :: FilePath -> String -> String -- filename, filecontents -> modulename
-getModuleName fileName = stripModuleName . stripModule2 . fromParseResult . customizedParse fileName
-
-usedExtensions :: [Extension]
-usedExtensions = glasgowExts ++ [ExplicitForAll]
-
--- Ultimate debug function
-getParseOutput :: FilePath -> IO (ParseResult Module)
-getParseOutput = parseFileWithMode (defaultParseMode { extensions = usedExtensions })
-
-customizedParse :: FilePath -> FilePath -> ParseResult Module
-customizedParse fileName = parseFileContentsWithMode
+parse :: FilePath -> String -> Module
+parse fileName contents = fromParseResult $ parseFileContentsWithMode
   (defaultParseMode
-    { extensions    = usedExtensions
+    { extensions    = glasgowExts ++ [ExplicitForAll]
     , parseFilename = fileName
     })
+  contents
 
-getFullDeclarationListWithParameterList :: FilePath -> String -> [OriginalFunctionSignature]
-getFullDeclarationListWithParameterList fileName fileContents =
-    map stripFunBind (stripModule $ fromParseResult $ customizedParse fileName fileContents )
-
-functionNameNeeded :: String -> Bool
-functionNameNeeded functionName = functionName /= neutralName
-
-stripUnnecessary :: [String] -> [String]
-stripUnnecessary = filter functionNameNeeded
-
-printDeclarationList :: FilePath -> IO (String -> [String])
-printDeclarationList fileName = do
-    handle <- openFile fileName ReadMode
-    fileContents <- hGetContents handle
-    return $ getDeclarationList fileContents
-
-printDeclarationListWithParameterList :: FilePath -> IO ()
-printDeclarationListWithParameterList fileName = do
-    handle <- openFile fileName ReadMode
-    fileContents <- hGetContents handle
-    print $ filter (functionNameNeeded . originalFunctionName) (getFullDeclarationListWithParameterList fileName fileContents)
-
-printParameterListOfFunction :: FilePath -> String -> IO [Maybe String]
-printParameterListOfFunction = getParameterList
-
--- The interface
-getDeclarationList :: FilePath -> String -> [String] -- filename, filecontents -> Stringlist
-getDeclarationList fileName = stripUnnecessary . map originalFunctionName . getFullDeclarationListWithParameterList fileName
-
-getExtendedDeclarationList :: FilePath -> String -> [OriginalFunctionSignature] -- filename, filecontents -> ExtDeclList
-getExtendedDeclarationList fileName fileContents =
-  filter (functionNameNeeded . originalFunctionName)
-    (getFullDeclarationListWithParameterList fileName fileContents)
-
-getParameterListOld :: FilePath -> String -> String -> [Maybe String]
-getParameterListOld fileName fileContents funName = originalParameterNames $ head $
-  filter ((==funName) . originalFunctionName)
-    (getExtendedDeclarationList fileName fileContents)
-
-getParameterList :: FilePath -> String -> IO [Maybe String]
-getParameterList fileName funName = do
-    handle <- openFile fileName ReadMode
-    fileContents <- hGetContents handle
-    return $ originalParameterNames $ head $
-        filter ((==funName) . originalFunctionName) (getExtendedDeclarationList fileName fileContents)
+getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]
+getExtendedDeclarationList mod = catMaybes $ map stripFunBind (declarations mod)

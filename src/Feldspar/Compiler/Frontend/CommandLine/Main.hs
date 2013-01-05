@@ -191,8 +191,9 @@ main = do
     fileDescriptor <- openFile inputFileName ReadMode
     fileContents <- hGetContents fileDescriptor
 
-    let declarationList = getExtendedDeclarationList inputFileName fileContents
-    let moduleName = getModuleName inputFileName fileContents
+    let mod = parse inputFileName fileContents
+        declarationList = getExtendedDeclarationList mod
+        moduleName = getModuleName mod
     fancyWrite $ "Compilation target: module " ++ moduleName
     fancyWrite $ "Output file: " ++ outputFileName
 
