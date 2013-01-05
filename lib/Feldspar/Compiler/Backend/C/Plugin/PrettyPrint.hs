@@ -174,11 +174,6 @@ instance Plugin DebugToC where
                            (PEnv {options = opts, place = plc, indent = line})
                            procedure
 
-compToC :: ((Options, Place), Int) -> Module () -> (String, (Int, Int))
-compToC ((opts, plc), line) procedure = (up res, state res) where
-    res = transform DebugToC (line, 0)
-                    (PEnv {options = opts, place = plc, indent = 0}) procedure
-
 compToCWithInfos :: Options -> Int -> Module () -> CompToCCoreResult DebugToCSemanticInfo
 compToCWithInfos opts line procedure =
   CompToCCoreResult {
