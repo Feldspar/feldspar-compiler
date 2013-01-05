@@ -31,6 +31,7 @@
 
 module Feldspar.Compiler.Compiler where
 
+import Data.List (partition)
 import System.FilePath
 import Data.Typeable as DT
 import Control.Arrow
@@ -69,9 +70,10 @@ data SplitCompToCCoreResult = SplitCompToCCoreResult {
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
-    smdHeader = Module (filter belongsToHeader (entities m) ++ createProcDecls (entities m)) (moduleLabel m),
-    smdSource = Module (filter (not . belongsToHeader) $ entities m) (moduleLabel m)
+    smdHeader = Module (hdr ++ createProcDecls (entities m)) (moduleLabel m),
+    smdSource = Module body (moduleLabel m)
 } where
+    (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
     belongsToHeader StructDef{} = True
     belongsToHeader ProcDecl{}  = True
