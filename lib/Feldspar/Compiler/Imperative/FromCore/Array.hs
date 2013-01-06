@@ -114,7 +114,7 @@ instance ( Compile dom dom
             let sr' = infoSize $ getInfo lam2
             let ix@(Var _ name) = mkVar (compileTypeRep t sz) v
             len' <- mkLength len (infoType $ getInfo len) sz
-            tmp       <- freshVar "seq" tr' sr'
+            tmp  <- freshVar "seq" tr' sr'
             (_, Bl ds (Seq body)) <- confiscateBlock $ withAlias s (tmp :.: "member2") $ compileProg tmp step
             tellProg [initArray loc len']
             compileProg (tmp :.: "member2") st
