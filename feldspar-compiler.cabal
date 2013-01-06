@@ -55,7 +55,7 @@ library
     Feldspar.Compiler.Imperative.FromCore.Save
     Feldspar.Compiler.Imperative.Frontend
     Feldspar.Compiler.Imperative.TransformationInstance
-    Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
+--    Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
     Feldspar.Compiler.Imperative.Plugin.ConstantFolding
     Feldspar.Compiler.Imperative.Plugin.Free
     Feldspar.Compiler.Imperative.Plugin.IVars
