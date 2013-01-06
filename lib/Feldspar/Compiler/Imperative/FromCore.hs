@@ -54,7 +54,7 @@ import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
 import Feldspar.Compiler.Imperative.Representation (Module,Kind(..))
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
 import Feldspar.Compiler.Imperative.FromCore.Binding ()

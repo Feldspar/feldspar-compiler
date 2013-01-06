@@ -45,7 +45,7 @@ import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.MutableToPure
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
+import Feldspar.Compiler.Imperative.Frontend hiding (Variable)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

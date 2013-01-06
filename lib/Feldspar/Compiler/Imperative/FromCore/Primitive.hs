@@ -52,7 +52,7 @@ import Feldspar.Core.Constructs.Num
 import Feldspar.Core.Constructs.Ord
 import Feldspar.Core.Constructs.Trace
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

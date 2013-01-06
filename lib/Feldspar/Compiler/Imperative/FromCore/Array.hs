@@ -47,7 +47,10 @@ import Feldspar.Core.Constructs.Array
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Literal
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type, Variable)
+import Feldspar.Compiler.Imperative.Frontend hiding (Variable)
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
+                                                              Signedness(..),
+                                                              Size(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -138,7 +141,7 @@ instance ( Compile dom dom
             (_, Bl ds2 (Seq b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (loc :!: ix2) body2
             tellProg [initArray loc len]
             assign ix2 len
-            tellProg [For name len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (Binop U32 "+" [ix2, (litI U32 1)])]))]
+            tellProg [For name len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (Binop (Rep.NumType Rep.Unsigned Rep.S32) "+" [ix2, (litI (Rep.NumType Rep.Unsigned Rep.S32) 1)])]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a

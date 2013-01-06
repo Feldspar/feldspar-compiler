@@ -41,7 +41,7 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, Cast, In, Out, Block, NativeArray, NativeElem, Variable, Pointer)
+import Feldspar.Compiler.Imperative.Representation hiding (Cast, In, Out, Block, NativeElem, Variable, Pointer)
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
@@ -146,13 +146,13 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
       | native (typeof arr) = [replaceWith $ Skip]
     toNativeProg _ = []
 
-    toNativeVariable (Pointer arr@(SizedArray sz t) n)
+    toNativeVariable (Pointer arr@(ArrayType sz t) n)
       = [replaceWith $ Pointer (nativeArray arr) n]
-    toNativeVariable (Variable arr@(SizedArray sz t) n)
+    toNativeVariable (Variable arr@(ArrayType sz t) n)
       = [replaceWith $ Variable (nativeArray arr) n]
     toNativeVariable _ = []
 
-    nativeArray (SizedArray sz t) = NativeArray (fromSingleton sz) (nativeArray t)
+    nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray t = t
 
     native (NativeArray {}) = True
@@ -170,7 +170,7 @@ flattenCopy k dst (t:ts) (l:ls) cLen =
 ePlus :: Expr -> Expr -> Expr
 ePlus (Lit (EInt _ 0)) e = e
 ePlus e (Lit (EInt _ 0)) = e
-ePlus e1 e2 = Binop I32 "+" [e1, e2]
+ePlus e1 e2 = Binop (NumType Signed S32) "+" [e1, e2]
 
 c99Rules :: [Rule]
 c99Rules = [rule c99]
@@ -196,50 +196,50 @@ c99Rules = [rule c99]
     c99 (Fun t "(-)" [Lit (EInt _ 0), arg2]) = [replaceWith $ Fun t "-" [arg2]]
     c99 (Fun t "(-)" [Lit (EFloat 0), arg2]) = [replaceWith $ Fun t "-" [arg2]]
     c99 (Fun t "(-)" [arg1, arg2])   = [replaceWith $ Binop t "-" [arg1, arg2]]
-    c99 (Fun t "(*)" [Lit (EInt _ (log2 -> Just n)), arg2])    = [replaceWith $ Binop t "<<" [arg2, litI I32 n]]
-    c99 (Fun t "(*)" [arg1, Lit (EInt _ (log2 -> Just n))])    = [replaceWith $ Binop t "<<" [arg1, litI I32 n]]
+    c99 (Fun t "(*)" [Lit (EInt _ (log2 -> Just n)), arg2])    = [replaceWith $ Binop t "<<" [arg2, litI (NumType Signed S32) n]]
+    c99 (Fun t "(*)" [arg1, Lit (EInt _ (log2 -> Just n))])    = [replaceWith $ Binop t "<<" [arg1, litI (NumType Signed S32) n]]
     c99 (Fun t "(*)" [arg1, arg2])   = [replaceWith $ Binop t "*" [arg1, arg2]]
     c99 (Fun t "(/)" [arg1, arg2])   = [replaceWith $ Binop t "/" [arg1, arg2]]
     c99 (Fun t "div" [arg1, arg2]) =
         [replaceWith $ Fun div_t (div t) [arg1, arg2] :.: "quot"]
-      where div_t = Alias (Struct [("quot", t), ("rem", t)]) "div_t"
-            div I8  = "div"
-            div I16 = "div"
-            div I32 = "div"
-            div I40 = "ldiv"
-            div I64 = "lldiv"
-    c99 (Fun t@(Complex _) "exp" [arg])  = [replaceWith $ Fun t "cexpf" [arg]]
+      where div_t = Alias (StructType [("quot", t), ("rem", t)]) "div_t"
+            div (NumType Signed S8)  = "div"
+            div (NumType Signed S16) = "div"
+            div (NumType Signed S32) = "div"
+            div (NumType Signed S40) = "ldiv"
+            div (NumType Signed S64) = "lldiv"
+    c99 (Fun t@(ComplexType _) "exp" [arg])  = [replaceWith $ Fun t "cexpf" [arg]]
     c99 (Fun t "exp" [arg])  = [replaceWith $ Fun t "expf" [arg]]
-    c99 (Fun t@(Complex _) "sqrt" [arg]) = [replaceWith $ Fun t "csqrtf" [arg]]
+    c99 (Fun t@(ComplexType _) "sqrt" [arg]) = [replaceWith $ Fun t "csqrtf" [arg]]
     c99 (Fun t "sqrt" [arg]) = [replaceWith $ Fun t "sqrtf" [arg]]
-    c99 (Fun t@(Complex _) "log" [arg])  = [replaceWith $ Fun t "clogf" [arg]]
+    c99 (Fun t@(ComplexType _) "log" [arg])  = [replaceWith $ Fun t "clogf" [arg]]
     c99 (Fun t "log" [arg])  = [replaceWith $ Fun t "logf" [arg]]
-    c99 (Fun t@(Complex _) "(**)" [arg1, arg2])  = [replaceWith $ Fun t "cpowf" [arg1,arg2]]
+    c99 (Fun t@(ComplexType _) "(**)" [arg1, arg2])  = [replaceWith $ Fun t "cpowf" [arg1,arg2]]
     c99 (Fun t "(**)" [arg1, arg2])  = [replaceWith $ Fun t "powf" [arg1,arg2]]
     c99 (Fun t "logBase" [arg1, arg2])   = [replaceWith $ Fun t (extend "logBase" t) [arg1,arg2]]
-    c99 (Fun t@(Complex _) "sin" [arg])  = [replaceWith $ Fun t "csinf" [arg]]
+    c99 (Fun t@(ComplexType _) "sin" [arg])  = [replaceWith $ Fun t "csinf" [arg]]
     c99 (Fun t "sin" [arg])  = [replaceWith $ Fun t "sinf" [arg]]
-    c99 (Fun t@(Complex _) "tan" [arg])  = [replaceWith $ Fun t "ctanf" [arg]]
+    c99 (Fun t@(ComplexType _) "tan" [arg])  = [replaceWith $ Fun t "ctanf" [arg]]
     c99 (Fun t "tan" [arg])  = [replaceWith $ Fun t "tanf" [arg]]
-    c99 (Fun t@(Complex _) "cos" [arg])  = [replaceWith $ Fun t "ccosf" [arg]]
+    c99 (Fun t@(ComplexType _) "cos" [arg])  = [replaceWith $ Fun t "ccosf" [arg]]
     c99 (Fun t "cos" [arg])  = [replaceWith $ Fun t "cosf" [arg]]
-    c99 (Fun t@(Complex _) "asin" [arg]) = [replaceWith $ Fun t "casinf" [arg]]
+    c99 (Fun t@(ComplexType _) "asin" [arg]) = [replaceWith $ Fun t "casinf" [arg]]
     c99 (Fun t "asin" [arg]) = [replaceWith $ Fun t "asinf" [arg]]
-    c99 (Fun t@(Complex _) "atan" [arg]) = [replaceWith $ Fun t "catanf" [arg]]
+    c99 (Fun t@(ComplexType _) "atan" [arg]) = [replaceWith $ Fun t "catanf" [arg]]
     c99 (Fun t "atan" [arg]) = [replaceWith $ Fun t "atanf" [arg]]
-    c99 (Fun t@(Complex _) "acos" [arg]) = [replaceWith $ Fun t "cacosf" [arg]]
+    c99 (Fun t@(ComplexType _) "acos" [arg]) = [replaceWith $ Fun t "cacosf" [arg]]
     c99 (Fun t "acos" [arg]) = [replaceWith $ Fun t "acosf" [arg]]
-    c99 (Fun t@(Complex _) "sinh" [arg]) = [replaceWith $ Fun t "csinhf" [arg]]
+    c99 (Fun t@(ComplexType _) "sinh" [arg]) = [replaceWith $ Fun t "csinhf" [arg]]
     c99 (Fun t "sinh" [arg]) = [replaceWith $ Fun t "sinhf" [arg]]
-    c99 (Fun t@(Complex _) "tanh" [arg]) = [replaceWith $ Fun t "ctanhf" [arg]]
+    c99 (Fun t@(ComplexType _) "tanh" [arg]) = [replaceWith $ Fun t "ctanhf" [arg]]
     c99 (Fun t "tanh" [arg]) = [replaceWith $ Fun t "tanhf" [arg]]
-    c99 (Fun t@(Complex _) "cosh" [arg]) = [replaceWith $ Fun t "ccoshf" [arg]]
+    c99 (Fun t@(ComplexType _) "cosh" [arg]) = [replaceWith $ Fun t "ccoshf" [arg]]
     c99 (Fun t "cosh" [arg]) = [replaceWith $ Fun t "coshf" [arg]]
-    c99 (Fun t@(Complex _) "asinh" [arg])    = [replaceWith $ Fun t "casinhf" [arg]]
+    c99 (Fun t@(ComplexType _) "asinh" [arg])    = [replaceWith $ Fun t "casinhf" [arg]]
     c99 (Fun t "asinh" [arg])    = [replaceWith $ Fun t "asinhf" [arg]]
-    c99 (Fun t@(Complex _) "atanh" [arg])    = [replaceWith $ Fun t "catanhf" [arg]]
+    c99 (Fun t@(ComplexType _) "atanh" [arg])    = [replaceWith $ Fun t "catanhf" [arg]]
     c99 (Fun t "atanh" [arg])    = [replaceWith $ Fun t "atanhf" [arg]]
-    c99 (Fun t@(Complex _) "acosh" [arg])    = [replaceWith $ Fun t "cacoshf" [arg]]
+    c99 (Fun t@(ComplexType _) "acosh" [arg])    = [replaceWith $ Fun t "cacoshf" [arg]]
     c99 (Fun t "acosh" [arg])    = [replaceWith $ Fun t "acoshf" [arg]]
     c99 (Fun t "(.&.)" [arg1, arg2]) = [replaceWith $ Binop t "&" [arg1, arg2]]
     c99 (Fun t "(.|.)" [arg1, arg2]) = [replaceWith $ Binop t "|" [arg1, arg2]]
@@ -257,7 +257,7 @@ c99Rules = [rule c99]
     c99 (Fun t "reverseBits" [arg])  = [replaceWith $ Fun t (extend "reverseBits" t) [arg]]
     c99 (Fun t "bitScan" [arg])  = [replaceWith $ Fun t (extend "bitScan" $ typeof arg) [arg]]
     c99 (Fun t "bitCount" [arg]) = [replaceWith $ Fun t (extend "bitCount" $ typeof arg) [arg]]
-    c99 (Fun _ "bitSize" [intWidth . typeof -> Just n])  = [replaceWith $ litI U32 n]
+    c99 (Fun _ "bitSize" [intWidth . typeof -> Just n])  = [replaceWith $ litI (NumType Unsigned S32) n]
     c99 (Fun _ "isSigned" [intSigned . typeof -> Just b])    = [replaceWith $ litB b]
     c99 (Fun t "complex" [arg1, arg2])   = [replaceWith $ Fun t (extend "complex" $ typeof arg1) [arg1,arg2]]
     c99 (Fun t "creal" [arg])    = [replaceWith $ Fun t "crealf" [arg]]
@@ -267,38 +267,38 @@ c99Rules = [rule c99]
     c99 (Fun t "phase" [arg])    = [replaceWith $ Fun t "cargf" [arg]]
     c99 (Fun t "mkPolar" [arg1, arg2])   = [replaceWith $ Fun t (extend "mkPolar" $ typeof arg1) [arg1, arg2]]
     c99 (Fun t "cis" [arg])  = [replaceWith $ Fun t (extend "cis" $ typeof arg) [arg]]
-    c99 (Fun t "f2i" [arg])  = [replaceWith $ Cast t $ Fun Floating "truncf" [arg]]
-    c99 (Fun (Complex t) "i2n" [arg])    = [replaceWith $ Fun (Complex t) (extend "complex" t) [Cast t arg, Lit (EFloat 0)]]
+    c99 (Fun t "f2i" [arg])  = [replaceWith $ Cast t $ Fun FloatType "truncf" [arg]]
+    c99 (Fun (ComplexType t) "i2n" [arg])    = [replaceWith $ Fun (ComplexType t) (extend "complex" t) [Cast t arg, Lit (EFloat 0)]]
     c99 (Fun t "i2n" [arg])  = [replaceWith $ Cast t arg]
     c99 (Fun t "b2i" [arg])  = [replaceWith $ Cast t arg]
-    c99 (Fun t "round" [arg])    = [replaceWith $ Cast t $ Fun Floating "roundf" [arg]]
-    c99 (Fun t "ceiling" [arg])  = [replaceWith $ Cast t $ Fun Floating "ceilf" [arg]]
-    c99 (Fun t "floor" [arg])    = [replaceWith $ Cast t $ Fun Floating "floorf" [arg]]
+    c99 (Fun t "round" [arg])    = [replaceWith $ Cast t $ Fun FloatType "roundf" [arg]]
+    c99 (Fun t "ceiling" [arg])  = [replaceWith $ Cast t $ Fun FloatType "ceilf" [arg]]
+    c99 (Fun t "floor" [arg])    = [replaceWith $ Cast t $ Fun FloatType "floorf" [arg]]
     c99 _ = []
 
 tic64xRules :: [Rule]
 tic64xRules = [rule tic64x]
   where
-    tic64x (Fun t "(==)" [arg1@(typeof -> Complex _), arg2])    = [replaceWith $ Fun t (extend "equal" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "(/=)" [arg1@(typeof -> Complex _), arg2])    = [replaceWith $ Fun t "!" [Fun t (extend "equal" $ typeof arg1) [arg1, arg2]]]
-    tic64x (Fun t "abs" [arg@(typeof -> Floating)]) = [replaceWith $ Fun t "_fabs" [arg]]
-    tic64x (Fun t "abs" [arg@(typeof -> I32)])  = [replaceWith $ Fun t "_abs" [arg]]
-    tic64x (Fun t "(+)" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "add" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "(-)" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "sub" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "(*)" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "mult" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "(/)" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "div" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "exp" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "exp" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "sqrt" [arg1@(typeof -> Complex _), arg2])    = [replaceWith $ Fun t (extend "sqrt" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "log" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "log" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "(**)" [arg1@(typeof -> Complex _), arg2])    = [replaceWith $ Fun t (extend "cpow" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t "logBase" [arg1@(typeof -> Complex _), arg2]) = [replaceWith $ Fun t (extend "logBase" $ typeof arg1) [arg1, arg2]]
-    tic64x (Fun t fn [arg@(typeof -> Complex _)])
+    tic64x (Fun t "(==)" [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ Fun t (extend "equal" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "(/=)" [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ Fun t "!" [Fun t (extend "equal" $ typeof arg1) [arg1, arg2]]]
+    tic64x (Fun t "abs" [arg@(typeof -> FloatType)]) = [replaceWith $ Fun t "_fabs" [arg]]
+    tic64x (Fun t "abs" [arg@(typeof -> (NumType Signed S32))])  = [replaceWith $ Fun t "_abs" [arg]]
+    tic64x (Fun t "(+)" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "add" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "(-)" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "sub" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "(*)" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "mult" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "(/)" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "div" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "exp" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "exp" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "sqrt" [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ Fun t (extend "sqrt" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "log" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "log" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "(**)" [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ Fun t (extend "cpow" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t "logBase" [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ Fun t (extend "logBase" $ typeof arg1) [arg1, arg2]]
+    tic64x (Fun t fn [arg@(typeof -> ComplexType _)])
         | fn `elem` ["sin","tan","cos","asin","atan","acos","sinh","tanh","cosh","asinh","atanh","acosh","creal","cimag","conjugate","magnitude","phase"]
             = [replaceWith $ Fun t (extend fn $ typeof arg) [arg]]
-    tic64x (Fun t "rotateL" [arg1@(typeof -> U32), arg2])   = [replaceWith $ Fun t "_rotl" [arg1, arg2]]
-    tic64x (Fun t "reverseBits" [arg@(typeof -> U32)])  = [replaceWith $ Fun t "_bitr" [arg]]
-    tic64x (Fun t "bitCount" [arg@(typeof -> U32)])  = [replaceWith $ Fun t "_dotpu4" [Fun t "_bitc4" [arg], litI U32 0x01010101]]
-    tic64x (Fun t _ [arg@(typeof -> Complex _)]) = [replaceWith $ Fun t (extend "creal" $ typeof arg) [arg]]
+    tic64x (Fun t "rotateL" [arg1@(typeof -> (NumType Unsigned S32)), arg2])   = [replaceWith $ Fun t "_rotl" [arg1, arg2]]
+    tic64x (Fun t "reverseBits" [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ Fun t "_bitr" [arg]]
+    tic64x (Fun t "bitCount" [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ Fun t "_dotpu4" [Fun t "_bitc4" [arg], litI (NumType Unsigned S32) 0x01010101]]
+    tic64x (Fun t _ [arg@(typeof -> ComplexType _)]) = [replaceWith $ Fun t (extend "creal" $ typeof arg) [arg]]
     tic64x _ = []
 
 traceRules :: [Rule]

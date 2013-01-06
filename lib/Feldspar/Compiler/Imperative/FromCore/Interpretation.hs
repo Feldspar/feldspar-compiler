@@ -46,14 +46,17 @@ import Language.Syntactic.Constraint
 import Language.Syntactic.Constructs.Binding (VarId)
 
 import Feldspar.Range
-import Feldspar.Core.Types hiding (Type)
+import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType,
+                                   ComplexType, IVarType, Signedness, Size)
 import Feldspar.Core.Interpretation
 import qualified Feldspar.Core.Types as Core
 import qualified Feldspar.Core.Constructs.Binding as Core
 import qualified Feldspar.Core.Constructs.Literal as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (typeof, Place(..))
+import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),
+                                                    Type(..), Signedness(..),
+                                                    Size(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
@@ -199,47 +202,47 @@ compileExprVar e = do
 -- * Utility functions
 --------------------------------------------------------------------------------
 
-compileNumType :: Signedness a -> BitWidth n -> Type
-compileNumType U N8      = U8
-compileNumType S N8      = I8
-compileNumType U N16     = U16
-compileNumType S N16     = I16
-compileNumType U N32     = U32
-compileNumType S N32     = I32
-compileNumType U N64     = U64
-compileNumType S N64     = I64
-compileNumType U NNative = U32  -- TODO
-compileNumType S NNative = I32  -- TODO
+compileNumType :: Core.Signedness a -> BitWidth n -> Type
+compileNumType U N8      = (NumType Unsigned S8)
+compileNumType S N8      = (NumType Signed S8)
+compileNumType U N16     = (NumType Unsigned S16)
+compileNumType S N16     = (NumType Signed S16)
+compileNumType U N32     = (NumType Unsigned S32)
+compileNumType S N32     = (NumType Signed S32)
+compileNumType U N64     = (NumType Unsigned S64)
+compileNumType S N64     = (NumType Signed S64)
+compileNumType U NNative = (NumType Unsigned S32)  -- TODO
+compileNumType S NNative = (NumType Signed S32)  -- TODO
 
-compileTypeRep :: TypeRep a -> Size a -> Type
-compileTypeRep UnitType _                = Void
-compileTypeRep BoolType _                = Boolean
+compileTypeRep :: TypeRep a -> Core.Size a -> Type
+compileTypeRep UnitType _                = VoidType
+compileTypeRep Core.BoolType _           = BoolType
 compileTypeRep (IntType s n) _           = compileNumType s n
-compileTypeRep FloatType _               = Floating
-compileTypeRep (ComplexType t) _         = Complex (compileTypeRep t (defaultSize t))
-compileTypeRep (Tup2Type a b) (sa,sb)          = Struct
+compileTypeRep Core.FloatType _          = FloatType
+compileTypeRep (Core.ComplexType t) _    = ComplexType (compileTypeRep t (defaultSize t))
+compileTypeRep (Tup2Type a b) (sa,sb)          = StructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         ]
-compileTypeRep (Tup3Type a b c) (sa,sb,sc)        = Struct
+compileTypeRep (Tup3Type a b c) (sa,sb,sc)        = StructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
         ]
-compileTypeRep (Tup4Type a b c d) (sa,sb,sc,sd)      = Struct
+compileTypeRep (Tup4Type a b c d) (sa,sb,sc,sd)      = StructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
         , ("member4", compileTypeRep d sd)
         ]
-compileTypeRep (Tup5Type a b c d e) (sa,sb,sc,sd,se)    = Struct
+compileTypeRep (Tup5Type a b c d e) (sa,sb,sc,sd,se)    = StructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
         , ("member4", compileTypeRep d sd)
         , ("member5", compileTypeRep e se)
         ]
-compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = Struct
+compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = StructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
@@ -247,7 +250,7 @@ compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = Struct
         , ("member5", compileTypeRep e se)
         , ("member6", compileTypeRep f sf)
         ]
-compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = Struct
+compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = StructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
@@ -258,12 +261,12 @@ compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = Struct
         ]
 compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (ArrayType a) (rs :> es) = SizedArray rs $ compileTypeRep a es
-compileTypeRep (MArrType a) (rs :> es)  = SizedArray rs $ compileTypeRep a es
+compileTypeRep (Core.ArrayType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
+compileTypeRep (MArrType a) (rs :> es)  = ArrayType rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (IVarType a) _           = IVar $ compileTypeRep a $ defaultSize a
+compileTypeRep (Core.IVarType a) _      = IVarType $ compileTypeRep a $ defaultSize a
 compileTypeRep (FunType _ b) sz         = compileTypeRep b sz
-compileTypeRep (FValType a) sz          = IVar $ compileTypeRep a sz
+compileTypeRep (FValType a) sz          = IVarType $ compileTypeRep a sz
 compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
 mkVarName :: VarId -> String
@@ -287,7 +290,7 @@ freshId = do
   put (s {fresh = v + 1})
   return v
 
-freshVar :: String -> TypeRep a -> Size a -> CodeWriter Expr -- TODO take just info instead of TypeRep and Size?
+freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter Expr -- TODO take just info instead of TypeRep and Size?
 freshVar base t size = do
   v <- freshId
   let var =Var (compileTypeRep t size) $ base ++ show v
@@ -325,7 +328,7 @@ getTypes opts defs = mkDef comps
     -- There are other composite types that are not flagged as such by this
     -- version of isComposite, so keep it private.
     isComposite :: Type -> Bool
-    isComposite (Struct {}) = True
+    isComposite (StructType {}) = True
     isComposite e = isArray e
     -- TODO: There is nothing in the frontend for naming structures in
     -- Prog, that is done in CodeGeneration by toC. We should combine
@@ -333,9 +336,9 @@ getTypes opts defs = mkDef comps
     -- prettyprinting.
     mkDef [] = []
     mkDef (typ:typs)
-      | s@(Struct members) <- typ
-      = mkDef (map snd members) ++ (StructD (toC opts Declaration_pl (fromInterface s)) members):mkDef typs
-      | (SizedArray _ typ2) <- typ = mkDef (typ2:typs)
+      | s@(StructType members) <- typ
+      = mkDef (map snd members) ++ (StructD (toC opts Declaration_pl s) members):mkDef typs
+      | (ArrayType _ typ2) <- typ = mkDef (typ2:typs)
       | otherwise = mkDef typs
 
 assign :: Location -> Expr -> CodeWriter ()
@@ -364,7 +367,7 @@ mkLength :: ( Project (Core.Literal  :|| Core.Type) dom
             , Project (Core.Variable :|| Core.Type) dom
             , Compile dom dom
             )
-         => ASTF (Decor Info dom) a -> TypeRep a -> Size a -> CodeWriter Expr
+         => ASTF (Decor Info dom) a -> TypeRep a -> Core.Size a -> CodeWriter Expr
 mkLength a t sz 
   | isVariableOrLiteral a = compileExpr a
   | otherwise             = do

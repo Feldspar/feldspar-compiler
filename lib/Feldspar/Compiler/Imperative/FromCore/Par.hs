@@ -44,7 +44,7 @@ import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding hiding (Variable)
 import Feldspar.Core.Constructs.Par
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -119,7 +119,7 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDf taskName AIR.KTask [] [Variable Void "params"] runTask]
+        tellDef [ProcDf taskName AIR.KTask [] [Variable AIR.VoidType "params"] runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 

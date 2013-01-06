@@ -49,7 +49,7 @@ import Feldspar.Core.Constructs.Loop hiding (For, While)
 import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance ( Compile dom dom

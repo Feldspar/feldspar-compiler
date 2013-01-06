@@ -41,7 +41,7 @@ import Language.Syntactic
 import Feldspar.Core.Types
 import Feldspar.Core.Constructs.SourceInfo
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

@@ -36,7 +36,7 @@ import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, Type, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, NativeArray, NativeElem)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, NativeArray, NativeElem)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
@@ -52,22 +52,6 @@ data Ent
     | ProcDf String Kind [Var] [Var] Prog
     | ProcDcl String Kind [Var] [Var]
     deriving (Eq,Show)
-
-data Type
-    = Void
-    | Boolean
-    | Bit
-    | Floating
-    | I8 | I16 | I32 | I40 | I64
-    | U8 | U16 | U32 | U40 | U64
-    | Complex Type
-    | UserType String
-    | SizedArray (Range Length) Type
-    | NativeArray (Maybe Length) Type
-    | Struct [(String, Type)]
-    | IVar Type
-    | Alias Type String
-  deriving Eq
 
 data Expr
     = Var Type String
@@ -162,96 +146,51 @@ instance Interface Mod where
 instance Interface Ent where
     type Repr Ent = AIR.Entity ()
     toInterface (AIR.StructDef name members) =
-        StructD name (map (\(StructMember mname mtyp)->(mname,toInterface mtyp)) members)
+        StructD name (map (\(StructMember mname mtyp)->(mname, mtyp)) members)
     toInterface (AIR.ProcDef name knd inparams outparams body) =
         ProcDf name knd (map toInterface inparams) (map toInterface outparams) (toProg body)
     toInterface (AIR.ProcDecl name knd inparams outparams) =
         ProcDcl name knd (map toInterface inparams) (map toInterface outparams)
     toInterface AIR.TypeDef{} = error "TypeDef not handled"
     fromInterface (StructD name members) =
-        AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname (fromInterface mtyp))) members)
+        AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname mtyp)) members)
     fromInterface (ProcDf name knd inparams outparams body) =
         AIR.ProcDef name knd (map fromInterface inparams) (map fromInterface outparams) (toBlock body)
     fromInterface (ProcDcl name knd inparams outparams) =
         AIR.ProcDecl name knd (map fromInterface inparams) (map fromInterface outparams)
 
-instance Interface Type where
-    type Repr Type = AIR.Type
-    toInterface VoidType = Void
-    toInterface (AIR.Alias t s) = Alias (toInterface t) s
-    toInterface AIR.BoolType = Boolean
-    toInterface BitType = Bit
-    toInterface AIR.FloatType = Floating
-    toInterface (NumType Signed S8) = I8
-    toInterface (NumType Signed S16) = I16
-    toInterface (NumType Signed S32) = I32
-    toInterface (NumType Signed S40) = I40
-    toInterface (NumType Signed S64) = I64
-    toInterface (NumType Unsigned S8) = U8
-    toInterface (NumType Unsigned S16) = U16
-    toInterface (NumType Unsigned S32) = U32
-    toInterface (NumType Unsigned S40) = U40
-    toInterface (NumType Unsigned S64) = U64
-    toInterface (AIR.ComplexType t) = Complex $ toInterface t
-    toInterface (AIR.UserType s) = UserType s
-    toInterface (AIR.ArrayType l t) = SizedArray l $ toInterface t
-    toInterface (AIR.NativeArray l t) = NativeArray l $ toInterface t
-    toInterface (AIR.StructType fields) = Struct $ map (second toInterface) fields
-    toInterface (AIR.IVarType t) = IVar $ toInterface t
-    fromInterface Void = VoidType
-    fromInterface (Alias t s) = AIR.Alias (fromInterface t) s
-    fromInterface Boolean = AIR.BoolType
-    fromInterface Bit = BitType
-    fromInterface Floating = AIR.FloatType
-    fromInterface I8 = NumType Signed S8
-    fromInterface I16 = NumType Signed S16
-    fromInterface I32 = NumType Signed S32
-    fromInterface I40 = NumType Signed S40
-    fromInterface I64 = NumType Signed S64
-    fromInterface U8 = NumType Unsigned S8
-    fromInterface U16 = NumType Unsigned S16
-    fromInterface U32 = NumType Unsigned S32
-    fromInterface U40 = NumType Unsigned S40
-    fromInterface U64 = NumType Unsigned S64
-    fromInterface (Complex t) = AIR.ComplexType $ fromInterface t
-    fromInterface (UserType s) = AIR.UserType s
-    fromInterface (SizedArray l t) = AIR.ArrayType l $ fromInterface t
-    fromInterface (NativeArray l t) = AIR.NativeArray l $ fromInterface t
-    fromInterface (Struct fields) = AIR.StructType $ map (second fromInterface) fields
-    fromInterface (IVar t) = AIR.IVarType $ fromInterface t
-
 instance Interface Expr where
     type Repr Expr = Expression ()
-    toInterface (VarExpr (AIR.Variable name t Value)) = Var (toInterface t) name
-    toInterface (VarExpr (AIR.Variable name t AIR.Pointer)) = Ptr (toInterface t) name
+    toInterface (VarExpr (AIR.Variable name t Value)) = Var t name
+    toInterface (VarExpr (AIR.Variable name t AIR.Pointer)) = Ptr t name
     toInterface (ArrayElem arr idx) = toInterface arr :!: toInterface idx
     toInterface (AIR.NativeElem arr idx) = NativeElem (toInterface arr) (toInterface idx)
     toInterface (StructField str field) = toInterface str :.: field
     toInterface (ConstExpr (BoolConst True)) = litB True
     toInterface (ConstExpr (BoolConst False)) = litB False
-    toInterface (ConstExpr (IntConst x t)) = litI (toInterface t) x
+    toInterface (ConstExpr (IntConst x t)) = litI t x
     toInterface (ConstExpr (FloatConst x)) = litF x
     toInterface (ConstExpr (ComplexConst r i)) = litC (toInterface $ ConstExpr r) (toInterface $ ConstExpr i)
-    toInterface (FunctionCall (Function name t Prefix) ps) = Fun (toInterface t) name $ map toInterface ps
-    toInterface (FunctionCall (Function name t Infix) ps) = Binop (toInterface t) name $ map toInterface ps
-    toInterface (AIR.Cast t e) = Cast (toInterface t) (toInterface e)
-    toInterface (SizeOf (Left t)) = SizeofT $ toInterface t
-    toInterface (SizeOf (Right e)) = SizeofE $ toInterface e
-    fromInterface (Var t name) = VarExpr (AIR.Variable name (fromInterface t) Value)
-    fromInterface (Ptr t name) = VarExpr (AIR.Variable name (fromInterface t) AIR.Pointer)
+    toInterface (FunctionCall (Function name t Prefix) ps) = Fun t name $ map toInterface ps
+    toInterface (FunctionCall (Function name t Infix) ps) = Binop t name $ map toInterface ps
+    toInterface (AIR.Cast t e) = Cast t (toInterface e)
+    toInterface (SizeOf (Left t)) = SizeofT t
+    toInterface (SizeOf (Right e)) = SizeofE (toInterface e)
+    fromInterface (Var t name) = VarExpr (AIR.Variable name t Value)
+    fromInterface (Ptr t name) = VarExpr (AIR.Variable name t AIR.Pointer)
     fromInterface (Lit (EBool b)) = ConstExpr (BoolConst b)
-    fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x (fromInterface t))
+    fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x t)
     fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x)
     fromInterface (Lit (EComplex
                         (fromInterface -> ConstExpr r)
                         (fromInterface -> ConstExpr i))) =
                         ConstExpr (ComplexConst r i)
     fromInterface (Lit (EComplex _ _)) = error "Internal compiler error for complex literal"
-    fromInterface (Binop t name es) = FunctionCall (Function name (fromInterface t) Infix) (map fromInterface es)
-    fromInterface (Fun t name es) = FunctionCall (Function name (fromInterface t) Prefix) (map fromInterface es)
-    fromInterface (Cast t e) = AIR.Cast (fromInterface t) (fromInterface e)
+    fromInterface (Binop t name es) = FunctionCall (Function name t Infix) (map fromInterface es)
+    fromInterface (Fun t name es) = FunctionCall (Function name t Prefix) (map fromInterface es)
+    fromInterface (Cast t e) = AIR.Cast t (fromInterface e)
     fromInterface (SizeofE e) = SizeOf (Right $ fromInterface e)
-    fromInterface (SizeofT t) = SizeOf (Left $ fromInterface t)
+    fromInterface (SizeofT t) = SizeOf (Left t)
     fromInterface (arr :!: idx) = ArrayElem (fromInterface arr) (fromInterface idx)
     fromInterface (NativeElem arr idx) = AIR.NativeElem (fromInterface arr) (fromInterface idx)
     fromInterface (str :.: field) = StructField (fromInterface str) field
@@ -284,14 +223,14 @@ instance Interface Param where
     type Repr Param = ActualParameter ()
     toInterface (AIR.In e) = In (toInterface e)
     toInterface (AIR.Out e) = Out (toInterface e)
-    toInterface (AIR.TypeParameter e AIR.Auto) = TypAuto (toInterface e)
-    toInterface (AIR.TypeParameter e AIR.Scalar) = TypScalar (toInterface e)
+    toInterface (AIR.TypeParameter e AIR.Auto) = TypAuto e
+    toInterface (AIR.TypeParameter e AIR.Scalar) = TypScalar e
     toInterface (AIR.FunParameter n k False) = Fn n k
     toInterface (AIR.FunParameter n k True) = FnAddr n k
     fromInterface (In e) = AIR.In (fromInterface e)
     fromInterface (Out e) = AIR.Out (fromInterface e)
-    fromInterface (TypAuto e) = AIR.TypeParameter (fromInterface e) Auto
-    fromInterface (TypScalar e) = AIR.TypeParameter (fromInterface e) Scalar
+    fromInterface (TypAuto e) = AIR.TypeParameter e Auto
+    fromInterface (TypScalar e) = AIR.TypeParameter e Scalar
     fromInterface (Fn n k) = AIR.FunParameter n k False
     fromInterface (FnAddr n k) = AIR.FunParameter n k True
 
@@ -309,10 +248,10 @@ instance Interface Block where
 
 instance Interface Var where
     type Repr Var = AIR.Variable ()
-    toInterface (AIR.Variable name typ Value) = Variable (toInterface typ) name
-    toInterface (AIR.Variable name typ AIR.Pointer) = Pointer (toInterface typ) name
-    fromInterface (Variable typ name) = AIR.Variable name (fromInterface typ) Value
-    fromInterface (Pointer typ name) = AIR.Variable name (fromInterface typ) AIR.Pointer
+    toInterface (AIR.Variable name typ Value) = Variable typ name
+    toInterface (AIR.Variable name typ AIR.Pointer) = Pointer typ name
+    fromInterface (Variable typ name) = AIR.Variable name typ Value
+    fromInterface (Pointer typ name) = AIR.Variable name typ AIR.Pointer
 
 toBlock :: Prog -> AIR.Block ()
 toBlock (Block ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
@@ -344,10 +283,10 @@ initArray :: Expr -> Expr -> Prog
 initArray arr len = Call "initArray" KNormal [Out arr, In s, In len]
   where
     s
-        | isArray t = Binop U32 "-" [litI U32 0,SizeofT t]
+        | isArray t = Binop (NumType Unsigned S32) "-" [litI (NumType Unsigned S32) 0,SizeofT t]
         | otherwise = SizeofT t
     t = case typeof arr of
-        SizedArray _ e -> e
+        ArrayType _ e -> e
         _       -> error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 assignProg :: Expr -> Expr -> Prog
@@ -363,20 +302,20 @@ freeArrays defs = map freeArray arrays
 
 arrayLength :: Expr -> Expr
 arrayLength arr
-  | Just r <- chaseArray arr = litI U32 $ fromIntegral (upperBound r)
-  | otherwise = Fun U32 "getLength" [arr]
+  | Just r <- chaseArray arr = litI (NumType Unsigned S32) $ fromIntegral (upperBound r)
+  | otherwise = Fun (NumType Unsigned S32) "getLength" [arr]
 
 chaseArray :: Expr -> Maybe (Range Length)
 chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
   where go :: Expr -> [String] -> Maybe (Range Length)
-        go (Var (SizedArray r _) _) [] | isSingleton r = Just r
-        go (Ptr (SizedArray r _) _) [] | isSingleton r = Just r
+        go (Var (ArrayType r _) _) [] | isSingleton r = Just r
+        go (Ptr (ArrayType r _) _) [] | isSingleton r = Just r
         go (e :.: s) ss = go e (s:ss)
-        go (Var (Struct fields) _) (s:_)
-          | Just (SizedArray r _) <- lookup s fields 
+        go (Var (StructType fields) _) (s:_)
+          | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
-        go (Ptr (Struct fields) _) (s:_)
-          | Just (SizedArray r _) <- lookup s fields 
+        go (Ptr (StructType fields) _) (s:_)
+          | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
         go _ _ = Nothing
 
@@ -421,67 +360,29 @@ run taskName vs = Call runName KTask allParams
     typeParams = map (TypAuto . vType) vs
     taskParam = Fn taskName KTask
     allParams = taskParam : typeParams
-    
-instance Show Type
-  where
-    show Void       = "void"
-    show Boolean    = "bool"
-    show Bit        = "bit"
-    show Floating   = "float"
-    show I8         = "int8"
-    show I16        = "int16"
-    show I32        = "int32"
-    show I40        = "int40"
-    show I64        = "int64"
-    show U8         = "uint8"
-    show U16        = "uint16"
-    show U32        = "uint32"
-    show U40        = "uint40"
-    show U64        = "uint64"
-    show (Complex t)    = "complexOf_" ++ show t
-    show (UserType s)   = "userType_" ++ s
-    show (NativeArray _ t) = show t ++ "*"
-    show (SizedArray i t)
-      | isSingleton i = "arrayOfSize_" ++ show (upperBound i) ++ "_" ++ show t
-      | otherwise = "arrayOf_" ++ show t
-    show (Struct fields)    = "struct_" ++ intercalate "_" (map (\(s,t) -> s ++ "_" ++ show t) fields)
-    show (IVar t)   = "ivarOf_" ++ show t
 
 instance HasType Expr
   where
     type TypeOf Expr = Type
-    typeof = toInterface . typeof . fromInterface
+    typeof = typeof . fromInterface
 
 instance HasType Var
   where
     type TypeOf Var = Type
-    typeof = toInterface . typeof . fromInterface
+    typeof = typeof . fromInterface
 
 intWidth :: Type -> Maybe Integer
-intWidth I8  = Just 8
-intWidth I16 = Just 16
-intWidth I32 = Just 32
-intWidth I40 = Just 40
-intWidth I64 = Just 64
-intWidth U8  = Just 8
-intWidth U16 = Just 16
-intWidth U32 = Just 32
-intWidth U40 = Just 40
-intWidth U64 = Just 64
-intWidth _   = Nothing
+intWidth (NumType _ S8)  = Just 8
+intWidth (NumType _ S16) = Just 16
+intWidth (NumType _ S32) = Just 32
+intWidth (NumType _ S40) = Just 40
+intWidth (NumType _ S64) = Just 64
+intWidth _               = Nothing
 
 intSigned :: Type -> Maybe Bool
-intSigned I8  = Just True
-intSigned I16 = Just True
-intSigned I32 = Just True
-intSigned I40 = Just True
-intSigned I64 = Just True
-intSigned U8  = Just False
-intSigned U16 = Just False
-intSigned U32 = Just False
-intSigned U40 = Just False
-intSigned U64 = Just False
-intSigned _   = Nothing
+intSigned (NumType Unsigned _) = Just False
+intSigned (NumType Signed _)   = Just True
+intSigned _                    = Nothing
 
 litF :: Double -> Expr
 litF n = Lit (EFloat n)
@@ -497,19 +398,19 @@ litI :: Type -> Integer -> Expr
 litI t n = Lit (EInt t n)
 
 litI32 :: Integer -> Expr
-litI32 n = Lit (EInt I32 n)
+litI32 n = litI (NumType Unsigned S32) n
 
 isArray :: Type -> Bool
-isArray (SizedArray _ _) = True
+isArray ArrayType{} = True
 isArray _ = False
 
 isIVar :: Type -> Bool
-isIVar (IVar _ ) = True
-isIVar _ = False
+isIVar AIR.IVarType{} = True
+isIVar _              = False
 
 vType :: Var -> Type
 vType (Variable t _) = t
-vType (Pointer t _) = t
+vType (Pointer t _)  = t
 
 dVar :: Def -> Var
 dVar (Def v)    = v
@@ -517,7 +418,7 @@ dVar (Init v _) = v
 
 vName :: Var -> String
 vName (Variable _ s) = s
-vName (Pointer _ s) = s
+vName (Pointer _ s)  = s
 
 lName :: Expr -> String
 lName (Var _ s) = s
@@ -528,4 +429,4 @@ lName e = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location
 
 varToExpr :: Var -> Expr
 varToExpr (Variable t name) = Var t name
-varToExpr (Pointer t name) = Ptr t name
+varToExpr (Pointer t name)  = Ptr t name

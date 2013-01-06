@@ -47,8 +47,11 @@ import Feldspar.Core.Constructs.Mutable
 import Feldspar.Core.Constructs.MutableArray
 import Feldspar.Core.Constructs.MutableReference
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
+                                                                     Size(..),
+                                                                     Signedness(..))
 
 
 instance ( Compile dom dom
@@ -111,7 +114,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
       tellProg [initArray loc l]
 
     compileProgSym NewArr _ loc (len :* a :* Nil) = do
-        let ix = Var U32 "i"
+        let ix = Var (Rep.NumType Rep.Unsigned Rep.S32) "i"
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]
