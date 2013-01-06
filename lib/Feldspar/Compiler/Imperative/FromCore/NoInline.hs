@@ -35,32 +35,32 @@
 
 module Feldspar.Compiler.Imperative.FromCore.NoInline where
 
-import Data.Map (elems)
+import Data.Map (assocs)
 import Data.List (partition)
 import Language.Syntactic
 
-import Feldspar.Core.Types (Type)
+import Feldspar.Core.Types (Type,defaultSize)
+import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.NoInline
-import Feldspar.Transformation (transform, Result(..))
 import Feldspar.Compiler.Imperative.Representation (Kind(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
-import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
-import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
-import qualified Feldspar.Compiler.Imperative.Frontend as Front
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 
 instance Compile dom dom => Compile (NoInline :|| Type) dom
   where
     compileExprSym = compileProgFresh
 
-    compileProgSym (C' NoInline) _ loc (p :* Nil) = do
+    compileProgSym (C' NoInline) info loc (p :* Nil) = do
+        let args = [mkVariable (compileTypeRep t (defaultSize t)) v
+                   | (v,SomeType t) <- assocs $ infoVars info
+                   ]
         (_, Bl ds t)  <- confiscateBlock $ compileProg loc p
         let b = Block ds t
-        let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
-        let isInParam v = Front.vName v /= Front.lName loc
-        let (ins,outs) = partition isInParam vs
+        let isInParam v = vName v /= lName loc
+        let (ins,outs) = partition isInParam args
         funId  <- freshId
         let funname = "noinline" ++ show funId
-        tellDef [ProcDf funname KNoInline ins outs b]
-        let ins' = map (\v -> Front.In $ Front.Var (vType v) (Front.vName v)) ins
+        tellDef [ProcDf funname KNoInline ins outs $ Block ds t]
+        let ins' = map (\v -> In $ Var (vType v) (vName v)) ins
         tellProg [Call funname KNoInline $ ins' ++ [Out loc]]
 
