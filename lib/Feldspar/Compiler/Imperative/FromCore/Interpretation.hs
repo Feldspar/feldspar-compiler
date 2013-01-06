@@ -56,7 +56,8 @@ import qualified Feldspar.Core.Constructs.Literal as Core
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),
                                                     Type(..), Signedness(..),
-                                                    Size(..))
+                                                    Size(..), Variable(..),
+                                                    VariableRole(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
@@ -280,8 +281,8 @@ mkVar t = Var t . mkVarName
 mkRef :: Type -> VarId -> Expr
 mkRef t = Ptr t . mkVarName
 
-mkVariable :: Type -> VarId -> Var
-mkVariable t = Variable t . mkVarName
+mkVariable :: Type -> VarId -> Variable ()
+mkVariable t i = Variable (mkVarName i) t Value
 
 freshId :: CodeWriter Integer
 freshId = do
@@ -298,13 +299,13 @@ freshVar base t size = do
   return var
 
 declare :: Expr -> CodeWriter ()
-declare (Var t s) = tellDecl [Def (Variable t s)]
-declare (Ptr t s) = tellDecl [Def (Pointer t s)]
+declare (Var t s) = tellDecl [Def (Variable s t Value)]
+declare (Ptr t s) = tellDecl [Def (Variable s t Pointer)]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
 initialize :: Expr -> Expr -> CodeWriter ()
-initialize (Var t s) e = tellDecl [Init (Variable t s) e]
-initialize (Ptr t s) e = tellDecl [Init (Pointer t s) e]
+initialize (Var t s) e = tellDecl [Init (Variable s t Value) e]
+initialize (Ptr t s) e = tellDecl [Init (Variable s t Pointer) e]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
 tellDef :: [Ent] -> CodeWriter ()

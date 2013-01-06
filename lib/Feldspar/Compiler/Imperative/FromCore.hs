@@ -53,7 +53,7 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation (Module,Kind(..))
+import Feldspar.Compiler.Imperative.Representation as Rep (Module, Kind(..),Variable(..), VariableRole(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -88,7 +88,7 @@ instance Compile Empty dom
     compileExprSym _ = error "Can't compile Empty"
 
 compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    Options -> String -> [Var] -> ASTF (Decor Info dom) a -> Mod
+    Options -> String -> [Rep.Variable ()] -> ASTF (Decor Info dom) a -> Mod
 compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
@@ -100,7 +100,7 @@ compileProgTop opt funname args a = Mod defs
     ins      = reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
-    outParam = Pointer outType "out"
+    outParam = Rep.Variable "out" outType Rep.Pointer
     outLoc   = Ptr outType "out"
     results  = snd $ evalRWS (compileProg outLoc a) (initReader opt) initState
     decls    = decl results

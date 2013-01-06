@@ -41,7 +41,7 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Representation hiding (Cast, In, Out, Block, NativeElem, Variable, Pointer)
+import Feldspar.Compiler.Imperative.Representation hiding (Cast, In, Out, Block, NativeElem)
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
@@ -146,10 +146,10 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
       | native (typeof arr) = [replaceWith $ Skip]
     toNativeProg _ = []
 
-    toNativeVariable (Pointer arr@(ArrayType sz t) n)
-      = [replaceWith $ Pointer (nativeArray arr) n]
-    toNativeVariable (Variable arr@(ArrayType sz t) n)
-      = [replaceWith $ Variable (nativeArray arr) n]
+
+    toNativeVariable :: Variable () -> [Action (Repr (Variable ()))]
+    toNativeVariable v@(Variable _ arr@(ArrayType{}) _)
+      = [replaceWith $ v { varType = nativeArray arr}]
     toNativeVariable _ = []
 
     nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
@@ -310,7 +310,7 @@ traceRules = [rule trace]
          where
             trcVar = Var t trcVarName
             trcVarName = "trc" ++ show i
-            defTrcVar = Def (Variable t trcVarName)
+            defTrcVar = Def (Variable trcVarName t Value)
             decl (Bl defs prg) = [replaceWith $ Bl (defs ++ [defTrcVar]) prg]
             trc :: Prog -> [Action (Repr Prog)]
             trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]

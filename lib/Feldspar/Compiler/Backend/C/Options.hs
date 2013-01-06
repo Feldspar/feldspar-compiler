@@ -39,7 +39,7 @@ import Data.Typeable
 import Text.Show.Functions
 
 import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Imperative.Frontend hiding (Var)
+import Feldspar.Compiler.Imperative.Frontend
 
 data Options =
     Options
