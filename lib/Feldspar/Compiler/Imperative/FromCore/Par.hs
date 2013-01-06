@@ -36,22 +36,19 @@ module Feldspar.Compiler.Imperative.FromCore.Par where
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Monad
-import Language.Syntactic.Constructs.Binding
+import Language.Syntactic.Constructs.Binding hiding (Variable)
 import Language.Syntactic.Constructs.Binding.HigherOrder
 
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
-import Feldspar.Core.Constructs.Binding
+import Feldspar.Core.Constructs.Binding hiding (Variable)
 import Feldspar.Core.Constructs.Par
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Type,Variable)
+import Feldspar.Compiler.Imperative.Frontend hiding (Type)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
-import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
-import qualified Feldspar.Compiler.Imperative.Frontend as Front
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
-import Feldspar.Transformation (transform, Result(..))
 
-import Data.Map (elems)
+import Data.Map (assocs)
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -110,20 +107,21 @@ instance ( Compile dom dom
             assign var val
             tellProg [iVarPut iv var]
 
-    compileProgSym ParFork _ loc (p :* Nil) = do
+    compileProgSym ParFork info loc (p :* Nil) = do
+        let args = [mkVariable (compileTypeRep t (defaultSize t)) v
+                   | (v,SomeType t) <- assocs $ infoVars info
+                   ]
         -- Task core:
-        (_, Bl ds t)  <- confiscateBlock $ compileProg loc p
-        let b = Block ds t
-        let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
+        (_, Bl ds t) <- confiscateBlock $ compileProg loc p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName AIR.KTask vs [] b]
+        tellDef [ProcDf coreName AIR.KTask args [] $ Block ds t]
         -- Task:
         let taskName = "task" ++ show funId
-        let runTask = run coreName vs
-        tellDef [ProcDf taskName AIR.KTask [] [Front.Variable Void "params"] runTask]
+        let runTask = run coreName args
+        tellDef [ProcDf taskName AIR.KTask [] [Variable Void "params"] runTask]
         -- Spawn:
-        tellProg [spawn taskName vs]
+        tellProg [spawn taskName args]
 
     compileProgSym ParYield _ _ Nil = return ()
 
