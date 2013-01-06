@@ -36,39 +36,38 @@ module Feldspar.Compiler.Imperative.FromCore.Future where
 
 import Language.Syntactic
 
-import Feldspar.Core.Types (Type)
+import Feldspar.Core.Types (Type,defaultSize)
 import Feldspar.Core.Constructs.Future
+import Feldspar.Core.Interpretation
 
 import Feldspar.Compiler.Imperative.Representation (Kind(..))
 import Feldspar.Compiler.Imperative.Frontend hiding (Type)
-import qualified Feldspar.Compiler.Imperative.Frontend as Front
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
-import Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
-import Feldspar.Transformation (transform, Result(..))
 
-import Data.Map (elems)
+import Data.Map (assocs)
 
 instance Compile dom dom => Compile (FUTURE :|| Type) dom
   where
     compileExprSym = compileProgFresh
 
-    compileProgSym (C' MkFuture) _ loc (p :* Nil) = do
+    compileProgSym (C' MkFuture) info loc (p :* Nil) = do
+        let args = [mkVariable (compileTypeRep t (defaultSize t)) v
+                   | (v,SomeType t) <- assocs $ infoVars info
+                   ]
         -- Task core:
         (_, Bl ds t)  <- confiscateBlock $ do
             p' <- compileExprVar p
             tellProg [iVarPut loc p']
-        let b = Block ds t
-        let vs = elems $ up $ transform Collect () () $ Front.fromInterface b
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName KTask vs [] b]
+        tellDef [ProcDf coreName KTask args [] $ Block ds t]
         -- Task:
         let taskName = "task" ++ show funId
-        let runTask = run coreName vs
-        tellDef [ProcDf taskName KTask [] [Front.Variable Void "params"] runTask]
+        let runTask = run coreName args
+        tellDef [ProcDf taskName KTask [] [Variable Void "params"] runTask]
         -- Spawn:
         tellProg [iVarInit loc]
-        tellProg [spawn taskName vs]
+        tellProg [spawn taskName args]
 
     compileProgSym (C' Await) _ loc (a :* Nil) = do
         fut <- compileExprVar a -- compileExpr a
