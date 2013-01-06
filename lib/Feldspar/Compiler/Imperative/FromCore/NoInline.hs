@@ -44,7 +44,7 @@ import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.NoInline
 import Feldspar.Compiler.Imperative.Representation (Kind(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
-import Feldspar.Compiler.Imperative.Frontend hiding (Type)
+import Feldspar.Compiler.Imperative.Frontend
 
 instance Compile dom dom => Compile (NoInline :|| Type) dom
   where
