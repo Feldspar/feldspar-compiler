@@ -78,6 +78,8 @@ moduleSplitter m = SplitModuleDescriptor {
     belongsToHeader StructDef{} = True
     belongsToHeader ProcDecl{}  = True
     belongsToHeader _           = False
+    -- TODO These only belongs in the header iff the types are used in a
+    -- function interface
     createProcDecls :: [Entity ()] -> [Entity ()]
     createProcDecls = concatMap defToDecl
     defToDecl :: Entity () -> [Entity ()]
