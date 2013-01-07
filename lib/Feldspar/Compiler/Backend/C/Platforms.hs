@@ -307,7 +307,6 @@ tic64xRules = [rule tic64x]
 traceRules :: [Rule]
 traceRules = [rule trace]
   where
-    trace :: Expression () -> [Action (Repr (Expression ()))]
     trace (FunctionCall (Function "trace" t _) [lab, val]) = [WithId acts]
       where
        acts i = [replaceWith trcVar, propagate decl, propagate trc, propagate frame]
