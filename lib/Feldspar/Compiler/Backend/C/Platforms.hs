@@ -42,7 +42,7 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Representation hiding (In, Out, Block)
+import Feldspar.Compiler.Imperative.Representation hiding (Block)
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
@@ -164,7 +164,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                         then Just $ upperBound r
                         else Nothing
 
-flattenCopy :: Kind -> Param -> [Param] -> [Expression ()] -> Expression () -> [Prog]
+flattenCopy :: Kind -> ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Prog]
 flattenCopy _ _ [] [] _ = []
 flattenCopy k dst (t:ts) (l:ls) cLen =
   (Call "copyArrayPos" k [dst, In cLen, t]):flattenCopy k dst ts ls (ePlus cLen l)

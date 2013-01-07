@@ -36,7 +36,7 @@ import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType, Cast, In, Out, Block, Pointer, Comment, NativeArray, NativeElem)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType, Cast, Block, Pointer, Comment, NativeArray, NativeElem)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
@@ -57,7 +57,7 @@ data Prog
     = Skip
     | Comment Bool String
     | (Expression ()) := (Expression ())
-    | Call String Kind [Param]
+    | Call String Kind [(ActualParameter ())]
     | Seq [Prog]
     | If (Expression ()) Prog Prog
     | While Prog (Expression ()) Prog
@@ -72,15 +72,6 @@ instance Monoid Prog
     mappend p        Skip     = p
     mappend (Seq pa) (Seq pb) = Seq (mappend pa pb)
     mappend pa pb             = Seq [mappend pa pb]
-
-data Param
-    = In (Expression ())
-    | Out (Expression ())
-    | TypAuto Type
-    | TypScalar Type
-    | Fn String Kind
-    | FnAddr String Kind
-    deriving (Eq,Show)
 
 data Block = Bl [Declaration ()] Prog
     deriving (Eq,Show)
@@ -154,20 +145,10 @@ instance Interface Prog where
         (AIR.Variable Value (NumType Unsigned S32) s) e i (toBlock p)
     fromInterface (Block ds p) = BlockProgram (AIR.Block (map fromInterface ds) (fromInterface p))
 
-instance Interface Param where
-    type Repr Param = ActualParameter ()
-    toInterface (AIR.In e) = In e
-    toInterface (AIR.Out e) = Out e
-    toInterface (AIR.TypeParameter e AIR.Auto) = TypAuto e
-    toInterface (AIR.TypeParameter e AIR.Scalar) = TypScalar e
-    toInterface (AIR.FunParameter n k False) = Fn n k
-    toInterface (AIR.FunParameter n k True) = FnAddr n k
-    fromInterface (In e) = AIR.In e
-    fromInterface (Out e) = AIR.Out e
-    fromInterface (TypAuto e) = AIR.TypeParameter e Auto
-    fromInterface (TypScalar e) = AIR.TypeParameter e Scalar
-    fromInterface (Fn n k) = AIR.FunParameter n k False
-    fromInterface (FnAddr n k) = AIR.FunParameter n k True
+instance Interface (ActualParameter t) where
+    type Repr (ActualParameter t) = ActualParameter t
+    toInterface = id
+    fromInterface = id
 
 instance Interface (Declaration t) where
     type Repr (Declaration t) = AIR.Declaration t
@@ -252,14 +233,14 @@ iVarInit var = Call "ivar_init" KIVar [Out var]
 iVarGet :: Expression () -> Expression () -> Prog
 iVarGet loc ivar 
     | isArray typ   = Call "ivar_get_array" KIVar [Out loc, In ivar]
-    | otherwise     = Call "ivar_get" KIVar [TypScalar typ, Out loc, In ivar]
+    | otherwise     = Call "ivar_get" KIVar [TypeParameter typ Scalar, Out loc, In ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Prog
 iVarPut ivar msg
     | isArray typ   = Call "ivar_put_array" KIVar [In ivar, Out msg]
-    | otherwise     = Call "ivar_put" KIVar [TypAuto typ, In ivar, Out msg]
+    | otherwise     = Call "ivar_put" KIVar [TypeParameter typ Auto, In ivar, Out msg]
       where
         typ = typeof msg
 
@@ -275,8 +256,8 @@ spawn :: String -> [Variable ()] -> Prog
 spawn taskName vs = Call spawnName KTask allParams
   where
     spawnName = "spawn" ++ show (length vs)
-    taskParam = FnAddr taskName KTask
-    typeParams = map (TypAuto . vType) vs
+    taskParam = FunParameter taskName KTask True
+    typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
     varParams = map (\v -> In $ VarExpr (Variable Value (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
@@ -284,8 +265,8 @@ run :: String -> [Variable ()] -> Prog
 run taskName vs = Call runName KTask allParams
   where
     runName = "run" ++ show (length vs)
-    typeParams = map (TypAuto . vType) vs
-    taskParam = Fn taskName KTask
+    typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
+    taskParam = FunParameter taskName KTask False
     allParams = taskParam : typeParams
 
 intWidth :: Type -> Maybe Integer
