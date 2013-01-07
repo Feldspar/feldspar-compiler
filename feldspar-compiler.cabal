@@ -56,7 +56,6 @@ library
     Feldspar.Compiler.Imperative.Frontend
     Feldspar.Compiler.Imperative.TransformationInstance
     Feldspar.Compiler.Imperative.Plugin.IVars
-    Feldspar.Compiler.Imperative.Plugin.Naming
     Feldspar.Compiler.Backend.C.CodeGeneration
     Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
     Feldspar.Compiler.Backend.C.Plugin.Rule

@@ -46,7 +46,6 @@ import Feldspar.Compiler.Backend.C.Plugin.Rule
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
-import Feldspar.Compiler.Imperative.Plugin.Naming
 
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
@@ -155,23 +154,17 @@ pluginChain externalInfo
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
     . executePlugin IVarPlugin ()
 
-data ExternalInfoCollection = ExternalInfoCollection {
-      precompilationExternalInfo          :: ExternalInfo Precompilation
-    , primitivesExternalInfo              :: ExternalInfo RulePlugin
+data ExternalInfoCollection = ExternalInfoCollection
+    { primitivesExternalInfo              :: ExternalInfo RulePlugin
     , ruleExternalInfo                    :: ExternalInfo RulePlugin
-}
+    }
 
 executePluginChain' :: (Compilable c internal)
   => CompilationMode -> c -> NameExtractor.OriginalFunctionSignature
   -> Options -> Module ()
 executePluginChain' compMode prg originalFunctionSignatureParam opt =
-  pluginChain ExternalInfoCollection {
-    precompilationExternalInfo = PrecompilationExternalInfo {
-        originalFunctionSignature = fixedOriginalFunctionSignature
-      , inputParametersDescriptor = buildInParamDescriptor prg
-      , compilationMode           = compMode
-      }
-    , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
+  pluginChain ExternalInfoCollection
+    { primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo                    = opt
     } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
   where
