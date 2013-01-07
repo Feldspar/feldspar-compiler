@@ -62,7 +62,7 @@ data Prog
     | If (Expression ()) Prog Prog
     | While Prog (Expression ()) Prog
     | For String (Expression ()) Int Prog
-    | Block [Def] Prog
+    | Block [Declaration ()] Prog
     deriving (Eq,Show)
 
 instance Monoid Prog
@@ -82,7 +82,7 @@ data Param
     | FnAddr String Kind
     deriving (Eq,Show)
 
-data Block = Bl [Def] Prog
+data Block = Bl [Declaration ()] Prog
     deriving (Eq,Show)
 
 instance Monoid Block
@@ -90,16 +90,10 @@ instance Monoid Block
     mempty                        = Bl [] Skip
     mappend (Bl da pa) (Bl db pb) = Bl (mappend da db) (mappend pa pb)
 
-data Def
-    = Init (Variable ()) (Expression ())
-    | Def (Variable ())
-    deriving (Eq,Show)
-
 class Named a where
     getName :: a -> String
-instance Named Def where
-    getName (Init v _) = getName v
-    getName (Def v)    = getName v
+instance Named (Declaration t) where
+    getName (Declaration v _) = getName v
 instance Named (Variable t) where
     getName = varName
 
@@ -175,12 +169,10 @@ instance Interface Param where
     fromInterface (Fn n k) = AIR.FunParameter n k False
     fromInterface (FnAddr n k) = AIR.FunParameter n k True
 
-instance Interface Def where
-    type Repr Def = Declaration ()
-    toInterface (Declaration v (Just e)) = Init v e
-    toInterface (Declaration v Nothing) = Def v
-    fromInterface (Init v e) = Declaration v (Just e)
-    fromInterface (Def v) = Declaration v  Nothing
+instance Interface (Declaration t) where
+    type Repr (Declaration t) = AIR.Declaration t
+    toInterface = id
+    fromInterface = id
 
 instance Interface Block where
     type Repr Block = AIR.Block ()
@@ -234,7 +226,7 @@ assignProg inExp outExp = copyProg inExp [outExp]
 freeArray :: Variable () -> Prog
 freeArray arr = Call "freeArray" KNormal [Out $ varToExpr arr]
 
-freeArrays :: [Def] -> [Prog]
+freeArrays :: [Declaration ()] -> [Prog]
 freeArrays defs = map freeArray arrays
   where
     arrays = filter (isArray . typeof) $ map dVar defs
@@ -274,7 +266,7 @@ iVarPut ivar msg
 iVarDestroy :: Variable () -> Prog
 iVarDestroy v = Call "ivar_destroy" KIVar [Out $ varToExpr v]
 
-freeIVars :: [Def] -> [Prog]
+freeIVars :: [Declaration ()] -> [Prog]
 freeIVars defs = map iVarDestroy ivars
   where
     ivars = filter (isIVar . typeof) $ map dVar defs
@@ -335,9 +327,8 @@ isIVar _              = False
 vType :: Variable () -> Type
 vType Variable{..} = varType
 
-dVar :: Def -> Variable ()
-dVar (Def v)    = v
-dVar (Init v _) = v
+dVar :: Declaration () -> Variable ()
+dVar (Declaration v _)    = v
 
 vName :: Variable t -> String
 vName Variable{..} = varName

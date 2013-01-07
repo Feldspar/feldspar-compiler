@@ -315,7 +315,7 @@ traceRules = [rule trace]
             v          = Variable Value t trcVarName
             trcVar     = varToExpr v
             trcVarName = "trc" ++ show i
-            defTrcVar  = Def v
+            defTrcVar  = Declaration v Nothing
             decl (Bl defs prg) = [replaceWith $ Bl (defs ++ [defTrcVar]) prg]
             trc :: Prog -> [Action (Repr Prog)]
             trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]

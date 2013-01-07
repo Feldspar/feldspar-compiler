@@ -58,7 +58,8 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
                                                     VariableRole(..),
-                                                    Expression(..))
+                                                    Expression(..),
+                                                    Declaration(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
@@ -76,7 +77,7 @@ initReader opts = Readers [] "" opts
 
 data Writers = Writers { block    :: Block  -- ^ collects code within one block
                        , def      :: [Ent]  -- ^ collects top level definitions
-                       , decl     :: [Def]  -- ^ collects top level variable declarations
+                       , decl     :: [Declaration ()]  -- ^ collects top level variable declarations
                        , epilogue :: [Prog] -- ^ collects postlude code (freeing memory, etc)
                        }
 
@@ -299,11 +300,11 @@ freshVar base t size = do
   return var
 
 declare :: Expression () -> CodeWriter ()
-declare (VarExpr v@(Variable{})) = tellDecl [Def v]
+declare (VarExpr v@(Variable{})) = tellDecl [Declaration v Nothing]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
 initialize :: Expression () -> Expression () -> CodeWriter ()
-initialize (VarExpr v@(Variable{})) e = tellDecl [Init v e]
+initialize (VarExpr v@(Variable{})) e = tellDecl [Declaration v (Just e)]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
 tellDef :: [Ent] -> CodeWriter ()
@@ -313,7 +314,7 @@ tellProg :: [Prog] -> CodeWriter ()
 tellProg [Block [] ps] = tell $ mempty {block = Bl [] $ Seq [ps]}
 tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
 
-tellDecl :: [Def] -> CodeWriter ()
+tellDecl :: [Declaration ()] -> CodeWriter ()
 tellDecl ds = do rs <- ask
                  let frees = freeArrays ds ++ freeIVars ds
                      defs = getTypes (backendOpts rs) ds
@@ -321,7 +322,7 @@ tellDecl ds = do rs <- ask
                           | otherwise = mempty {block = Bl ds $ Seq [], epilogue = frees, def = defs}
                  tell code
 
-getTypes :: Options -> [Def] -> [Ent]
+getTypes :: Options -> [Declaration ()] -> [Ent]
 getTypes opts defs = mkDef comps
   where
     comps = filter (isComposite) $ map (typeof . dVar) defs
