@@ -45,7 +45,7 @@ import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Error
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Kind(..))
+import Feldspar.Compiler.Imperative.Representation (Kind(..), ActualParameter(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

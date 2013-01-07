@@ -43,7 +43,8 @@ import Feldspar.Core.Types (Type,defaultSize)
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.NoInline
 import Feldspar.Compiler.Imperative.Representation (Kind(..), Variable(..),
-                                                    VariableRole(..))
+                                                    VariableRole(..),
+                                                    ActualParameter(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.Frontend
 
