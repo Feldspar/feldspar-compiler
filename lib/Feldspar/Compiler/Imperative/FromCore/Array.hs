@@ -51,6 +51,7 @@ import Feldspar.Compiler.Imperative.Frontend
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                               Signedness(..),
                                                               Size(..))
+import Feldspar.Compiler.Imperative.Representation (Expression(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -70,11 +71,11 @@ instance ( Compile dom dom
         = do
             let ta = argType $ infoType $ getInfo lam
             let sa = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
-            let ix@(Var _ name) = mkVar (compileTypeRep ta sa) v
+            let ix = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
-            (_, Bl ds body) <- confiscateBlock $ compileProg (loc :!: ix) ixf
+            (_, Bl ds body) <- confiscateBlock $ compileProg (ArrayElem loc ix) ixf
             tellProg [initArray loc len']
-            tellProg [For name len' 1 (Block ds body)]
+            tellProg [For (lName ix) len' 1 (Block ds body)]
 
 
     compileProgSym (C' Sequential) _ loc (len :* init :* (lam1 :$ (lam2 :$ (lt :$ step :$ (lam3 :$ (tup :$ a :$ b))))) :* Nil)
@@ -91,17 +92,17 @@ instance ( Compile dom dom
                 six = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
                 tst = infoType $ getInfo step
                 sst = infoSize $ getInfo step
-            let ix@(Var _ name) = mkVar (compileTypeRep tix six) v
+            let ix = mkVar (compileTypeRep tix six) v
             len' <- mkLength len (infoType $ getInfo len) six
             let st = mkVar (compileTypeRep tst sst) s
             declare st
-            (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg (loc :!: ix) step
+            (_, Bl ds (Seq body)) <- confiscateBlock $ compileProg (ArrayElem loc ix) step
             tellProg [initArray loc len']
             compileProg st init
             tellProg [Block ds $
-                      For name len' 1 $
+                      For (lName ix) len' 1 $
                                     Seq (body ++
-                                         [assignProg st (loc :!: ix)
+                                         [assignProg st (ArrayElem loc ix)
                                          ])]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
@@ -112,16 +113,16 @@ instance ( Compile dom dom
             let sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
             let tr' = resType $ infoType $ getInfo lam2
             let sr' = infoSize $ getInfo lam2
-            let ix@(Var _ name) = mkVar (compileTypeRep t sz) v
+            let ix = mkVar (compileTypeRep t sz) v
             len' <- mkLength len (infoType $ getInfo len) sz
             tmp  <- freshVar "seq" tr' sr'
-            (_, Bl ds (Seq body)) <- confiscateBlock $ withAlias s (tmp :.: "member2") $ compileProg tmp step
+            (_, Bl ds (Seq body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg tmp step
             tellProg [initArray loc len']
-            compileProg (tmp :.: "member2") st
+            compileProg (StructField tmp "member2") st
             tellProg [Block ds $
-                      For name len' 1 $
+                      For (lName ix) len' 1 $
                                     Seq (body ++
-                                         [assignProg (loc :!: ix) (tmp :.: "member1")
+                                         [assignProg (ArrayElem loc ix) (StructField tmp "member1")
                                          ])]
 
     -- loc = parallel l f ++ parallel l g ==> for l (\i -> loc[i] = f i; loc[i+l] = g i)
@@ -134,14 +135,14 @@ instance ( Compile dom dom
         = do
             let t   = argType $ infoType $ getInfo lam1
                 sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo l1) 1)
-                ix1@(Var _ name) = mkVar (compileTypeRep t sz) v1
+                ix1 = mkVar (compileTypeRep t sz) v1
                 ix2              = mkVar (compileTypeRep t sz) v2
             len <- mkLength l1 (infoType $ getInfo l1) sz
-            (_, Bl ds1 (Seq b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (loc :!: ix1) body1
-            (_, Bl ds2 (Seq b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (loc :!: ix2) body2
+            (_, Bl ds1 (Seq b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem loc ix1) body1
+            (_, Bl ds2 (Seq b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem loc ix2) body2
             tellProg [initArray loc len]
             assign ix2 len
-            tellProg [For name len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (Binop (Rep.NumType Rep.Unsigned Rep.S32) "+" [ix2, (litI (Rep.NumType Rep.Unsigned Rep.S32) 1)])]))]
+            tellProg [For (lName ix1) len 1 (Block (ds1++ds2) (Seq $ b1 ++ b2 ++ [assignProg ix2 (binop (Rep.NumType Rep.Unsigned Rep.S32) "+" ix2 (litI (Rep.NumType Rep.Unsigned Rep.S32) 1))]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
@@ -154,7 +155,7 @@ instance ( Compile dom dom
     compileProgSym (C' SetIx) _ loc (arr :* i :* a :* Nil) = do
         compileProg loc arr
         i' <- compileExpr i
-        compileProg (loc :!: i') a
+        compileProg (ArrayElem loc i') a
 
     compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
         len' <- compileExpr len
@@ -166,12 +167,12 @@ instance ( Compile dom dom
 
     compileExprSym (C' GetLength) info (a :* Nil) = do
         aExpr <- compileExpr a
-        return $ Fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [aExpr]
+        return $ fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [aExpr]
 
     compileExprSym (C' GetIx) _ (arr :* i :* Nil) = do
         a' <- compileExpr arr
         i' <- compileExpr i
-        return $ a' :!: i'
+        return $ ArrayElem a' i'
 
     compileExprSym a info args = compileProgFresh a info args
 

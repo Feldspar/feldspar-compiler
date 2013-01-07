@@ -51,8 +51,10 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Size(..),
-                                                                     Signedness(..))
-
+                                                                     Signedness(..),
+                                                                     Variable(..))
+import Feldspar.Compiler.Imperative.Representation (Expression(..),
+                                                    VariableRole(..))
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -114,28 +116,28 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
       tellProg [initArray loc l]
 
     compileProgSym NewArr _ loc (len :* a :* Nil) = do
-        let ix = Var (Rep.NumType Rep.Unsigned Rep.S32) "i"
+        let ix = varToExpr $ Rep.Variable Value (Rep.NumType Rep.Unsigned Rep.S32) "i"
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]
-        tellProg [For "i" l 1 (Seq [assignProg (loc :!: ix) a'])]
+        tellProg [For "i" l 1 (Seq [assignProg (ArrayElem loc ix) a'])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr
         i'   <- compileExpr i
-        assign loc (arr' :!: i')
+        assign loc (ArrayElem arr' i')
 
     compileProgSym SetArr _ _ (arr :* i :* a :* Nil) = do
         arr' <- compileExpr arr
         i'   <- compileExpr i
         a'   <- compileExpr a
-        assign (arr' :!: i') a'
+        assign (ArrayElem arr' i') a'
 
     compileProgSym a info loc args = compileExprLoc a info loc args
 
     compileExprSym ArrLength info (arr :* Nil) = do
         a' <- compileExpr arr
-        return $ Fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [a']
+        return $ fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [a']
 
     compileExprSym a info args = compileProgFresh a info args
 
