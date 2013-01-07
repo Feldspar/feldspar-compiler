@@ -32,26 +32,12 @@
 
 module Feldspar.Compiler.Imperative.Frontend where
 
-import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
-import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType)
-import qualified Feldspar.Compiler.Imperative.Representation as AIR
+import Feldspar.Compiler.Imperative.Representation
 
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
-
--- * Frontend data types
-
-data Mod = Mod [Ent]
-  deriving (Show)
-
-data Ent
-    = StructD String [(String, Type)]
-    | ProcDf String Kind [Variable ()] [Variable ()] (Program ())
-    | ProcDcl String Kind [Variable ()] [Variable ()]
-    deriving (Eq,Show)
 
 instance Monoid (Program t)
   where
@@ -66,76 +52,11 @@ instance Monoid (Block t)
     mempty                              = Block [] Empty
     mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
-class Named a where
-    getName :: a -> String
-instance Named (Declaration t) where
-    getName (Declaration v _) = getName v
-instance Named (Variable t) where
-    getName = varName
-
--- * Conversion between representation and frontend
-
-class Interface t where
-    type Repr t
-    toInterface :: Repr t -> t
-    fromInterface :: t -> Repr t
-
-instance Interface Mod where
-    type Repr Mod = AIR.Module ()
-    toInterface (Module es) = Mod $ map toInterface es
-    fromInterface (Mod es) = AIR.Module (map fromInterface es)
-
-instance Interface Ent where
-    type Repr Ent = AIR.Entity ()
-    toInterface (AIR.StructDef name members) =
-        StructD name (map (\(StructMember mname mtyp)->(mname, mtyp)) members)
-    toInterface (AIR.ProcDef name knd inparams outparams body) =
-        ProcDf name knd inparams outparams (toProg body)
-    toInterface (AIR.ProcDecl name knd inparams outparams) =
-        ProcDcl name knd inparams outparams
-    toInterface AIR.TypeDef{} = error "TypeDef not handled"
-    fromInterface (StructD name members) =
-        AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname mtyp)) members)
-    fromInterface (ProcDf name knd inparams outparams body) =
-        AIR.ProcDef name knd inparams outparams (toBlock body)
-    fromInterface (ProcDcl name knd inparams outparams) =
-        AIR.ProcDecl name knd inparams outparams
-
-instance Interface (Expression t) where
-    type Repr (Expression t) = AIR.Expression t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Program t) where
-    type Repr (Program t) = AIR.Program t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (ActualParameter t) where
-    type Repr (ActualParameter t) = ActualParameter t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Declaration t) where
-    type Repr (Declaration t) = AIR.Declaration t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Block t) where
-    type Repr (Block t) = AIR.Block t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Variable t) where
-    type Repr (Variable t) = AIR.Variable t
-    toInterface = id
-    fromInterface = id
-
-toBlock :: Program () -> AIR.Block ()
+toBlock :: Program () -> Block ()
 toBlock (BlockProgram b) = b
 
-toProg :: AIR.Block () -> Program ()
-toProg (AIR.Block [] p) = toInterface p
+toProg :: Block () -> Program ()
+toProg (Block [] p) = p
 toProg e = BlockProgram e
 
 setLength :: Expression () -> Expression () -> Program ()
@@ -267,7 +188,7 @@ isArray ArrayType{} = True
 isArray _ = False
 
 isIVar :: Type -> Bool
-isIVar AIR.IVarType{} = True
+isIVar IVarType{} = True
 isIVar _              = False
 
 vType :: Variable () -> Type

@@ -38,8 +38,8 @@ module Feldspar.Compiler.Backend.C.Options where
 import Data.Typeable
 import Text.Show.Functions
 
-import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..),
+                                                    Module(..))
 
 data Options =
     Options
@@ -91,13 +91,13 @@ instance Show Rule where
 instance Eq Rule where
     _ == _ = False
 
-rule :: (Interface t, Typeable (Repr t)) => (t -> [Action (Repr t)]) -> Rule
-rule f = Rule $ \x -> f $ toInterface x
+rule :: (Typeable t) => (t -> [Action t]) -> Rule
+rule f = Rule $ \x -> f x
 
-replaceWith :: (Interface t) => t -> Action (Repr t)
-replaceWith = Replace . fromInterface
+replaceWith :: t -> Action t
+replaceWith = Replace
 
-propagate :: (Interface t, Typeable (Repr t)) => (t -> [Action (Repr t)]) -> Action t'
+propagate :: (Typeable t) => (t -> [Action t]) -> Action t'
 propagate = Propagate . rule
 
 -- Belongs in some other module, but temporarily resides here to avoid

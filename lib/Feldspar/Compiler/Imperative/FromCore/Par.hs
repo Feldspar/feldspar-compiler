@@ -45,7 +45,8 @@ import Feldspar.Core.Constructs.Binding hiding (Variable)
 import Feldspar.Core.Constructs.Par
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..))
+import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..),
+                                                    Entity(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -116,11 +117,11 @@ instance ( Compile dom dom
         (_, b) <- confiscateBlock $ compileProg loc p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName AIR.KTask args [] $ BlockProgram b]
+        tellDef [ProcDef coreName AIR.KTask args [] b]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDf taskName AIR.KTask [] [AIR.Variable AIR.Value AIR.VoidType "params"] runTask]
+        tellDef [ProcDef taskName AIR.KTask [] [AIR.Variable AIR.Value AIR.VoidType "params"] $ Block [] runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 

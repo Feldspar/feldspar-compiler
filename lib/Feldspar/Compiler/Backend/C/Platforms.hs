@@ -137,7 +137,7 @@ arrayRules = [rule copy]
 nativeArrayRules :: [Rule]
 nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
   where
-    toNativeExpr :: Expression () -> [Action (Repr (Expression ()))]
+    toNativeExpr :: Expression () -> [Action (Expression ())]
     toNativeExpr (ArrayElem arr ix)
       | native (typeof arr) = [replaceWith $ NativeElem arr ix]
     toNativeExpr _ = []
@@ -149,7 +149,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     toNativeProg _ = []
 
 
-    toNativeVariable :: Variable () -> [Action (Repr (Variable ()))]
+    toNativeVariable :: Variable () -> [Action (Variable ())]
     toNativeVariable v@Variable{..} | ArrayType{} <- varType 
       = [replaceWith $ v { varType = nativeArray varType}]
     toNativeVariable _ = []
@@ -177,7 +177,7 @@ ePlus e1 e2 = binop (NumType Signed S32) "+" e1 e2
 c99Rules :: [Rule]
 c99Rules = [rule c99]
   where
-    c99 :: Expression () -> [Action (Repr (Expression ()))]
+    c99 :: Expression () -> [Action (Expression ())]
     c99 (FunctionCall (Function "(!)" _ _) [arg1,arg2])    = [replaceWith $ ArrayElem arg1 arg2]
     c99 (FunctionCall (Function "getFst" _ _) [arg]) = [replaceWith $ StructField arg first]
     c99 (FunctionCall (Function "getSnd" _ _) [arg]) = [replaceWith $ StructField arg second]
@@ -307,7 +307,6 @@ tic64xRules = [rule tic64x]
 traceRules :: [Rule]
 traceRules = [rule trace]
   where
-    trace :: Expression () -> [Action (Repr (Expression ()))]
     trace (FunctionCall (Function "trace" t _) [lab, val]) = [WithId acts]
       where
        acts i = [replaceWith trcVar, propagate decl, propagate trc, propagate frame]
@@ -316,17 +315,16 @@ traceRules = [rule trace]
             trcVar     = varToExpr v
             trcVarName = "trc" ++ show i
             defTrcVar  = Declaration v Nothing
-            decl :: Block () -> [Action (Repr (Block ()))]
+            decl :: Block () -> [Action (Block ())]
             decl (Block defs prg) = [replaceWith $ Block (defs ++ [defTrcVar]) prg]
-            trc :: Program () -> [Action (Repr (Program ()))]
+            trc :: Program () -> [Action (Program ())]
             trc instr = [replaceWith $ Sequence [Assign trcVar val,trcCall,instr]]
             trcCall = call (extend' "trace" t) KTrace [In trcVar, In lab]
-            frame (ProcDf pname knd ins outs prg) = [replaceWith $ ProcDf pname knd ins outs prg']
+            frame (ProcDef pname knd ins outs prg) = [replaceWith $ ProcDef pname knd ins outs prg']
               where
                 prg' = case prg of
-                    Sequence (ProcedureCall "traceStart" _ [] : _) -> prg
-                    BlockProgram (Block _ (Sequence (ProcedureCall "traceStart" _ [] : _))) -> prg
-                    _ -> Sequence [call "traceStart" KTrace [], prg, call "traceEnd" KTrace []]
+                    Block _ (Sequence (ProcedureCall "traceStart" _ [] : _)) -> prg
+                    Block ds ps -> Block ds (Sequence $ [call "traceStart" KTrace [], ps, call "traceEnd" KTrace []])
     trace _ = []
 
 extend :: String -> Type -> String

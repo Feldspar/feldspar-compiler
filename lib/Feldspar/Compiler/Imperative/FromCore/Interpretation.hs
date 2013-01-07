@@ -60,7 +60,8 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),Block(..),
                                                     VariableRole(..),
                                                     Expression(..),
                                                     Declaration(..),
-                                                    Program(..))
+                                                    Program(..),
+                                                    Entity(..), StructMember(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
@@ -77,7 +78,7 @@ initReader :: Options -> Readers
 initReader opts = Readers [] "" opts
 
 data Writers = Writers { block    :: (Block ()) -- ^ collects code within one block
-                       , def      :: [Ent]  -- ^ collects top level definitions
+                       , def      :: [Entity ()]  -- ^ collects top level definitions
                        , decl     :: [Declaration ()]  -- ^ collects top level variable declarations
                        , epilogue :: [Program ()] -- ^ collects postlude code (freeing memory, etc)
                        }
@@ -308,7 +309,7 @@ initialize :: Expression () -> Expression () -> CodeWriter ()
 initialize (VarExpr v@(Variable{})) e = tellDecl [Declaration v (Just e)]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
-tellDef :: [Ent] -> CodeWriter ()
+tellDef :: [Entity ()] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
 tellProg :: [Program ()] -> CodeWriter ()
@@ -323,7 +324,7 @@ tellDecl ds = do rs <- ask
                           | otherwise = mempty {block = Block ds $ Sequence [], epilogue = frees, def = defs}
                  tell code
 
-getTypes :: Options -> [Declaration ()] -> [Ent]
+getTypes :: Options -> [Declaration ()] -> [Entity ()]
 getTypes opts defs = mkDef comps
   where
     comps = filter (isComposite) $ map (typeof . dVar) defs
@@ -339,7 +340,7 @@ getTypes opts defs = mkDef comps
     mkDef [] = []
     mkDef (typ:typs)
       | s@(StructType members) <- typ
-      = mkDef (map snd members) ++ (StructD (toC opts Declaration_pl s) members):mkDef typs
+      = mkDef (map snd members) ++ (StructDef (toC opts Declaration_pl s) (map (\(n, t) -> StructMember n t) members)):mkDef typs
       | (ArrayType _ typ2) <- typ = mkDef (typ2:typs)
       | otherwise = mkDef typs
 
