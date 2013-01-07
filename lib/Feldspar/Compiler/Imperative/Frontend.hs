@@ -32,12 +32,9 @@
 
 module Feldspar.Compiler.Imperative.Frontend where
 
-import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
-import Control.Arrow (second)
 
 import Feldspar.Compiler.Imperative.Representation
-import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
@@ -55,11 +52,11 @@ instance Monoid (Block t)
     mempty                              = Block [] Empty
     mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
-toBlock :: Program () -> AIR.Block ()
+toBlock :: Program () -> Block ()
 toBlock (BlockProgram b) = b
 
-toProg :: AIR.Block () -> Program ()
-toProg (AIR.Block [] p) = p
+toProg :: Block () -> Program ()
+toProg (Block [] p) = p
 toProg e = BlockProgram e
 
 setLength :: Expression () -> Expression () -> Program ()
@@ -191,7 +188,7 @@ isArray ArrayType{} = True
 isArray _ = False
 
 isIVar :: Type -> Bool
-isIVar AIR.IVarType{} = True
+isIVar IVarType{} = True
 isIVar _              = False
 
 vType :: Variable () -> Type
