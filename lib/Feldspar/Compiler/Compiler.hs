@@ -48,7 +48,6 @@ import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
 import Feldspar.Compiler.Imperative.Plugin.Naming
---import Feldspar.Compiler.Imperative.Plugin.Unroll
 
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
@@ -160,7 +159,6 @@ pluginChain externalInfo
 
 data ExternalInfoCollection = ExternalInfoCollection {
       precompilationExternalInfo          :: ExternalInfo Precompilation
---    , unrollExternalInfo                  :: ExternalInfo UnrollPlugin
     , primitivesExternalInfo              :: ExternalInfo RulePlugin
     , ruleExternalInfo                    :: ExternalInfo RulePlugin
 }
@@ -175,7 +173,6 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
       , inputParametersDescriptor = buildInParamDescriptor prg
       , compilationMode           = compMode
       }
---    , unrollExternalInfo                  = unroll opt
     , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo                    = opt
     } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
