@@ -50,6 +50,7 @@ import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
 import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance ( Compile dom dom
@@ -70,9 +71,9 @@ instance ( Compile dom dom
             let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
             compileProg loc init
-            (_, Bl ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
+            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
             declare stvar
-            tellProg [Block ds (For (lName ix') len' 1 body)]
+            tellProg [BlockProgram $ Block ds (for (lName ix') len' 1 (Block [] body))]
 
     compileProgSym (C' WhileLoop) _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
@@ -82,9 +83,9 @@ instance ( Compile dom dom
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
             compileProg loc init
             cond' <- withAlias cv loc $ compileExpr cond
-            (_, Bl ds body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
+            (_, Block ds body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
             declare stvar
-            tellProg [Block ds (While Skip cond' body')]
+            tellProg [BlockProgram $ Block ds (while Empty cond' body')]
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -100,13 +101,13 @@ instance ( Compile dom dom
             let sa = range 0 (upperBound $ infoSize $ getInfo len)
             let ix = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
-            (_, Bl ds body) <- confiscateBlock $ compileProg loc ixf
-            tellProg [Block ds (For (lName ix) len' 1 body)]
+            (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
+            tellProg [BlockProgram $ Block ds (for (lName ix) len' 1 (Block [] body))]
 
 -- TODO Missing While
     compileProgSym Core.While _ loc (cond :* step :* Nil)
         = do
             cond'     <- compileExpr cond
-            (_, Bl ds step') <- confiscateBlock $ compileProg loc step
-            tellProg [Block ds (While Skip cond' step')]
+            (_, Block ds step') <- confiscateBlock $ compileProg loc step
+            tellProg [BlockProgram $ Block ds (while Empty cond' step')]
 

@@ -54,7 +54,9 @@ import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Signedness(..),
                                                                      Variable(..))
 import Feldspar.Compiler.Imperative.Representation (Expression(..),
-                                                    VariableRole(..))
+                                                    VariableRole(..),
+                                                    Program(..),
+                                                    Block(..))
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -82,8 +84,8 @@ instance ( Compile dom dom
 
     compileProgSym When _ loc (c :* action :* Nil) = do
         c' <- compileExpr c
-        (_, Bl ds body) <- confiscateBlock $ compileProg loc action
-        tellProg [If c' (Block ds body) Skip]
+        (_, b) <- confiscateBlock $ compileProg loc action
+        tellProg [Branch c' b (Block [] Empty)]
 
 instance (Compile dom dom, Project (CLambda Type) dom) => Compile Mutable dom
   where
@@ -120,7 +122,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]
-        tellProg [For "i" l 1 (Seq [assignProg (ArrayElem loc ix) a'])]
+        tellProg [for "i" l 1 $ Block [] (Sequence [assignProg (ArrayElem loc ix) a'])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr

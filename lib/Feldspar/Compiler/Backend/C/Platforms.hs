@@ -42,7 +42,7 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Representation hiding (Block)
+import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
@@ -121,17 +121,17 @@ showConstant (FloatConst c) = show c ++ "f"
 arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
-    copy (Call "copy" _ [Out arg1, In arg2])
-        | arg1 == arg2 = [replaceWith $ Skip]
-        | not (isArray (typeof arg1)) = [replaceWith $ arg1 := arg2]
-    copy (Call "copy" k (dst@(Out arg1):ins'@(in1:ins))) | isArray (typeof arg1)
-        = [replaceWith $ Seq ([
+    copy (ProcedureCall "copy" _ [Out arg1, In arg2])
+        | arg1 == arg2 = [replaceWith $ Empty]
+        | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
+    copy (ProcedureCall "copy" k (dst@(Out arg1):ins'@(in1:ins))) | isArray (typeof arg1)
+        = [replaceWith $ Sequence ([
                initArray arg1 (foldr ePlus (litI32 0) aLens)
-             , Call "copyArray" k [dst, in1]
+             , call "copyArray" k [dst, in1]
              ] ++ flattenCopy k dst ins argnLens arg1len)]
            where
              aLens@(arg1len:argnLens) = map (\(In src) -> arrayLength src) ins'
-    copy (Call "copy" _ _) = error "Multiple scalar arguments to copy"
+    copy (ProcedureCall "copy" _ _) = error "Multiple scalar arguments to copy"
     copy _ = []
 
 nativeArrayRules :: [Rule]
@@ -142,10 +142,10 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
       | native (typeof arr) = [replaceWith $ NativeElem arr ix]
     toNativeExpr _ = []
 
-    toNativeProg (Call "initArray" k [Out arr,esz,num])
-      | native (typeof arr) = [replaceWith $ Call "assert" k [Out arr]]
-    toNativeProg (Call "freeArray" _ [Out arr])
-      | native (typeof arr) = [replaceWith $ Skip]
+    toNativeProg (ProcedureCall "initArray" k [Out arr,esz,num])
+      | native (typeof arr) = [replaceWith $ call "assert" k [Out arr]]
+    toNativeProg (ProcedureCall "freeArray" _ [Out arr])
+      | native (typeof arr) = [replaceWith $ Empty]
     toNativeProg _ = []
 
 
@@ -164,10 +164,10 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                         then Just $ upperBound r
                         else Nothing
 
-flattenCopy :: Kind -> ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Prog]
+flattenCopy :: Kind -> ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ _ [] [] _ = []
 flattenCopy k dst (t:ts) (l:ls) cLen =
-  (Call "copyArrayPos" k [dst, In cLen, t]):flattenCopy k dst ts ls (ePlus cLen l)
+  (call "copyArrayPos" k [dst, In cLen, t]):flattenCopy k dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
 ePlus (ConstExpr (IntConst 0 _)) e = e
@@ -316,16 +316,17 @@ traceRules = [rule trace]
             trcVar     = varToExpr v
             trcVarName = "trc" ++ show i
             defTrcVar  = Declaration v Nothing
-            decl (Bl defs prg) = [replaceWith $ Bl (defs ++ [defTrcVar]) prg]
-            trc :: Prog -> [Action (Repr Prog)]
-            trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]
-            trcCall = Call (extend' "trace" t) KTrace [In trcVar, In lab]
+            decl :: Block () -> [Action (Repr (Block ()))]
+            decl (Block defs prg) = [replaceWith $ Block (defs ++ [defTrcVar]) prg]
+            trc :: Program () -> [Action (Repr (Program ()))]
+            trc instr = [replaceWith $ Sequence [Assign trcVar val,trcCall,instr]]
+            trcCall = call (extend' "trace" t) KTrace [In trcVar, In lab]
             frame (ProcDf pname knd ins outs prg) = [replaceWith $ ProcDf pname knd ins outs prg']
               where
                 prg' = case prg of
-                    Seq (Call "traceStart" _ [] : _) -> prg
-                    Block _ (Seq (Call "traceStart" _ [] : _)) -> prg
-                    _ -> Seq [Call "traceStart" KTrace [], prg, Call "traceEnd" KTrace []]
+                    Sequence (ProcedureCall "traceStart" _ [] : _) -> prg
+                    BlockProgram (Block _ (Sequence (ProcedureCall "traceStart" _ [] : _))) -> prg
+                    _ -> Sequence [call "traceStart" KTrace [], prg, call "traceEnd" KTrace []]
     trace _ = []
 
 extend :: String -> Type -> String

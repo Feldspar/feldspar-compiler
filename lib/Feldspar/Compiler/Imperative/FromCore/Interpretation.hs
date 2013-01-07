@@ -54,12 +54,13 @@ import qualified Feldspar.Core.Constructs.Binding as Core
 import qualified Feldspar.Core.Constructs.Literal as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),
+import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),Block(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
                                                     VariableRole(..),
                                                     Expression(..),
-                                                    Declaration(..))
+                                                    Declaration(..),
+                                                    Program(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
@@ -75,10 +76,10 @@ data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasin
 initReader :: Options -> Readers
 initReader opts = Readers [] "" opts
 
-data Writers = Writers { block    :: Block  -- ^ collects code within one block
+data Writers = Writers { block    :: (Block ()) -- ^ collects code within one block
                        , def      :: [Ent]  -- ^ collects top level definitions
                        , decl     :: [Declaration ()]  -- ^ collects top level variable declarations
-                       , epilogue :: [Prog] -- ^ collects postlude code (freeing memory, etc)
+                       , epilogue :: [Program ()] -- ^ collects postlude code (freeing memory, etc)
                        }
 
 instance Monoid Writers
@@ -94,7 +95,7 @@ instance Monoid Writers
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
-type Task = [Prog]
+type Task = [Program ()]
 
 data States = States { fresh :: Integer -- ^ The first fresh variable id
                      }
@@ -310,16 +311,16 @@ initialize expr      _ = error $ "initialize: cannot declare expression: " ++ sh
 tellDef :: [Ent] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
-tellProg :: [Prog] -> CodeWriter ()
-tellProg [Block [] ps] = tell $ mempty {block = Bl [] $ Seq [ps]}
-tellProg ps = tell $ mempty {block = Bl [] $ Seq ps}
+tellProg :: [Program ()] -> CodeWriter ()
+tellProg [BlockProgram (Block [] ps)] = tell $ mempty {block = Block [] $ Sequence [ps]}
+tellProg ps = tell $ mempty {block = Block [] $ Sequence ps}
 
 tellDecl :: [Declaration ()] -> CodeWriter ()
 tellDecl ds = do rs <- ask
                  let frees = freeArrays ds ++ freeIVars ds
                      defs = getTypes (backendOpts rs) ds
                      code | True = mempty {decl=ds, epilogue = frees, def = defs}
-                          | otherwise = mempty {block = Bl ds $ Seq [], epilogue = frees, def = defs}
+                          | otherwise = mempty {block = Block ds $ Sequence [], epilogue = frees, def = defs}
                  tell code
 
 getTypes :: Options -> [Declaration ()] -> [Ent]
@@ -347,7 +348,7 @@ assign lhs rhs = tellProg [copyProg lhs [rhs]]
 
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
-confiscateBlock :: CodeWriter a -> CodeWriter (a, Block)
+confiscateBlock :: CodeWriter a -> CodeWriter (a, Block ())
 confiscateBlock m
     = liftM (second block)
     $ censor (\rec -> rec {block = mempty})

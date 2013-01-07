@@ -43,6 +43,7 @@ import Feldspar.Core.Interpretation
 import Feldspar.Compiler.Imperative.Representation (Kind(..))
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Variable(..),
+                                                                     Program(..),
                                                                      VariableRole(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
@@ -58,12 +59,12 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
                    | (v,SomeType t) <- assocs $ infoVars info
                    ]
         -- Task core:
-        (_, Bl ds t)  <- confiscateBlock $ do
+        (_, bl)  <- confiscateBlock $ do
             p' <- compileExprVar p
             tellProg [iVarPut loc p']
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName KTask args [] $ Block ds t]
+        tellDef [ProcDf coreName KTask args [] $ Rep.BlockProgram bl]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args

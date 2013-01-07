@@ -45,6 +45,7 @@ import Feldspar.Core.Constructs.Binding hiding (Variable)
 import Feldspar.Core.Constructs.Par
 
 import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -82,8 +83,8 @@ instance ( Compile dom dom
 
     compileProgSym When _ loc (c :* action :* Nil) = do
         c' <- compileExpr c
-        (_, Bl ds body) <- confiscateBlock $ compileProg loc action
-        tellProg [If c' (Block ds body) Skip]
+        (_, b) <- confiscateBlock $ compileProg loc action
+        tellProg [Branch c' b (Block [] Empty)]
 
 instance ( Compile dom dom
          , Project (Variable :|| Type) dom
@@ -112,10 +113,10 @@ instance ( Compile dom dom
                    | (v,SomeType t) <- assocs $ infoVars info
                    ]
         -- Task core:
-        (_, Bl ds t) <- confiscateBlock $ compileProg loc p
+        (_, b) <- confiscateBlock $ compileProg loc p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName AIR.KTask args [] $ Block ds t]
+        tellDef [ProcDf coreName AIR.KTask args [] $ BlockProgram b]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
