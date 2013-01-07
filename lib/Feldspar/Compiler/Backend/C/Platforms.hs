@@ -321,12 +321,11 @@ traceRules = [rule trace]
             trc :: Program () -> [Action (Repr (Program ()))]
             trc instr = [replaceWith $ Sequence [Assign trcVar val,trcCall,instr]]
             trcCall = call (extend' "trace" t) KTrace [In trcVar, In lab]
-            frame (ProcDf pname knd ins outs prg) = [replaceWith $ ProcDf pname knd ins outs prg']
+            frame (ProcDef pname knd ins outs prg) = [replaceWith $ ProcDef pname knd ins outs prg']
               where
                 prg' = case prg of
-                    Sequence (ProcedureCall "traceStart" _ [] : _) -> prg
-                    BlockProgram (Block _ (Sequence (ProcedureCall "traceStart" _ [] : _))) -> prg
-                    _ -> Sequence [call "traceStart" KTrace [], prg, call "traceEnd" KTrace []]
+                    Block _ (Sequence (ProcedureCall "traceStart" _ [] : _)) -> prg
+                    Block ds ps -> Block ds (Sequence $ [call "traceStart" KTrace [], ps, call "traceEnd" KTrace []])
     trace _ = []
 
 extend :: String -> Type -> String

@@ -36,22 +36,11 @@ import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType)
+import Feldspar.Compiler.Imperative.Representation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
-
--- * Frontend data types
-
-data Mod = Mod [Ent]
-  deriving (Show)
-
-data Ent
-    = StructD String [(String, Type)]
-    | ProcDf String Kind [Variable ()] [Variable ()] (Program ())
-    | ProcDcl String Kind [Variable ()] [Variable ()]
-    deriving (Eq,Show)
 
 instance Monoid (Program t)
   where
@@ -73,26 +62,15 @@ class Interface t where
     toInterface :: Repr t -> t
     fromInterface :: t -> Repr t
 
-instance Interface Mod where
-    type Repr Mod = AIR.Module ()
-    toInterface (Module es) = Mod $ map toInterface es
-    fromInterface (Mod es) = AIR.Module (map fromInterface es)
+instance Interface (Module t) where
+    type Repr (Module t) = AIR.Module t
+    toInterface = id
+    fromInterface = id
 
-instance Interface Ent where
-    type Repr Ent = AIR.Entity ()
-    toInterface (AIR.StructDef name members) =
-        StructD name (map (\(StructMember mname mtyp)->(mname, mtyp)) members)
-    toInterface (AIR.ProcDef name knd inparams outparams body) =
-        ProcDf name knd inparams outparams (toProg body)
-    toInterface (AIR.ProcDecl name knd inparams outparams) =
-        ProcDcl name knd inparams outparams
-    toInterface AIR.TypeDef{} = error "TypeDef not handled"
-    fromInterface (StructD name members) =
-        AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname mtyp)) members)
-    fromInterface (ProcDf name knd inparams outparams body) =
-        AIR.ProcDef name knd inparams outparams (toBlock body)
-    fromInterface (ProcDcl name knd inparams outparams) =
-        AIR.ProcDecl name knd inparams outparams
+instance Interface (Entity t) where
+    type Repr (Entity t) = AIR.Entity t
+    toInterface = id
+    fromInterface = id
 
 instance Interface (Expression t) where
     type Repr (Expression t) = AIR.Expression t

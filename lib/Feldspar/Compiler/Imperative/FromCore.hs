@@ -54,7 +54,7 @@ import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
 import Feldspar.Compiler.Imperative.Representation as Rep (Module, Kind(..),Variable(..), VariableRole(..))
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..))
+import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Module(..), Entity(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -89,14 +89,14 @@ instance Compile Empty dom
     compileExprSym _ = error "Can't compile Empty"
 
 compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    Options -> String -> [Rep.Variable ()] -> ASTF (Decor Info dom) a -> Mod
+    Options -> String -> [Rep.Variable ()] -> ASTF (Decor Info dom) a -> Module ()
 compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
           sa  = defaultSize ta
           var = mkVariable (compileTypeRep ta sa) v
        in compileProgTop opt funname (var:args) body
-compileProgTop opt funname args a = Mod defs
+compileProgTop opt funname args a = Module defs
   where
     ins      = reverse args
     info     = getInfo a
@@ -107,7 +107,7 @@ compileProgTop opt funname args a = Mod defs
     decls    = decl results
     post     = epilogue results
     Block ds p = block results
-    defs     = (nub $ def results) ++ [ProcDf funname KMain ins [outParam] $ BlockProgram (Block (ds ++ decls) (Sequence (p:post)))]
+    defs     = (nub $ def results) ++ [ProcDef funname KMain ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 class    SyntacticFeld a => Compilable a internal | a -> internal
 instance SyntacticFeld a => Compilable a ()
@@ -121,7 +121,7 @@ fromCore opt funname
     . reifyFeld defaultFeldOpts N32
 
 -- | Get the generated core for a program.
-getCore' :: SyntacticFeld a => Options -> a -> Mod
+getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts prog = compileProgTop opts "test" [] (reifyFeld defaultFeldOpts N32 prog)
 
 -- | Create a list where each element represents the number of variables needed

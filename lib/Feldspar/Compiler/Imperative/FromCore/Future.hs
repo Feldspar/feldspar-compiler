@@ -45,6 +45,7 @@ import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Variable(..),
                                                                      Program(..),
                                                                      VariableRole(..))
+import Feldspar.Compiler.Imperative.Representation (Entity(..), Block(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
@@ -64,11 +65,11 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
             tellProg [iVarPut loc p']
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDf coreName KTask args [] $ Rep.BlockProgram bl]
+        tellDef [ProcDef coreName KTask args [] bl]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDf taskName KTask [] [Rep.Variable Rep.Value Rep.VoidType "params"] runTask]
+        tellDef [ProcDef taskName KTask [] [Rep.Variable Rep.Value Rep.VoidType "params"] $ Block [] runTask]
         -- Spawn:
         tellProg [iVarInit loc]
         tellProg [spawn taskName args]
