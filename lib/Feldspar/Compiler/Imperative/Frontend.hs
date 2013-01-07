@@ -36,7 +36,7 @@ import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType, Cast, Block, Pointer, Comment, NativeArray, NativeElem)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
@@ -49,37 +49,22 @@ data Mod = Mod [Ent]
 
 data Ent
     = StructD String [(String, Type)]
-    | ProcDf String Kind [Variable ()] [Variable ()] Prog
+    | ProcDf String Kind [Variable ()] [Variable ()] (Program ())
     | ProcDcl String Kind [Variable ()] [Variable ()]
     deriving (Eq,Show)
 
-data Prog
-    = Skip
-    | Comment Bool String
-    | (Expression ()) := (Expression ())
-    | Call String Kind [(ActualParameter ())]
-    | Seq [Prog]
-    | If (Expression ()) Prog Prog
-    | While Prog (Expression ()) Prog
-    | For String (Expression ()) Int Prog
-    | Block [Declaration ()] Prog
-    deriving (Eq,Show)
-
-instance Monoid Prog
+instance Monoid (Program t)
   where
-    mempty                    = Skip
-    mappend Skip     p        = p
-    mappend p        Skip     = p
-    mappend (Seq pa) (Seq pb) = Seq (mappend pa pb)
-    mappend pa pb             = Seq [mappend pa pb]
+    mempty                              = Empty
+    mappend Empty     p                 = p
+    mappend p        Empty              = p
+    mappend (Sequence pa) (Sequence pb) = Sequence (mappend pa pb)
+    mappend pa pb                       = Sequence [mappend pa pb]
 
-data Block = Bl [Declaration ()] Prog
-    deriving (Eq,Show)
-
-instance Monoid Block
+instance Monoid (Block t)
   where
-    mempty                        = Bl [] Skip
-    mappend (Bl da pa) (Bl db pb) = Bl (mappend da db) (mappend pa pb)
+    mempty                              = Block [] Empty
+    mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
 class Named a where
     getName :: a -> String
@@ -121,29 +106,10 @@ instance Interface (Expression t) where
     toInterface = id
     fromInterface = id
 
-instance Interface Prog where
-    type Repr Prog = AIR.Program ()
-    toInterface (Empty) = Skip
-    toInterface (AIR.Comment b s) = Comment b s
-    toInterface Assign{..} = lhs := rhs
-    toInterface (ProcedureCall s k ps) = Call s k (map toInterface ps)
-    toInterface (Sequence ps) = Seq (map toInterface ps)
-    toInterface (Branch e b1 b2) = If e (toProg b1) (toProg b2)
-    toInterface (Switch e alts) = error "TODO: toInterface Switch"
-    toInterface (SeqLoop e pe b) = While (toProg pe) e (toProg b)
-    toInterface (ParLoop v e i b) = For (varName v) e i (toProg b)
-    toInterface (BlockProgram b) = Block (map toInterface $ locals b) (toInterface $ blockBody b)
-    fromInterface (Skip) = Empty
-    fromInterface (Comment b s) = AIR.Comment b s
-    fromInterface (lhs := rhs) = Assign lhs rhs
-    fromInterface (Call s k ps) = ProcedureCall s k (map fromInterface ps)
-    fromInterface (Seq ps) = Sequence (map fromInterface ps)
-    fromInterface (If e p1 p2) = Branch e (toBlock p1) (toBlock p2)
---    fromInterface (Switch scrut alts) = Switch (fromInterface scrut) (map toBlock alts) () () -- TODO: Add Switch in Prog.
-    fromInterface (While pe e p) = SeqLoop e (toBlock pe) (toBlock p)
-    fromInterface (For s e i p) = ParLoop
-        (AIR.Variable Value (NumType Unsigned S32) s) e i (toBlock p)
-    fromInterface (Block ds p) = BlockProgram (AIR.Block (map fromInterface ds) (fromInterface p))
+instance Interface (Program t) where
+    type Repr (Program t) = AIR.Program t
+    toInterface = id
+    fromInterface = id
 
 instance Interface (ActualParameter t) where
     type Repr (ActualParameter t) = ActualParameter t
@@ -155,44 +121,43 @@ instance Interface (Declaration t) where
     toInterface = id
     fromInterface = id
 
-instance Interface Block where
-    type Repr Block = AIR.Block ()
-    toInterface (AIR.Block ds p) = Bl (map toInterface ds) (toInterface p)
-    fromInterface (Bl ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
+instance Interface (Block t) where
+    type Repr (Block t) = AIR.Block t
+    toInterface = id
+    fromInterface = id
 
 instance Interface (Variable t) where
     type Repr (Variable t) = AIR.Variable t
     toInterface = id
     fromInterface = id
 
-toBlock :: Prog -> AIR.Block ()
-toBlock (Block ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
-toBlock p = AIR.Block [] (fromInterface p)
+toBlock :: Program () -> AIR.Block ()
+toBlock (BlockProgram b) = b
 
-toProg :: AIR.Block () -> Prog
+toProg :: AIR.Block () -> Program ()
 toProg (AIR.Block [] p) = toInterface p
-toProg (AIR.Block ds p) = Block (map toInterface ds) (toInterface p)
+toProg e = BlockProgram e
 
-setLength :: Expression () -> Expression () -> Prog
-setLength arr len = Call "setLength" KNormal [Out arr, In len]
+setLength :: Expression () -> Expression () -> Program ()
+setLength arr len = call "setLength" KNormal [Out arr, In len]
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
-copyProg :: Expression ()-> [Expression ()] -> Prog
+copyProg :: Expression ()-> [Expression ()] -> Program ()
 copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
     | outExp == (head inExp)
-      && null (tail inExp) = Skip
-    | otherwise            = Call "copy" KNormal (Out outExp:map In inExp)
+      && null (tail inExp) = Empty
+    | otherwise            = call "copy" KNormal (Out outExp:map In inExp)
 
-copyProgPos :: Expression ()-> Expression () -> Expression () -> Prog
-copyProgPos outExp shift inExp = Call "copyArrayPos" KNormal [Out outExp, In shift, In inExp]
+copyProgPos :: Expression ()-> Expression () -> Expression () -> Program ()
+copyProgPos outExp shift inExp = call "copyArrayPos" KNormal [Out outExp, In shift, In inExp]
 
-copyProgLen :: Expression () -> Expression () -> Expression () -> Prog
-copyProgLen outExp inExp len = Call "copyArrayLen" KNormal [Out outExp, In inExp, In len]
+copyProgLen :: Expression () -> Expression () -> Expression () -> Program ()
+copyProgLen outExp inExp len = call "copyArrayLen" KNormal [Out outExp, In inExp, In len]
 
-initArray :: Expression () -> Expression () -> Prog
-initArray arr len = Call "initArray" KNormal [Out arr, In s, In len]
+initArray :: Expression () -> Expression () -> Program ()
+initArray arr len = call "initArray" KNormal [Out arr, In s, In len]
   where
     s
         | isArray t = FunctionCall (Function "-" (NumType Unsigned S32) Infix) [litI (NumType Unsigned S32) 0,SizeOf (Left t)]
@@ -201,13 +166,13 @@ initArray arr len = Call "initArray" KNormal [Out arr, In s, In len]
         ArrayType _ e -> e
         _       -> error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
-assignProg :: Expression () -> Expression () -> Prog
+assignProg :: Expression () -> Expression () -> Program ()
 assignProg inExp outExp = copyProg inExp [outExp]
 
-freeArray :: Variable () -> Prog
-freeArray arr = Call "freeArray" KNormal [Out $ varToExpr arr]
+freeArray :: Variable () -> Program ()
+freeArray arr = call "freeArray" KNormal [Out $ varToExpr arr]
 
-freeArrays :: [Declaration ()] -> [Prog]
+freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
   where
     arrays = filter (isArray . typeof) $ map dVar defs
@@ -227,33 +192,33 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
           , isSingleton r = Just r
         go _ _ = Nothing
 
-iVarInit :: Expression () -> Prog
-iVarInit var = Call "ivar_init" KIVar [Out var]
+iVarInit :: Expression () -> Program ()
+iVarInit var = call "ivar_init" KIVar [Out var]
 
-iVarGet :: Expression () -> Expression () -> Prog
+iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
-    | isArray typ   = Call "ivar_get_array" KIVar [Out loc, In ivar]
-    | otherwise     = Call "ivar_get" KIVar [TypeParameter typ Scalar, Out loc, In ivar]
+    | isArray typ   = call "ivar_get_array" KIVar [Out loc, In ivar]
+    | otherwise     = call "ivar_get" KIVar [TypeParameter typ Scalar, Out loc, In ivar]
       where
         typ = typeof loc
 
-iVarPut :: Expression () -> Expression () -> Prog
+iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = Call "ivar_put_array" KIVar [In ivar, Out msg]
-    | otherwise     = Call "ivar_put" KIVar [TypeParameter typ Auto, In ivar, Out msg]
+    | isArray typ   = call "ivar_put_array" KIVar [In ivar, Out msg]
+    | otherwise     = call "ivar_put" KIVar [TypeParameter typ Auto, In ivar, Out msg]
       where
         typ = typeof msg
 
-iVarDestroy :: Variable () -> Prog
-iVarDestroy v = Call "ivar_destroy" KIVar [Out $ varToExpr v]
+iVarDestroy :: Variable () -> Program ()
+iVarDestroy v = call "ivar_destroy" KIVar [Out $ varToExpr v]
 
-freeIVars :: [Declaration ()] -> [Prog]
+freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
   where
     ivars = filter (isIVar . typeof) $ map dVar defs
 
-spawn :: String -> [Variable ()] -> Prog
-spawn taskName vs = Call spawnName KTask allParams
+spawn :: String -> [Variable ()] -> Program ()
+spawn taskName vs = call spawnName KTask allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName KTask True
@@ -261,8 +226,8 @@ spawn taskName vs = Call spawnName KTask allParams
     varParams = map (\v -> In $ VarExpr (Variable Value (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
-run :: String -> [Variable ()] -> Prog
-run taskName vs = Call runName KTask allParams
+run :: String -> [Variable ()] -> Program ()
+run taskName vs = call runName KTask allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
@@ -331,3 +296,12 @@ fun = fun' Prefix
 
 fun' :: FunctionMode -> Type -> String -> [Expression ()] -> Expression ()
 fun' m t n es = FunctionCall (Function n t m) es
+
+call :: String -> Kind -> [ActualParameter ()] -> Program ()
+call n k ps = ProcedureCall n k ps
+
+for :: String -> Expression () -> Int -> Block () -> Program ()
+for s e i p = ParLoop (Variable Value (NumType Unsigned S32) s) e i p
+
+while :: Program () -> Expression () -> Program () -> Program ()
+while p e b = SeqLoop e (Block [] (Sequence [p])) (Block [] (Sequence [b]))

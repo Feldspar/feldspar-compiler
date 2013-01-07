@@ -45,7 +45,9 @@ import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Error
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Kind(..), ActualParameter(..))
+import Feldspar.Compiler.Imperative.Representation (Kind(..),
+                                                    Program(..),
+                                                    ActualParameter(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -66,6 +68,6 @@ compileAssert :: (Compile dom dom)
               => ASTF (Decor Info dom) a -> String -> CodeWriter ()
 compileAssert cond msg = do
     condExpr <- compileExpr cond
-    tellProg [Call "assert" KNormal [In condExpr]]
+    tellProg [call "assert" KNormal [In condExpr]]
     when (length msg > 0) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
 

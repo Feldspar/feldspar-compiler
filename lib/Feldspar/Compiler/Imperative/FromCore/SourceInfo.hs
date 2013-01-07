@@ -42,6 +42,7 @@ import Feldspar.Core.Types
 import Feldspar.Core.Constructs.SourceInfo
 
 import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Program(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

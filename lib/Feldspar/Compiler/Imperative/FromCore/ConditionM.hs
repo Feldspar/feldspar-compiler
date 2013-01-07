@@ -40,6 +40,7 @@ import Language.Syntactic
 import Feldspar.Core.Constructs.ConditionM
 
 import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Program(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -48,7 +49,7 @@ instance Compile dom dom => Compile (ConditionM m) dom
   where
     compileProgSym ConditionM _ loc (cond :* tHEN :* eLSE :* Nil) = do
         condExpr <- compileExpr cond
-        (_, Bl tds thenProg) <- confiscateBlock $ compileProg loc tHEN
-        (_, Bl eds elseProg) <- confiscateBlock $ compileProg loc eLSE
-        tellProg [If condExpr (Block tds thenProg) (Block eds elseProg)]
+        (_, tb) <- confiscateBlock $ compileProg loc tHEN
+        (_, eb) <- confiscateBlock $ compileProg loc eLSE
+        tellProg [Branch condExpr tb eb]
 
