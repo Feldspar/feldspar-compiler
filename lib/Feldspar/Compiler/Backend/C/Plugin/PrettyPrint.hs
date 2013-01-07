@@ -126,10 +126,9 @@ instance Transformable DebugToC Constant where
                             return (nr, ni, (pos,np))
 
 instance Transformable DebugToC ActualParameter where
-    transform t pos down act@(In (VarExpr (Variable _ StructType{} _))) =
-        transformActParam t pos down act AddressNeed_pl
-    transform t pos down act@(In (VarExpr (Variable _ ArrayType{} _))) =
-        transformActParam t pos down act AddressNeed_pl
+    transform t pos down act@(In (VarExpr var))
+      | StructType{} <- typeof var = transformActParam t pos down act AddressNeed_pl
+      | ArrayType{}  <- typeof var = transformActParam t pos down act AddressNeed_pl
     transform t pos down act@In{}            = transformActParam t pos down act FunctionCallIn_pl
     transform t pos down act@Out{}           = transformActParam t pos down act AddressNeed_pl
     transform t pos down act@TypeParameter{} = transformActParam t pos down act MainParameter_pl
