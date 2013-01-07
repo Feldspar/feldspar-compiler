@@ -119,7 +119,7 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDf taskName AIR.KTask [] [Variable AIR.VoidType "params"] runTask]
+        tellDef [ProcDf taskName AIR.KTask [] [AIR.Variable "params" AIR.VoidType AIR.Value] runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 

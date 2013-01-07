@@ -41,7 +41,9 @@ import Feldspar.Core.Constructs.Future
 import Feldspar.Core.Interpretation
 
 import Feldspar.Compiler.Imperative.Representation (Kind(..))
-import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..))
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
+                                                                     Variable(..),
+                                                                     VariableRole(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
@@ -65,7 +67,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDf taskName KTask [] [Variable Rep.VoidType "params"] runTask]
+        tellDef [ProcDf taskName KTask [] [Rep.Variable "params" Rep.VoidType Rep.Value] runTask]
         -- Spawn:
         tellProg [iVarInit loc]
         tellProg [spawn taskName args]

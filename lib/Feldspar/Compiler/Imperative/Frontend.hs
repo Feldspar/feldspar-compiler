@@ -36,7 +36,7 @@ import Data.List (intercalate)
 import Data.Monoid (Monoid(..))
 import Control.Arrow (second)
 
-import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType, Cast, In, Out, Variable, Block, Pointer, Comment, NativeArray, NativeElem)
+import Feldspar.Compiler.Imperative.Representation hiding (Alias, UserType, Cast, In, Out, Block, Pointer, Comment, NativeArray, NativeElem)
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Feldspar.Range
@@ -49,8 +49,8 @@ data Mod = Mod [Ent]
 
 data Ent
     = StructD String [(String, Type)]
-    | ProcDf String Kind [Var] [Var] Prog
-    | ProcDcl String Kind [Var] [Var]
+    | ProcDf String Kind [Variable ()] [Variable ()] Prog
+    | ProcDcl String Kind [Variable ()] [Variable ()]
     deriving (Eq,Show)
 
 data Expr
@@ -113,13 +113,8 @@ instance Monoid Block
     mappend (Bl da pa) (Bl db pb) = Bl (mappend da db) (mappend pa pb)
 
 data Def
-    = Init Var Expr
-    | Def Var
-    deriving (Eq,Show)
-
-data Var
-    = Variable Type String
-    | Pointer Type String
+    = Init (Variable ()) Expr
+    | Def (Variable ())
     deriving (Eq,Show)
 
 class Named a where
@@ -127,9 +122,8 @@ class Named a where
 instance Named Def where
     getName (Init v _) = getName v
     getName (Def v)    = getName v
-instance Named Var where
-    getName (Variable _ n) = n
-    getName (Pointer  _ n) = n
+instance Named (Variable t) where
+    getName (Variable n _ _) = n
 
 -- * Conversion between representation and frontend
 
@@ -148,16 +142,16 @@ instance Interface Ent where
     toInterface (AIR.StructDef name members) =
         StructD name (map (\(StructMember mname mtyp)->(mname, mtyp)) members)
     toInterface (AIR.ProcDef name knd inparams outparams body) =
-        ProcDf name knd (map toInterface inparams) (map toInterface outparams) (toProg body)
+        ProcDf name knd inparams outparams (toProg body)
     toInterface (AIR.ProcDecl name knd inparams outparams) =
-        ProcDcl name knd (map toInterface inparams) (map toInterface outparams)
+        ProcDcl name knd inparams outparams
     toInterface AIR.TypeDef{} = error "TypeDef not handled"
     fromInterface (StructD name members) =
         AIR.StructDef name (map (\(mname,mtyp)->(StructMember mname mtyp)) members)
     fromInterface (ProcDf name knd inparams outparams body) =
-        AIR.ProcDef name knd (map fromInterface inparams) (map fromInterface outparams) (toBlock body)
+        AIR.ProcDef name knd inparams outparams (toBlock body)
     fromInterface (ProcDcl name knd inparams outparams) =
-        AIR.ProcDecl name knd (map fromInterface inparams) (map fromInterface outparams)
+        AIR.ProcDecl name knd inparams outparams
 
 instance Interface Expr where
     type Repr Expr = Expression ()
@@ -236,22 +230,20 @@ instance Interface Param where
 
 instance Interface Def where
     type Repr Def = Declaration ()
-    toInterface (Declaration v (Just e)) = Init (toInterface v) (toInterface e)
-    toInterface (Declaration v Nothing) = Def (toInterface v)
-    fromInterface (Init v e) = Declaration (fromInterface v) (Just $ fromInterface e)
-    fromInterface (Def v) = Declaration (fromInterface v) Nothing
+    toInterface (Declaration v (Just e)) = Init v (toInterface e)
+    toInterface (Declaration v Nothing) = Def v
+    fromInterface (Init v e) = Declaration v (Just $ fromInterface e)
+    fromInterface (Def v) = Declaration v  Nothing
 
 instance Interface Block where
     type Repr Block = AIR.Block ()
     toInterface (AIR.Block ds p) = Bl (map toInterface ds) (toInterface p)
     fromInterface (Bl ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
 
-instance Interface Var where
-    type Repr Var = AIR.Variable ()
-    toInterface (AIR.Variable name typ Value) = Variable typ name
-    toInterface (AIR.Variable name typ AIR.Pointer) = Pointer typ name
-    fromInterface (Variable typ name) = AIR.Variable name typ Value
-    fromInterface (Pointer typ name) = AIR.Variable name typ AIR.Pointer
+instance Interface (Variable t) where
+    type Repr (Variable t) = AIR.Variable t
+    toInterface = id
+    fromInterface = id
 
 toBlock :: Prog -> AIR.Block ()
 toBlock (Block ds p) = AIR.Block (map fromInterface ds) (fromInterface p)
@@ -292,7 +284,7 @@ initArray arr len = Call "initArray" KNormal [Out arr, In s, In len]
 assignProg :: Expr -> Expr -> Prog
 assignProg inExp outExp = copyProg inExp [outExp]
 
-freeArray :: Var -> Prog
+freeArray :: Variable t -> Prog
 freeArray arr = Call "freeArray" KNormal [Out $ varToExpr arr]
 
 freeArrays :: [Def] -> [Prog]
@@ -336,7 +328,7 @@ iVarPut ivar msg
       where
         typ = typeof msg
 
-iVarDestroy :: Var -> Prog
+iVarDestroy :: Variable t -> Prog
 iVarDestroy v = Call "ivar_destroy" KIVar [Out $ varToExpr v]
 
 freeIVars :: [Def] -> [Prog]
@@ -344,7 +336,7 @@ freeIVars defs = map iVarDestroy ivars
   where
     ivars = filter (isIVar . typeof) $ map dVar defs
 
-spawn :: String -> [Var] -> Prog
+spawn :: String -> [Variable t] -> Prog
 spawn taskName vs = Call spawnName KTask allParams
   where
     spawnName = "spawn" ++ show (length vs)
@@ -353,7 +345,7 @@ spawn taskName vs = Call spawnName KTask allParams
     varParams = map (\v -> In $ Var (vType v) (vName v)) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
-run :: String -> [Var] -> Prog
+run :: String -> [Variable t] -> Prog
 run taskName vs = Call runName KTask allParams
   where
     runName = "run" ++ show (length vs)
@@ -364,11 +356,6 @@ run taskName vs = Call runName KTask allParams
 instance HasType Expr
   where
     type TypeOf Expr = Type
-    typeof = typeof . fromInterface
-
-instance HasType Var
-  where
-    type TypeOf Var = Type
     typeof = typeof . fromInterface
 
 intWidth :: Type -> Maybe Integer
@@ -408,25 +395,22 @@ isIVar :: Type -> Bool
 isIVar AIR.IVarType{} = True
 isIVar _              = False
 
-vType :: Var -> Type
-vType (Variable t _) = t
-vType (Pointer t _)  = t
+vType :: Variable t -> Type
+vType (Variable _ t _) = t
 
-dVar :: Def -> Var
+dVar :: Def -> Variable ()
 dVar (Def v)    = v
 dVar (Init v _) = v
 
-vName :: Var -> String
-vName (Variable _ s) = s
-vName (Pointer _ s)  = s
+vName :: Variable t -> String
+vName (Variable s _ _) = s
 
 lName :: Expr -> String
 lName (Var _ s) = s
-lName (Ptr _ s) = s
 lName (e :!: _) = lName e
 lName (e :.: _) = lName e
-lName e = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
+lName e         = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
 
-varToExpr :: Var -> Expr
-varToExpr (Variable t name) = Var t name
-varToExpr (Pointer t name)  = Ptr t name
+varToExpr :: Variable t -> Expr
+varToExpr (Variable name t Value)        = Var t name
+varToExpr (Variable name t AIR.Pointer)  = Ptr t name

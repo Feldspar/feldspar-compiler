@@ -47,7 +47,7 @@ import Feldspar.Core.Constructs.Array
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Literal
 
-import Feldspar.Compiler.Imperative.Frontend hiding (Variable)
+import Feldspar.Compiler.Imperative.Frontend
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                               Signedness(..),
                                                               Size(..))
