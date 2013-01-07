@@ -69,7 +69,6 @@ library
     Feldspar.Compiler
     Feldspar.Transformation
     Feldspar.Transformation.Framework
-    Feldspar.NameExtractor
 
   default-language: Haskell98
 
@@ -141,6 +140,7 @@ executable feldspar
   default-language: Haskell98
 
   other-modules:
+    Feldspar.Compiler.Frontend.CommandLine.NameExtractor
     Feldspar.Compiler.Frontend.CommandLine.API.Library
     Feldspar.Compiler.Frontend.CommandLine.API.Constants
     Feldspar.Compiler.Frontend.CommandLine.API.Options

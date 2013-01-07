@@ -31,7 +31,6 @@ module Feldspar.Compiler.Frontend.Interactive.Interface where
 import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
-import qualified Feldspar.NameExtractor as NameExtractor
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
@@ -71,7 +70,7 @@ compile prg fileName functionName opts = do
     hfile = makeHFileName fileName
     cfile = makeCFileName fileName
     compilationResult = compileToCCore Interactive prg
-                                       (NameExtractor.OriginalFunctionSignature functionName []) opts
+                                       (OriginalFunctionSignature functionName []) opts
 
     withIncludeGuard code = unlines [ "#ifndef " ++ guardName
                                     , "#define " ++ guardName
@@ -100,11 +99,11 @@ icompile' opts functionName prg = do
     putStrLn $ sourceCode $ sctccrSource compilationResult
   where
     compilationResult = compileToCCore Interactive prg
-                                       (NameExtractor.OriginalFunctionSignature functionName []) opts
+                                       (OriginalFunctionSignature functionName []) opts
 
 icompileWithInfos :: (Compilable t internal) => t -> String -> Options -> SplitCompToCCoreResult
 icompileWithInfos prg functionName = compileToCCore Interactive prg
-                                                          (NameExtractor.OriginalFunctionSignature functionName [])
+                                                          (OriginalFunctionSignature functionName [])
 
 -- | Get the generated core for a program.
 getCore prog = getCore' defaultOptions prog

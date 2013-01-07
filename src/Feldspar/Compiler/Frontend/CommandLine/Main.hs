@@ -30,7 +30,6 @@
 
 module Main where
 -- ====================================== Feldspar imports ==================================
-import Feldspar.NameExtractor
 import Feldspar.Compiler.Compiler
 import qualified Feldspar.Compiler.Compiler as CompilerCore
 import Feldspar.Compiler.Backend.C.Options
@@ -38,6 +37,7 @@ import qualified Feldspar.Compiler.Backend.C.Options as CoreOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Options as StandaloneOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Constants
 import Feldspar.Compiler.Frontend.CommandLine.API.Library as StandaloneLib
+import Feldspar.Compiler.Frontend.CommandLine.NameExtractor
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Frontend.CommandLine.API
 import Feldspar.Compiler.Imperative.Representation

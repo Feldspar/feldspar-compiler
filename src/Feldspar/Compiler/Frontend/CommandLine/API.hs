@@ -29,7 +29,6 @@
 {-# LANGUAGE CPP #-}
 module Feldspar.Compiler.Frontend.CommandLine.API where
 
-import qualified Feldspar.NameExtractor as NameExtractor
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
@@ -147,7 +146,7 @@ prepareInputFile inputFileName = do
     removeFileIfPossible $ replaceExtension inputFileName ".o"
 
 standaloneCompile :: (Compilable t internal) =>
-    t -> FilePath -> FilePath -> NameExtractor.OriginalFunctionSignature -> Options -> IO ()
+    t -> FilePath -> FilePath -> OriginalFunctionSignature -> Options -> IO ()
 standaloneCompile prg inputFileName outputFileName originalFunctionSignature opts = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult

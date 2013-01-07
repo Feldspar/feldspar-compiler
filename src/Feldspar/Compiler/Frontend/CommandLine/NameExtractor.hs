@@ -26,19 +26,15 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Feldspar.NameExtractor where
+module Feldspar.Compiler.Frontend.CommandLine.NameExtractor where
 
 import Data.Maybe (catMaybes)
 import System.IO
 import System.IO.Unsafe
 import Language.Haskell.Exts hiding (parse)
 import Feldspar.Compiler.Error
+import Feldspar.Compiler.Compiler (OriginalFunctionSignature(..))
 import Feldspar.Compiler.Backend.C.Library
-
-data OriginalFunctionSignature = OriginalFunctionSignature {
-    originalFunctionName   :: String,
-    originalParameterNames :: [Maybe String]
-} deriving (Show, Eq)
 
 nameExtractorError :: ErrorClass -> String -> a
 nameExtractorError = handleError "NameExtractor"
@@ -87,10 +83,10 @@ getModuleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
 parse :: FilePath -> String -> Module
 parse fileName contents = fromParseResult $ parseFileContentsWithMode
-  (defaultParseMode
+  defaultParseMode
     { extensions    = glasgowExts ++ [ExplicitForAll]
     , parseFilename = fileName
-    })
+    }
   contents
 
 getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]

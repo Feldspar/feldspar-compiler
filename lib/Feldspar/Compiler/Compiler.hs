@@ -38,7 +38,6 @@ import Control.Arrow
 import Control.Applicative
 
 import Feldspar.Transformation
-import qualified Feldspar.NameExtractor as NameExtractor
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -46,6 +45,11 @@ import Feldspar.Compiler.Backend.C.Plugin.Rule
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
+
+data OriginalFunctionSignature = OriginalFunctionSignature {
+    originalFunctionName   :: String,
+    originalParameterNames :: [Maybe String]
+} deriving (Show, Eq)
 
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
@@ -91,7 +95,7 @@ moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
   :: (Compilable t internal) => CompilationMode -> t
-  -> NameExtractor.OriginalFunctionSignature -> Options
+  -> OriginalFunctionSignature -> Options
   -> SplitCompToCCoreResult
 compileToCCore compMode prg
   funSig coreOptions =
@@ -150,7 +154,6 @@ noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 pluginChain :: ExternalInfoCollection -> Module () -> Module ()
 pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
---    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
     . executePlugin IVarPlugin ()
 
@@ -160,7 +163,7 @@ data ExternalInfoCollection = ExternalInfoCollection
     }
 
 executePluginChain' :: (Compilable c internal)
-  => CompilationMode -> c -> NameExtractor.OriginalFunctionSignature
+  => CompilationMode -> c -> OriginalFunctionSignature
   -> Options -> Module ()
 executePluginChain' compMode prg originalFunctionSignatureParam opt =
   pluginChain ExternalInfoCollection
@@ -168,16 +171,16 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
     , ruleExternalInfo                    = opt
     } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
   where
-    ofn = NameExtractor.originalFunctionName
+    ofn = originalFunctionName
     fixedOriginalFunctionSignature = originalFunctionSignatureParam {
-      NameExtractor.originalFunctionName =
+      originalFunctionName =
         fixFunctionName $ ofn originalFunctionSignatureParam
     }
 
 executePluginChain :: (Compilable c internal)
                    => CompilationMode
                    -> c
-                   -> NameExtractor.OriginalFunctionSignature
+                   -> OriginalFunctionSignature
                    -> Options
                    -> SplitModuleDescriptor
 executePluginChain cm f sig opts =
