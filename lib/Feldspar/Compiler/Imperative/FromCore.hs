@@ -116,8 +116,7 @@ instance SyntacticFeld a => Compilable a ()
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname
-    = fromInterface
-    . compileProgTop opt funname []
+    = compileProgTop opt funname []
     . reifyFeld defaultFeldOpts N32
 
 -- | Get the generated core for a program.

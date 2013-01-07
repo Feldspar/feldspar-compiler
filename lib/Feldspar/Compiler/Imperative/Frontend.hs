@@ -55,58 +55,11 @@ instance Monoid (Block t)
     mempty                              = Block [] Empty
     mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
--- * Conversion between representation and frontend
-
-class Interface t where
-    type Repr t
-    toInterface :: Repr t -> t
-    fromInterface :: t -> Repr t
-
-instance Interface (Module t) where
-    type Repr (Module t) = AIR.Module t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Entity t) where
-    type Repr (Entity t) = AIR.Entity t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Expression t) where
-    type Repr (Expression t) = AIR.Expression t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Program t) where
-    type Repr (Program t) = AIR.Program t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (ActualParameter t) where
-    type Repr (ActualParameter t) = ActualParameter t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Declaration t) where
-    type Repr (Declaration t) = AIR.Declaration t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Block t) where
-    type Repr (Block t) = AIR.Block t
-    toInterface = id
-    fromInterface = id
-
-instance Interface (Variable t) where
-    type Repr (Variable t) = AIR.Variable t
-    toInterface = id
-    fromInterface = id
-
 toBlock :: Program () -> AIR.Block ()
 toBlock (BlockProgram b) = b
 
 toProg :: AIR.Block () -> Program ()
-toProg (AIR.Block [] p) = toInterface p
+toProg (AIR.Block [] p) = p
 toProg e = BlockProgram e
 
 setLength :: Expression () -> Expression () -> Program ()
