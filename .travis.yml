@@ -1,8 +1,15 @@
 language: haskell
 
 before_install:
-    - "cabal install cabal-meta cabal-src"
+  # Install some dependencies from source
+  - cabal install cabal-meta cabal-src
+
+  # Try installing some of the build-deps with apt-get for speed
+  - ./tools/travis-cabal-apt-install --only-dependencies --force-reinstall $mode
 
 install:
-    - "cabal-meta install --enable-tests"
+  - cabal-meta install $mode
+
+env:
+  - mode="--enable-tests"
 
