@@ -66,13 +66,6 @@ instance Monoid (Block t)
     mempty                              = Block [] Empty
     mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
-class Named a where
-    getName :: a -> String
-instance Named (Declaration t) where
-    getName (Declaration v _) = getName v
-instance Named (Variable t) where
-    getName = varName
-
 -- * Conversion between representation and frontend
 
 class Interface t where
