@@ -39,7 +39,7 @@ import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
 
-import qualified Data.List as List (find)
+import Data.List (find,intercalate)
 
 -- =======================
 -- == C code generation ==
@@ -67,16 +67,15 @@ getStructTypeName options place t = replace (toC options place t) " " "" -- floa
 
 instance ToC Type where
     toC _ MainParameter_pl VoidType = "void"
-    toC _ _ VoidType = "int"
+    toC _ _                VoidType = "int"
     toC options place t@(StructType _) = "struct s" ++ getStructTypeName options place t
-    toC _ _ (UserType u) = u
-    toC _ _ (ArrayType _ _) = arrayTypeName
-    toC options place (NativeArray _ t) = toC options place t
-    toC _ _ (IVarType _) = ivarTypeName
-    toC options place t = case List.find (\(t',_,_) -> t == t') $ types $ platform options of
-        Just (_,s,_)  -> s
-        Nothing       -> codeGenerationError InternalError $
-                         "Unhandled type in platform " ++ name (platform options) ++ ": " ++ show t ++ " place: " ++ show place
+    toC _ _ (UserType u)      = u
+    toC _ _ ArrayType{}       = arrayTypeName
+    toC o p (NativeArray _ t) = toC o p t
+    toC _ _ IVarType{}        = ivarTypeName
+    toC options place t | [s] <- [s | (t',s,_) <- types $ platform options, t'==t] = s
+    toC options place t = codeGenerationError InternalError
+                        $ "Unhandled type in platform " ++ name (platform options) ++ ": " ++ show t ++ " place: " ++ show place
 
 instance ToC (Variable ()) where
     toC options place Variable{..} = showVariable options place varRole varType varName
@@ -134,11 +133,7 @@ passByReference _            = False
 ----------------------
 
 ind :: (a-> String) -> a -> String
-ind f x = unlines $ map (\a -> "    " ++ a) $ lines $ f x
+ind f x = unlines $ map ("    "++) $ lines $ f x
 
 listprint :: (a->String) -> String -> [a] -> String
-listprint f s = listprint' . filter (/= "") . map f
-  where
-    listprint' [] = ""
-    listprint' [x] = x
-    listprint' (x:xs) = x ++ s ++ listprint' xs
+listprint f s = intercalate s . filter (not . null) . map f

@@ -65,7 +65,7 @@ library
     Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 --    Feldspar.Compiler.Backend.C.Plugin.Locator
     Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
-    Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
+--    Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
     Feldspar.Compiler.Backend.C.Plugin.TypeDefinitionGenerator
     Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner
     Feldspar.Compiler.Backend.C.Plugin.Rule
