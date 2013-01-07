@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -66,10 +67,10 @@ instance Transformable GlobalCollector Entity where
         transform t s _ = defaultTransform t s False
 
 instance Transformable GlobalCollector Variable where
-        transform _ s d v@(Variable name typ _) = Result v s' () where
+        transform _ s d v@Variable{..} = Result v s' () where
             s'
-             | d            = Map.insert name typ s
-             | otherwise    = s
+             | d         = Map.insert varName varType s
+             | otherwise = s
 
 data TypeCheckDown = TypeCheckDown
     { globals       :: TypeCatalog
@@ -131,14 +132,14 @@ instance Transformable TypeCheck Program where
         transform t s d p = defaultTransform t s d p
 
 instance Transformable TypeCheck Variable where
-        transform _ s d v@(Variable name typ _)
-            | inDeclaration d = Result v (Map.insert name typ s) def
+        transform _ s d v@Variable{..}
+            | inDeclaration d = Result v (Map.insert varName varType s) def
             | otherwise       = Result v s u' where
-                u' = case Map.lookup name allVar of
-                    Just typ2
-                        | typ == typ2 -> []
-                        | otherwise   -> ["Inconsistent types: " ++ name ++ " (actual type: " ++show typ ++ ", declared type: " ++ show typ2 ++ ")"]
-                    Nothing -> ["Undeclared variable: " ++ name]
+                u' = case Map.lookup varName allVar of
+                    Just typ
+                        | varType == typ -> []
+                        | otherwise   -> ["Inconsistent types: " ++ varName ++ " (actual type: " ++ show varType ++ ", declared type: " ++ show typ ++ ")"]
+                    Nothing -> ["Undeclared variable: " ++ varName]
                 allVar :: TypeCatalog
                 allVar = Map.unionWith const (globals d) s
 
@@ -156,13 +157,13 @@ instance Transformable TypeCorrector Entity where
     transform _ s _ p = Result p s def -- just definitions, not implementation, not need check/correct
 
 instance Transformable TypeCorrector Variable where
-    transform _ ls gs v@(Variable name typ _) = Result v' (Map.insert name typ' ls) def where
+    transform _ ls gs v@Variable{..} = Result v' (Map.insert varName typ' ls) def where
         v' = v {varType = typ'}
-        typ' = case Map.lookup name allVar of
-            Just typ2
-                | typ == typ2 -> typ2
-                | otherwise   -> select typ typ2
-            Nothing -> typ
+        typ' = case Map.lookup varName allVar of
+            Just typ
+                | varType == typ -> typ
+                | otherwise      -> select varType typ
+            Nothing -> varType
         allVar = Map.unionWith const gs ls
 
 select :: Type -> Type -> Type

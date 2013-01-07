@@ -123,7 +123,7 @@ instance Named Def where
     getName (Init v _) = getName v
     getName (Def v)    = getName v
 instance Named (Variable t) where
-    getName (Variable n _ _) = n
+    getName = varName
 
 -- * Conversion between representation and frontend
 
@@ -155,8 +155,8 @@ instance Interface Ent where
 
 instance Interface Expr where
     type Repr Expr = Expression ()
-    toInterface (VarExpr (AIR.Variable name t Value)) = Var t name
-    toInterface (VarExpr (AIR.Variable name t AIR.Pointer)) = Ptr t name
+    toInterface (VarExpr (AIR.Variable AIR.Value   t name)) = Var t name
+    toInterface (VarExpr (AIR.Variable AIR.Pointer t name)) = Ptr t name
     toInterface (ArrayElem arr idx) = toInterface arr :!: toInterface idx
     toInterface (AIR.NativeElem arr idx) = NativeElem (toInterface arr) (toInterface idx)
     toInterface (StructField str field) = toInterface str :.: field
@@ -170,8 +170,8 @@ instance Interface Expr where
     toInterface (AIR.Cast t e) = Cast t (toInterface e)
     toInterface (SizeOf (Left t)) = SizeofT t
     toInterface (SizeOf (Right e)) = SizeofE (toInterface e)
-    fromInterface (Var t name) = VarExpr (AIR.Variable name t Value)
-    fromInterface (Ptr t name) = VarExpr (AIR.Variable name t AIR.Pointer)
+    fromInterface (Var t name) = VarExpr (AIR.Variable AIR.Value   t name)
+    fromInterface (Ptr t name) = VarExpr (AIR.Variable AIR.Pointer t name)
     fromInterface (Lit (EBool b)) = ConstExpr (BoolConst b)
     fromInterface (Lit (EInt t x)) = ConstExpr (IntConst x t)
     fromInterface (Lit (EFloat x)) = ConstExpr (FloatConst x)
@@ -210,7 +210,7 @@ instance Interface Prog where
 --    fromInterface (Switch scrut alts) = Switch (fromInterface scrut) (map toBlock alts) () () -- TODO: Add Switch in Prog.
     fromInterface (While pe e p) = SeqLoop (fromInterface e) (toBlock pe) (toBlock p)
     fromInterface (For s e i p) = ParLoop
-        (AIR.Variable s (NumType Unsigned S32) Value) (fromInterface e) i (toBlock p)
+        (AIR.Variable Value (NumType Unsigned S32) s) (fromInterface e) i (toBlock p)
     fromInterface (Block ds p) = BlockProgram (AIR.Block (map fromInterface ds) (fromInterface p))
 
 instance Interface Param where
@@ -396,14 +396,14 @@ isIVar AIR.IVarType{} = True
 isIVar _              = False
 
 vType :: Variable t -> Type
-vType (Variable _ t _) = t
+vType Variable{..} = varType
 
 dVar :: Def -> Variable ()
 dVar (Def v)    = v
 dVar (Init v _) = v
 
 vName :: Variable t -> String
-vName (Variable s _ _) = s
+vName Variable{..} = varName
 
 lName :: Expr -> String
 lName (Var _ s) = s
@@ -412,5 +412,5 @@ lName (e :.: _) = lName e
 lName e         = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
 
 varToExpr :: Variable t -> Expr
-varToExpr (Variable name t Value)        = Var t name
-varToExpr (Variable name t AIR.Pointer)  = Ptr t name
+varToExpr (Variable AIR.Value   t name) = Var t name
+varToExpr (Variable AIR.Pointer t name) = Ptr t name

@@ -48,7 +48,7 @@ instance Transformation VariableRoleAssigner where
     type State VariableRoleAssigner = ()
 
 instance Transformable VariableRoleAssigner Variable where
-        transform _ _ d v@(Variable _ _ Value) = Result v' () () where
+        transform _ _ d v@(Variable Value _ _) = Result v' () () where
             v' = v { varRole = if (varName v `elem` outParametersVRA d) ||
                             (isComposite v && (varName v `elem` inParametersVRA d))
                         then Pointer else Value

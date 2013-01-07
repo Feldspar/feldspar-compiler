@@ -235,9 +235,9 @@ data Constant t
 
 data Variable t
     = Variable
-        { varName                   :: String
+        { varRole                   :: VariableRole
         , varType                   :: Type
-        , varRole                   :: VariableRole
+        , varName                   :: String
         }
     deriving (Typeable, Show, Eq)
 

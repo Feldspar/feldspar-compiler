@@ -282,7 +282,7 @@ mkRef :: Type -> VarId -> Expr
 mkRef t = Ptr t . mkVarName
 
 mkVariable :: Type -> VarId -> Variable ()
-mkVariable t i = Variable (mkVarName i) t Value
+mkVariable t = Variable Value t . mkVarName
 
 freshId :: CodeWriter Integer
 freshId = do
@@ -299,13 +299,13 @@ freshVar base t size = do
   return var
 
 declare :: Expr -> CodeWriter ()
-declare (Var t s) = tellDecl [Def (Variable s t Value)]
-declare (Ptr t s) = tellDecl [Def (Variable s t Pointer)]
+declare (Var t s) = tellDecl [Def (Variable Value   t s)]
+declare (Ptr t s) = tellDecl [Def (Variable Pointer t s)]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
 initialize :: Expr -> Expr -> CodeWriter ()
-initialize (Var t s) e = tellDecl [Init (Variable s t Value) e]
-initialize (Ptr t s) e = tellDecl [Init (Variable s t Pointer) e]
+initialize (Var t s) e = tellDecl [Init (Variable Value   t s) e]
+initialize (Ptr t s) e = tellDecl [Init (Variable Pointer t s) e]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
 tellDef :: [Ent] -> CodeWriter ()

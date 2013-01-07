@@ -67,7 +67,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDf taskName KTask [] [Rep.Variable "params" Rep.VoidType Rep.Value] runTask]
+        tellDef [ProcDf taskName KTask [] [Rep.Variable Rep.Value Rep.VoidType "params"] runTask]
         -- Spawn:
         tellProg [iVarInit loc]
         tellProg [spawn taskName args]

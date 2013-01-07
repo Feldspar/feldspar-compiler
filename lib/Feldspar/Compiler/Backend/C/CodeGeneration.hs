@@ -26,6 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module Feldspar.Compiler.Backend.C.CodeGeneration where
@@ -78,7 +79,7 @@ instance ToC Type where
                          "Unhandled type in platform " ++ name (platform options) ++ ": " ++ show t ++ " place: " ++ show place
 
 instance ToC (Variable ()) where
-    toC options place (Variable vname typ role) = showVariable options place role typ vname
+    toC options place Variable{..} = showVariable options place varRole varType varName
 
 showVariable :: Options -> Place -> VariableRole -> Type -> String -> String
 showVariable options place role typ vname = var ++ sz where

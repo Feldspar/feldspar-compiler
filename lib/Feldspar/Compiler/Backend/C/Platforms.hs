@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Feldspar.Compiler.Backend.C.Platforms
     ( availablePlatforms
@@ -148,8 +149,8 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
 
 
     toNativeVariable :: Variable () -> [Action (Repr (Variable ()))]
-    toNativeVariable v@(Variable _ arr@(ArrayType{}) _)
-      = [replaceWith $ v { varType = nativeArray arr}]
+    toNativeVariable v@Variable{..} | ArrayType{} <- varType 
+      = [replaceWith $ v { varType = nativeArray varType}]
     toNativeVariable _ = []
 
     nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
@@ -308,9 +309,9 @@ traceRules = [rule trace]
       where
        acts i = [replaceWith trcVar, propagate decl, propagate trc, propagate frame]
          where
-            trcVar = Var t trcVarName
+            trcVar     = Var t trcVarName
             trcVarName = "trc" ++ show i
-            defTrcVar = Def (Variable trcVarName t Value)
+            defTrcVar  = Def (Variable Value t trcVarName)
             decl (Bl defs prg) = [replaceWith $ Bl (defs ++ [defTrcVar]) prg]
             trc :: Prog -> [Action (Repr Prog)]
             trc instr = [replaceWith $ Seq [trcVar := val,trcCall,instr]]
@@ -331,8 +332,8 @@ extend' s t = s ++ "_" ++ show t
 
 log2 :: Integer -> Maybe Integer
 log2 n
-    | n == 2 Prelude.^ l    = Just l
-    | otherwise             = Nothing
+    | n == 2 Prelude.^ l = Just l
+    | otherwise          = Nothing
   where
     l = toInteger $ length $ takeWhile (<=n) $ map (2 Prelude.^) [1..]
 
