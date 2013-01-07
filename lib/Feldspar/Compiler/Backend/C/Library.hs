@@ -49,8 +49,9 @@ replace [] _ _ = []
 replace s find repl | take (length find) s == find = repl ++ replace (drop (length find) s) find repl
                     | otherwise = head s : replace (tail s) find repl
 
-fixFunctionName :: String -> String
-fixFunctionName functionName = replace (replace functionName "_" "__") "'" "_prime"
+-- | Encode special characters in function names 
+encodeFunctionName :: String -> String
+encodeFunctionName functionName = replace (replace functionName "_" "__") "'" "_prime"
 
 makeDebugHFileName :: String -> String
 makeDebugHFileName = (<.> "h.dbg.txt")

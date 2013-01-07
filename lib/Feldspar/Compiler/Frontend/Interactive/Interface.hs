@@ -32,8 +32,6 @@ import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
-import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 
 import Data.Char
 import System.FilePath (takeBaseName, (<.>))
@@ -41,23 +39,6 @@ import System.FilePath (takeBaseName, (<.>))
 -- ================================================================================================
 --  == Interactive compilation
 -- ================================================================================================
-
-{-
-data PrgType = ForType | AssignType | IfType
-
-forPrg = ForType
-ifPrg  = IfType
-assignPrg = AssignType
-
-getProgram :: (Int, Int) -> PrgType -> Module DebugToCSemanticInfo -> IO ()
-getProgram (line, col) prgtype prg = res where
-     res = if find then putStrLn $ myShow code
-                   else putStrLn "Not found appropriate code part!"
-     (find, code) = case prgtype of
-                        ForType     -> getPrgParLoop (line, col) prg
-                        AssignType  -> getPrgAssign (line, col) prg
-                        IfType      -> getPrgBranch (line, col) prg
--}
 
 compile :: (Compilable t internal) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName functionName opts = do
@@ -68,8 +49,8 @@ compile prg fileName functionName opts = do
   where
     hfile = makeHFileName fileName
     cfile = makeCFileName fileName
-    compilationResult = compileToCCore Interactive prg
-                                       (OriginalFunctionSignature functionName []) opts
+    compilationResult = compileToCCore Interactive
+                                       (OriginalFunctionSignature functionName []) opts prg
 
     withIncludeGuard code = unlines [ "#ifndef " ++ guardName
                                     , "#define " ++ guardName
@@ -92,17 +73,11 @@ icompileWith opts = icompile' opts "test"
 
 icompile' :: (Compilable t internal) => Options -> String -> t -> IO ()
 icompile' opts functionName prg = do
+    let res = compileToCCore Interactive (OriginalFunctionSignature functionName []) opts prg
     putStrLn "=============== Header ================"
-    putStrLn $ sourceCode $ sctccrHeader compilationResult
+    putStrLn $ sourceCode $ sctccrHeader res
     putStrLn "=============== Source ================"
-    putStrLn $ sourceCode $ sctccrSource compilationResult
-  where
-    compilationResult = compileToCCore Interactive prg
-                                       (OriginalFunctionSignature functionName []) opts
-
-icompileWithInfos :: (Compilable t internal) => t -> String -> Options -> SplitCompToCCoreResult
-icompileWithInfos prg functionName = compileToCCore Interactive prg
-                                                          (OriginalFunctionSignature functionName [])
+    putStrLn $ sourceCode $ sctccrSource res
 
 -- | Get the generated core for a program.
 getCore prog = getCore' defaultOptions prog

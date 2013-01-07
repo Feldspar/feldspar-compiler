@@ -146,9 +146,9 @@ prepareInputFile inputFileName = do
     removeFileIfPossible $ replaceExtension inputFileName ".o"
 
 standaloneCompile :: (Compilable t internal) =>
-    t -> FilePath -> FilePath -> OriginalFunctionSignature -> Options -> IO ()
-standaloneCompile prg inputFileName outputFileName originalFunctionSignature opts = do
+    FilePath -> FilePath -> OriginalFunctionSignature -> Options -> t -> IO ()
+standaloneCompile inputFileName outputFileName sig opts prg = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult
   where
-    compilationResult = compileToCCore Standalone prg originalFunctionSignature opts
+    compilationResult = compileToCCore Standalone sig opts prg

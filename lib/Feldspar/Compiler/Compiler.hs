@@ -26,6 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
@@ -54,15 +55,15 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
 data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
     deriving (DT.Typeable)
 
-data SplitModuleDescriptor = SplitModuleDescriptor {
-    smdSource :: Module (),
-    smdHeader :: Module ()
-}
+data SplitModuleDescriptor = SplitModuleDescriptor
+    { smdSource :: Module ()
+    , smdHeader :: Module ()
+    }
 
-data SplitCompToCCoreResult = SplitCompToCCoreResult {
-    sctccrSource :: CompToCCoreResult DebugToCSemanticInfo,
-    sctccrHeader :: CompToCCoreResult DebugToCSemanticInfo
-}
+data SplitCompToCCoreResult = SplitCompToCCoreResult
+    { sctccrSource :: CompToCCoreResult DebugToCSemanticInfo
+    , sctccrHeader :: CompToCCoreResult DebugToCSemanticInfo
+    }
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
@@ -94,16 +95,14 @@ moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
-  :: (Compilable t internal) => CompilationMode -> t
-  -> OriginalFunctionSignature -> Options
+  :: (Compilable c internal) => CompilationMode
+  -> OriginalFunctionSignature -> Options -> c
   -> SplitCompToCCoreResult
-compileToCCore compMode prg
-  funSig coreOptions =
+compileToCCore compMode funSig coreOptions prg =
     createSplit $ moduleToCCore coreOptions <$> separatedModules
       where
-        separatedModules =
-          moduleSeparator $
-          executePluginChain' compMode prg funSig coreOptions
+        separatedModules = moduleSeparator
+                         $ executePluginChain compMode funSig coreOptions prg
 
         moduleSeparator modules = [header, source]
           where (SplitModuleDescriptor header source) = moduleSplitter modules
@@ -158,31 +157,16 @@ pluginChain externalInfo
     . executePlugin IVarPlugin ()
 
 data ExternalInfoCollection = ExternalInfoCollection
-    { primitivesExternalInfo              :: ExternalInfo RulePlugin
-    , ruleExternalInfo                    :: ExternalInfo RulePlugin
-    }
-
-executePluginChain' :: (Compilable c internal)
-  => CompilationMode -> c -> OriginalFunctionSignature
-  -> Options -> Module ()
-executePluginChain' compMode prg originalFunctionSignatureParam opt =
-  pluginChain ExternalInfoCollection
-    { primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
-    , ruleExternalInfo                    = opt
-    } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
-  where
-    ofn = originalFunctionName
-    fixedOriginalFunctionSignature = originalFunctionSignatureParam {
-      originalFunctionName =
-        fixFunctionName $ ofn originalFunctionSignatureParam
+    { primitivesExternalInfo :: ExternalInfo RulePlugin
+    , ruleExternalInfo       :: ExternalInfo RulePlugin
     }
 
 executePluginChain :: (Compilable c internal)
-                   => CompilationMode
-                   -> c
-                   -> OriginalFunctionSignature
-                   -> Options
-                   -> SplitModuleDescriptor
-executePluginChain cm f sig opts =
-  moduleSplitter $ executePluginChain' cm f sig opts
+  => CompilationMode -> OriginalFunctionSignature
+  -> Options -> c -> Module ()
+executePluginChain _ sig@OriginalFunctionSignature{..} opt prg =
+  pluginChain ExternalInfoCollection
+    { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
+    , ruleExternalInfo       = opt
+    } $ fromCore opt (encodeFunctionName $ originalFunctionName) prg
 

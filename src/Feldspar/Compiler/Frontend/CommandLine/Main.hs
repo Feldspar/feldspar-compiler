@@ -43,7 +43,7 @@ import Feldspar.Compiler.Frontend.CommandLine.API
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Error
-import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
+import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint (compToCWithInfos)
 -- ====================================== System imports ==================================
 import System.IO
 import System.Exit
@@ -76,13 +76,13 @@ compileFunction :: String -> String -> CoreOptions.Options -> OriginalFunctionSi
 compileFunction inFileName outFileName coreOptions originalFunctionSignature = do
     let functionName = originalFunctionName originalFunctionSignature
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
-    let splitModuleDescriptor = executePluginChain Standalone prg originalFunctionSignature coreOptions
+    let splitModuleDescriptor = moduleSplitter $ executePluginChain Standalone originalFunctionSignature coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do
         tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
-        let core = compileToCCore Standalone prg originalFunctionSignature coreOptions
+        let core = compileToCCore Standalone originalFunctionSignature coreOptions prg
         Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
                                       hPutStrLn temph $ sourceCode $ sctccrHeader core)
                                   (do hClose temph
@@ -108,7 +108,7 @@ singleFunctionCompilationBody inFileName outFileName coreOptions originalFunctio
     liftIO $ fancyWrite $ "Compiling function " ++ originalFunctionName originalFunctionSignature ++ "..."
     SomeCompilable prg <-
         interpret ("SomeCompilable " ++ originalFunctionName originalFunctionSignature) (as::SomeCompilable)
-    liftIO $ standaloneCompile prg inFileName outFileName originalFunctionSignature coreOptions
+    liftIO $ standaloneCompile inFileName outFileName originalFunctionSignature coreOptions prg
     return $ return ()
 
 mergeModules :: [Module ()] -> Module ()
