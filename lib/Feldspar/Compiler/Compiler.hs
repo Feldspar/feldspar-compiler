@@ -43,12 +43,10 @@ import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
-import Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner
 import Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
 import Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
-import Feldspar.Compiler.Imperative.Plugin.Free
 import Feldspar.Compiler.Imperative.Plugin.IVars
 import Feldspar.Compiler.Imperative.Plugin.Naming
 --import Feldspar.Compiler.Imperative.Plugin.Unroll
@@ -158,9 +156,7 @@ pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
 --    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
---    . executePlugin Free ()
     . executePlugin IVarPlugin ()
---    . executePlugin VariableRoleAssigner (variableRoleAssignerExternalInfo externalInfo)
 --    . executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo)
 --    . executePlugin BlockProgramHandler ()
 
@@ -169,7 +165,6 @@ data ExternalInfoCollection = ExternalInfoCollection {
 --    , unrollExternalInfo                  :: ExternalInfo UnrollPlugin
     , primitivesExternalInfo              :: ExternalInfo RulePlugin
     , ruleExternalInfo                    :: ExternalInfo RulePlugin
-    , variableRoleAssignerExternalInfo    :: ExternalInfo VariableRoleAssigner
     , typeCorrectorExternalInfo           :: ExternalInfo TypeCorrector
 }
 
@@ -186,7 +181,6 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
 --    , unrollExternalInfo                  = unroll opt
     , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo                    = opt
-    , variableRoleAssignerExternalInfo    = ()
     , typeCorrectorExternalInfo           = False
     } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
   where
