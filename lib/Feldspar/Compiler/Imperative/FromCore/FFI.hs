@@ -47,5 +47,5 @@ instance (Compile dom dom) => Compile (FFI :|| Type) dom
   where
     compileExprSym (C' (ForeignImport name _)) info args = do
         argExprs <- sequence $ listArgs compileExpr args
-        return $ Fun (compileTypeRep (infoType info) (infoSize info)) name argExprs
+        return $ fun (compileTypeRep (infoType info) (infoSize info)) name argExprs
 

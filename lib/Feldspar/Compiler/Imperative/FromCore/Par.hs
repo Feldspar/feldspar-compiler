@@ -102,7 +102,7 @@ instance ( Compile dom dom
             iv  <- compileExpr r
             val <- compileExpr a
             i   <- freshId
-            let var = Var (AIR.typeof val) $ "msg" ++ show i
+            let var = varToExpr $ AIR.Variable AIR.Value (AIR.typeof val) $ "msg" ++ show i
             declare var
             assign var val
             tellProg [iVarPut iv var]

@@ -49,6 +49,7 @@ import Feldspar.Core.Constructs.Literal
 import Feldspar.Range (upperBound)
 
 import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Expression(..), Constant(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance Compile (Literal :|| Core.Type) dom
@@ -57,65 +58,67 @@ instance Compile (Literal :|| Core.Type) dom
 
     compileProgSym (C' (Literal a)) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
 
-literal :: TypeRep a -> Size a -> a -> CodeWriter Expr
+literal :: TypeRep a -> Size a -> a -> CodeWriter (Expression ())
 literal UnitType        _  ()     = return $ litI32 0
 literal BoolType        _  a      = return $ litB a
 literal trep@IntType{}  sz a      = return $ litI (compileTypeRep trep sz) (toInteger a)
 literal FloatType       _  a      = return $ litF $ float2Double a
-literal (ComplexType t) _  (r:+i) = do re <- literal t (defaultSize t) r
-                                       ie <- literal t (defaultSize t) i
-                                       return $ litC re ie
+-- FIXME: Asymmetry in data types; should disappear when others merged.
+--literal ComplexType{}   _  (r:+i) = do re <- literal t (defaultSize t) r
+--                                       ie <- literal t (defaultSize t) i
+--                                       return $ (ConstExpr (ComplexConst r i))
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
+
 
 literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
 literalLoc loc (ArrayType t) (rs :> es) e
     = do
         tellProg [initArray loc $ litI32 $ toInteger $ upperBound rs]
         zipWithM_ (writeElement t es) (map litI32 [0..]) e
-  where writeElement :: TypeRep a -> Size a -> Expr -> a -> CodeWriter ()
+  where writeElement :: TypeRep a -> Size a -> Expression () -> a -> CodeWriter ()
         writeElement ty sz ix x = do
-            literalLoc (loc :!: ix) ty sz x
+            literalLoc (ArrayElem loc ix) ty sz x
 
 literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
-    do literalLoc (loc :.: "member1") ta sa a
-       literalLoc (loc :.: "member2") tb sb b
+    do literalLoc (StructField loc "member1") ta sa a
+       literalLoc (StructField loc "member2") tb sb b
 
 literalLoc loc (Tup3Type ta tb tc) (sa,sb,sc) (a,b,c) =
-    do literalLoc (loc :.: "member1") ta sa a
-       literalLoc (loc :.: "member2") tb sb b
-       literalLoc (loc :.: "member3") tc sc c
+    do literalLoc (StructField loc "member1") ta sa a
+       literalLoc (StructField loc "member2") tb sb b
+       literalLoc (StructField loc "member3") tc sc c
        
 literalLoc loc (Tup4Type ta tb tc td) (sa,sb,sc,sd) (a,b,c,d) =
-    do literalLoc (loc :.: "member1") ta sa a
-       literalLoc (loc :.: "member2") tb sb b
-       literalLoc (loc :.: "member3") tc sc c
-       literalLoc (loc :.: "member4") td sd d
+    do literalLoc (StructField loc "member1") ta sa a
+       literalLoc (StructField loc "member2") tb sb b
+       literalLoc (StructField loc "member3") tc sc c
+       literalLoc (StructField loc "member4") td sd d
        
 literalLoc loc (Tup5Type ta tb tc td te) (sa,sb,sc,sd,se) (a,b,c,d,e) =
-    do literalLoc (loc :.: "member1") ta sa a
-       literalLoc (loc :.: "member2") tb sb b
-       literalLoc (loc :.: "member3") tc sc c
-       literalLoc (loc :.: "member4") td sd d
-       literalLoc (loc :.: "member5") te se e
+    do literalLoc (StructField loc "member1") ta sa a
+       literalLoc (StructField loc "member2") tb sb b
+       literalLoc (StructField loc "member3") tc sc c
+       literalLoc (StructField loc "member4") td sd d
+       literalLoc (StructField loc "member5") te se e
        
 literalLoc loc (Tup6Type ta tb tc td te tf) (sa,sb,sc,sd,se,sf) (a,b,c,d,e,f) =
-    do literalLoc (loc :.: "member1") ta sa a
-       literalLoc (loc :.: "member2") tb sb b
-       literalLoc (loc :.: "member3") tc sc c
-       literalLoc (loc :.: "member4") td sd d
-       literalLoc (loc :.: "member5") te se e
-       literalLoc (loc :.: "member6") tf sf f
+    do literalLoc (StructField loc "member1") ta sa a
+       literalLoc (StructField loc "member2") tb sb b
+       literalLoc (StructField loc "member3") tc sc c
+       literalLoc (StructField loc "member4") td sd d
+       literalLoc (StructField loc "member5") te se e
+       literalLoc (StructField loc "member6") tf sf f
        
 literalLoc loc (Tup7Type ta tb tc td te tf tg) (sa,sb,sc,sd,se,sf,sg) (a,b,c,d,e,f,g) =
-    do literalLoc (loc :.: "member1") ta sa a
-       literalLoc (loc :.: "member2") tb sb b
-       literalLoc (loc :.: "member3") tc sc c
-       literalLoc (loc :.: "member4") td sd d
-       literalLoc (loc :.: "member5") te se e
-       literalLoc (loc :.: "member6") tf sf f
-       literalLoc (loc :.: "member7") tg sg g
+    do literalLoc (StructField loc "member1") ta sa a
+       literalLoc (StructField loc "member2") tb sb b
+       literalLoc (StructField loc "member3") tc sc c
+       literalLoc (StructField loc "member4") td sd d
+       literalLoc (StructField loc "member5") te se e
+       literalLoc (StructField loc "member6") tf sf f
+       literalLoc (StructField loc "member7") tg sg g
 
 literalLoc loc t sz a =
     do rhs <- literal t sz a

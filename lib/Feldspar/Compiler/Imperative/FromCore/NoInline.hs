@@ -42,7 +42,8 @@ import Language.Syntactic
 import Feldspar.Core.Types (Type,defaultSize)
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.NoInline
-import Feldspar.Compiler.Imperative.Representation (Kind(..))
+import Feldspar.Compiler.Imperative.Representation (Kind(..), Variable(..),
+                                                    VariableRole(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.Frontend
 
@@ -61,6 +62,6 @@ instance Compile dom dom => Compile (NoInline :|| Type) dom
         funId  <- freshId
         let funname = "noinline" ++ show funId
         tellDef [ProcDf funname KNoInline ins outs $ Block ds t]
-        let ins' = map (\v -> In $ Var (vType v) (vName v)) ins
+        let ins' = map (\v -> In $ varToExpr $ Variable Value (vType v) (vName v)) ins
         tellProg [Call funname KNoInline $ ins' ++ [Out loc]]
 

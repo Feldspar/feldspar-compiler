@@ -57,7 +57,8 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
-                                                    VariableRole(..))
+                                                    VariableRole(..),
+                                                    Expression(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
@@ -65,7 +66,7 @@ import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
 
-data Readers = Readers { alias :: [(VarId, Expr)] -- ^ variable aliasing
+data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasing
                        , sourceInfo :: SourceInfo -- ^ Surrounding source info
                        , backendOpts :: Options -- ^ Options for the backend.
                        }
@@ -101,7 +102,7 @@ initState :: States
 initState = States 0
 
 -- | Where to place the program result
-type Location = Expr
+type Location = Expression ()
 
 -- | A minimal complete instance has to define either 'compileProgSym' or
 -- 'compileExprSym'.
@@ -119,7 +120,7 @@ class Compile sub dom
         :: sub a
         -> Info (DenResult a)
         -> Args (AST (Decor Info dom)) a
-        -> CodeWriter Expr
+        -> CodeWriter (Expression ())
     compileExprSym = compileProgFresh
 
 instance (Compile sub1 dom, Compile sub2 dom) =>
@@ -151,7 +152,7 @@ compileProgFresh :: Compile sub dom
     => sub a
     -> Info (DenResult a)
     -> Args (AST (Decor Info dom)) a
-    -> CodeWriter Expr
+    -> CodeWriter (Expression ())
 compileProgFresh a info args = do
     loc <- freshVar "e" (infoType info) (infoSize info)
     compileProgSym a info loc args
@@ -171,7 +172,7 @@ compileProgDecor result (Decor info a) args = do
 compileExprDecor :: Compile dom dom
     => Decor Info dom a
     -> Args (AST (Decor Info dom)) a
-    -> CodeWriter Expr
+    -> CodeWriter (Expression ())
 compileExprDecor (Decor info a) args = do
     let src = infoSource info
     aboveSrc <- asks sourceInfo
@@ -182,19 +183,18 @@ compileProg :: Compile dom dom =>
     Location -> ASTF (Decor Info dom) a -> CodeWriter ()
 compileProg result = simpleMatch (compileProgDecor result)
 
-compileExpr :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter Expr
+compileExpr :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter (Expression ())
 compileExpr = simpleMatch compileExprDecor
 
 -- Compile an expression and make sure that the result is stored in a variable
-compileExprVar :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter Expr
+compileExprVar :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter (Expression ())
 compileExprVar e = do
     e' <- compileExpr e
     case e' of
-        Var _ _ -> return e'
-        Ptr _ _ -> return e'
+        VarExpr (Variable{}) -> return e'
         _       -> do
             varId <- freshId
-            let loc = Var (typeof e') ('e' : show varId)
+            let loc = varToExpr (Variable Value (typeof e') ('e' : show varId))
             declare loc
             assign loc e'
             return loc
@@ -274,12 +274,12 @@ mkVarName :: VarId -> String
 mkVarName v = 'v' : show v
 
 -- | Construct a variable.
-mkVar :: Type -> VarId -> Expr
-mkVar t = Var t . mkVarName
+mkVar :: Type -> VarId -> Expression ()
+mkVar t = varToExpr . Variable Value t . mkVarName
 
 -- | Construct a pointer.
-mkRef :: Type -> VarId -> Expr
-mkRef t = Ptr t . mkVarName
+mkRef :: Type -> VarId -> Expression ()
+mkRef t = varToExpr . Variable Pointer t . mkVarName
 
 mkVariable :: Type -> VarId -> Variable ()
 mkVariable t = Variable Value t . mkVarName
@@ -291,21 +291,19 @@ freshId = do
   put (s {fresh = v + 1})
   return v
 
-freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter Expr -- TODO take just info instead of TypeRep and Size?
+freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter (Expression ()) -- TODO take just info instead of TypeRep and Size?
 freshVar base t size = do
   v <- freshId
-  let var =Var (compileTypeRep t size) $ base ++ show v
+  let var = varToExpr . Variable Value (compileTypeRep t size) $ base ++ show v
   declare var
   return var
 
-declare :: Expr -> CodeWriter ()
-declare (Var t s) = tellDecl [Def (Variable Value   t s)]
-declare (Ptr t s) = tellDecl [Def (Variable Pointer t s)]
+declare :: Expression () -> CodeWriter ()
+declare (VarExpr v@(Variable{})) = tellDecl [Def v]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
-initialize :: Expr -> Expr -> CodeWriter ()
-initialize (Var t s) e = tellDecl [Init (Variable Value   t s) e]
-initialize (Ptr t s) e = tellDecl [Init (Variable Pointer t s) e]
+initialize :: Expression () -> Expression () -> CodeWriter ()
+initialize (VarExpr v@(Variable{})) e = tellDecl [Init v e]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
 tellDef :: [Ent] -> CodeWriter ()
@@ -343,7 +341,7 @@ getTypes opts defs = mkDef comps
       | (ArrayType _ typ2) <- typ = mkDef (typ2:typs)
       | otherwise = mkDef typs
 
-assign :: Location -> Expr -> CodeWriter ()
+assign :: Location -> Expression () -> CodeWriter ()
 assign lhs rhs = tellProg [copyProg lhs [rhs]]
 
 -- | Like 'listen', but also prevents the program from being written in the
@@ -354,7 +352,7 @@ confiscateBlock m
     $ censor (\rec -> rec {block = mempty})
     $ listen m
 
-withAlias :: VarId -> Expr -> CodeWriter a -> CodeWriter a
+withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
 withAlias v0 expr =
   local (\e -> e {alias = (v0,expr) : alias e})
 
@@ -369,7 +367,7 @@ mkLength :: ( Project (Core.Literal  :|| Core.Type) dom
             , Project (Core.Variable :|| Core.Type) dom
             , Compile dom dom
             )
-         => ASTF (Decor Info dom) a -> TypeRep a -> Core.Size a -> CodeWriter Expr
+         => ASTF (Decor Info dom) a -> TypeRep a -> Core.Size a -> CodeWriter (Expression ())
 mkLength a t sz 
   | isVariableOrLiteral a = compileExpr a
   | otherwise             = do

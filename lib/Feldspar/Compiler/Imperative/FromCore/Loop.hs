@@ -66,13 +66,13 @@ instance ( Compile dom dom
             let info1 = getInfo lam1
                 info2 = getInfo lam2
                 sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
-            let (Var _ name) = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
+            let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
             compileProg loc init
             (_, Bl ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
             declare stvar
-            tellProg [Block ds (For name len' 1 body)]
+            tellProg [Block ds (For (lName ix') len' 1 body)]
 
     compileProgSym (C' WhileLoop) _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
@@ -98,10 +98,10 @@ instance ( Compile dom dom
         = do
             let ta = argType $ infoType $ getInfo lam
             let sa = range 0 (upperBound $ infoSize $ getInfo len)
-            let (Var _ name) = mkVar (compileTypeRep ta sa) v
+            let ix = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
             (_, Bl ds body) <- confiscateBlock $ compileProg loc ixf
-            tellProg [Block ds (For name len' 1 body)]
+            tellProg [Block ds (For (lName ix) len' 1 body)]
 
 -- TODO Missing While
     compileProgSym Core.While _ loc (cond :* step :* Nil)
