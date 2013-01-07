@@ -43,7 +43,6 @@ import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
-import Feldspar.Compiler.Backend.C.Plugin.TypeDefinitionGenerator
 import Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner
 import Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
 import Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
@@ -158,7 +157,6 @@ noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 pluginChain :: ExternalInfoCollection -> Module () -> Module ()
 pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
---    . executePlugin TypeDefinitionGenerator (typeDefinitionGeneratorExternalInfo externalInfo)
 --    . executePlugin ConstantFolding ()
 --    . executePlugin ConstantFolding ()
 --    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
@@ -174,7 +172,6 @@ data ExternalInfoCollection = ExternalInfoCollection {
 --    , unrollExternalInfo                  :: ExternalInfo UnrollPlugin
     , primitivesExternalInfo              :: ExternalInfo RulePlugin
     , ruleExternalInfo                    :: ExternalInfo RulePlugin
-    , typeDefinitionGeneratorExternalInfo :: ExternalInfo TypeDefinitionGenerator
     , variableRoleAssignerExternalInfo    :: ExternalInfo VariableRoleAssigner
     , typeCorrectorExternalInfo           :: ExternalInfo TypeCorrector
 }
@@ -192,7 +189,6 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
 --    , unrollExternalInfo                  = unroll opt
     , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo                    = opt
-    , typeDefinitionGeneratorExternalInfo = opt
     , variableRoleAssignerExternalInfo    = ()
     , typeCorrectorExternalInfo           = False
     } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
