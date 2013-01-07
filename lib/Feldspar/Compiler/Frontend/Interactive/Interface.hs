@@ -34,7 +34,6 @@ import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
---import Feldspar.Compiler.Backend.C.Plugin.Locator
 
 import Data.Char
 import System.FilePath (takeBaseName, (<.>))
