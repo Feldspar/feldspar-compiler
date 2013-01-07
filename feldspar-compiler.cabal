@@ -55,17 +55,12 @@ library
     Feldspar.Compiler.Imperative.FromCore.Save
     Feldspar.Compiler.Imperative.Frontend
     Feldspar.Compiler.Imperative.TransformationInstance
---    Feldspar.Compiler.Imperative.Plugin.CollectFreeVars
-    Feldspar.Compiler.Imperative.Plugin.ConstantFolding
     Feldspar.Compiler.Imperative.Plugin.Free
     Feldspar.Compiler.Imperative.Plugin.IVars
---    Feldspar.Compiler.Imperative.Plugin.Unroll
     Feldspar.Compiler.Imperative.Plugin.Naming
     Feldspar.Compiler.Backend.C.CodeGeneration
     Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
---    Feldspar.Compiler.Backend.C.Plugin.Locator
     Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
---    Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
     Feldspar.Compiler.Backend.C.Plugin.VariableRoleAssigner
     Feldspar.Compiler.Backend.C.Plugin.Rule
     Feldspar.Compiler.Backend.C.Library

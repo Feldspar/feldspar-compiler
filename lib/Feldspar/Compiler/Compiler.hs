@@ -48,7 +48,6 @@ import Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
 import Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
-import Feldspar.Compiler.Imperative.Plugin.ConstantFolding
 import Feldspar.Compiler.Imperative.Plugin.Free
 import Feldspar.Compiler.Imperative.Plugin.IVars
 import Feldspar.Compiler.Imperative.Plugin.Naming
@@ -157,8 +156,6 @@ noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 pluginChain :: ExternalInfoCollection -> Module () -> Module ()
 pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
---    . executePlugin ConstantFolding ()
---    . executePlugin ConstantFolding ()
 --    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
 --    . executePlugin Free ()
