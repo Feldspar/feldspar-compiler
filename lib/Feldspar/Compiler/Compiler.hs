@@ -43,7 +43,6 @@ import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
-import Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
@@ -155,7 +154,6 @@ pluginChain externalInfo
 --    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
     . executePlugin IVarPlugin ()
---    . executePlugin BlockProgramHandler ()
 
 data ExternalInfoCollection = ExternalInfoCollection {
       precompilationExternalInfo          :: ExternalInfo Precompilation
