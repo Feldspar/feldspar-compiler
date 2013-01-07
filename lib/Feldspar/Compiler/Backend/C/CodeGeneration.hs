@@ -120,7 +120,7 @@ showName Pointer _ ArrayType{} n = n
 showName Pointer _ NativeArray{} n = n
 showName Pointer place _ n
     | place == AddressNeed_pl   = n
-    | place == Declaration_pl   = codeGenerationError InternalError "Output variable of the function declared!"
+    | place == Declaration_pl   = '*' : n
     | place == MainParameter_pl = n
     | otherwise = "(* " ++ n ++ ")"
 
