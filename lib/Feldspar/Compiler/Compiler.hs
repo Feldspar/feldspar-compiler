@@ -44,7 +44,6 @@ import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
 import Feldspar.Compiler.Backend.C.Plugin.BlockProgramHandler
-import Feldspar.Compiler.Backend.C.Plugin.TypeCorrector
 import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
@@ -157,7 +156,6 @@ pluginChain externalInfo
 --    . executePlugin Precompilation (precompilationExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
     . executePlugin IVarPlugin ()
---    . executePlugin TypeCorrector (typeCorrectorExternalInfo externalInfo)
 --    . executePlugin BlockProgramHandler ()
 
 data ExternalInfoCollection = ExternalInfoCollection {
@@ -165,7 +163,6 @@ data ExternalInfoCollection = ExternalInfoCollection {
 --    , unrollExternalInfo                  :: ExternalInfo UnrollPlugin
     , primitivesExternalInfo              :: ExternalInfo RulePlugin
     , ruleExternalInfo                    :: ExternalInfo RulePlugin
-    , typeCorrectorExternalInfo           :: ExternalInfo TypeCorrector
 }
 
 executePluginChain' :: (Compilable c internal)
@@ -181,7 +178,6 @@ executePluginChain' compMode prg originalFunctionSignatureParam opt =
 --    , unrollExternalInfo                  = unroll opt
     , primitivesExternalInfo              = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo                    = opt
-    , typeCorrectorExternalInfo           = False
     } $ fromCore opt (ofn fixedOriginalFunctionSignature) prg
   where
     ofn = NameExtractor.originalFunctionName
