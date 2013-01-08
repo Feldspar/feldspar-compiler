@@ -48,11 +48,10 @@ import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Literal
 
 import Feldspar.Compiler.Imperative.Frontend
-import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
-                                                              Signedness(..),
-                                                              Size(..))
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..))
 import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..),
-                                                    Block(..))
+                                                    Block(..), Size(..),
+                                                    Signedness(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -143,7 +142,7 @@ instance ( Compile dom dom
             (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem loc ix2) body2
             tellProg [initArray loc len]
             assign ix2 len
-            tellProg [for (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [assignProg ix2 (binop (Rep.NumType Rep.Unsigned Rep.S32) "+" ix2 (litI (Rep.NumType Rep.Unsigned Rep.S32) 1))]))]
+            tellProg [for (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [assignProg ix2 (binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1))]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
