@@ -61,8 +61,8 @@ data SplitModuleDescriptor = SplitModuleDescriptor
     }
 
 data SplitCompToCCoreResult = SplitCompToCCoreResult
-    { sctccrSource :: CompToCCoreResult DebugToCSemanticInfo
-    , sctccrHeader :: CompToCCoreResult DebugToCSemanticInfo
+    { sctccrSource :: CompToCCoreResult () --DebugToCSemanticInfo
+    , sctccrHeader :: CompToCCoreResult () --DebugToCSemanticInfo
     }
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
@@ -85,7 +85,7 @@ moduleSplitter m = SplitModuleDescriptor {
 
 moduleToCCore
   :: Options -> Module ()
-  -> CompToCCoreResult DebugToCSemanticInfo
+  -> CompToCCoreResult () -- DebugToCSemanticInfo
 moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
     res = compToCWithInfos opts lineNum mdl
