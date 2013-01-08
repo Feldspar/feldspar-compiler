@@ -32,14 +32,14 @@
 module Feldspar.Compiler.Backend.C.CodeGeneration where
 
 import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Error
+import Feldspar.Compiler.Error (handleError, ErrorClass(..))
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
 
-import Feldspar.Range
+import Feldspar.Range (isSingleton, upperBound, Range(..))
 import Feldspar.Core.Types (Length)
 
-import Data.List (find,intercalate)
+import Data.List (intercalate)
 
 -- =======================
 -- == C code generation ==
@@ -47,9 +47,6 @@ import Data.List (find,intercalate)
 
 codeGenerationError :: ErrorClass -> String -> a
 codeGenerationError = handleError "CodeGeneration"
-
-defaultMemberName :: String
-defaultMemberName = "member"
 
 class ToC a where
     toC :: Options -> Place -> a -> String
@@ -131,9 +128,6 @@ passByReference _            = False
 ----------------------
 -- Helper functions --
 ----------------------
-
-ind :: (a-> String) -> a -> String
-ind f x = unlines $ map ("    "++) $ lines $ f x
 
 listprint :: (a->String) -> String -> [a] -> String
 listprint f s = intercalate s . filter (not . null) . map f
