@@ -218,7 +218,7 @@ instance Transformable1 DebugToC [] Entity where
 
 instance Transformable DebugToC Entity where
     transform t pos down@PEnv{..} ent@(StructDef n members)
-      = Result ent pos $   text n
+      = Result ent pos $   text "struct" <+> text n
                        $+$ block (up1 $ transform1 t pos down members)
                        <>  semi
 

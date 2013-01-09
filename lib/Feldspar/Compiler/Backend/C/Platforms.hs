@@ -205,7 +205,7 @@ c99Rules = [rule c99]
     c99 (FunctionCall (Function "(/)" t _) [arg1, arg2])   = [replaceWith $ binop t "/" arg1 arg2]
     c99 (FunctionCall (Function "div" t _) [arg1, arg2]) =
         [replaceWith $ StructField (fun div_t (div t) [arg1, arg2]) "quot"]
-      where div_t = Alias (StructType [("quot", t), ("rem", t)]) "div_t"
+      where div_t = Alias (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
             div (NumType Signed S8)  = "div"
             div (NumType Signed S16) = "div"
             div (NumType Signed S32) = "div"

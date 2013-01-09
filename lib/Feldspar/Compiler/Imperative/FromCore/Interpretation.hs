@@ -29,6 +29,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -39,6 +40,9 @@ module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
 import Control.Arrow
 import Control.Monad.RWS
+
+import Data.Char (toLower)
+import Data.List (intercalate)
 
 import Language.Syntactic.Syntax hiding (result)
 import Language.Syntactic.Traversal
@@ -63,8 +67,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),Block(..),
                                                     Program(..),
                                                     Entity(..), StructMember(..))
 
-import Feldspar.Compiler.Backend.C.Options (Options(..))
-import Feldspar.Compiler.Backend.C.CodeGeneration (toC)
+import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
@@ -218,35 +221,40 @@ compileNumType S N64     = (NumType Signed S64)
 compileNumType U NNative = (NumType Unsigned S32)  -- TODO
 compileNumType S NNative = (NumType Signed S32)  -- TODO
 
+mkStructType :: [(String, Type)] -> Type
+mkStructType trs = StructType name trs
+  where
+    name = intercalate "_" $ "s" : map (encodeType . snd) trs
+
 compileTypeRep :: TypeRep a -> Core.Size a -> Type
 compileTypeRep UnitType _                = VoidType
 compileTypeRep Core.BoolType _           = BoolType
 compileTypeRep (IntType s n) _           = compileNumType s n
 compileTypeRep Core.FloatType _          = FloatType
 compileTypeRep (Core.ComplexType t) _    = ComplexType (compileTypeRep t (defaultSize t))
-compileTypeRep (Tup2Type a b) (sa,sb)          = StructType
+compileTypeRep (Tup2Type a b) (sa,sb)          = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         ]
-compileTypeRep (Tup3Type a b c) (sa,sb,sc)        = StructType
+compileTypeRep (Tup3Type a b c) (sa,sb,sc)        = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
         ]
-compileTypeRep (Tup4Type a b c d) (sa,sb,sc,sd)      = StructType
+compileTypeRep (Tup4Type a b c d) (sa,sb,sc,sd)      = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
         , ("member4", compileTypeRep d sd)
         ]
-compileTypeRep (Tup5Type a b c d e) (sa,sb,sc,sd,se)    = StructType
+compileTypeRep (Tup5Type a b c d e) (sa,sb,sc,sd,se)    = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
         , ("member4", compileTypeRep d sd)
         , ("member5", compileTypeRep e se)
         ]
-compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = StructType
+compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
@@ -254,7 +262,7 @@ compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = StructType
         , ("member5", compileTypeRep e se)
         , ("member6", compileTypeRep f sf)
         ]
-compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = StructType
+compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
         , ("member3", compileTypeRep c sc)
@@ -327,6 +335,25 @@ tellDecl ds = do rs <- ask
                           | otherwise = mempty {block = Block ds $ Sequence [], epilogue = frees, def = defs}
                  tell code
 
+encodeType :: Type -> String
+encodeType = go
+  where
+    go VoidType          = "void"
+    go BoolType          = "bool"
+    go BitType           = "bit"
+    go FloatType         = "float"
+    go (NumType s w)     = map toLower (show s) ++ show w
+    go (ComplexType t)   = "complex" ++ go t
+    go (UserType t)      = t
+    go (Alias _ s)       = s
+    go (IVarType t)      = go t
+    go (NativeArray _ t) = go t
+    go (StructType n ts) = n
+    go (ArrayType l t)   = intercalate "_" ["arr", go t, if (isSingleton l)
+                                                         then show (upperBound l)
+                                                         else "UD"
+                                           ]
+
 getTypes :: Options -> [Declaration ()] -> [Entity ()]
 getTypes opts defs = concatMap mkDef comps
   where
@@ -336,13 +363,9 @@ getTypes opts defs = concatMap mkDef comps
     isComposite :: Type -> Bool
     isComposite (StructType {}) = True
     isComposite e = isArray e
-    -- TODO: There is nothing in the frontend for naming structures in
-    -- Prog, that is done in CodeGeneration by toC. We should combine
-    -- Prog and Program into a single format and untangle naming from
-    -- prettyprinting.
-    mkDef s@(StructType members)
+    mkDef s@(StructType n members)
       =  concatMap (mkDef . snd) members
-      ++ [StructDef (toC opts Declaration_pl s) (map (uncurry StructMember) members)]
+      ++ [StructDef n (map (uncurry StructMember) members)]
     mkDef (ArrayType _ typ) = mkDef typ
     mkDef _                 = []
 

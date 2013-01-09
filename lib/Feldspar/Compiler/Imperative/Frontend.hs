@@ -108,7 +108,7 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
   where go :: Expression t-> [String] -> Maybe (Range Length)
         go (VarExpr (Variable _ (ArrayType r _) _)) [] | isSingleton r = Just r
         go (StructField e s) ss = go e (s:ss)
-        go (VarExpr (Variable _ (StructType fields) _)) (s:_)
+        go (VarExpr (Variable _ (StructType _ fields) _)) (s:_)
           | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
         go _ _ = Nothing

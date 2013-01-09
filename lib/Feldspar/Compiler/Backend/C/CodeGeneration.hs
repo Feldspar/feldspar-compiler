@@ -51,24 +51,13 @@ codeGenerationError = handleError "CodeGeneration"
 class ToC a where
     toC :: Options -> Place -> a -> String
 
-getStructTypeName :: Options -> Place -> Type -> String
-getStructTypeName options place (StructType ts) =
-    intercalate "_" $ map (getStructTypeName options place . snd) ts
-getStructTypeName options place (ArrayType len innerType) =
-    "arr_T" ++ getStructTypeName options place innerType ++ "_S" ++ len2str len
-    where
-        len2str :: Range Length -> String
-        len2str r | isSingleton r = show (upperBound r)
-                  | otherwise = "UD"
-getStructTypeName options place t = replace (toC options place t) " " "" -- float complex -> floatcomplex
-
 instance ToC Type where
     toC _ _ VoidType                = "void"
     toC _ _ ArrayType{}             = arrayTypeName
     toC _ _ IVarType{}              = ivarTypeName
     toC _ _ (UserType u)            = u
+    toC _ _ t@(StructType n _)      = "struct " ++ n
     toC o p (NativeArray _ t)       = toC o p t
-    toC o p t@(StructType _)        = "struct s_" ++ getStructTypeName o p t
     toC o _ t | [s] <- [s | (t',s,_) <- types $ platform o, t'==t] = s
     toC o p t = codeGenerationError InternalError
               $ unwords ["Unhandled type in platform ", name (platform o),  ": ", show t, " place: ", show p]
