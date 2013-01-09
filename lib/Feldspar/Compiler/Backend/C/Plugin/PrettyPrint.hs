@@ -88,7 +88,20 @@ compToCWithInfos opts line procedure =
 
 instance Transformable DebugToC Variable where
     transform _ pos PEnv{..} x@Variable{..}
-      = Result x pos $ text $ showVariable options place varRole varType varName
+        = Result x pos $ case place of
+                           MainParameter_pl -> typ <+> (ref <> name <> size)
+                           Declaration_pl   -> typ <+> (ref <> name <> size)
+                           _                -> name
+      where
+        typ  = toC options varType
+        size = sizeInBrackets varType
+        ref  = case (varRole, place, passByReference varType) of
+                 (Pointer, Declaration_pl,    _   ) -> char '*'
+                 (Pointer, MainParameter_pl,  True) -> char '*'
+                 (Value,   AddressNeed_pl,    _   ) -> char '&'
+                 (Value,   FunctionCallIn_pl, True) -> char '&'
+                 _                                  -> empty
+        name = text varName
 
 instance Transformable1 DebugToC [] Constant where
     transform1 = transform1' (sep . punctuate comma)
@@ -125,11 +138,7 @@ instance Transformable DebugToC ActualParameter where
     transform t pos down act@TypeParameter{} = transformActParam t pos down act MainParameter_pl
     transform t pos down act@FunParameter{}  = transformActParam t pos down act FunctionCallIn_pl
 
-transformActParam _ pos PEnv{..} par@(TypeParameter typ mode) _ = Result par pos
-    $ text $ showType options (place mode) Value typ
-  where
-    place Auto   = MainParameter_pl
-    place Scalar = Declaration_pl
+transformActParam _ pos PEnv{..} par@(TypeParameter typ _) _ = Result par pos $ toC options typ
 
 transformActParam _ pos _ par@(FunParameter n k addr) _ = Result par pos $
     if addr then char '&' <> text n
@@ -152,7 +161,7 @@ instance Transformable DebugToC Expression where
 
     transform t pos down@PEnv{..} exp@(ArrayElem n index) = Result exp pos
         $ prefix <> call (text "at") [ up $ transform t pos (newPlace down AddressNeed_pl) n
-                                     , text $ toC options place $ typeof exp
+                                     , toC options $ typeof exp
                                      , up $ transform t pos (newPlace down ValueNeed_pl) index
                                      ]
       where
@@ -198,11 +207,11 @@ instance Transformable DebugToC Expression where
         = Result fc pos $ call (text $ funName f) $ map (up . transform t pos down) args
 
     transform t pos down@PEnv{..} exp@(Cast typ e)
-        = Result exp pos $ parens $  parens (text $ toC options place typ)
+        = Result exp pos $ parens $  parens (toC options typ)
                                   <> parens (up $ transform t pos down e)
 
     transform t pos down@PEnv{..} exp@(SizeOf x)
-      = Result exp pos $ call (text "sizeof") [either (text . toC options place) (up . transform t pos down) x]
+      = Result exp pos $ call (text "sizeof") [either (toC options) (up . transform t pos down) x]
 
 instance Transformable DebugToC Module where
     transform t pos down mod@(Module defList) = Result mod pos
@@ -225,7 +234,7 @@ instance Transformable DebugToC Entity where
 
     transform _ pos PEnv{..} ent@(TypeDef typ n)
       = Result ent pos $   text "typedef"
-                       <+> text (showType options place Value typ)
+                       <+> toC options typ
                        <+> text n
                        <>  semi
 
@@ -243,11 +252,13 @@ blockComment :: [Doc] -> Doc
 blockComment ds = vcat (zipWith (<+>) (text "/*" : repeat (text " *")) ds)
                   $$ text " */"
 
+sizeInBrackets :: Type -> Doc
+sizeInBrackets (NativeArray l t) = brackets (maybe empty (text . show) l) <> sizeInBrackets t
+sizeInBrackets _                 = empty
+
 instance Transformable DebugToC StructMember where
     transform _ pos PEnv{..} sm@(StructMember str typ) = Result sm pos
-      $ stmt $ case typ of
-                 ArrayType{} -> text (showVariable options place Value typ str)
-                 _           -> text (toC options place typ) <+> text str
+      $ stmt $ toC options typ <+> text str <> sizeInBrackets typ
 
 instance Transformable1 DebugToC [] Declaration where
     transform1 = transform1' (vcat . map stmt)
