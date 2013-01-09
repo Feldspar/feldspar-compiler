@@ -1,4 +1,6 @@
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 --
 -- Copyright (c) 2009-2011, ERICSSON AB

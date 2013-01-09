@@ -328,7 +328,7 @@ tellDecl ds = do rs <- ask
                  tell code
 
 getTypes :: Options -> [Declaration ()] -> [Entity ()]
-getTypes opts defs = mkDef comps
+getTypes opts defs = concatMap mkDef comps
   where
     comps = filter (isComposite) $ map (typeof . dVar) defs
     -- There are other composite types that are not flagged as such by this
@@ -340,12 +340,11 @@ getTypes opts defs = mkDef comps
     -- Prog, that is done in CodeGeneration by toC. We should combine
     -- Prog and Program into a single format and untangle naming from
     -- prettyprinting.
-    mkDef [] = []
-    mkDef (typ:typs)
-      | s@(StructType members) <- typ
-      = mkDef (map snd members) ++ (StructDef (toC opts Declaration_pl s) (map (\(n, t) -> StructMember n t) members)):mkDef typs
-      | (ArrayType _ typ2) <- typ = mkDef (typ2:typs)
-      | otherwise = mkDef typs
+    mkDef s@(StructType members)
+      =  concatMap (mkDef . snd) members
+      ++ [StructDef (toC opts Declaration_pl s) (map (uncurry StructMember) members)]
+    mkDef (ArrayType _ typ) = mkDef typ
+    mkDef _                 = []
 
 assign :: Location -> Expression () -> CodeWriter ()
 assign lhs rhs = tellProg [copyProg lhs [rhs]]

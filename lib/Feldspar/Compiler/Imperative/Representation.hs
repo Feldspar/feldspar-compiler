@@ -41,7 +41,6 @@
 module Feldspar.Compiler.Imperative.Representation where
 
 import Data.Typeable
-import qualified Data.List as List (find)
 
 import Feldspar.Compiler.Error
 
@@ -328,9 +327,7 @@ instance HasType (Expression t) where
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
         getStructFieldType :: String -> Type -> Type
-        getStructFieldType f (StructType l) = case List.find (\(a,_) -> a == f) l of
-            Just (_,t) -> t
-            Nothing -> structFieldNotFound f
+        getStructFieldType f (StructType l) = maybe (structFieldNotFound f) id $ lookup f l
         getStructFieldType f (Alias t _) = getStructFieldType f t
         getStructFieldType f t = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t

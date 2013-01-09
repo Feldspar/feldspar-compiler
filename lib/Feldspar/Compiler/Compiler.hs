@@ -26,8 +26,10 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ExistentialQuantification #-}
 

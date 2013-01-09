@@ -53,7 +53,7 @@ class ToC a where
 
 getStructTypeName :: Options -> Place -> Type -> String
 getStructTypeName options place (StructType ts) =
-    '_' : concatMap (\(_,t) -> (++"_") $ getStructTypeName options place t) ts
+    intercalate "_" $ map (getStructTypeName options place . snd) ts
 getStructTypeName options place (ArrayType len innerType) =
     "arr_T" ++ getStructTypeName options place innerType ++ "_S" ++ len2str len
     where
@@ -63,16 +63,21 @@ getStructTypeName options place (ArrayType len innerType) =
 getStructTypeName options place t = replace (toC options place t) " " "" -- float complex -> floatcomplex
 
 instance ToC Type where
-    toC _ MainParameter_pl VoidType = "void"
-    toC _ _                VoidType = "int"
-    toC options place t@(StructType _) = "struct s" ++ getStructTypeName options place t
-    toC _ _ (UserType u)      = u
-    toC _ _ ArrayType{}       = arrayTypeName
-    toC o p (NativeArray _ t) = toC o p t
-    toC _ _ IVarType{}        = ivarTypeName
-    toC options place t | [s] <- [s | (t',s,_) <- types $ platform options, t'==t] = s
-    toC options place t = codeGenerationError InternalError
-                        $ "Unhandled type in platform " ++ name (platform options) ++ ": " ++ show t ++ " place: " ++ show place
+    toC _ _ VoidType                = "void"
+    toC _ _ ArrayType{}             = arrayTypeName
+    toC _ _ IVarType{}              = ivarTypeName
+    toC _ _ (UserType u)            = u
+    toC o p (NativeArray _ t)       = toC o p t
+    toC o p t@(StructType _)        = "struct s_" ++ getStructTypeName o p t
+    toC o _ t | [s] <- [s | (t',s,_) <- types $ platform o, t'==t] = s
+    toC o p t = codeGenerationError InternalError
+              $ unwords ["Unhandled type in platform ", name (platform o),  ": ", show t, " place: ", show p]
+
+arrayTypeName :: String
+arrayTypeName = "struct array"
+
+ivarTypeName :: String
+ivarTypeName = "struct ivar"
 
 instance ToC (Variable ()) where
     toC options place Variable{..} = showVariable options place varRole varType varName
@@ -101,24 +106,18 @@ showType options role MainParameter_pl t _
 showType options _ Declaration_pl t _ = toC options Declaration_pl t
 showType _ _ _ _ _ = ""
 
-arrayTypeName :: String
-arrayTypeName = "struct array"
-
-ivarTypeName :: String
-ivarTypeName = "struct ivar"
-
-showName :: VariableRole -> Place -> Type -> String  -> String
+showName :: VariableRole -> Place -> Type -> String -> String
 showName Value place t n
     | place == AddressNeed_pl = '&' : n
     | place == FunctionCallIn_pl && passByReference t  = '&' : n
-    | otherwise = n
-showName Pointer _ ArrayType{} n = n
+showName Pointer _ ArrayType{} n   = n
 showName Pointer _ NativeArray{} n = n
 showName Pointer place _ n
-    | place == AddressNeed_pl   = n
-    | place == Declaration_pl   = '*' : n
-    | place == MainParameter_pl = n
+    | place == AddressNeed_pl      = n
+    | place == Declaration_pl      = '*' : n
+    | place == MainParameter_pl    = n
     | otherwise = "(* " ++ n ++ ")"
+showName _ _ _ n = n
 
 passByReference :: Type -> Bool
 passByReference ArrayType{}  = True
