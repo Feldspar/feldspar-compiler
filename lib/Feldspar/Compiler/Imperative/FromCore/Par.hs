@@ -104,7 +104,7 @@ instance ( Compile dom dom
             iv  <- compileExpr r
             val <- compileExpr a
             i   <- freshId
-            let var = varToExpr $ AIR.Variable AIR.Value (AIR.typeof val) $ "msg" ++ show i
+            let var = varToExpr $ AIR.Variable AIR.Val (AIR.typeof val) $ "msg" ++ show i
             declare var
             assign var val
             tellProg [iVarPut iv var]
@@ -121,7 +121,7 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDef taskName AIR.KTask [] [AIR.Variable AIR.Value AIR.VoidType "params"] $ Block [] runTask]
+        tellDef [ProcDef taskName AIR.KTask [] [AIR.Variable AIR.Val AIR.VoidType "params"] $ Block [] runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 

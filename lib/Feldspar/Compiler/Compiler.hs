@@ -47,7 +47,7 @@ import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
-import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint
+import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
 
@@ -65,8 +65,8 @@ data SplitModuleDescriptor = SplitModuleDescriptor
     }
 
 data SplitCompToCCoreResult = SplitCompToCCoreResult
-    { sctccrSource :: CompToCCoreResult () --DebugToCSemanticInfo
-    , sctccrHeader :: CompToCCoreResult () --DebugToCSemanticInfo
+    { sctccrSource :: CompToCCoreResult ()
+    , sctccrHeader :: CompToCCoreResult ()
     }
 
 moduleSplitter :: Module () -> SplitModuleDescriptor
@@ -89,7 +89,7 @@ moduleSplitter m = SplitModuleDescriptor {
 
 moduleToCCore
   :: Options -> Module ()
-  -> CompToCCoreResult () -- DebugToCSemanticInfo
+  -> CompToCCoreResult ()
 moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
     res = compToCWithInfos opts lineNum mdl

@@ -262,13 +262,14 @@ data Type =
     | ArrayType (Range Length) Type
     | NativeArray (Maybe Length) Type
     | StructType String [(String, Type)]
+    | Pointer Type
     | IVarType Type
     deriving (Eq,Show)
 
 data FunctionMode = Prefix | Infix
     deriving (Eq,Show)
 
-data VariableRole = Value | Pointer
+data VariableRole = Val | Ptr
     deriving (Eq,Show)
 
 data Place

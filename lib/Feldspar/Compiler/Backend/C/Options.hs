@@ -108,6 +108,5 @@ type Position = (Int, Int)
 -- cyclic imports.
 data CompToCCoreResult t = CompToCCoreResult {
     sourceCode      :: String,
-    endPosition     :: Position,
     debugModule     :: Module t
 }

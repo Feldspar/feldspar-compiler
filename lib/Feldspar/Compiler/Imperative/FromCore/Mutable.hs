@@ -118,7 +118,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
       tellProg [initArray loc l]
 
     compileProgSym NewArr _ loc (len :* a :* Nil) = do
-        let ix = varToExpr $ Rep.Variable Value (Rep.NumType Rep.Unsigned Rep.S32) "i"
+        let ix = varToExpr $ Rep.Variable Val (Rep.NumType Rep.Unsigned Rep.S32) "i"
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]

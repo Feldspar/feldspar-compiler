@@ -1,3 +1,6 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ConstraintKinds #-}
+
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -26,9 +29,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-{-# LANGUAGE CPP #-}
 module Feldspar.Compiler.Frontend.CommandLine.API where
 
+import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
@@ -145,7 +148,7 @@ prepareInputFile inputFileName = do
     removeFileIfPossible $ replaceExtension inputFileName ".hi"
     removeFileIfPossible $ replaceExtension inputFileName ".o"
 
-standaloneCompile :: (Compilable t internal) =>
+standaloneCompile :: (SyntacticFeld t) =>
     FilePath -> FilePath -> OriginalFunctionSignature -> Options -> t -> IO ()
 standaloneCompile inputFileName outputFileName sig opts prg = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult

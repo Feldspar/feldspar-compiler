@@ -104,13 +104,13 @@ compileProgTop opt funname args a = Module defs
     ins      = map snd $ reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
-    outParam = Rep.Variable Rep.Pointer outType "out"
+    outParam = Rep.Variable Rep.Ptr outType "out"
     outLoc   = varToExpr outParam
     results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
     decls    = decl results
     post     = epilogue results
     Block ds p = block results
-    defs     = (nub $ def results) ++ [ProcDef funname KMain ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs     = (nub $ def results) ++ [ProcDef funname Rep.KMain ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname

@@ -144,7 +144,7 @@ spawn taskName vs = call spawnName KTask allParams
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName KTask True
     typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
-    varParams = map (\v -> In $ VarExpr (Variable Value (vType v) (vName v))) vs
+    varParams = map (\v -> In $ VarExpr (Variable Val (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
@@ -222,7 +222,7 @@ call :: String -> Kind -> [ActualParameter ()] -> Program ()
 call n k ps = ProcedureCall n k ps
 
 for :: String -> Expression () -> Int -> Block () -> Program ()
-for s e i p = ParLoop (Variable Value (NumType Unsigned S32) s) e i p
+for s e i p = ParLoop (Variable Val (NumType Unsigned S32) s) e i p
 
 while :: Program () -> Expression () -> Program () -> Program ()
 while p e b = SeqLoop e (Block [] (Sequence [p])) (Block [] (Sequence [b]))

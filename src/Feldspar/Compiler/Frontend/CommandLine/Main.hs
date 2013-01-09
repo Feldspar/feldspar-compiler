@@ -41,9 +41,8 @@ import Feldspar.Compiler.Frontend.CommandLine.NameExtractor
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Frontend.CommandLine.API
 import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Backend.C.CodeGeneration
+import Feldspar.Compiler.Backend.C.CodeGeneration (compToCWithInfos)
 import Feldspar.Compiler.Error
-import Feldspar.Compiler.Backend.C.Plugin.PrettyPrint (compToCWithInfos)
 -- ====================================== System imports ==================================
 import System.IO
 import System.Exit

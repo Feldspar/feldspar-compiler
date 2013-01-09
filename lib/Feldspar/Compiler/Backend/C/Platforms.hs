@@ -311,7 +311,7 @@ traceRules = [rule trace]
       where
        acts i = [replaceWith trcVar, propagate decl, propagate trc, propagate frame]
          where
-            v          = Variable Value t trcVarName
+            v          = Variable Val t trcVarName
             trcVar     = varToExpr v
             trcVarName = "trc" ++ show i
             defTrcVar  = Declaration v Nothing

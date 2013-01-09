@@ -200,7 +200,7 @@ compileExprVar e = do
         VarExpr (Variable{}) -> return e'
         _       -> do
             varId <- freshId
-            let loc = varToExpr (Variable Value (typeof e') ('e' : show varId))
+            let loc = varToExpr (Variable Val (typeof e') ('e' : show varId))
             declare loc
             assign loc e'
             return loc
@@ -286,14 +286,14 @@ mkVarName v = 'v' : show v
 
 -- | Construct a variable.
 mkVar :: Type -> VarId -> Expression ()
-mkVar t = varToExpr . Variable Value t . mkVarName
+mkVar t = varToExpr . Variable Val t . mkVarName
 
 -- | Construct a pointer.
 mkRef :: Type -> VarId -> Expression ()
-mkRef t = varToExpr . Variable Pointer t . mkVarName
+mkRef t = varToExpr . Variable Ptr t . mkVarName
 
 mkVariable :: Type -> VarId -> Variable ()
-mkVariable t = Variable Value t . mkVarName
+mkVariable t = Variable Val t . mkVarName
 
 mkPointer :: Type -> VarId -> Variable ()
 mkPointer t = Variable Pointer t . mkVarName
@@ -308,7 +308,7 @@ freshId = do
 freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter (Expression ()) -- TODO take just info instead of TypeRep and Size?
 freshVar base t size = do
   v <- freshId
-  let var = varToExpr . Variable Value (compileTypeRep t size) $ base ++ show v
+  let var = varToExpr . Variable Val (compileTypeRep t size) $ base ++ show v
   declare var
   return var
 
