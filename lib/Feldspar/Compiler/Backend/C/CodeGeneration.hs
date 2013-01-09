@@ -48,19 +48,16 @@ import Data.List (intercalate)
 codeGenerationError :: ErrorClass -> String -> a
 codeGenerationError = handleError "CodeGeneration"
 
-class ToC a where
-    toC :: Options -> Place -> a -> String
-
-instance ToC Type where
-    toC _ _ VoidType                = "void"
-    toC _ _ ArrayType{}             = arrayTypeName
-    toC _ _ IVarType{}              = ivarTypeName
-    toC _ _ (UserType u)            = u
-    toC _ _ t@(StructType n _)      = "struct " ++ n
-    toC o p (NativeArray _ t)       = toC o p t
-    toC o _ t | [s] <- [s | (t',s,_) <- types $ platform o, t'==t] = s
-    toC o p t = codeGenerationError InternalError
-              $ unwords ["Unhandled type in platform ", name (platform o),  ": ", show t, " place: ", show p]
+toC :: Options -> Place -> Type -> String
+toC _ _ VoidType                = "void"
+toC _ _ ArrayType{}             = arrayTypeName
+toC _ _ IVarType{}              = ivarTypeName
+toC _ _ (UserType u)            = u
+toC _ _ t@(StructType n _)      = "struct " ++ n
+toC o p (NativeArray _ t)       = toC o p t
+toC o _ t | [s] <- [s | (t',s,_) <- types $ platform o, t'==t] = s
+toC o p t = codeGenerationError InternalError
+          $ unwords ["Unhandled type in platform ", name (platform o),  ": ", show t, " place: ", show p]
 
 arrayTypeName :: String
 arrayTypeName = "struct array"
@@ -68,16 +65,10 @@ arrayTypeName = "struct array"
 ivarTypeName :: String
 ivarTypeName = "struct ivar"
 
-instance ToC (Variable ()) where
-    toC options place Variable{..} = showVariable options place varRole varType varName
-
 showVariable :: Options -> Place -> VariableRole -> Type -> String -> String
 showVariable options place role typ vname = var ++ sz where
     var = listprint id " " [variableType, showName role place typ vname]
-    variableType = showType options role place typ restr
-    restr
-        | place == MainParameter_pl = isRestrict $ platform options
-        | otherwise = NoRestrict
+    variableType = showType options place role typ
     sz = case place of
            MainParameter_pl -> variableSize typ
            Declaration_pl   -> variableSize typ
@@ -85,15 +76,15 @@ showVariable options place role typ vname = var ++ sz where
     variableSize (NativeArray l t) = "[" ++ (maybe "" show l) ++ "]" ++ variableSize t
     variableSize _                 = ""
 
-showType :: Options -> VariableRole -> Place -> Type -> IsRestrict -> String
-showType options role MainParameter_pl (NativeArray _ t) res = showType options role Declaration_pl t res
-showType options role MainParameter_pl t _
+showType :: Options -> Place -> VariableRole -> Type -> String
+showType options MainParameter_pl role (NativeArray _ t) = showType options Declaration_pl role t
+showType options MainParameter_pl role t
     | passByReference t || role == Pointer  = tname ++ " *"
     | otherwise                             = tname
   where
     tname = toC options MainParameter_pl t
-showType options _ Declaration_pl t _ = toC options Declaration_pl t
-showType _ _ _ _ _ = ""
+showType options Declaration_pl _ t = toC options Declaration_pl t
+showType _ _ _ _ = ""
 
 showName :: VariableRole -> Place -> Type -> String -> String
 showName Value place t n

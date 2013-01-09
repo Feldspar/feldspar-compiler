@@ -87,7 +87,8 @@ compToCWithInfos opts line procedure =
                     (PEnv {options = opts, place = Declaration_pl}) procedure
 
 instance Transformable DebugToC Variable where
-    transform _ pos (PEnv {..}) x@(Variable vname typ role) = Result (Variable vname typ role) pos $ text $ toC options place x
+    transform _ pos PEnv{..} x@Variable{..}
+      = Result x pos $ text $ showVariable options place varRole varType varName
 
 instance Transformable1 DebugToC [] Constant where
     transform1 = transform1' (sep . punctuate comma)
@@ -125,7 +126,7 @@ instance Transformable DebugToC ActualParameter where
     transform t pos down act@FunParameter{}  = transformActParam t pos down act FunctionCallIn_pl
 
 transformActParam _ pos PEnv{..} par@(TypeParameter typ mode) _ = Result par pos
-    $ text $ showType options Value (place mode) typ NoRestrict
+    $ text $ showType options (place mode) Value typ
   where
     place Auto   = MainParameter_pl
     place Scalar = Declaration_pl
@@ -224,7 +225,7 @@ instance Transformable DebugToC Entity where
 
     transform _ pos PEnv{..} ent@(TypeDef typ n)
       = Result ent pos $   text "typedef"
-                       <+> text (showType options Value place typ NoRestrict)
+                       <+> text (showType options place Value typ)
                        <+> text n
                        <>  semi
 
