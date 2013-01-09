@@ -49,7 +49,10 @@ import Feldspar.Core.Constructs.Literal
 import Feldspar.Range (upperBound)
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Expression(..), Constant(..))
+import Feldspar.Compiler.Imperative.Representation (Expression(..),Constant(..))
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
+                                                                     Signedness(..),
+                                                                     Size(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance Compile (Literal :|| Core.Type) dom
@@ -59,18 +62,23 @@ instance Compile (Literal :|| Core.Type) dom
     compileProgSym (C' (Literal a)) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter (Expression ())
-literal UnitType        _  ()     = return $ litI32 0
-literal BoolType        _  a      = return $ litB a
-literal trep@IntType{}  sz a      = return $ litI (compileTypeRep trep sz) (toInteger a)
-literal FloatType       _  a      = return $ litF $ float2Double a
--- FIXME: Asymmetry in data types; should disappear when others merged.
---literal ComplexType{}   _  (r:+i) = do re <- literal t (defaultSize t) r
---                                       ie <- literal t (defaultSize t) i
---                                       return $ (ConstExpr (ComplexConst r i))
+literal t@UnitType        sz a     = return $ (ConstExpr $ literalConst t sz a)
+literal t@BoolType        sz a      = return $ (ConstExpr $ literalConst t sz a)
+literal t@IntType{}       sz a      = return $ (ConstExpr $ literalConst t sz a)
+literal t@FloatType       sz a      = return $ (ConstExpr $ literalConst t sz a)
+literal t@ComplexType{}   sz a      = return $ (ConstExpr $ literalConst t sz a)
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
 
+literalConst :: TypeRep a -> Size a -> a -> Constant ()
+literalConst UnitType        _  ()     = IntConst 0 (Rep.NumType Rep.Unsigned Rep.S32)
+literalConst BoolType        _  a      = BoolConst a
+literalConst trep@IntType{}  sz a      = IntConst (toInteger a) (compileTypeRep trep sz)
+literalConst FloatType       _  a      = FloatConst $ float2Double a
+literalConst (ComplexType t) _  (r:+i) = (ComplexConst re ie)
+  where re = literalConst t (defaultSize t) r
+        ie = literalConst t (defaultSize t) i
 
 literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
 literalLoc loc (ArrayType t) (rs :> es) e
