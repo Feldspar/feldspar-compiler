@@ -26,6 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -39,6 +40,7 @@ import Control.Arrow
 import Control.Applicative
 
 import Feldspar.Transformation
+import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -52,7 +54,7 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
     originalParameterNames :: [Maybe String]
 } deriving (Show, Eq)
 
-data SomeCompilable = forall a internal . Compilable a internal => SomeCompilable a
+data SomeCompilable = forall a internal . SyntacticFeld a => SomeCompilable a
     deriving (DT.Typeable)
 
 data SplitModuleDescriptor = SplitModuleDescriptor
@@ -95,7 +97,8 @@ moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
-  :: (Compilable c internal) => CompilationMode
+  :: SyntacticFeld c
+  => CompilationMode
   -> OriginalFunctionSignature -> Options -> c
   -> SplitCompToCCoreResult
 compileToCCore compMode funSig coreOptions prg =
@@ -161,9 +164,9 @@ data ExternalInfoCollection = ExternalInfoCollection
     , ruleExternalInfo       :: ExternalInfo RulePlugin
     }
 
-executePluginChain :: (Compilable c internal)
-  => CompilationMode -> OriginalFunctionSignature
-  -> Options -> c -> Module ()
+executePluginChain :: SyntacticFeld c
+                   => CompilationMode -> OriginalFunctionSignature
+                   -> Options -> c -> Module ()
 executePluginChain _ sig@OriginalFunctionSignature{..} opt prg =
   pluginChain ExternalInfoCollection
     { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }

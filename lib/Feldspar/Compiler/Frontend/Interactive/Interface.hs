@@ -1,3 +1,5 @@
+{-# LANGUAGE ConstraintKinds #-}
+
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -28,6 +30,7 @@
 
 module Feldspar.Compiler.Frontend.Interactive.Interface where
 
+import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
@@ -40,7 +43,7 @@ import System.FilePath (takeBaseName, (<.>))
 --  == Interactive compilation
 -- ================================================================================================
 
-compile :: (Compilable t internal) => t -> FilePath -> String -> Options -> IO ()
+compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName functionName opts = do
     writeFile cfile $ unlines [ "#include \"" ++ takeBaseName fileName <.> "h" ++ "\""
                               , sourceCode $ sctccrSource compilationResult
@@ -65,13 +68,13 @@ compile prg fileName functionName opts = do
         toBeChanged = "./\\"
 
 
-icompile :: (Compilable t internal) => t -> IO ()
+icompile :: (SyntacticFeld t) => t -> IO ()
 icompile = icompileWith defaultOptions
 
-icompileWith :: (Compilable t internal) => Options -> t -> IO ()
+icompileWith :: (SyntacticFeld t) => Options -> t -> IO ()
 icompileWith opts = icompile' opts "test"
 
-icompile' :: (Compilable t internal) => Options -> String -> t -> IO ()
+icompile' :: (SyntacticFeld t) => Options -> String -> t -> IO ()
 icompile' opts functionName prg = do
     let res = compileToCCore Interactive (OriginalFunctionSignature functionName []) opts prg
     putStrLn "=============== Header ================"

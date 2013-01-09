@@ -112,11 +112,6 @@ compileProgTop opt funname args a = Module defs
     Block ds p = block results
     defs     = (nub $ def results) ++ [ProcDef funname KMain ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
-class    SyntacticFeld a => Compilable a internal | a -> internal
-instance SyntacticFeld a => Compilable a ()
-  -- TODO This class should be replaced by (Syntactic a FeldDomainAll) (or a
-  --      similar alias) everywhere. The second parameter is not needed.
-
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname
     = compileProgTop opt funname []
