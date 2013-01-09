@@ -57,7 +57,7 @@ toC _ IVarType{}              = ivarTypeName
 toC _ (UserType u)            = text u
 toC _ t@(StructType n _)      = text "struct" <+> text n
 toC o (NativeArray _ t)       = toC o t
-toC o t | [s] <- [s | (t',s,_) <- types $ platform o, t'==t] = text s
+toC o t | Just s <- lookup t $ types $ platform o = text s
 toC o t = codeGenerationError InternalError
         $ unwords ["Unhandled type in platform ", name (platform o),  ": ", show t]
 

@@ -58,7 +58,7 @@ data DebugOption = NoDebug | NoPrimitiveInstructionHandling
 
 data Platform = Platform {
     name            :: String,
-    types           :: [(Type, String, String)],
+    types           :: [(Type, String)],
     values          :: [(Type, ShowValue)],
     includes        :: [String],
     platformRules   :: [Rule],

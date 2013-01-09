@@ -52,17 +52,17 @@ c99 :: Platform
 c99 = Platform {
     name = "c99",
     types =
-        [ (NumType Signed S8,    "int8_t",   "int8")
-        , (NumType Signed S16,   "int16_t",  "int16")
-        , (NumType Signed S32,   "int32_t",  "int32")
-        , (NumType Signed S64,   "int64_t",  "int64")
-        , (NumType Unsigned S8,  "uint8_t",  "uint8")
-        , (NumType Unsigned S16, "uint16_t", "uint16")
-        , (NumType Unsigned S32, "uint32_t", "uint32")
-        , (NumType Unsigned S64, "uint64_t", "uint64")
-        , (BoolType,  "uint32_t",    "uint32_t") -- TODO sizeof(bool) is implementation dependent
-        , (FloatType, "float",  "float")
-        , (ComplexType FloatType,              "float complex",    "complexOf_float")
+        [ (NumType Signed S8,     "int8_t")
+        , (NumType Signed S16,    "int16_t")
+        , (NumType Signed S32,    "int32_t")
+        , (NumType Signed S64,    "int64_t")
+        , (NumType Unsigned S8,   "uint8_t")
+        , (NumType Unsigned S16,  "uint16_t")
+        , (NumType Unsigned S32,  "uint32_t")
+        , (NumType Unsigned S64,  "uint64_t")
+        , (BoolType,              "uint32_t") -- TODO sizeof(bool) is implementation dependent
+        , (FloatType,             "float")
+        , (ComplexType FloatType, "float complex")
         ] ,
     values =
         [ (ComplexType FloatType, \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
@@ -87,19 +87,19 @@ tic64x :: Platform
 tic64x = Platform {
     name = "tic64x",
     types =
-        [ (NumType Signed S8,    "char",     "char")
-        , (NumType Signed S16,   "short",    "short")
-        , (NumType Signed S32,   "int",      "int")
-        , (NumType Signed S40,   "long",     "long")
-        , (NumType Signed S64,   "long long","llong")
-        , (NumType Unsigned S8,  "unsigned char",  "uchar")
-        , (NumType Unsigned S16, "unsigned short", "ushort")
-        , (NumType Unsigned S32, "unsigned",       "uint")
-        , (NumType Unsigned S40, "unsigned long",  "ulong")
-        , (NumType Unsigned S64, "unsigned long long", "ullong")
-        , (BoolType,  "int",    "bool")
-        , (FloatType, "float",  "float")
-        , (ComplexType FloatType,              "complexOf_float",  "complexOf_float")
+        [ (NumType Signed S8,     "char")
+        , (NumType Signed S16,    "short")
+        , (NumType Signed S32,    "int")
+        , (NumType Signed S40,    "long")
+        , (NumType Signed S64,    "long long")
+        , (NumType Unsigned S8,   "unsigned char")
+        , (NumType Unsigned S16,  "unsigned short")
+        , (NumType Unsigned S32,  "unsigned")
+        , (NumType Unsigned S40,  "unsigned long")
+        , (NumType Unsigned S64,  "unsigned long long")
+        , (BoolType,              "int")
+        , (FloatType,             "float")
+        , (ComplexType FloatType, "complexOf_float")
         ] ,
     values = 
         [ (ComplexType FloatType, \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
