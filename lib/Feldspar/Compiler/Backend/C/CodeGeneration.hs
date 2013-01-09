@@ -72,9 +72,3 @@ passByReference ArrayType{}  = True
 passByReference StructType{} = True
 passByReference _            = False
 
-----------------------
--- Helper functions --
-----------------------
-
-listprint :: (a->String) -> String -> [a] -> String
-listprint f s = intercalate s . filter (not . null) . map f
