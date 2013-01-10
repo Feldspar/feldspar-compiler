@@ -89,21 +89,24 @@ instance Compile Empty dom
     compileExprSym _ = error "Can't compile Empty"
 
 compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    Options -> String -> [Rep.Variable ()] -> ASTF (Decor Info dom) a -> Module ()
+    Options -> String -> [((VarId,Rep.Expression ()),Rep.Variable ())] -> ASTF (Decor Info dom) a -> Mod
 compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
           sa  = defaultSize ta
-          var = mkVariable (compileTypeRep ta sa) v
-       in compileProgTop opt funname (var:args) body
-compileProgTop opt funname args a = Module defs
+          typ = compileTypeRep ta sa
+          arg = if isComposite typ
+                  then ((v, mkRef typ v), mkPointer  typ v)
+                  else ((v, mkVar typ v), mkVariable typ v)
+       in compileProgTop opt funname (arg:args) body
+compileProgTop opt funname args a = Mod defs
   where
-    ins      = reverse args
+    ins      = map snd $ reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
     outParam = Rep.Variable Rep.Pointer outType "out"
     outLoc   = varToExpr outParam
-    results  = snd $ evalRWS (compileProg outLoc a) (initReader opt) initState
+    results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
     decls    = decl results
     post     = epilogue results
     Block ds p = block results

@@ -287,6 +287,9 @@ mkRef t = varToExpr . Variable Pointer t . mkVarName
 mkVariable :: Type -> VarId -> Variable ()
 mkVariable t = Variable Value t . mkVarName
 
+mkPointer :: Type -> VarId -> Variable ()
+mkPointer t i = Variable (mkVarName i) t Pointer
+
 freshId :: CodeWriter Integer
 freshId = do
   s <- get
@@ -377,4 +380,11 @@ mkLength a t sz
       lenvar    <- freshVar "len" t sz
       compileProg lenvar a
       return lenvar
+
+isComposite :: Type -> Bool
+isComposite t = case t of
+                  ArrayType{}   -> True
+                  NativeArray{} -> True
+                  StructType{}  -> True
+                  _             -> False
 
