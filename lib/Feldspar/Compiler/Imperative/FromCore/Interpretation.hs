@@ -288,7 +288,7 @@ mkVariable :: Type -> VarId -> Variable ()
 mkVariable t = Variable Value t . mkVarName
 
 mkPointer :: Type -> VarId -> Variable ()
-mkPointer t i = Variable (mkVarName i) t Pointer
+mkPointer t = Variable Pointer t . mkVarName
 
 freshId :: CodeWriter Integer
 freshId = do
