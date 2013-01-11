@@ -53,7 +53,7 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation as Rep (Module, Kind(..),Variable(..), VariableRole(..))
+import Feldspar.Compiler.Imperative.Representation as Rep (Module, Kind(..), Expression(..), Variable(..), VariableRole(..))
 import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Module(..), Entity(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
