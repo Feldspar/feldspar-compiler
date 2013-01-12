@@ -53,7 +53,7 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation as Rep (Module, Kind(..), Expression(..), Variable(..), VariableRole(..))
+import Feldspar.Compiler.Imperative.Representation as Rep (Module, Expression(..), Variable(..), VariableRole(..))
 import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Module(..), Entity(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
@@ -110,7 +110,7 @@ compileProgTop opt funname args a = Module defs
     decls    = decl results
     post     = epilogue results
     Block ds p = block results
-    defs     = (nub $ def results) ++ [ProcDef funname Rep.KMain ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs     = (nub $ def results) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname

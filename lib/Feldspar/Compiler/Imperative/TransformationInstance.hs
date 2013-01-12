@@ -59,14 +59,14 @@ instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transf
                 tr = transform1 t s d m
         defaultTransform _ s _ (TypeDef typ n) =
             Result (TypeDef typ n) s def
-        defaultTransform t s d (ProcDef n k i o p) =
-            Result (ProcDef n k (result1 tr1) (result1 tr2) (result tr3))
+        defaultTransform t s d (ProcDef n i o p) =
+            Result (ProcDef n (result1 tr1) (result1 tr2) (result tr3))
                    (state tr3) (foldl combine (up1 tr1) [up1 tr2, up tr3]) where
                         tr1 = transform1 t s d i
                         tr2 = transform1 t (state1 tr1) d o
                         tr3 = transform t (state1 tr2) d p
-        defaultTransform t s d (ProcDecl name knd inp outp) =
-            Result (ProcDecl name knd (result1 tr1) (result1 tr2))
+        defaultTransform t s d (ProcDecl name inp outp) =
+            Result (ProcDecl name (result1 tr1) (result1 tr2))
                    (state1 tr2) (foldl1 combine [up1 tr1, up1 tr2]) where
                 tr1 = transform1 t s d inp
                 tr2 = transform1 t (state1 tr1) d outp
@@ -88,7 +88,7 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
         defaultTransform t s d (Assign l r) = Result (Assign (result tr1) (result tr2)) (state tr2) (combine (up tr1) (up tr2)) where
             tr1 = transform t s d l
             tr2 = transform t (state tr1) d r
-        defaultTransform t s d (ProcedureCall f k par) = Result (ProcedureCall f k (result1 tr)) (state1 tr) (up1 tr) where
+        defaultTransform t s d (ProcedureCall f par) = Result (ProcedureCall f (result1 tr)) (state1 tr) (up1 tr) where
             tr = transform1 t s d par
         defaultTransform t s d (Sequence p) = Result (Sequence (result1 tr)) (state1 tr) (up1 tr) where
             tr = transform1 t s d p
@@ -121,7 +121,7 @@ instance (Transformable t Expression, Default (Up t))
         defaultTransform t s d (Out p) = Result (Out (result tr)) (state tr) (up tr) where
             tr = transform t s d p
         defaultTransform _ s _ (TypeParameter p r) = Result (TypeParameter p r) s def
-        defaultTransform _ s _ (FunParameter n k b) = Result (FunParameter n k b) s def
+        defaultTransform _ s _ (FunParameter n b) = Result (FunParameter n b) s def
 
 instance (Transformable t Variable, Transformable1 t Maybe Expression, Combine (Up t))
     => DefaultTransformable t Declaration where

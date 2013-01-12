@@ -84,7 +84,7 @@ moduleSplitter m = SplitModuleDescriptor {
     createProcDecls :: [Entity ()] -> [Entity ()]
     createProcDecls = concatMap defToDecl
     defToDecl :: Entity () -> [Entity ()]
-    defToDecl (ProcDef n knd inp outp _) = [ProcDecl n knd inp outp]
+    defToDecl (ProcDef n inp outp _) = [ProcDecl n inp outp]
     defToDecl _ = []
 
 moduleToCCore

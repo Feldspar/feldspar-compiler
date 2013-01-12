@@ -117,11 +117,11 @@ instance ( Compile dom dom
         (_, b) <- confiscateBlock $ compileProg loc p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDef coreName AIR.KTask args [] b]
+        tellDef [ProcDef coreName args [] b]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDef taskName AIR.KTask [] [AIR.Variable AIR.Val AIR.VoidType "params"] $ Block [] runTask]
+        tellDef [ProcDef taskName [] [AIR.Variable AIR.Val AIR.VoidType "params"] $ Block [] runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 
