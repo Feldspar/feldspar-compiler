@@ -54,15 +54,15 @@ instance Plugin IVarPlugin
 instance Transformable IVarPlugin Entity where
     transform t _ _ p@ProcDef{} = defaultTransform t () (isTask p) p
       where
-        isTask proc = KTask == procKind proc
+        isTask proc = False -- KTask == procKind proc
     transform t _ d p = defaultTransform t () d p
 
 instance Transformable IVarPlugin Program where
-    transform _ _ d (ProcedureCall name k ps)
+    transform _ _ d (ProcedureCall name ps)
         | "ivar_get" `isPrefixOf` name
         = Result pc' () ()
       where
-        pc' = ProcedureCall name' k ps
+        pc' = ProcedureCall name' ps
         name' | d           = name
               | otherwise   = name ++ "_nontask"
     transform t _ d x = defaultTransform t () d x

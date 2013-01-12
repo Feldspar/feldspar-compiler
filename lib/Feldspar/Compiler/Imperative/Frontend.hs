@@ -60,7 +60,7 @@ toProg (Block [] p) = p
 toProg e = BlockProgram e
 
 setLength :: Expression () -> Expression () -> Program ()
-setLength arr len = call "setLength" KNormal [Out arr, In len]
+setLength arr len = call "setLength" [Out arr, In len]
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
@@ -69,16 +69,16 @@ copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
     | outExp == (head inExp)
       && null (tail inExp) = Empty
-    | otherwise            = call "copy" KNormal (Out outExp:map In inExp)
+    | otherwise            = call "copy" (Out outExp:map In inExp)
 
 copyProgPos :: Expression ()-> Expression () -> Expression () -> Program ()
-copyProgPos outExp shift inExp = call "copyArrayPos" KNormal [Out outExp, In shift, In inExp]
+copyProgPos outExp shift inExp = call "copyArrayPos" [Out outExp, In shift, In inExp]
 
 copyProgLen :: Expression () -> Expression () -> Expression () -> Program ()
-copyProgLen outExp inExp len = call "copyArrayLen" KNormal [Out outExp, In inExp, In len]
+copyProgLen outExp inExp len = call "copyArrayLen" [Out outExp, In inExp, In len]
 
 initArray :: Expression () -> Expression () -> Program ()
-initArray arr len = call "initArray" KNormal [Out arr, In s, In len]
+initArray arr len = call "initArray" [Out arr, In s, In len]
   where
     s
         | isArray t = FunctionCall (Function "-" (NumType Unsigned S32) Infix) [litI (NumType Unsigned S32) 0,SizeOf (Left t)]
@@ -91,7 +91,7 @@ assignProg :: Expression () -> Expression () -> Program ()
 assignProg inExp outExp = copyProg inExp [outExp]
 
 freeArray :: Variable () -> Program ()
-freeArray arr = call "freeArray" KNormal [Out $ varToExpr arr]
+freeArray arr = call "freeArray" [Out $ varToExpr arr]
 
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
@@ -114,24 +114,24 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
         go _ _ = Nothing
 
 iVarInit :: Expression () -> Program ()
-iVarInit var = call "ivar_init" KIVar [Out var]
+iVarInit var = call "ivar_init" [Out var]
 
 iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
-    | isArray typ   = call "ivar_get_array" KIVar [Out loc, In ivar]
-    | otherwise     = call "ivar_get" KIVar [TypeParameter typ Scalar, Out loc, In ivar]
+    | isArray typ   = call "ivar_get_array" [Out loc, In ivar]
+    | otherwise     = call "ivar_get" [TypeParameter typ Scalar, Out loc, In ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = call "ivar_put_array" KIVar [In ivar, Out msg]
-    | otherwise     = call "ivar_put" KIVar [TypeParameter typ Auto, In ivar, Out msg]
+    | isArray typ   = call "ivar_put_array" [In ivar, Out msg]
+    | otherwise     = call "ivar_put" [TypeParameter typ Auto, In ivar, Out msg]
       where
         typ = typeof msg
 
 iVarDestroy :: Variable () -> Program ()
-iVarDestroy v = call "ivar_destroy" KIVar [Out $ varToExpr v]
+iVarDestroy v = call "ivar_destroy" [Out $ varToExpr v]
 
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
@@ -139,20 +139,20 @@ freeIVars defs = map iVarDestroy ivars
     ivars = filter (isIVar . typeof) $ map dVar defs
 
 spawn :: String -> [Variable ()] -> Program ()
-spawn taskName vs = call spawnName KTask allParams
+spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
-    taskParam = FunParameter taskName KTask True
+    taskParam = FunParameter taskName True
     typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
     varParams = map (\v -> In $ VarExpr (Variable Val (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
-run taskName vs = call runName KTask allParams
+run taskName vs = call runName allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
-    taskParam = FunParameter taskName KTask False
+    taskParam = FunParameter taskName False
     allParams = taskParam : typeParams
 
 intWidth :: Type -> Maybe Integer
@@ -218,8 +218,8 @@ fun = fun' Prefix
 fun' :: FunctionMode -> Type -> String -> [Expression ()] -> Expression ()
 fun' m t n es = FunctionCall (Function n t m) es
 
-call :: String -> Kind -> [ActualParameter ()] -> Program ()
-call n k ps = ProcedureCall n k ps
+call :: String -> [ActualParameter ()] -> Program ()
+call n ps = ProcedureCall n ps
 
 for :: String -> Expression () -> Int -> Block () -> Program ()
 for s e i p = ParLoop (Variable Val (NumType Unsigned S32) s) e i p

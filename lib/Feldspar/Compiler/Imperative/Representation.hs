@@ -56,15 +56,6 @@ data Module t = Module
     }
     deriving (Typeable, Show, Eq)
 
-data Kind
-    = KNormal   -- The normal one.
-    | KMain     -- This is what fromCore was called on.
-    | KNoInline -- NoInline attribute.
-    | KTask     -- A task.
-    | KIVar     -- IVar related functions.
-    | KTrace    -- Tracing related functions.
-    deriving (Eq,Show,Typeable)
-
 data Entity t
     = StructDef
         { structName                :: String
@@ -76,14 +67,12 @@ data Entity t
         }
     | ProcDef
         { procName                  :: String
-        , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         , procBody                  :: Block t
         }
     | ProcDecl
         { procName                  :: String
-        , procKind                  :: Kind
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
         }
@@ -115,7 +104,6 @@ data Program t
         }
     | ProcedureCall
         { procCallName              :: String
-        , procCallKind              :: Kind
         , procCallParams            :: [ActualParameter t]
         }
     | Sequence
@@ -164,7 +152,6 @@ data ActualParameter t
         }
     | FunParameter
         { funParamName              :: String
-        , funParamKind              :: Kind
         , addressNeeded             :: Bool
         }
     deriving (Typeable, Show, Eq)
