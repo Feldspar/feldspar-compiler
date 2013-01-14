@@ -40,7 +40,6 @@ import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 import Language.Syntactic.Constructs.Binding.HigherOrder
 
-import Feldspar.Range
 import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Array
@@ -70,7 +69,7 @@ instance ( Compile dom dom
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
-            let sa = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
+            let sa = fst $ infoSize $ getInfo lam
             let ix = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
             (_, b) <- confiscateBlock $ compileProg (ArrayElem loc ix) ixf
@@ -89,7 +88,7 @@ instance ( Compile dom dom
         , t2 == e
         = do
             let tix = argType $ infoType $ getInfo lam1
-                six = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
+                six = fst $ infoSize $ getInfo lam1
                 tst = infoType $ getInfo step
                 sst = infoSize $ getInfo step
             let ix = mkVar (compileTypeRep tix six) v
@@ -110,7 +109,7 @@ instance ( Compile dom dom
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         = do
             let t = argType $ infoType $ getInfo lam1
-            let sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo len) 1)
+            let sz = fst $ infoSize $ getInfo lam1
             let tr' = resType $ infoType $ getInfo lam2
             let sr' = snd $ infoSize $ getInfo lam2
             let ix = mkVar (compileTypeRep t sz) v
@@ -134,7 +133,7 @@ instance ( Compile dom dom
         , alphaEq l1 l2
         = do
             let t   = argType $ infoType $ getInfo lam1
-                sz = rangeByRange 0 (rangeSubSat (infoSize $ getInfo l1) 1)
+                sz  = fst $ infoSize $ getInfo lam1
                 ix1 = mkVar (compileTypeRep t sz) v1
                 ix2              = mkVar (compileTypeRep t sz) v2
             len <- mkLength l1 (infoType $ getInfo l1) sz
