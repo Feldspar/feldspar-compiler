@@ -49,7 +49,7 @@ import Language.Syntactic.Traversal
 import Language.Syntactic.Constraint
 import Language.Syntactic.Constructs.Binding (VarId)
 
-import Feldspar.Range
+import Feldspar.Range (upperBound, isSingleton)
 import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType,
                                    ComplexType, IVarType, Signedness, Size)
 import Feldspar.Core.Interpretation
