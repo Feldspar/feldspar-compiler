@@ -71,6 +71,10 @@ data Entity t
         , outParams                 :: [Variable t]
         , procBody                  :: Block t
         }
+    | ValueDef
+        { valVar                    :: Variable t
+        , valValue                  :: Constant t
+        }
     | ProcDecl
         { procName                  :: String
         , inParams                  :: [Variable t]
