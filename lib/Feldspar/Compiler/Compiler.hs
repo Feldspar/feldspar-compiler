@@ -98,10 +98,9 @@ moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
   :: SyntacticFeld c
-  => CompilationMode
-  -> OriginalFunctionSignature -> Options -> c
+  => OriginalFunctionSignature -> Options -> c
   -> SplitCompToCCoreResult
-compileToCCore compMode funSig coreOptions prg =
+compileToCCore funSig coreOptions prg =
     createSplit $ moduleToCCore coreOptions <$> separatedModules
       where
         separatedModules = moduleSeparator

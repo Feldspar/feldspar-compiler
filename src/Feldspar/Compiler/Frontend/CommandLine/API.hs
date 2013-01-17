@@ -154,4 +154,4 @@ standaloneCompile inputFileName outputFileName sig opts prg = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult
   where
-    compilationResult = compileToCCore Standalone sig opts prg
+    compilationResult = compileToCCore sig opts prg

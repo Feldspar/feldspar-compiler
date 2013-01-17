@@ -81,7 +81,7 @@ compileFunction inFileName outFileName coreOptions originalFunctionSignature = d
     liftIO $ do
         tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
-        let core = compileToCCore Standalone originalFunctionSignature coreOptions prg
+        let core = compileToCCore originalFunctionSignature coreOptions prg
         Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
                                       hPutStrLn temph $ sourceCode $ sctccrHeader core)
                                   (do hClose temph
