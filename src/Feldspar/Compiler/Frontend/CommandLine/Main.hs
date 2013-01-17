@@ -61,7 +61,7 @@ import Control.Monad.CatchIO
 -- ====================================== Other imports ==================================
 import Data.List
 import Data.Maybe (fromMaybe)
-import Data.Either (lefts)
+import Data.Either (lefts, rights)
 import Debug.Trace
 import Language.Haskell.Interpreter
 
@@ -120,15 +120,13 @@ mergeModules l@(x:xs) = Module {
 padFunctionName :: String -> String
 padFunctionName n = StandaloneLib.rpadWith 50 '.' $ "Function " ++ n
 
-writeErrors :: Either a (String, CompilationError) -> IO ()
-writeErrors Left{} = return ()
-writeErrors (Right (functionName, err)) = case err of
-    InterpreterError ie -> do
-        withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
-        printInterpreterError ie
-    InternalErrorCall ec -> do
-        withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
-        withColor Red $ putStrLn ec
+writeError :: (String, CompilationError) -> IO ()
+writeError (functionName, InterpreterError ie) = do
+    withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
+    printInterpreterError ie
+writeError (functionName, InternalErrorCall ec) = do
+    withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
+    withColor Red $ putStrLn ec
 
 writeSummary :: Either (String, a) (String, CompilationError) -> IO ()
 writeSummary (Left (functionName, x)) = do
@@ -147,7 +145,7 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
     liftIO $ appendFile (makeCFileName outFileName) cIncludes
     modules <- compileAllFunctions inFileName outFileName coreOptions declarationList
     liftIO $ do
-        mapM_ writeErrors modules
+        mapM_ writeError $ rights modules
         withColor Blue $ putStrLn "\n================= [ Summary of compilation results ] =================\n"
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
