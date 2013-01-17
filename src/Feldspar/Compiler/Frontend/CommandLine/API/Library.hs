@@ -34,10 +34,6 @@ import Language.Haskell.Interpreter
 import System.Console.ANSI
 import Feldspar.Compiler.Backend.C.Library
 
-lowerFirst :: String -> String
-lowerFirst (first:rest) = toLower first : rest
-lowerFirst s            = s
-
 upperFirst :: String -> String
 upperFirst (first:rest) = toUpper first : rest
 upperFirst s            = s
