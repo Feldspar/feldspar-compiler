@@ -92,7 +92,7 @@ moduleToCCore
   -> CompToCCoreResult ()
 moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
-    res = compToCWithInfos opts lineNum mdl
+    res = compToCWithInfos opts mdl
     (incls, lineNum) = genIncludeLines opts Nothing
 
 
