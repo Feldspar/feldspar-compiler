@@ -53,8 +53,8 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation as Rep (Module, Expression(..), Variable(..), VariableRole(..))
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Module(..), Entity(..))
+import Feldspar.Compiler.Imperative.Representation as Rep (Variable(..))
+import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..), Block(..), Module(..), Entity(..), VariableRole(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -89,7 +89,7 @@ instance Compile Empty dom
     compileExprSym _ = error "Can't compile Empty"
 
 compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    Options -> String -> [((VarId,Rep.Expression ()),Rep.Variable ())] -> ASTF (Decor Info dom) a -> Module ()
+    Options -> String -> [((VarId,Expression ()),Rep.Variable ())] -> ASTF (Decor Info dom) a -> Module ()
 compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
@@ -104,7 +104,7 @@ compileProgTop opt funname args a = Module defs
     ins      = map snd $ reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
-    outParam = Rep.Variable Rep.Ptr outType "out"
+    outParam = Rep.Variable Ptr outType "out"
     outLoc   = varToExpr outParam
     results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
     decls    = decl results

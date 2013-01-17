@@ -46,7 +46,8 @@ import Feldspar.Core.Constructs.Par
 
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..),
-                                                    Entity(..))
+                                                    Entity(..), typeof,
+                                                    VariableRole(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -104,7 +105,7 @@ instance ( Compile dom dom
             iv  <- compileExpr r
             val <- compileExpr a
             i   <- freshId
-            let var = varToExpr $ AIR.Variable AIR.Val (AIR.typeof val) $ "msg" ++ show i
+            let var = varToExpr $ AIR.Variable Val (typeof val) $ "msg" ++ show i
             declare var
             assign var val
             tellProg [iVarPut iv var]
@@ -121,7 +122,7 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDef taskName [] [AIR.Variable AIR.Val AIR.VoidType "params"] $ toBlock runTask]
+        tellDef [ProcDef taskName [] [AIR.Variable Val AIR.VoidType "params"] $ toBlock runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 
