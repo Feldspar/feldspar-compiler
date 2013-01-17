@@ -30,9 +30,8 @@ module Feldspar.Compiler.Backend.C.Library
     (module System.Console.ANSI,
      module Feldspar.Compiler.Backend.C.Library) where
 
-import Control.Monad.State
 import System.Console.ANSI
-import System.FilePath
+import System.FilePath ((<.>))
 
 -- ===========================================================================
 --  == String tools
@@ -58,16 +57,6 @@ makeHFileName = (<.> "h")
 
 makeCFileName :: String -> String
 makeCFileName = (<.> "c")
-
--- ===========================================================================
---  == Name generator
--- ===========================================================================
-
-newName  :: (Monad m) => String -> StateT Integer m String
-newName name = do
-    n <- get
-    put $ n+1
-    return $ name ++ show n
 
 -- ===========================================================================
 --  == Console tools
