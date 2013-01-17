@@ -56,7 +56,7 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
     originalParameterNames :: [Maybe String]
 } deriving (Show, Eq)
 
-data SomeCompilable = forall a internal . SyntacticFeld a => SomeCompilable a
+data SomeCompilable = forall a . SyntacticFeld a => SomeCompilable a
     deriving (DT.Typeable)
 
 data SplitModuleDescriptor = SplitModuleDescriptor
