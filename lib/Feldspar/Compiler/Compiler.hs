@@ -93,7 +93,7 @@ moduleToCCore
 moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
     res = compToCWithInfos opts mdl
-    (incls, lineNum) = genIncludeLines opts Nothing
+    incls = genIncludeLines opts Nothing
 
 
 -- | Compiler core
@@ -114,14 +114,11 @@ compileToCCore compMode funSig coreOptions prg =
 
         createSplit [header, source] = SplitCompToCCoreResult header source
 
-genIncludeLinesCore :: [String] -> (String, Int)
-genIncludeLinesCore []   = ("", 1)
-genIncludeLinesCore (x:xs) = ("#include " ++ x ++ "\n" ++ str, linenum + 1) where
-    (str, linenum) = genIncludeLinesCore xs
-
-genIncludeLines :: Options -> Maybe String -> (String, Int)
-genIncludeLines coreOptions mainHeader = (str ++ "\n\n", linenum + 2) where
-    (str, linenum)  = genIncludeLinesCore $ includes (platform coreOptions) ++ mainHeaderCore
+genIncludeLines :: Options -> Maybe String -> String
+genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
+  where
+    include x = "#include " ++ x ++ "\n"
+    incs = includes (platform opts) ++ mainHeaderCore
     mainHeaderCore = case mainHeader of
         Nothing -> []
         Just filename -> ["\"" ++ takeFileName filename ++ ".h\""]
