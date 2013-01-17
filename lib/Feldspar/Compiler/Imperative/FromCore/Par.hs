@@ -85,7 +85,7 @@ instance ( Compile dom dom
     compileProgSym When _ loc (c :* action :* Nil) = do
         c' <- compileExpr c
         (_, b) <- confiscateBlock $ compileProg loc action
-        tellProg [Branch c' b (Block [] Empty)]
+        tellProg [Branch c' b (toBlock Empty)]
 
 instance ( Compile dom dom
          , Project (Variable :|| Type) dom
@@ -121,7 +121,7 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDef taskName [] [AIR.Variable AIR.Val AIR.VoidType "params"] $ Block [] runTask]
+        tellDef [ProcDef taskName [] [AIR.Variable AIR.Val AIR.VoidType "params"] $ toBlock runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 
