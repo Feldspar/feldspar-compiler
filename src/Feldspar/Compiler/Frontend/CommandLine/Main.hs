@@ -75,7 +75,7 @@ compileFunction :: String -> String -> CoreOptions.Options -> OriginalFunctionSi
 compileFunction inFileName outFileName coreOptions originalFunctionSignature = do
     let functionName = originalFunctionName originalFunctionSignature
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
-    let splitModuleDescriptor = moduleSplitter $ executePluginChain Standalone originalFunctionSignature coreOptions prg
+    let splitModuleDescriptor = moduleSplitter $ executePluginChain originalFunctionSignature coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do

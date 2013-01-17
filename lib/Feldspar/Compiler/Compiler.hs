@@ -105,7 +105,7 @@ compileToCCore compMode funSig coreOptions prg =
     createSplit $ moduleToCCore coreOptions <$> separatedModules
       where
         separatedModules = moduleSeparator
-                         $ executePluginChain compMode funSig coreOptions prg
+                         $ executePluginChain funSig coreOptions prg
 
         moduleSeparator modules = [header, source]
           where (SplitModuleDescriptor header source) = moduleSplitter modules
@@ -163,9 +163,9 @@ data ExternalInfoCollection = ExternalInfoCollection
     }
 
 executePluginChain :: SyntacticFeld c
-                   => CompilationMode -> OriginalFunctionSignature
+                   => OriginalFunctionSignature
                    -> Options -> c -> Module ()
-executePluginChain _ sig@OriginalFunctionSignature{..} opt prg =
+executePluginChain OriginalFunctionSignature{..} opt prg =
   pluginChain ExternalInfoCollection
     { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo       = opt
