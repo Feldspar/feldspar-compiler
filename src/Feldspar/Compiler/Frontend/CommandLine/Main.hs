@@ -139,10 +139,14 @@ writeSummary (Right (functionName, msg)) = do
 -- | Interpreter body for multi-function compilation
 multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature] -> Interpreter (IO ())
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
+    let hOutFileName   = makeHFileName outFileName
+        cOutFileName   = makeCFileName outFileName
+        hdbgOutFileName = makeDebugFileName hOutFileName
+        cdbgOutFileName = makeDebugFileName cOutFileName
     let hIncludes = genIncludeLines coreOptions Nothing
-    let cIncludes = genIncludeLines coreOptions (Just $ makeHFileName $ takeFileName outFileName)
-    liftIO $ appendFile (makeHFileName outFileName) hIncludes
-    liftIO $ appendFile (makeCFileName outFileName) cIncludes
+    let cIncludes = genIncludeLines coreOptions (Just $ takeFileName hOutFileName)
+    liftIO $ appendFile hOutFileName hIncludes
+    liftIO $ appendFile cOutFileName cIncludes
     modules <- compileAllFunctions inFileName outFileName coreOptions declarationList
     liftIO $ do
         mapM_ writeError $ rights modules
@@ -152,10 +156,10 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
         let cCompToCResult = compToCWithInfos coreOptions mergedCModules
         let hCompToCResult = compToCWithInfos coreOptions mergedHModules
-        appendFile (makeCFileName outFileName) (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
-        appendFile (makeHFileName outFileName) (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugCFileName outFileName) (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugHFileName outFileName) (show $ debugModule hCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile cOutFileName (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile hOutFileName (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile cdbgOutFileName (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile hdbgOutFileName (show $ debugModule hCompToCResult) `Control.Exception.catch` errorHandler
     return $ return ()
     where
         errorHandler msg = withColor Red $ putStrLn $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)
@@ -170,12 +174,14 @@ makeBackup filename = renameFile filename (filename ++ ".bak") `Control.Exceptio
 main = do
     (opts, inputFileName) <- handleOptions optionDescriptors startOptions helpHeader
     let outputFileName = convertOutputFileName inputFileName (optOutputFileName opts)
+        cOutputFileName = makeCFileName outputFileName
+        hOutputFileName = makeHFileName outputFileName
 
     prepareInputFile inputFileName
-    makeBackup $ makeHFileName outputFileName
-    makeBackup $ makeCFileName outputFileName
-    makeBackup $ makeDebugHFileName outputFileName
-    makeBackup $ makeDebugCFileName outputFileName
+    makeBackup cOutputFileName
+    makeBackup hOutputFileName
+    makeBackup $ makeDebugFileName hOutputFileName
+    makeBackup $ makeDebugFileName cOutputFileName
 
     fileDescriptor <- openFile inputFileName ReadMode
     fileContents <- hGetContents fileDescriptor

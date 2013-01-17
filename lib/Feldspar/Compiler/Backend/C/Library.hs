@@ -46,11 +46,8 @@ replace s find repl | take (length find) s == find = repl ++ replace (drop (leng
 encodeFunctionName :: String -> String
 encodeFunctionName functionName = replace (replace functionName "_" "__") "'" "_prime"
 
-makeDebugHFileName :: String -> String
-makeDebugHFileName = (<.> "h.dbg.txt")
-
-makeDebugCFileName :: String -> String
-makeDebugCFileName = (<.> "c.dbg.txt")
+makeDebugFileName :: String -> String
+makeDebugFileName = (<.> "dbg.txt")
 
 makeHFileName :: String -> String
 makeHFileName = (<.> "h")
