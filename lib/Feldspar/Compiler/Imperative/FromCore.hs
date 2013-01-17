@@ -93,7 +93,7 @@ compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
 compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
-          sa  = defaultSize ta
+          sa  = fst $ infoSize $ getInfo lam
           typ = compileTypeRep ta sa
           arg = if isComposite typ
                   then ((v, mkRef typ v), mkPointer  typ v)
