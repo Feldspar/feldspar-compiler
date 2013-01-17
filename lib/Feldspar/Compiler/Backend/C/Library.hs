@@ -35,9 +35,6 @@ import System.Console.ANSI
 import System.FilePath
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
-data CompilationMode = Interactive | Standalone
-    deriving (Show, Eq)
-
 type AllocationInfo = ([AIR.Type],[AIR.Type],[AIR.Type])
     
 -- ===========================================================================
