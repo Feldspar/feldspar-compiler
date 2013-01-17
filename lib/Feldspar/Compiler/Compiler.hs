@@ -87,9 +87,7 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl (ProcDef n inp outp _) = [ProcDecl n inp outp]
     defToDecl _ = []
 
-moduleToCCore
-  :: Options -> Module ()
-  -> CompToCCoreResult ()
+moduleToCCore :: Options -> Module () -> CompToCCoreResult ()
 moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
   where
     res = compToCWithInfos opts mdl
