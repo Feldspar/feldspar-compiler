@@ -102,10 +102,7 @@ highLevelInterpreter moduleName inputFileName importList interpreterBody = do
   -- either printInterpreterError id actionToExecute
 
 printInterpreterError :: InterpreterError -> IO ()
-printInterpreterError (WontCompile []) = return ()
-printInterpreterError (WontCompile (x:xs)) = do
-    printGhcError x
-    printInterpreterError (WontCompile xs)
+printInterpreterError (WontCompile xs) = mapM_ printGhcError xs
   where
     printGhcError (GhcError {errMsg=s}) = hPutStrLn stderr s
 printInterpreterError e = hPutStrLn stderr $ "Code generation failed: " ++ show e
