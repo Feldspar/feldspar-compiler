@@ -102,10 +102,6 @@ propagate = Propagate . rule
 
 -- Belongs in some other module, but temporarily resides here to avoid
 -- cyclic imports.
-type Position = (Int, Int)
-
--- Belongs in some other module, but temporarily resides here to avoid
--- cyclic imports.
 data CompToCCoreResult t = CompToCCoreResult {
     sourceCode      :: String,
     debugModule     :: Module t
