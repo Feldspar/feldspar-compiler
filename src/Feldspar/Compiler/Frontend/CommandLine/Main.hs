@@ -193,7 +193,7 @@ main = do
     fancyWrite $ "Output file: " ++ outputFileName
 
     let highLevelInterpreterWithModuleInfo =
-            highLevelInterpreter moduleName inputFileName globalImportList False
+            highLevelInterpreter moduleName inputFileName globalImportList
 
     -- C code generation
     case optStandaloneMode opts of
