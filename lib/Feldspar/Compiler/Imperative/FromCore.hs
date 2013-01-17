@@ -120,17 +120,3 @@ fromCore opt funname
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts prog = compileProgTop opts "test" [] (reifyFeld defaultFeldOpts N32 prog)
-
--- | Create a list where each element represents the number of variables needed
--- to as arguments
-buildInParamDescriptor :: SyntacticFeld a => a -> [Int]
-buildInParamDescriptor = go . reifyFeld defaultFeldOpts N32
-  where
-    go :: (Project (CLambda Type) dom) => ASTF (Decor info dom) a -> [Int]
-    go (lam :$ body)
-      | Just (SubConstr2 (Lambda _)) <- prjLambda lam
-      = 1 : go body
-  -- TODO the 1 above is valid as long as we represent tuples as structs
-  -- When we convert a struct to a set of variables the 1 has to replaced
-  -- with an implementation that calculates the apropriate value.
-    go _ = []
