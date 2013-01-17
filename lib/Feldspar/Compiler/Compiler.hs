@@ -136,6 +136,7 @@ defaultOptions
     , debug             = NoDebug
     , memoryInfoVisible = True
     , rules             = []
+    , nestSize          = 2
     }
 
 c99PlatformOptions :: Options
