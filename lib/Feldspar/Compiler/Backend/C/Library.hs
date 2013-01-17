@@ -33,10 +33,7 @@ module Feldspar.Compiler.Backend.C.Library
 import Control.Monad.State
 import System.Console.ANSI
 import System.FilePath
-import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
-type AllocationInfo = ([AIR.Type],[AIR.Type],[AIR.Type])
-    
 -- ===========================================================================
 --  == String tools
 -- ===========================================================================
