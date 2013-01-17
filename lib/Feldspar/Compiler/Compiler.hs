@@ -114,11 +114,12 @@ compileToCCore funSig coreOptions prg =
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
   where
-    include x = "#include " ++ x ++ "\n"
+    include fname@('<':_) = "#include " ++ fname ++ "\n"
+    include fname         = "#include \"" ++ fname ++ "\"\n"
     incs = includes (platform opts) ++ mainHeaderCore
     mainHeaderCore = case mainHeader of
         Nothing -> []
-        Just filename -> ["\"" ++ takeFileName filename ++ ".h\""]
+        Just filename -> [takeFileName filename ++ ".h"]
 
 -- | Predefined options
 
