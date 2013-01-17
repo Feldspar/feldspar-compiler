@@ -36,7 +36,7 @@
 module Feldspar.Compiler.Compiler where
 
 import Data.List (partition)
-import System.FilePath
+import Data.Maybe (fromMaybe)
 import Data.Typeable as DT
 import Control.Arrow
 import Control.Applicative
@@ -114,12 +114,10 @@ compileToCCore funSig coreOptions prg =
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
   where
+    include []            = ""
     include fname@('<':_) = "#include " ++ fname ++ "\n"
     include fname         = "#include \"" ++ fname ++ "\"\n"
-    incs = includes (platform opts) ++ mainHeaderCore
-    mainHeaderCore = case mainHeader of
-        Nothing -> []
-        Just filename -> [takeFileName filename ++ ".h"]
+    incs = includes (platform opts) ++ [fromMaybe "" mainHeader]
 
 -- | Predefined options
 

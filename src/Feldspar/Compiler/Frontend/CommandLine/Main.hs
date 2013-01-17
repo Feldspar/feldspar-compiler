@@ -140,7 +140,7 @@ writeSummary (Right (functionName, msg)) = do
 multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature] -> Interpreter (IO ())
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
     let hIncludes = genIncludeLines coreOptions Nothing
-    let cIncludes = genIncludeLines coreOptions (Just outFileName)
+    let cIncludes = genIncludeLines coreOptions (Just $ makeHFileName $ takeFileName outFileName)
     liftIO $ appendFile (makeHFileName outFileName) hIncludes
     liftIO $ appendFile (makeCFileName outFileName) cIncludes
     modules <- compileAllFunctions inFileName outFileName coreOptions declarationList
