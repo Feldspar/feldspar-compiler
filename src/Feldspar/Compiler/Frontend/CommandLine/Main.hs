@@ -141,8 +141,8 @@ writeSummary (Right (functionName, msg)) = do
 -- | Interpreter body for multi-function compilation
 multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature] -> Interpreter (IO ())
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
-    let (hIncludes, hLineNum) = genIncludeLines coreOptions Nothing
-    let (cIncludes, cLineNum) = genIncludeLines coreOptions (Just outFileName)
+    let hIncludes = genIncludeLines coreOptions Nothing
+    let cIncludes = genIncludeLines coreOptions (Just outFileName)
     liftIO $ appendFile (makeHFileName outFileName) hIncludes
     liftIO $ appendFile (makeCFileName outFileName) cIncludes
     modules <- compileAllFunctions inFileName outFileName coreOptions declarationList
@@ -152,8 +152,8 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
-        let cCompToCResult = compToCWithInfos coreOptions cLineNum mergedCModules
-        let hCompToCResult = compToCWithInfos coreOptions hLineNum mergedHModules
+        let cCompToCResult = compToCWithInfos coreOptions mergedCModules
+        let hCompToCResult = compToCWithInfos coreOptions mergedHModules
         appendFile (makeCFileName outFileName) (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
         appendFile (makeHFileName outFileName) (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
         writeFile (makeDebugCFileName outFileName) (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler

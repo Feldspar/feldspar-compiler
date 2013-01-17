@@ -46,8 +46,8 @@ data PrintEnv = PEnv
     }
   deriving Show
 
-compToCWithInfos :: Options -> Int -> Module () -> CompToCCoreResult ()
-compToCWithInfos opts _ procedure =
+compToCWithInfos :: Options -> Module () -> CompToCCoreResult ()
+compToCWithInfos opts procedure =
   CompToCCoreResult { sourceCode  = render $ cgen (PEnv opts Declaration_pl) procedure
                     , debugModule = procedure
                     }
