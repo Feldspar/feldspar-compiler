@@ -64,9 +64,9 @@ instance CodeGen (Module ())
 
 instance CodeGen (Entity ())
   where
-    cgen env StructDef{..} = text "struct"  <+> text structName    $+$ block (cgenList env structMembers) <> semi
+    cgen env StructDef{..} = text "struct"  <+> text structName    $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef" <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}   = text "void"    <+> text procName      <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) $$ block (cgen env procBody)
+    cgen env ProcDef{..}   = text "void"    <+> text procName      <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) $$ block env (cgen env procBody)
     cgen env ProcDecl{..}  = text "void"    <+> text procName      <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
@@ -87,7 +87,7 @@ instance CodeGen (Block ())
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = cgen (newPlace env Declaration_pl) declVar <+> nest 2 init <> semi
+    cgen env Declaration{..} = cgen (newPlace env Declaration_pl) declVar <+> nest (nestSize $ options env) init <> semi
       where
         init = case (initVal, varType declVar) of
                  (Just i, _)           -> equals <+> cgen (newPlace env ValueNeed_pl) i
@@ -101,22 +101,22 @@ instance CodeGen (Program ())
     cgen env Comment{..}
       | isBlockComment = blockComment $ map text $ lines commentValue
       | otherwise      = text "//" <+> text commentValue
-    cgen env Assign{..} = cgen env' lhs <+> equals <+> nest 2 (cgen env' rhs) <> semi
+    cgen env Assign{..} = cgen env' lhs <+> equals <+> nest (nestSize $ options env) (cgen env' rhs) <> semi
       where
         env' = newPlace env ValueNeed_pl
     cgen env ProcedureCall{..} = stmt $ call (text procCallName) (map (cgen env) procCallParams)
     cgen env Sequence{..} = cgenList env sequenceProgs
     cgen env Branch{..} =  text "if" <+> parens (cgen (newPlace env ValueNeed_pl) branchCond)
-                       $$ block (cgen env thenBlock)
+                       $$ block env (cgen env thenBlock)
                        $$ text "else"
-                       $$ block (cgen env elseBlock)
+                       $$ block env (cgen env elseBlock)
     cgen env Switch{..} =  text "switch" <+> parens (cgen env scrutinee)
-                       $$ block (vcat [ cgen env p $$ nest 2 (cgen env b) | (p, b) <- alts])
+                       $$ block env (vcat [ cgen env p $$ nest (nestSize $ options env) (cgen env b) | (p, b) <- alts])
     cgen env SeqLoop{..} =  cgen env sLoopCondCalc
                         $$ text "while" <+> parens (cgen (newPlace env ValueNeed_pl) sLoopCond)
-                        $$ block (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
+                        $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
     cgen env ParLoop{..} =  text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
-                        $$ block (cgen env pLoopBlock)
+                        $$ block env (cgen env pLoopBlock)
       where
         ixd   = cgen envd pLoopCounter
         ixv   = cgen envv pLoopCounter
@@ -126,7 +126,7 @@ instance CodeGen (Program ())
         envd  = newPlace env Declaration_pl
         envv  = newPlace env ValueNeed_pl
 
-    cgen env BlockProgram{..} = block (cgen env blockProgram)
+    cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
     cgenList env = vcat . map (cgen env)
 
@@ -257,8 +257,8 @@ sizeInBrackets _                 = empty
 stmt :: Doc -> Doc
 stmt = (<>semi)
 
-block :: Doc -> Doc
-block d = lbrace $+$ nest 2 d $+$ rbrace
+block :: PrintEnv -> Doc -> Doc
+block env d = lbrace $+$ nest (nestSize $ options env) d $+$ rbrace
 
 newPlace :: PrintEnv -> Place -> PrintEnv
 newPlace env plc = env {place = plc}

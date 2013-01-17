@@ -48,6 +48,7 @@ data Options =
     , debug             :: DebugOption
     , memoryInfoVisible :: Bool
     , rules             :: [Rule]
+    , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
     } deriving (Eq, Show)
 
 data UnrollStrategy = NoUnroll | Unroll Int
