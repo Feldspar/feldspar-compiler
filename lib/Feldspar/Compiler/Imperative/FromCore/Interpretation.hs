@@ -61,7 +61,6 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),Block(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
-                                                    VariableRole(..),
                                                     Expression(..),
                                                     Declaration(..),
                                                     Program(..),
@@ -200,7 +199,7 @@ compileExprVar e = do
         VarExpr (Variable{}) -> return e'
         _       -> do
             varId <- freshId
-            let loc = varToExpr (Variable Val (typeof e') ('e' : show varId))
+            let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
             declare loc
             assign loc e'
             return loc
@@ -287,11 +286,11 @@ mkVar t i = varToExpr $ mkNamedVar "v" t i
 
 -- | Construct a named variable.
 mkNamedVar :: String -> Type -> VarId -> Variable ()
-mkNamedVar base t i = Variable Val t $ base ++ show i
+mkNamedVar base t i = Variable t $ base ++ show i
 
 -- | Construct a named pointer.
 mkNamedRef :: String -> Type -> VarId -> Variable ()
-mkNamedRef base t i = Variable Ptr t $ base ++ show i
+mkNamedRef base t i = Variable (Pointer t) $ base ++ show i
 
 -- | Construct a pointer.
 mkRef :: Type -> VarId -> Expression ()
@@ -313,7 +312,7 @@ freshId = do
 freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter (Expression ()) -- TODO take just info instead of TypeRep and Size?
 freshVar base t size = do
   v <- freshId
-  let var = varToExpr . Variable Val (compileTypeRep t size) $ base ++ show v
+  let var = varToExpr $ mkNamedVar base (compileTypeRep t size) v
   declare var
   return var
 

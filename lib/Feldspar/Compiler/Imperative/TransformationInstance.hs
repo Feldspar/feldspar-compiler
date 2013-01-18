@@ -166,7 +166,7 @@ instance (Transformable t Constant, Transformable1 t [] Constant, Combine (Up t)
 
 instance (Default (Up t))
     => DefaultTransformable t Variable where
-        defaultTransform _ s _ (Variable name typ role) = Result (Variable name typ role) s def
+        defaultTransform _ s _ (Variable name typ) = Result (Variable name typ) s def
 
 
 instance (Transformable t a, Default (Up t), Combine (Up t), Transformation t)

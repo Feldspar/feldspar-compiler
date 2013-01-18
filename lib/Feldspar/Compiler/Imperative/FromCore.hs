@@ -53,8 +53,8 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation as Rep (Variable(..))
-import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..), Block(..), Module(..), Entity(..), VariableRole(..))
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..))
+import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..), Block(..), Module(..), Entity(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -104,7 +104,7 @@ compileProgTop opt funname args a = Module defs
     ins      = map snd $ reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
-    outParam = Rep.Variable Ptr outType "out"
+    outParam = Rep.Variable (Rep.Pointer outType) "out"
     outLoc   = varToExpr outParam
     results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
     decls    = decl results
