@@ -122,7 +122,8 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        tellDef [ProcDef taskName [] [AIR.Variable Val AIR.VoidType "params"] $ toBlock runTask]
+        parId <- freshId
+        tellDef [ProcDef taskName [] [AIR.Variable Val AIR.VoidType $ "params" ++ show parId] $ toBlock runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 
