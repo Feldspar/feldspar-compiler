@@ -53,8 +53,8 @@ import Feldspar.Core.Constructs
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation as Rep (Module, Expression(..), Variable(..), VariableRole(..))
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Module(..), Entity(..))
+import Feldspar.Compiler.Imperative.Representation as Rep (Variable(..))
+import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..), Block(..), Module(..), Entity(..), VariableRole(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -89,11 +89,11 @@ instance Compile Empty dom
     compileExprSym _ = error "Can't compile Empty"
 
 compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    Options -> String -> [((VarId,Rep.Expression ()),Rep.Variable ())] -> ASTF (Decor Info dom) a -> Module ()
+    Options -> String -> [((VarId,Expression ()),Rep.Variable ())] -> ASTF (Decor Info dom) a -> Module ()
 compileProgTop opt funname args (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
-          sa  = defaultSize ta
+          sa  = fst $ infoSize $ getInfo lam
           typ = compileTypeRep ta sa
           arg = if isComposite typ
                   then ((v, mkRef typ v), mkPointer  typ v)
@@ -104,7 +104,7 @@ compileProgTop opt funname args a = Module defs
     ins      = map snd $ reverse args
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
-    outParam = Rep.Variable Rep.Ptr outType "out"
+    outParam = Rep.Variable Ptr outType "out"
     outLoc   = varToExpr outParam
     results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
     decls    = decl results
@@ -120,17 +120,3 @@ fromCore opt funname
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts prog = compileProgTop opts "test" [] (reifyFeld defaultFeldOpts N32 prog)
-
--- | Create a list where each element represents the number of variables needed
--- to as arguments
-buildInParamDescriptor :: SyntacticFeld a => a -> [Int]
-buildInParamDescriptor = go . reifyFeld defaultFeldOpts N32
-  where
-    go :: (Project (CLambda Type) dom) => ASTF (Decor info dom) a -> [Int]
-    go (lam :$ body)
-      | Just (SubConstr2 (Lambda _)) <- prjLambda lam
-      = 1 : go body
-  -- TODO the 1 above is valid as long as we represent tuples as structs
-  -- When we convert a struct to a set of variables the 1 has to replaced
-  -- with an implementation that calculates the apropriate value.
-    go _ = []

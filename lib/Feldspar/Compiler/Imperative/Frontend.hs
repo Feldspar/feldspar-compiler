@@ -54,6 +54,7 @@ instance Monoid (Block t)
 
 toBlock :: Program () -> Block ()
 toBlock (BlockProgram b) = b
+toBlock p                = Block [] p
 
 toProg :: Block () -> Program ()
 toProg (Block [] p) = p
@@ -225,4 +226,4 @@ for :: String -> Expression () -> Int -> Block () -> Program ()
 for s e i p = ParLoop (Variable Val (NumType Unsigned S32) s) e i p
 
 while :: Program () -> Expression () -> Program () -> Program ()
-while p e b = SeqLoop e (Block [] (Sequence [p])) (Block [] (Sequence [b]))
+while p e b = SeqLoop e (toBlock $ Sequence [p]) (toBlock $ Sequence [b])

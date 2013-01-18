@@ -98,9 +98,9 @@ instance ( Compile dom dom
             (_, Block ds (Sequence body)) <- confiscateBlock $ compileProg (ArrayElem loc ix) step
             tellProg [initArray loc len']
             compileProg st init
-            tellProg [BlockProgram $ Block ds $
+            tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
-                                    Block [] $ Sequence (body ++
+                                    toBlock $ Sequence (body ++
                                          [assignProg st (ArrayElem loc ix)
                                          ])]
 
@@ -118,9 +118,9 @@ instance ( Compile dom dom
             (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg tmp step
             tellProg [initArray loc len']
             compileProg (StructField tmp "member2") st
-            tellProg [BlockProgram $ Block ds $
+            tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
-                                    Block [] $ Sequence (body ++
+                                    toBlock $ Sequence (body ++
                                          [assignProg (ArrayElem loc ix) (StructField tmp "member1")
                                          ])]
 

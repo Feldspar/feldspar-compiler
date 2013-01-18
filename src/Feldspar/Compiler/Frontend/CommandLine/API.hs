@@ -74,10 +74,9 @@ highLevelInterpreter :: T.Typeable (IO a)
                      => String -- the module name (for example My.Module)
                      -> String -- the input file name (for example "My/Module.hs")
                      -> [String] -- globalImportList
-                     -> Bool -- need to import global modules qualified?
                      -> Interpreter (IO a) -- ^ an interpreter body
                      -> IO CompilationResult
-highLevelInterpreter moduleName inputFileName importList needQualify interpreterBody = do
+highLevelInterpreter moduleName inputFileName importList interpreterBody = do
   actionToExecute <- runInterpreter $ do
     set [ languageExtensions := [GADTs, ScopedTypeVariables, TypeSynonymInstances, StandaloneDeriving,
                                  DeriveDataTypeable, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses,
@@ -91,9 +90,7 @@ highLevelInterpreter moduleName inputFileName importList needQualify interpreter
     loadModules $ inputFileName : if not releaseMode then importList else []
     setTopLevelModules [moduleName]
     -- Import modules qualified to prevent name collisions with user defined entities
-    if needQualify
-      then setImportsQ $ zip importList $ map Just importList
-      else setImports importList
+    setImports importList
     interpreterBody
   case actionToExecute of
     Left err -> do
@@ -105,10 +102,7 @@ highLevelInterpreter moduleName inputFileName importList needQualify interpreter
   -- either printInterpreterError id actionToExecute
 
 printInterpreterError :: InterpreterError -> IO ()
-printInterpreterError (WontCompile []) = return ()
-printInterpreterError (WontCompile (x:xs)) = do
-    printGhcError x
-    printInterpreterError (WontCompile xs)
+printInterpreterError (WontCompile xs) = mapM_ printGhcError xs
   where
     printGhcError (GhcError {errMsg=s}) = hPutStrLn stderr s
 printInterpreterError e = hPutStrLn stderr $ "Code generation failed: " ++ show e
@@ -154,4 +148,4 @@ standaloneCompile inputFileName outputFileName sig opts prg = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult
   where
-    compilationResult = compileToCCore Standalone sig opts prg
+    compilationResult = compileToCCore sig opts prg

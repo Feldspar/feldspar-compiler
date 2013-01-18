@@ -36,7 +36,7 @@
 module Feldspar.Compiler.Compiler where
 
 import Data.List (partition)
-import System.FilePath
+import Data.Maybe (fromMaybe)
 import Data.Typeable as DT
 import Control.Arrow
 import Control.Applicative
@@ -56,7 +56,7 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
     originalParameterNames :: [Maybe String]
 } deriving (Show, Eq)
 
-data SomeCompilable = forall a internal . SyntacticFeld a => SomeCompilable a
+data SomeCompilable = forall a . SyntacticFeld a => SomeCompilable a
     deriving (DT.Typeable)
 
 data SplitModuleDescriptor = SplitModuleDescriptor
@@ -98,14 +98,13 @@ moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
   :: SyntacticFeld c
-  => CompilationMode
-  -> OriginalFunctionSignature -> Options -> c
+  => OriginalFunctionSignature -> Options -> c
   -> SplitCompToCCoreResult
-compileToCCore compMode funSig coreOptions prg =
+compileToCCore funSig coreOptions prg =
     createSplit $ moduleToCCore coreOptions <$> separatedModules
       where
         separatedModules = moduleSeparator
-                         $ executePluginChain compMode funSig coreOptions prg
+                         $ executePluginChain funSig coreOptions prg
 
         moduleSeparator modules = [header, source]
           where (SplitModuleDescriptor header source) = moduleSplitter modules
@@ -115,11 +114,10 @@ compileToCCore compMode funSig coreOptions prg =
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
   where
-    include x = "#include " ++ x ++ "\n"
-    incs = includes (platform opts) ++ mainHeaderCore
-    mainHeaderCore = case mainHeader of
-        Nothing -> []
-        Just filename -> ["\"" ++ takeFileName filename ++ ".h\""]
+    include []            = ""
+    include fname@('<':_) = "#include " ++ fname ++ "\n"
+    include fname         = "#include \"" ++ fname ++ "\"\n"
+    incs = includes (platform opts) ++ [fromMaybe "" mainHeader]
 
 -- | Predefined options
 
@@ -163,9 +161,9 @@ data ExternalInfoCollection = ExternalInfoCollection
     }
 
 executePluginChain :: SyntacticFeld c
-                   => CompilationMode -> OriginalFunctionSignature
+                   => OriginalFunctionSignature
                    -> Options -> c -> Module ()
-executePluginChain _ sig@OriginalFunctionSignature{..} opt prg =
+executePluginChain OriginalFunctionSignature{..} opt prg =
   pluginChain ExternalInfoCollection
     { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo       = opt

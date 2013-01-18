@@ -69,11 +69,11 @@ c99 = Platform {
         , (BoolType, \b -> if boolValue b then "true" else "false")
         ] ,
     includes =
-        [ "\"feldspar_c99.h\""
-        , "\"feldspar_array.h\""
-        , "\"feldspar_future.h\""
-        , "\"ivar.h\""
-        , "\"taskpool.h\""
+        [ "feldspar_c99.h"
+        , "feldspar_array.h"
+        , "feldspar_future.h"
+        , "ivar.h"
+        , "taskpool.h"
         , "<stdint.h>"
         , "<string.h>"
         , "<math.h>"
@@ -105,7 +105,7 @@ tic64x = Platform {
         [ (ComplexType FloatType, \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
         , (BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
-    includes = ["\"feldspar_tic64x.h\"", "\"feldspar_array.h\"", "<c6x.h>", "<string.h>", "<math.h>"],
+    includes = ["feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>", "<math.h>"],
     platformRules = tic64xRules ++ c99Rules ++ traceRules,
     isRestrict = Restrict
 }

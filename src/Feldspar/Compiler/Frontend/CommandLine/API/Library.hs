@@ -29,14 +29,10 @@
 module Feldspar.Compiler.Frontend.CommandLine.API.Library where
 
 
-import Data.Char
+import Data.Char (toUpper)
 import Language.Haskell.Interpreter
 import System.Console.ANSI
 import Feldspar.Compiler.Backend.C.Library
-
-lowerFirst :: String -> String
-lowerFirst (first:rest) = toLower first : rest
-lowerFirst s            = s
 
 upperFirst :: String -> String
 upperFirst (first:rest) = toUpper first : rest
@@ -48,8 +44,8 @@ formatStringListCore [x]    = x
 formatStringListCore (x:xs) = x ++ " | " ++ formatStringListCore xs
 
 formatStringList :: [String] -> String
-formatStringList list | not (null list) = "(" ++ formatStringListCore list ++ ")"
-formatStringList _ = error "This list should not be empty."
+formatStringList []   = error "formatStringList should not be called with an empty list."
+formatStringList list = "(" ++ formatStringListCore list ++ ")"
 
 rpad :: Int -> String -> String
 rpad target = rpadWith target ' '
@@ -58,12 +54,6 @@ rpadWith :: Int -> Char -> String -> String
 rpadWith target padchar s
     | length s >= target = s
     | otherwise = rpadWith target padchar (s ++ [padchar])
-
-iPutStrLn :: String -> Interpreter ()
-iPutStrLn = liftIO . putStrLn
-
-iPutStr :: String -> Interpreter ()
-iPutStr = liftIO . putStr
 
 fancyWrite :: String -> IO ()
 fancyWrite s = do

@@ -61,7 +61,7 @@ import Control.Monad.CatchIO
 -- ====================================== Other imports ==================================
 import Data.List
 import Data.Maybe (fromMaybe)
-import Data.Either (lefts)
+import Data.Either (lefts, rights)
 import Debug.Trace
 import Language.Haskell.Interpreter
 
@@ -75,13 +75,13 @@ compileFunction :: String -> String -> CoreOptions.Options -> OriginalFunctionSi
 compileFunction inFileName outFileName coreOptions originalFunctionSignature = do
     let functionName = originalFunctionName originalFunctionSignature
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
-    let splitModuleDescriptor = moduleSplitter $ executePluginChain Standalone originalFunctionSignature coreOptions prg
+    let splitModuleDescriptor = moduleSplitter $ executePluginChain originalFunctionSignature coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do
         tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
-        let core = compileToCCore Standalone originalFunctionSignature coreOptions prg
+        let core = compileToCCore originalFunctionSignature coreOptions prg
         Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
                                       hPutStrLn temph $ sourceCode $ sctccrHeader core)
                                   (do hClose temph
@@ -120,15 +120,13 @@ mergeModules l@(x:xs) = Module {
 padFunctionName :: String -> String
 padFunctionName n = StandaloneLib.rpadWith 50 '.' $ "Function " ++ n
 
-writeErrors :: Either a (String, CompilationError) -> IO ()
-writeErrors Left{} = return ()
-writeErrors (Right (functionName, err)) = case err of
-    InterpreterError ie -> do
-        withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
-        printInterpreterError ie
-    InternalErrorCall ec -> do
-        withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
-        withColor Red $ putStrLn ec
+writeError :: (String, CompilationError) -> IO ()
+writeError (functionName, InterpreterError ie) = do
+    withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
+    printInterpreterError ie
+writeError (functionName, InternalErrorCall ec) = do
+    withColor Red $ putStrLn $ "Error in function " ++ functionName ++ ":"
+    withColor Red $ putStrLn ec
 
 writeSummary :: Either (String, a) (String, CompilationError) -> IO ()
 writeSummary (Left (functionName, x)) = do
@@ -141,23 +139,27 @@ writeSummary (Right (functionName, msg)) = do
 -- | Interpreter body for multi-function compilation
 multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature] -> Interpreter (IO ())
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
+    let hOutFileName   = makeHFileName outFileName
+        cOutFileName   = makeCFileName outFileName
+        hdbgOutFileName = makeDebugFileName hOutFileName
+        cdbgOutFileName = makeDebugFileName cOutFileName
     let hIncludes = genIncludeLines coreOptions Nothing
-    let cIncludes = genIncludeLines coreOptions (Just outFileName)
-    liftIO $ appendFile (makeHFileName outFileName) hIncludes
-    liftIO $ appendFile (makeCFileName outFileName) cIncludes
+    let cIncludes = genIncludeLines coreOptions (Just $ takeFileName hOutFileName)
+    liftIO $ appendFile hOutFileName hIncludes
+    liftIO $ appendFile cOutFileName cIncludes
     modules <- compileAllFunctions inFileName outFileName coreOptions declarationList
     liftIO $ do
-        mapM_ writeErrors modules
+        mapM_ writeError $ rights modules
         withColor Blue $ putStrLn "\n================= [ Summary of compilation results ] =================\n"
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
         let cCompToCResult = compToCWithInfos coreOptions mergedCModules
         let hCompToCResult = compToCWithInfos coreOptions mergedHModules
-        appendFile (makeCFileName outFileName) (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
-        appendFile (makeHFileName outFileName) (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugCFileName outFileName) (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
-        writeFile (makeDebugHFileName outFileName) (show $ debugModule hCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile cOutFileName (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
+        appendFile hOutFileName (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile cdbgOutFileName (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
+        writeFile hdbgOutFileName (show $ debugModule hCompToCResult) `Control.Exception.catch` errorHandler
     return $ return ()
     where
         errorHandler msg = withColor Red $ putStrLn $ errorPrefix ++ show (msg::Control.Exception.ErrorCall)
@@ -172,12 +174,14 @@ makeBackup filename = renameFile filename (filename ++ ".bak") `Control.Exceptio
 main = do
     (opts, inputFileName) <- handleOptions optionDescriptors startOptions helpHeader
     let outputFileName = convertOutputFileName inputFileName (optOutputFileName opts)
+        cOutputFileName = makeCFileName outputFileName
+        hOutputFileName = makeHFileName outputFileName
 
     prepareInputFile inputFileName
-    makeBackup $ makeHFileName outputFileName
-    makeBackup $ makeCFileName outputFileName
-    makeBackup $ makeDebugHFileName outputFileName
-    makeBackup $ makeDebugCFileName outputFileName
+    makeBackup cOutputFileName
+    makeBackup hOutputFileName
+    makeBackup $ makeDebugFileName hOutputFileName
+    makeBackup $ makeDebugFileName cOutputFileName
 
     fileDescriptor <- openFile inputFileName ReadMode
     fileContents <- hGetContents fileDescriptor
@@ -189,7 +193,7 @@ main = do
     fancyWrite $ "Output file: " ++ outputFileName
 
     let highLevelInterpreterWithModuleInfo =
-            highLevelInterpreter moduleName inputFileName globalImportList False
+            highLevelInterpreter moduleName inputFileName globalImportList
 
     -- C code generation
     case optStandaloneMode opts of

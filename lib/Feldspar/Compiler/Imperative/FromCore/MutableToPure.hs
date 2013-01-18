@@ -69,7 +69,7 @@ instance ( Compile dom dom
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             let ta = argType $ infoType $ getInfo lam
-            let sa = defaultSize ta
+            let sa = fst $ infoSize $ getInfo lam
             let var = mkVar (compileTypeRep ta sa) v
             declare var
             compileProg var marr

@@ -85,7 +85,7 @@ instance ( Compile dom dom
     compileProgSym When _ loc (c :* action :* Nil) = do
         c' <- compileExpr c
         (_, b) <- confiscateBlock $ compileProg loc action
-        tellProg [Branch c' b (Block [] Empty)]
+        tellProg [Branch c' b (toBlock Empty)]
 
 instance (Compile dom dom, Project (CLambda Type) dom) => Compile Mutable dom
   where
@@ -122,7 +122,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]
-        tellProg [for "i" l 1 $ Block [] (Sequence [assignProg (ArrayElem loc ix) a'])]
+        tellProg [for "i" l 1 $ toBlock (Sequence [assignProg (ArrayElem loc ix) a'])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr

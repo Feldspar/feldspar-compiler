@@ -324,8 +324,8 @@ tellDef :: [Entity ()] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
 tellProg :: [Program ()] -> CodeWriter ()
-tellProg [BlockProgram (Block [] ps)] = tell $ mempty {block = Block [] $ Sequence [ps]}
-tellProg ps = tell $ mempty {block = Block [] $ Sequence ps}
+tellProg [BlockProgram (Block [] ps)] = tell $ mempty {block = toBlock $ Sequence [ps]}
+tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
 tellDecl :: [Declaration ()] -> CodeWriter ()
 tellDecl ds = do rs <- ask
