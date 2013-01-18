@@ -281,22 +281,27 @@ compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
 compileTypeRep (FValType a) sz          = IVarType $ compileTypeRep a sz
 compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
-mkVarName :: VarId -> String
-mkVarName v = 'v' : show v
-
 -- | Construct a variable.
 mkVar :: Type -> VarId -> Expression ()
-mkVar t = varToExpr . Variable Val t . mkVarName
+mkVar t i = varToExpr $ mkNamedVar "v" t i
+
+-- | Construct a named variable.
+mkNamedVar :: String -> Type -> VarId -> Variable ()
+mkNamedVar base t i = Variable Val t $ base ++ show i
+
+-- | Construct a named pointer.
+mkNamedRef :: String -> Type -> VarId -> Variable ()
+mkNamedRef base t i = Variable Ptr t $ base ++ show i
 
 -- | Construct a pointer.
 mkRef :: Type -> VarId -> Expression ()
-mkRef t = varToExpr . Variable Ptr t . mkVarName
+mkRef t i = varToExpr $ mkNamedVar "v" t i
 
 mkVariable :: Type -> VarId -> Variable ()
-mkVariable t = Variable Val t . mkVarName
+mkVariable = mkNamedVar "v"
 
 mkPointer :: Type -> VarId -> Variable ()
-mkPointer t = Variable Ptr t . mkVarName
+mkPointer = mkNamedRef "v"
 
 freshId :: CodeWriter Integer
 freshId = do
