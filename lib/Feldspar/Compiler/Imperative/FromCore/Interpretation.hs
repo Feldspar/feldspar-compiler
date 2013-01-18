@@ -101,7 +101,7 @@ instance Monoid Writers
 
 type Task = [Program ()]
 
-data States = States { fresh :: Integer -- ^ The first fresh variable id
+data States = States { fresh :: VarId -- ^ The first fresh variable id
                      }
 
 initState :: States
@@ -303,7 +303,7 @@ mkVariable = mkNamedVar "v"
 mkPointer :: Type -> VarId -> Variable ()
 mkPointer = mkNamedRef "v"
 
-freshId :: CodeWriter Integer
+freshId :: CodeWriter VarId
 freshId = do
   s <- get
   let v = fresh s
