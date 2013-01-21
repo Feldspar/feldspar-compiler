@@ -1,7 +1,8 @@
 module Main where
 
 -- To generate the golden files use a script similiar to this one
--- > ghc -ilib -isrc -itests -e 'compile example9 "tests/gold/example9" "example9" defaultOptions' tests/RegressionTests.hs
+-- > ghc -ilib -isrc -itests tests/RegressionTests.hs -e 'writeGoldFile example9 "example9" defaultOptions'
+-- > ghc -ilib -isrc -itests tests/RegressionTests.hs -e 'writeGoldFile example9 "example9_native" nativeOpts'
 
 import Test.Framework
 import Test.Golden
@@ -9,6 +10,8 @@ import Test.Golden
 import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
+
+import Data.Monoid ((<>))
 
 example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
@@ -19,9 +22,17 @@ topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
     c = value [1,2,3,4,5] :: Data [Index]
     d = value [2,3,4,5,6] :: Data [Index]
 
+nativeOpts = defaultOptions{rules=nativeArrayRules}
+
+writeGoldFile fun name opts = compile fun ("tests/gold/" <> name) name opts
+
+mkGoldTest fun name opts = goldenVsFile name ("tests/gold/" <> name <> ".c") ("tests/" <> name <> ".c")
+                         $ compile fun ("tests/" <> name) name opts
+
 tests = testGroup "RegressionTests" 
-    [ goldenVsFile "example9" "tests/gold/example9.c" "tests/example9.c" $ compile example9 "tests/example9" "example9" defaultOptions
-    , goldenVsFile "topLevelConsts" "tests/gold/topLevelConsts.c" "tests/topLevelConsts.c" $ compile topLevelConsts "tests/topLevelConsts" "topLevelConsts" defaultOptions
+    [ mkGoldTest example9 "example9" defaultOptions
+    , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
+    , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     ]
 
 main = defaultMain [tests]
