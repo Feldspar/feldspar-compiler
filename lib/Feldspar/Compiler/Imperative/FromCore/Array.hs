@@ -59,7 +59,7 @@ instance ( Compile dom dom
          , Project (CLambda Type) dom
          , Project (Literal  :|| Type) dom
          , Project (Variable :|| Type) dom
-         , Project (Let :|| Type) dom
+         , Project Let dom
          , Project (Array :|| Type) dom
          , AlphaEq dom dom (Decor Info dom) [(VarId, VarId)]
          )
@@ -80,7 +80,7 @@ instance ( Compile dom dom
     compileProgSym (C' Sequential) _ loc (len :* init :* (lam1 :$ (lam2 :$ (lt :$ step :$ (lam3 :$ (tup :$ a :$ b))))) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
-        , Just (C' Let)                <- prjF lt
+        , Just Let                     <- prj lt
         , Just (SubConstr2 (Lambda e)) <- prjLambda lam3
         , Just (C' (Variable t1))      <- prjF a
         , Just (C' (Variable t2))      <- prjF b

@@ -61,13 +61,13 @@ instance Compile (CLambda Type) dom
   where
     compileProgSym = error "Can only compile top-level Lambda"
 
-instance (Compile dom dom, Project (CLambda Type) dom) => Compile (Let :|| Type) dom
+instance (Compile dom dom, Project (CLambda Type) dom) => Compile Let dom
   where
-    compileProgSym (C' Let) _ loc (a :* (lam :$ body) :* Nil)
+    compileProgSym Let _ loc (a :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = compileLet a (getInfo lam) v >> compileProg loc body
 
-    compileExprSym (C' Let) _ (a :* (lam :$ body) :* Nil)
+    compileExprSym Let _ (a :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = compileLet a (getInfo lam) v >> compileExpr body
 
