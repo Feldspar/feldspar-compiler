@@ -68,6 +68,7 @@ instance CodeGen (Entity ())
     cgen env TypeDef{..}   = text "typedef" <+> cgen env actualType <+> text typeName <> semi
     cgen env ProcDef{..}   = text "void"    <+> text procName      <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) $$ block env (cgen env procBody)
     cgen env ProcDecl{..}  = text "void"    <+> text procName      <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) <> semi
+    cgen env ValueDef{..}  = cgen env valVar <+> text " = "         <+> cgen (newPlace env ValueNeed_pl) valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
 

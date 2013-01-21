@@ -50,11 +50,12 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs
+import Feldspar.Core.Constructs.Literal
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
-import Feldspar.Compiler.Imperative.Representation as Rep (Variable(..))
-import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..), Block(..), Module(..), Entity(..), VariableRole(..))
+import Feldspar.Compiler.Imperative.Representation as Rep (Module, Expression(..), Variable(..), VariableRole(..))
+import Feldspar.Compiler.Imperative.Representation (ActualParameter(..), Program(..), Block(..), Module(..), Entity(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -88,9 +89,14 @@ instance Compile Empty dom
     compileProgSym _ = error "Can't compile Empty"
     compileExprSym _ = error "Can't compile Empty"
 
-compileProgTop :: (Compile dom dom, Project (CLambda Type) dom) =>
-    Options -> String -> [((VarId,Expression ()),Rep.Variable ())] -> ASTF (Decor Info dom) a -> Module ()
-compileProgTop opt funname args (lam :$ body)
+compileProgTop :: ( Compile dom dom
+                  , Project (CLambda Type) dom
+                  , Project Let dom
+                  , Project (Literal :|| Type) dom
+                  ) =>
+    Options -> String -> [((VarId,Rep.Expression ()),Rep.Variable ())] ->
+    [Entity ()] -> ASTF (Decor Info dom) a -> Module ()
+compileProgTop opt funname args ents (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
           sa  = fst $ infoSize $ getInfo lam
@@ -98,8 +104,22 @@ compileProgTop opt funname args (lam :$ body)
           arg = if isComposite typ
                   then ((v, mkRef typ v), mkPointer  typ v)
                   else ((v, mkVar typ v), mkVariable typ v)
-       in compileProgTop opt funname (arg:args) body
-compileProgTop opt funname args a = Module defs
+       in compileProgTop opt funname (arg:args) ents body
+compileProgTop opt funname args ents (lt :$ e :$ (lam :$ body))
+  | Just (SubConstr2 (Lambda v)) <- prjLambda lam
+  , Just Let <- prj lt
+  , Just (C' Literal{}) <- prjF e -- Input on form let x = n in e
+  , [ProcedureCall "copy" [Out (VarExpr vr), In (ConstExpr c)]] <- bd
+  , freshName <- varName vr -- Ensure that compiled result is on form x = n
+  = compileProgTop opt funname args (ValueDef var c:ents) body
+  where
+    info     = getInfo e
+    outType  = compileTypeRep (infoType info) (infoSize info)
+    var@(Rep.Variable _ _ freshName) = case prjLambda lam of
+               Just (SubConstr2 (Lambda v)) -> mkVariable outType v
+    bd = sequenceProgs $ blockBody $ block $ snd $
+          evalRWS (compileProg (varToExpr var) e) (initReader opt) initState
+compileProgTop opt funname args ents a = Module defs
   where
     ins      = map snd $ reverse args
     info     = getInfo a
@@ -110,13 +130,13 @@ compileProgTop opt funname args a = Module defs
     decls    = decl results
     post     = epilogue results
     Block ds p = block results
-    defs     = (nub $ def results) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs     = reverse ents ++ (nub $ def results) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname
-    = compileProgTop opt funname []
+    = compileProgTop opt funname [] []
     . reifyFeld defaultFeldOpts N32
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
-getCore' opts prog = compileProgTop opts "test" [] (reifyFeld defaultFeldOpts N32 prog)
+getCore' opts prog = compileProgTop opts "test" [] [] (reifyFeld defaultFeldOpts N32 prog)

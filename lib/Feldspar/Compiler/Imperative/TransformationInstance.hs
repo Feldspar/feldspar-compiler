@@ -52,7 +52,7 @@ instance (Transformable1 t [] Entity)
         defaultTransform t s d (Module m) = Result (Module (result1 tr)) (state1 tr) (up1 tr) where
             tr = transform1 t s d m
 
-instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transformable t Block, Transformable t Declaration, Combine (Up t), Default (Up t))
+instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transformable t Block, Transformable t Declaration, Transformable t Constant, Combine (Up t), Default (Up t))
     => DefaultTransformable t Entity where
         defaultTransform t s d (StructDef n m) =
             Result (StructDef n (result1 tr)) (state1 tr) (up1 tr) where
@@ -70,6 +70,10 @@ instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transf
                    (state1 tr2) (foldl1 combine [up1 tr1, up1 tr2]) where
                 tr1 = transform1 t s d inp
                 tr2 = transform1 t (state1 tr1) d outp
+        defaultTransform t s d (ValueDef var val) =
+            Result (ValueDef (result tr1) (result tr2)) (state tr2) (combine (up tr1) (up tr2)) where
+                tr1 = transform t s d var
+                tr2 = transform t (state tr1) d val
 
 instance (Default (Up t))
     => DefaultTransformable t StructMember where
