@@ -184,7 +184,7 @@ executable feldspar
 
   cpp-options: -DRELEASE
 
-test-suite decoration
+test-suite regression
   type: exitcode-stdio-1.0
 
   hs-source-dirs: tests
