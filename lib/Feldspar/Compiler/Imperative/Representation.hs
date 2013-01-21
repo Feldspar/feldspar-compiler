@@ -225,8 +225,7 @@ data Constant t
 
 data Variable t
     = Variable
-        { varRole                   :: VariableRole
-        , varType                   :: Type
+        { varType                   :: Type
         , varName                   :: String
         }
     deriving (Typeable, Show, Eq)
@@ -258,9 +257,6 @@ data Type =
     deriving (Eq,Show)
 
 data FunctionMode = Prefix | Infix
-    deriving (Eq,Show)
-
-data VariableRole = Val | Ptr
     deriving (Eq,Show)
 
 data Place

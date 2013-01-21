@@ -107,9 +107,9 @@ arrayLength arr
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
   where go :: Expression t-> [String] -> Maybe (Range Length)
-        go (VarExpr (Variable _ (ArrayType r _) _)) [] | isSingleton r = Just r
+        go (VarExpr (Variable (ArrayType r _) _)) [] | isSingleton r = Just r
         go (StructField e s) ss = go e (s:ss)
-        go (VarExpr (Variable _ (StructType _ fields) _)) (s:_)
+        go (VarExpr (Variable (StructType _ fields) _)) (s:_)
           | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
         go _ _ = Nothing
@@ -145,7 +145,7 @@ spawn taskName vs = call spawnName allParams
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName True
     typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
-    varParams = map (\v -> In $ VarExpr (Variable Val (vType v) (vName v))) vs
+    varParams = map (\v -> In $ VarExpr (Variable (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
@@ -223,7 +223,7 @@ call :: String -> [ActualParameter ()] -> Program ()
 call n ps = ProcedureCall n ps
 
 for :: String -> Expression () -> Int -> Block () -> Program ()
-for s e i p = ParLoop (Variable Val (NumType Unsigned S32) s) e i p
+for s e i p = ParLoop (Variable (NumType Unsigned S32) s) e i p
 
 while :: Program () -> Expression () -> Program () -> Program ()
 while p e b = SeqLoop e (toBlock $ Sequence [p]) (toBlock $ Sequence [b])

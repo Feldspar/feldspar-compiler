@@ -61,7 +61,6 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),Block(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
-                                                    VariableRole(..),
                                                     Expression(..),
                                                     Declaration(..),
                                                     Program(..),
@@ -101,7 +100,7 @@ instance Monoid Writers
 
 type Task = [Program ()]
 
-data States = States { fresh :: Integer -- ^ The first fresh variable id
+data States = States { fresh :: VarId -- ^ The first fresh variable id
                      }
 
 initState :: States
@@ -200,7 +199,7 @@ compileExprVar e = do
         VarExpr (Variable{}) -> return e'
         _       -> do
             varId <- freshId
-            let loc = varToExpr (Variable Val (typeof e') ('e' : show varId))
+            let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
             declare loc
             assign loc e'
             return loc
@@ -281,24 +280,29 @@ compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
 compileTypeRep (FValType a) sz          = IVarType $ compileTypeRep a sz
 compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
-mkVarName :: VarId -> String
-mkVarName v = 'v' : show v
-
 -- | Construct a variable.
 mkVar :: Type -> VarId -> Expression ()
-mkVar t = varToExpr . Variable Val t . mkVarName
+mkVar t i = varToExpr $ mkNamedVar "v" t i
+
+-- | Construct a named variable.
+mkNamedVar :: String -> Type -> VarId -> Variable ()
+mkNamedVar base t i = Variable t $ base ++ show i
+
+-- | Construct a named pointer.
+mkNamedRef :: String -> Type -> VarId -> Variable ()
+mkNamedRef base t i = Variable (Pointer t) $ base ++ show i
 
 -- | Construct a pointer.
 mkRef :: Type -> VarId -> Expression ()
-mkRef t = varToExpr . Variable Ptr t . mkVarName
+mkRef t i = varToExpr $ mkNamedVar "v" t i
 
 mkVariable :: Type -> VarId -> Variable ()
-mkVariable t = Variable Val t . mkVarName
+mkVariable = mkNamedVar "v"
 
 mkPointer :: Type -> VarId -> Variable ()
-mkPointer t = Variable Ptr t . mkVarName
+mkPointer = mkNamedRef "v"
 
-freshId :: CodeWriter Integer
+freshId :: CodeWriter VarId
 freshId = do
   s <- get
   let v = fresh s
@@ -308,7 +312,7 @@ freshId = do
 freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter (Expression ()) -- TODO take just info instead of TypeRep and Size?
 freshVar base t size = do
   v <- freshId
-  let var = varToExpr . Variable Val (compileTypeRep t size) $ base ++ show v
+  let var = varToExpr $ mkNamedVar base (compileTypeRep t size) v
   declare var
   return var
 

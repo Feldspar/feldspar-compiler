@@ -194,18 +194,19 @@ instance CodeGen (Variable t)
       where
         typ  = cgen env varType
         size = sizeInBrackets varType
-        ref  = case (varRole, place env, passByReference varType) of
-                 (Ptr, MainParameter_pl,  _    ) -> text "*"
-                 (Ptr, AddressNeed_pl,    _    ) -> empty
-                 (Ptr, FunctionCallIn_pl, True ) -> empty
-                 (Ptr, _,                 _    ) -> text "*" -- char '*'
-                 (Val, AddressNeed_pl,    _    ) -> text "&" -- char '&'
-                 (Val, FunctionCallIn_pl, True ) -> text "&" -- char '&'
+        ref  = case (varType, place env, passByReference varType) of
+                 (Pointer{}, MainParameter_pl,  _    ) -> text "*"
+                 (Pointer{}, AddressNeed_pl,    _    ) -> empty
+                 (Pointer{}, FunctionCallIn_pl, True ) -> empty
+                 (Pointer{}, _,                 _    ) -> text "*" -- char '*'
+                 (_,         AddressNeed_pl,    _    ) -> text "&" -- char '&'
+                 (_,         FunctionCallIn_pl, True ) -> text "&" -- char '&'
                  _                               -> empty
         name = text varName
         passByReference ArrayType{}   = True
         passByReference StructType{}  = True
         passByReference NativeArray{} = True
+        passByReference (Pointer t)   = passByReference t
         passByReference _             = False
 
     cgenList env = hsep . punctuate comma . map (cgen env)
@@ -236,6 +237,7 @@ instance CodeGen Type
         toC (UserType u)               = text u
         toC (StructType n _)           = text "struct" <+> text n
         toC (NativeArray _ t)          = toC t
+        toC (Pointer t)                = toC t -- TODO: Callee handling this?
         toC t | Just s <- lookup t pts = text s
         toC t = codeGenerationError InternalError
               $ unwords ["Unhandled type in platform ", name pfm,  ": ", show t]

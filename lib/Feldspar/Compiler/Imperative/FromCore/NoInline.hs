@@ -43,7 +43,6 @@ import Feldspar.Core.Types (Type,defaultSize)
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.NoInline
 import Feldspar.Compiler.Imperative.Representation (Variable(..),
-                                                    VariableRole(..),
                                                     Program(..),
                                                     ActualParameter(..),
                                                     Entity(..))
@@ -64,6 +63,6 @@ instance Compile dom dom => Compile (NoInline :|| Type) dom
         funId  <- freshId
         let funname = "noinline" ++ show funId
         tellDef [ProcDef funname ins outs b]
-        let ins' = map (\v -> In $ varToExpr $ Variable Val (vType v) (vName v)) ins
+        let ins' = map (\v -> In $ varToExpr $ Variable (vType v) (vName v)) ins
         tellProg [call funname $ ins' ++ [Out loc]]
 
