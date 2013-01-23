@@ -48,7 +48,7 @@ data PrintEnv = PEnv
 
 compToCWithInfos :: Options -> Module () -> CompToCCoreResult ()
 compToCWithInfos opts procedure =
-  CompToCCoreResult { sourceCode  = render $ cgen (PEnv opts Declaration_pl) procedure
+  CompToCCoreResult { sourceCode  = render $ cgen (PEnv opts DeclarationPl) procedure
                     , debugModule = procedure
                     }
 
@@ -66,9 +66,9 @@ instance CodeGen (Entity ())
   where
     cgen env StructDef{..} = text "struct"   <+> text structName     $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) $$ block env (cgen env procBody)
-    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (cgenList (newPlace env MainParameter_pl) $ inParams ++ outParams) <> semi
-    cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen (newPlace env ValueNeed_pl) valValue <> semi
+    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (cgenList (newPlace env MainParameterPl) $ inParams ++ outParams) $$ block env (cgen env procBody)
+    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (cgenList (newPlace env MainParameterPl) $ inParams ++ outParams) <> semi
+    cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen (newPlace env ValueNeedPl) valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
 
@@ -80,18 +80,18 @@ instance CodeGen (StructMember ())
 
 instance CodeGen (Block ())
   where
-    cgen env Block{..} = sep [ cgenList (newPlace env Declaration_pl) locals
-                            , if (null locals) then empty else text ""
+    cgen env Block{..} = sep [ cgenList (newPlace env DeclarationPl) locals
+                            , if null locals then empty else text ""
                             , cgen env blockBody
                             ]
     cgenList env = sep . punctuate (text "\n") . map (cgen env)
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = cgen (newPlace env Declaration_pl) declVar <+> nest (nestSize $ options env) init <> semi
+    cgen env Declaration{..} = cgen (newPlace env DeclarationPl) declVar <+> nest (nestSize $ options env) init <> semi
       where
         init = case (initVal, varType declVar) of
-                 (Just i, _)           -> equals <+> cgen (newPlace env ValueNeed_pl) i
+                 (Just i, _)           -> equals <+> cgen (newPlace env ValueNeedPl) i
                  (_     , ArrayType{}) -> equals <+> braces (int 0)
                  _                     -> empty
     cgenList env = vcat . map (cgen env)
@@ -104,17 +104,17 @@ instance CodeGen (Program ())
       | otherwise      = text "//" <+> text commentValue
     cgen env Assign{..} = cgen env' lhs <+> equals <+> nest (nestSize $ options env) (cgen env' rhs) <> semi
       where
-        env' = newPlace env ValueNeed_pl
+        env' = newPlace env ValueNeedPl
     cgen env ProcedureCall{..} = stmt $ call (text procCallName) (map (cgen env) procCallParams)
     cgen env Sequence{..} = cgenList env sequenceProgs
-    cgen env Branch{..} =  text "if" <+> parens (cgen (newPlace env ValueNeed_pl) branchCond)
+    cgen env Branch{..} =  text "if" <+> parens (cgen (newPlace env ValueNeedPl) branchCond)
                        $$ block env (cgen env thenBlock)
                        $$ text "else"
                        $$ block env (cgen env elseBlock)
     cgen env Switch{..} =  text "switch" <+> parens (cgen env scrutinee)
                        $$ block env (vcat [ cgen env p $$ nest (nestSize $ options env) (cgen env b) | (p, b) <- alts])
     cgen env SeqLoop{..} =  cgen env sLoopCondCalc
-                        $$ text "while" <+> parens (cgen (newPlace env ValueNeed_pl) sLoopCond)
+                        $$ text "while" <+> parens (cgen (newPlace env ValueNeedPl) sLoopCond)
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
     cgen env ParLoop{..} =  text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
                         $$ block env (cgen env pLoopBlock)
@@ -124,8 +124,8 @@ instance CodeGen (Program ())
         init  = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen envv pLoopBound
         next  = ixv <+> text "+=" <+> int pLoopStep
-        envd  = newPlace env Declaration_pl
-        envv  = newPlace env ValueNeed_pl
+        envd  = newPlace env DeclarationPl
+        envv  = newPlace env ValueNeedPl
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
@@ -141,10 +141,10 @@ instance CodeGen (Pattern ())
 instance CodeGen (ActualParameter ())
   where
     cgen env (In VarExpr{..})
-      | ArrayType{}   <- typeof var  = cgen (newPlace env AddressNeed_pl) var
-      | StructType{}  <- typeof var  = cgen (newPlace env AddressNeed_pl) var
-    cgen env In{..}                  = cgen (newPlace env FunctionCallIn_pl) inParam
-    cgen env Out{..}                 = cgen (newPlace env AddressNeed_pl) outParam
+      | ArrayType{}   <- typeof var  = cgen (newPlace env AddressNeedPl) var
+      | StructType{}  <- typeof var  = cgen (newPlace env AddressNeedPl) var
+    cgen env In{..}                  = cgen (newPlace env FunctionCallInPl) inParam
+    cgen env Out{..}                 = cgen (newPlace env AddressNeedPl) outParam
     cgen env TypeParameter{..}       = cgen env typeParam
     cgen env FunParameter{..}        = prefix <> text funParamName
       where prefix = if addressNeeded then text "&" else empty
@@ -153,33 +153,33 @@ instance CodeGen (ActualParameter ())
 instance CodeGen (Expression ())
   where
     cgen env VarExpr{..} = cgen env var
-    cgen env e@ArrayElem{..}  =  prefix <> (text "at")
+    cgen env e@ArrayElem{..}  =  prefix <> text "at"
                              <> parens (hcat $ punctuate comma [ cgen env $ typeof e
-                                                               , cgen (newPlace env AddressNeed_pl) array
-                                                               , cgen (newPlace env ValueNeed_pl) arrayIndex
+                                                               , cgen (newPlace env AddressNeedPl) array
+                                                               , cgen (newPlace env ValueNeedPl) arrayIndex
                                                                ])
       where
         prefix = case (place env, typeof e) of
-                   (AddressNeed_pl, _) -> text "&"
-                   (_, ArrayType _ _)  -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
-                   _                   -> empty
-    cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeed_pl) array <> brackets (cgen (newPlace env ValueNeed_pl) arrayIndex)
+                   (AddressNeedPl, _) -> text "&"
+                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
+                   _                  -> empty
+    cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
       where
         prefix = case (place env, typeof e) of
-                   (AddressNeed_pl, _) -> text "&"
-                   (_, ArrayType _ _)  -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
-                   _                   -> empty
-    cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeed_pl) struct <> char '.' <> text fieldName
+                   (AddressNeedPl, _) -> text "&"
+                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
+                   _                  -> empty
+    cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeedPl) struct <> char '.' <> text fieldName
       where
         prefix = case (place env, typeof e) of
-                   (AddressNeed_pl, _) -> text "&"
-                   (_, ArrayType _ _)  -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
-                   _                   -> empty
+                   (AddressNeedPl, _) -> text "&"
+                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
+                   _                  -> empty
     cgen env ConstExpr{..} = cgen env constExpr
-    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env FunctionCallIn_pl)) funCallParams
+    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env FunctionCallInPl)) funCallParams
                              | funMode function == Infix
                              , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
-                             | otherwise                 = call (text $ funName function) $ map (cgen (newPlace env FunctionCallIn_pl)) funCallParams
+                             | otherwise                 = call (text $ funName function) $ map (cgen (newPlace env FunctionCallInPl)) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
     cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
 
@@ -188,20 +188,20 @@ instance CodeGen (Expression ())
 instance CodeGen (Variable t)
   where
     cgen env Variable{..} = case place env of
-        MainParameter_pl -> typ <+> (ref <> name <> size)
-        Declaration_pl   -> typ <+> (ref <> name <> size)
-        _                -> ref <> name
+        MainParameterPl -> typ <+> (ref <> name <> size)
+        DeclarationPl   -> typ <+> (ref <> name <> size)
+        _               -> ref <> name
       where
         typ  = cgen env varType
         size = sizeInBrackets varType
         ref  = case (varType, place env, passByReference varType) of
-                 (Pointer{}, MainParameter_pl,  _    ) -> text "*"
-                 (Pointer{}, AddressNeed_pl,    _    ) -> empty
-                 (Pointer{}, FunctionCallIn_pl, True ) -> empty
-                 (Pointer{}, _,                 _    ) -> text "*" -- char '*'
-                 (_,         AddressNeed_pl,    _    ) -> text "&" -- char '&'
-                 (_,         FunctionCallIn_pl, True ) -> text "&" -- char '&'
-                 _                               -> empty
+                 (Pointer{}, MainParameterPl,  _    ) -> text "*"
+                 (Pointer{}, AddressNeedPl,    _    ) -> empty
+                 (Pointer{}, FunctionCallInPl, True ) -> empty
+                 (Pointer{}, _,                _    ) -> text "*" -- char '*'
+                 (_,         AddressNeedPl,    _    ) -> text "&" -- char '&'
+                 (_,         FunctionCallInPl, True ) -> text "&" -- char '&'
+                 _                                    -> empty
         name = text varName
         passByReference ArrayType{}   = True
         passByReference StructType{}  = True

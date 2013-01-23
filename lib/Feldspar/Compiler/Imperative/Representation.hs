@@ -28,11 +28,9 @@
 
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverlappingInstances #-}
@@ -41,6 +39,7 @@
 module Feldspar.Compiler.Imperative.Representation where
 
 import Data.Typeable
+import Data.Maybe (fromMaybe)
 
 import Feldspar.Compiler.Error
 
@@ -260,11 +259,11 @@ data FunctionMode = Prefix | Infix
     deriving (Eq,Show)
 
 data Place
-    = Declaration_pl
-    | MainParameter_pl
-    | ValueNeed_pl
-    | AddressNeed_pl
-    | FunctionCallIn_pl
+    = DeclarationPl
+    | MainParameterPl
+    | ValueNeedPl
+    | AddressNeedPl
+    | FunctionCallInPl
     deriving (Eq,Show)
 
 data TypeParameterMode = Auto | Scalar
@@ -317,7 +316,7 @@ instance HasType (Expression t) where
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
         getStructFieldType :: String -> Type -> Type
-        getStructFieldType f (StructType _ l) = maybe (structFieldNotFound f) id $ lookup f l
+        getStructFieldType f (StructType _ l) = fromMaybe (structFieldNotFound f) $ lookup f l
         getStructFieldType f (Alias t _) = getStructFieldType f t
         getStructFieldType f t = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t

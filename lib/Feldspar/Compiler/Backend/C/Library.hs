@@ -30,6 +30,7 @@ module Feldspar.Compiler.Backend.C.Library
     (module System.Console.ANSI,
      module Feldspar.Compiler.Backend.C.Library) where
 
+import Data.List (isPrefixOf)
 import System.Console.ANSI
 import System.FilePath ((<.>))
 
@@ -39,7 +40,7 @@ import System.FilePath ((<.>))
 
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace [] _ _ = []
-replace s find repl | take (length find) s == find = repl ++ replace (drop (length find) s) find repl
+replace s find repl | find `isPrefixOf` s = repl ++ replace (drop (length find) s) find repl
                     | otherwise = head s : replace (tail s) find repl
 
 -- | Encode special characters in function names 

@@ -1,5 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
-
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -30,11 +28,11 @@
 
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
 
 module Feldspar.Compiler.Imperative.FromCore where
 
@@ -130,7 +128,7 @@ compileProgTop opt funname args ents a = Module defs
     decls    = decl results
     post     = epilogue results
     Block ds p = block results
-    defs     = reverse ents ++ (nub $ def results) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs     = reverse ents ++ nub (def results) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname

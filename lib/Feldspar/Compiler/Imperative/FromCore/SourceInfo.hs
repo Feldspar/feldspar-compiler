@@ -47,7 +47,7 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
 
-instance Compile dom dom => Compile ((Decor SourceInfo1 Identity) :|| Type) dom
+instance Compile dom dom => Compile (Decor SourceInfo1 Identity :|| Type) dom
   where
     compileProgSym (C' (Decor (SourceInfo1 info) Id)) _ loc (a :* Nil) = do
         tellProg [Comment True info]

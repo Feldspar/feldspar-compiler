@@ -37,6 +37,7 @@ import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
+import Feldspar.Compiler.Imperative.Representation (Module)
 
 import Data.Char
 import System.FilePath (takeBaseName, (<.>))
@@ -84,7 +85,9 @@ icompile' opts functionName prg = do
     putStrLn $ sourceCode $ sctccrSource res
 
 -- | Get the generated core for a program.
-getCore prog = getCore' defaultOptions prog
+getCore :: (SyntacticFeld t) => t -> Module ()
+getCore = getCore' defaultOptions
 
 -- | Print the generated core for a program.
+printCore :: (SyntacticFeld t) => t -> IO ()
 printCore prog = print $ getCore' defaultOptions prog

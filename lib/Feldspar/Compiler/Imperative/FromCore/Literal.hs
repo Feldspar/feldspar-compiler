@@ -62,11 +62,11 @@ instance Compile (Literal :|| Core.Type) dom
     compileProgSym (C' (Literal a)) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter (Expression ())
-literal t@UnitType        sz a     = return $ (ConstExpr $ literalConst t sz a)
-literal t@BoolType        sz a      = return $ (ConstExpr $ literalConst t sz a)
-literal t@IntType{}       sz a      = return $ (ConstExpr $ literalConst t sz a)
-literal t@FloatType       sz a      = return $ (ConstExpr $ literalConst t sz a)
-literal t@ComplexType{}   sz a      = return $ (ConstExpr $ literalConst t sz a)
+literal t@UnitType        sz a = return (ConstExpr $ literalConst t sz a)
+literal t@BoolType        sz a = return (ConstExpr $ literalConst t sz a)
+literal t@IntType{}       sz a = return (ConstExpr $ literalConst t sz a)
+literal t@FloatType       sz a = return (ConstExpr $ literalConst t sz a)
+literal t@ComplexType{}   sz a = return (ConstExpr $ literalConst t sz a)
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
@@ -76,7 +76,7 @@ literalConst UnitType        _  ()     = IntConst 0 (Rep.NumType Rep.Unsigned Re
 literalConst BoolType        _  a      = BoolConst a
 literalConst trep@IntType{}  sz a      = IntConst (toInteger a) (compileTypeRep trep sz)
 literalConst FloatType       _  a      = FloatConst $ float2Double a
-literalConst (ComplexType t) _  (r:+i) = (ComplexConst re ie)
+literalConst (ComplexType t) _  (r:+i) = ComplexConst re ie
   where re = literalConst t (defaultSize t) r
         ie = literalConst t (defaultSize t) i
 
@@ -86,8 +86,7 @@ literalLoc loc (ArrayType t) (rs :> es) e
         tellProg [initArray loc $ litI32 $ toInteger $ upperBound rs]
         zipWithM_ (writeElement t es) (map litI32 [0..]) e
   where writeElement :: TypeRep a -> Size a -> Expression () -> a -> CodeWriter ()
-        writeElement ty sz ix x = do
-            literalLoc (ArrayElem loc ix) ty sz x
+        writeElement ty sz ix = literalLoc (ArrayElem loc ix) ty sz
 
 literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
     do literalLoc (StructField loc "member1") ta sa a

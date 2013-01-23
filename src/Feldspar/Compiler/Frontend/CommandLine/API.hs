@@ -118,10 +118,10 @@ handleOptions descriptors startOptions helpHeader = do
     -- Parse options, getting a list of option actions
     let (actions, nonOptions, errors) = getOpt Permute descriptors args
 
-    when (length errors > 0) (do
+    unless (null errors) $ do
         putStrLn $ concat errors
         putStrLn $ usageInfo helpHeader descriptors
-        exitWith (ExitFailure 1))
+        exitWith (ExitFailure 1)
 
     -- Here we thread startOptions through all supplied option actions
     opts <- foldl (>>=) (return startOptions) actions

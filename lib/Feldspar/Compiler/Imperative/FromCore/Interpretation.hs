@@ -29,7 +29,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
@@ -77,12 +76,12 @@ data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasin
                        }
 
 initReader :: Options -> Readers
-initReader opts = Readers [] "" opts
+initReader = Readers [] ""
 
-data Writers = Writers { block    :: (Block ()) -- ^ collects code within one block
-                       , def      :: [Entity ()]  -- ^ collects top level definitions
-                       , decl     :: [Declaration ()]  -- ^ collects top level variable declarations
-                       , epilogue :: [Program ()] -- ^ collects postlude code (freeing memory, etc)
+data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
+                       , def      :: [Entity ()]      -- ^ collects top level definitions
+                       , decl     :: [Declaration ()] -- ^ collects top level variable declarations
+                       , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
                        }
 
 instance Monoid Writers
@@ -163,26 +162,27 @@ compileProgFresh a info args = do
     compileProgSym a info loc args
     return loc
 
+compileDecor :: Info a -> CodeWriter b -> CodeWriter b
+compileDecor info action = do
+    let src = infoSource info
+    aboveSrc <- asks sourceInfo
+    unless (null src || src==aboveSrc) $ tellProg [Comment True src]
+    local (\env -> env{sourceInfo=src}) action
+
 compileProgDecor :: Compile dom dom
     => Location
     -> Decor Info dom a
     -> Args (AST (Decor Info dom)) a
     -> CodeWriter ()
-compileProgDecor result (Decor info a) args = do
-    let src = infoSource info
-    aboveSrc <- asks sourceInfo
-    unless (null src || src==aboveSrc) $ tellProg [Comment True src]
-    local (\env -> env {sourceInfo = src}) $ compileProgSym a info result args
+compileProgDecor result (Decor info a) args =
+    compileDecor info $ compileProgSym a info result args
 
 compileExprDecor :: Compile dom dom
     => Decor Info dom a
     -> Args (AST (Decor Info dom)) a
     -> CodeWriter (Expression ())
-compileExprDecor (Decor info a) args = do
-    let src = infoSource info
-    aboveSrc <- asks sourceInfo
-    unless (null src || src==aboveSrc) $ tellProg [Comment True src]
-    local (\env -> env {sourceInfo = src}) $ compileExprSym a info args
+compileExprDecor (Decor info a) args =
+    compileDecor info $ compileExprSym a info args
 
 compileProg :: Compile dom dom =>
     Location -> ASTF (Decor Info dom) a -> CodeWriter ()
@@ -209,16 +209,16 @@ compileExprVar e = do
 --------------------------------------------------------------------------------
 
 compileNumType :: Core.Signedness a -> BitWidth n -> Type
-compileNumType U N8      = (NumType Unsigned S8)
-compileNumType S N8      = (NumType Signed S8)
-compileNumType U N16     = (NumType Unsigned S16)
-compileNumType S N16     = (NumType Signed S16)
-compileNumType U N32     = (NumType Unsigned S32)
-compileNumType S N32     = (NumType Signed S32)
-compileNumType U N64     = (NumType Unsigned S64)
-compileNumType S N64     = (NumType Signed S64)
-compileNumType U NNative = (NumType Unsigned S32)  -- TODO
-compileNumType S NNative = (NumType Signed S32)  -- TODO
+compileNumType U N8      = NumType Unsigned S8
+compileNumType S N8      = NumType Signed S8
+compileNumType U N16     = NumType Unsigned S16
+compileNumType S N16     = NumType Signed S16
+compileNumType U N32     = NumType Unsigned S32
+compileNumType S N32     = NumType Signed S32
+compileNumType U N64     = NumType Unsigned S64
+compileNumType S N64     = NumType Signed S64
+compileNumType U NNative = NumType Unsigned S32  -- TODO
+compileNumType S NNative = NumType Signed S32    -- TODO
 
 mkStructType :: [(String, Type)] -> Type
 mkStructType trs = StructType name trs
@@ -353,7 +353,7 @@ encodeType = go
     go (IVarType t)      = go t
     go (NativeArray _ t) = go t
     go (StructType n ts) = n
-    go (ArrayType l t)   = intercalate "_" ["arr", go t, if (isSingleton l)
+    go (ArrayType l t)   = intercalate "_" ["arr", go t, if isSingleton l
                                                          then show (upperBound l)
                                                          else "UD"
                                            ]
@@ -361,7 +361,7 @@ encodeType = go
 getTypes :: Options -> [Declaration ()] -> [Entity ()]
 getTypes opts defs = concatMap mkDef comps
   where
-    comps = filter (isComposite) $ map (typeof . dVar) defs
+    comps = filter isComposite $ map (typeof . dVar) defs
     -- There are other composite types that are not flagged as such by this
     -- version of isComposite, so keep it private.
     isComposite :: Type -> Bool

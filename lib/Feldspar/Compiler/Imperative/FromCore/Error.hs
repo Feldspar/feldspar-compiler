@@ -68,5 +68,5 @@ compileAssert :: (Compile dom dom)
 compileAssert cond msg = do
     condExpr <- compileExpr cond
     tellProg [call "assert" [In condExpr]]
-    when (length msg > 0) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
+    unless (null msg) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
 

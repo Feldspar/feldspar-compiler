@@ -28,7 +28,7 @@
 
 module Feldspar.Compiler.Frontend.CommandLine.NameExtractor where
 
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
 import System.IO
 import System.IO.Unsafe
 import Language.Haskell.Exts hiding (parse)
@@ -90,4 +90,4 @@ parse fileName contents = fromParseResult $ parseFileContentsWithMode
   contents
 
 getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]
-getExtendedDeclarationList mod = catMaybes $ map stripFunBind (declarations mod)
+getExtendedDeclarationList mod = mapMaybe stripFunBind (declarations mod)

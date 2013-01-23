@@ -26,7 +26,6 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -68,7 +67,7 @@ setLength arr len = call "setLength" [Out arr, In len]
 copyProg :: Expression ()-> [Expression ()] -> Program ()
 copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
-    | outExp == (head inExp)
+    | outExp == head inExp
       && null (tail inExp) = Empty
     | otherwise            = call "copy" (Out outExp:map In inExp)
 
@@ -145,7 +144,7 @@ spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName True
-    typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
+    typeParams = map ((`TypeParameter` Auto) . vType) vs
     varParams = map (\v -> In $ VarExpr (Variable (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
@@ -153,7 +152,7 @@ run :: String -> [Variable ()] -> Program ()
 run taskName vs = call runName allParams
   where
     runName = "run" ++ show (length vs)
-    typeParams = map ((\t -> TypeParameter t Auto) . vType) vs
+    typeParams = map ((`TypeParameter` Auto) . vType) vs
     taskParam = FunParameter taskName False
     allParams = taskParam : typeParams
 
@@ -183,7 +182,7 @@ litI :: Type -> Integer -> Expression ()
 litI t n = ConstExpr (IntConst n t)
 
 litI32 :: Integer -> Expression ()
-litI32 n = litI (NumType Unsigned S32) n
+litI32 = litI (NumType Unsigned S32)
 
 isArray :: Type -> Bool
 isArray ArrayType{} = True
@@ -210,7 +209,7 @@ lName (StructField e _)      = lName e
 lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
 
 varToExpr :: Variable t -> Expression t
-varToExpr v = VarExpr v
+varToExpr = VarExpr
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
 binop t n e1 e2 = fun' Infix t n [e1, e2]
@@ -219,13 +218,13 @@ fun :: Type -> String -> [Expression ()] -> Expression ()
 fun = fun' Prefix
 
 fun' :: FunctionMode -> Type -> String -> [Expression ()] -> Expression ()
-fun' m t n es = FunctionCall (Function n t m) es
+fun' m t n = FunctionCall (Function n t m)
 
 call :: String -> [ActualParameter ()] -> Program ()
-call n ps = ProcedureCall n ps
+call = ProcedureCall
 
 for :: String -> Expression () -> Int -> Block () -> Program ()
-for s e i p = ParLoop (Variable (NumType Unsigned S32) s) e i p
+for s = ParLoop (Variable (NumType Unsigned S32) s)
 
 while :: Program () -> Expression () -> Program () -> Program ()
 while p e b = SeqLoop e (toBlock $ Sequence [p]) (toBlock $ Sequence [b])

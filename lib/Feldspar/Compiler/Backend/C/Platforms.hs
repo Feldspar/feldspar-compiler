@@ -122,7 +122,7 @@ arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
     copy (ProcedureCall "copy" [Out arg1, In arg2])
-        | arg1 == arg2 = [replaceWith $ Empty]
+        | arg1 == arg2 = [replaceWith Empty]
         | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
     copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
@@ -145,7 +145,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     toNativeProg (ProcedureCall "initArray" [Out arr,esz,num])
       | native (typeof arr) = [replaceWith $ call "assert" [Out arr]]
     toNativeProg (ProcedureCall "freeArray" [Out arr])
-      | native (typeof arr) = [replaceWith $ Empty]
+      | native (typeof arr) = [replaceWith Empty]
     toNativeProg _ = []
 
 
@@ -166,8 +166,8 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
 
 flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen =
-  (call "copyArrayPos" [dst, In cLen, t]):flattenCopy dst ts ls (ePlus cLen l)
+flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, In cLen, t]
+                                   : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
 ePlus (ConstExpr (IntConst 0 _)) e = e
@@ -324,7 +324,7 @@ traceRules = [rule trace]
               where
                 prg' = case prg of
                     Block _ (Sequence (ProcedureCall "traceStart" [] : _)) -> prg
-                    Block ds ps -> Block ds (Sequence $ [call "traceStart" [], ps, call "traceEnd" []])
+                    Block ds ps -> Block ds (Sequence [call "traceStart" [], ps, call "traceEnd" []])
     trace _ = []
 
 extend :: String -> Type -> String

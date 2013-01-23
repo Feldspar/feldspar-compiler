@@ -88,7 +88,7 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl _ = []
 
 moduleToCCore :: Options -> Module () -> CompToCCoreResult ()
-moduleToCCore opts mdl = res { sourceCode = incls ++ (sourceCode res) }
+moduleToCCore opts mdl = res { sourceCode = incls ++ sourceCode res }
   where
     res = compToCWithInfos opts mdl
     incls = genIncludeLines opts Nothing
@@ -167,5 +167,5 @@ executePluginChain OriginalFunctionSignature{..} opt prg =
   pluginChain ExternalInfoCollection
     { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo       = opt
-    } $ fromCore opt (encodeFunctionName $ originalFunctionName) prg
+    } $ fromCore opt (encodeFunctionName originalFunctionName) prg
 
