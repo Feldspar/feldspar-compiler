@@ -36,6 +36,8 @@ mkGoldTest fun name opts = goldenVsFile name ("tests/gold/" <> name <> ".c") ("t
 
 ghc = command_ (decodeString "ghc") [ pack "-c"
                                     , pack "-package feldspar-compiler"
+                                    , pack "-optc -Ilib/Feldspar/C"
+                                    , pack "-optc -std=c99"
                                     , pack "-Wall"
                                     ]
 
