@@ -135,7 +135,7 @@ instance ( Compile dom dom
             let t   = argType $ infoType $ getInfo lam1
                 sz  = fst $ infoSize $ getInfo lam1
                 ix1 = mkVar (compileTypeRep t sz) v1
-                ix2              = mkVar (compileTypeRep t sz) v2
+                ix2 = mkVar (compileTypeRep t sz) v2
             len <- mkLength l1 (infoType $ getInfo l1) sz
             (_, Block ds1 (Sequence b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem loc ix1) body1
             (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem loc ix2) body2
