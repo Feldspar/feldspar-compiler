@@ -163,7 +163,7 @@ instance CodeGen (Expression ())
                    (AddressNeed_pl, _) -> text "&"
                    (_, ArrayType _ _)  -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                    _                   -> empty
-    cgen env e@NativeElem{..} = prefix <> cgen (newPlace env AddressNeed_pl) array <> brackets (cgen (newPlace env ValueNeed_pl) arrayIndex)
+    cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeed_pl) array <> brackets (cgen (newPlace env ValueNeed_pl) arrayIndex)
       where
         prefix = case (place env, typeof e) of
                    (AddressNeed_pl, _) -> text "&"
