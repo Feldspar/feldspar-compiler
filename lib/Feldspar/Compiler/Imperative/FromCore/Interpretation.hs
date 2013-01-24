@@ -294,7 +294,7 @@ mkNamedRef base t i = Variable (Pointer t) $ base ++ show i
 
 -- | Construct a pointer.
 mkRef :: Type -> VarId -> Expression ()
-mkRef t i = varToExpr $ mkNamedVar "v" t i
+mkRef t i = varToExpr $ mkNamedRef "v" t i
 
 mkVariable :: Type -> VarId -> Variable ()
 mkVariable = mkNamedVar "v"
