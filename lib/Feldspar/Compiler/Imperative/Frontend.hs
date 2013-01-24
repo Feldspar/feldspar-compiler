@@ -84,9 +84,10 @@ initArray arr len = call "initArray" [Out arr, In s, In len]
     s
         | isArray t = FunctionCall (Function "-" (NumType Unsigned S32) Infix) [litI (NumType Unsigned S32) 0,SizeOf (Left t)]
         | otherwise = SizeOf (Left t)
-    t = case typeof arr of
-        ArrayType _ e -> e
-        _       -> error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
+    t = go $ typeof arr
+    go (ArrayType _ e) = e
+    go (Pointer t) = go t
+    go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 assignProg :: Expression () -> Expression () -> Program ()
 assignProg inExp outExp = copyProg inExp [outExp]
@@ -186,6 +187,7 @@ litI32 n = litI (NumType Unsigned S32) n
 
 isArray :: Type -> Bool
 isArray ArrayType{} = True
+isArray (Pointer t) = isArray t
 isArray _ = False
 
 isIVar :: Type -> Bool

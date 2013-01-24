@@ -305,12 +305,14 @@ instance HasType (Expression t) where
       where
         decrArrayDepth :: Type -> Type
         decrArrayDepth (ArrayType _ t) = t
+        decrArrayDepth (Pointer t)     = decrArrayDepth t
         decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
     typeof NativeElem{..} = decrArrayDepth $ typeof array
       where
         decrArrayDepth :: Type -> Type
         decrArrayDepth (ArrayType _ t) = t
         decrArrayDepth (NativeArray _ t) = t
+        decrArrayDepth (Pointer t)     = decrArrayDepth t
         decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
