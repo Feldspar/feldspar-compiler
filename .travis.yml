@@ -1,6 +1,9 @@
 language: haskell
 
 before_install:
+  # Update index.
+  - cabal update
+
   # Install some dependencies from source
   - cabal install cabal-meta cabal-src
 
