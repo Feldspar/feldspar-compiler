@@ -5,10 +5,10 @@ before_install:
   - cabal update
 
   # Install some dependencies from source
-  - cabal install cabal-meta cabal-src
+  - ./tools/travis-cabal-apt-install cabal-meta cabal-src
 
   # Try installing some of the build-deps with apt-get for speed
-  - ./tools/travis-cabal-apt-install --only-dependencies --force-reinstall $mode
+  - ./tools/travis-cabal-apt-install --only-dependencies --force-reinstall
 
 install:
   - cabal-meta install $mode
