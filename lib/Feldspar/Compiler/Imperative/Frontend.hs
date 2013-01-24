@@ -88,9 +88,6 @@ initArray arr len = call "initArray" [Out arr, In s, In len]
     go (Pointer t) = go t
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
-assignProg :: Expression () -> Expression () -> Program ()
-assignProg inExp outExp = copyProg inExp [outExp]
-
 freeArray :: Variable () -> Program ()
 freeArray arr = call "freeArray" [Out $ varToExpr arr]
 
