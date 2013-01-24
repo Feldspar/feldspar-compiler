@@ -81,7 +81,7 @@ initArray :: Expression () -> Expression () -> Program ()
 initArray arr len = call "initArray" [Out arr, In s, In len]
   where
     s
-        | isArray t = FunctionCall (Function "-" (NumType Unsigned S32) Infix) [litI (NumType Unsigned S32) 0,SizeOf (Left t)]
+        | isArray t = FunctionCall (Function "-" (NumType Unsigned S32) Infix) [litI32 0,SizeOf (Left t)]
         | otherwise = SizeOf (Left t)
     t = go $ typeof arr
     go (ArrayType _ e) = e
@@ -98,7 +98,7 @@ freeArrays defs = map freeArray arrays
 
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
-  | Just r <- chaseArray arr = litI (NumType Unsigned S32) $ fromIntegral (upperBound r)
+  | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
   | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
