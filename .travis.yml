@@ -6,10 +6,10 @@ before_install:
 
   # Fetch and install the latest feldspar-language from github
   - git clone https://github.com/Feldspar/feldspar-language
-  - cabal install feldspar-language/
+  - cabal install $mode feldspar-language/
 
   # Try installing some of the build-deps with apt-get for speed
-  - ./tools/travis-cabal-apt-install --only-dependencies --force-reinstall
+  #- ./tools/travis-cabal-apt-install --only-dependencies --force-reinstall
 
 install:
   - cabal install $mode
