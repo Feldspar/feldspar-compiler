@@ -53,7 +53,7 @@ import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..))
-import Feldspar.Compiler.Imperative.Representation (ActualParameter(..), Expression(..), Program(..), Block(..), Module(..), Entity(..))
+import Feldspar.Compiler.Imperative.Representation (ActualParameter(..), Expression(..), Program(..), Block(..), Module(..), Entity(..), Declaration(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -120,6 +120,7 @@ compileProgTop opt funname args ents (lt :$ e :$ (lam :$ body))
 compileProgTop opt funname args ents a = Module defs
   where
     ins      = map snd $ reverse args
+    inTypes  = getTypes opt $ map (\v -> Declaration v Nothing) ins
     info     = getInfo a
     outType  = compileTypeRep (infoType info) (infoSize info)
     outParam = Rep.Variable (Rep.Pointer outType) "out"
@@ -128,7 +129,7 @@ compileProgTop opt funname args ents a = Module defs
     decls    = decl results
     post     = epilogue results
     Block ds p = block results
-    defs     = reverse ents ++ nub (def results) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs     = reverse ents ++ nub (def results ++ inTypes) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname
