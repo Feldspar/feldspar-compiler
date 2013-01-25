@@ -101,7 +101,7 @@ instance ( Compile dom dom
             tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
                                     toBlock $ Sequence (body ++
-                                         [assignProg st (ArrayElem loc ix)
+                                         [copyProg st [ArrayElem loc ix]
                                          ])]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
@@ -121,7 +121,7 @@ instance ( Compile dom dom
             tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
                                     toBlock $ Sequence (body ++
-                                         [assignProg (ArrayElem loc ix) (StructField tmp "member1")
+                                         [copyProg (ArrayElem loc ix) [StructField tmp "member1"]
                                          ])]
 
     -- loc = parallel l f ++ parallel l g ==> for l (\i -> loc[i] = f i; loc[i+l] = g i)
@@ -135,13 +135,13 @@ instance ( Compile dom dom
             let t   = argType $ infoType $ getInfo lam1
                 sz  = fst $ infoSize $ getInfo lam1
                 ix1 = mkVar (compileTypeRep t sz) v1
-                ix2              = mkVar (compileTypeRep t sz) v2
+                ix2 = mkVar (compileTypeRep t sz) v2
             len <- mkLength l1 (infoType $ getInfo l1) sz
             (_, Block ds1 (Sequence b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem loc ix1) body1
             (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem loc ix2) body2
             tellProg [initArray loc len]
             assign ix2 len
-            tellProg [for (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [assignProg ix2 (binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1))]))]
+            tellProg [for (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg ix2 [(binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1))]]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a

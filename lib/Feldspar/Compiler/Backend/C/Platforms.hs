@@ -300,7 +300,7 @@ tic64xRules = [rule tic64x]
             = [replaceWith $ fun t (extend fn $ typeof arg) [arg]]
     tic64x (FunctionCall (Function "rotateL" t _) [arg1@(typeof -> (NumType Unsigned S32)), arg2])   = [replaceWith $ fun t "_rotl" [arg1, arg2]]
     tic64x (FunctionCall (Function "reverseBits" t _) [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ fun t "_bitr" [arg]]
-    tic64x (FunctionCall (Function "bitCount" t _) [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ fun t "_dotpu4" [fun t "_bitc4" [arg], litI (NumType Unsigned S32) 0x01010101]]
+    tic64x (FunctionCall (Function "bitCount" t _) [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ fun t "_dotpu4" [fun t "_bitc4" [arg], litI32 0x01010101]]
     tic64x (FunctionCall (Function _ t _) [arg@(typeof -> ComplexType _)]) = [replaceWith $ fun t (extend "creal" $ typeof arg) [arg]]
     tic64x _ = []
 

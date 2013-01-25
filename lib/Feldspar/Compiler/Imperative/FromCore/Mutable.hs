@@ -122,7 +122,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]
-        tellProg [for "i" l 1 $ toBlock (Sequence [assignProg (ArrayElem loc ix) a'])]
+        tellProg [for "i" l 1 $ toBlock (Sequence [copyProg (ArrayElem loc ix) [a']])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr
