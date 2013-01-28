@@ -196,8 +196,8 @@ compileExprVar :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter (Expr
 compileExprVar e = do
     e' <- compileExpr e
     case e' of
-        VarExpr (Variable{}) -> return e'
-        _       -> do
+        VarExpr{} -> return e'
+        _         -> do
             varId <- freshId
             let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
             declare loc

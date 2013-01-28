@@ -95,9 +95,9 @@ instance ( Compile dom dom
             len' <- mkLength len (infoType $ getInfo len) six
             let st = mkVar (compileTypeRep tst sst) s
             declare st
-            (_, Block ds (Sequence body)) <- confiscateBlock $ compileProg (ArrayElem loc ix) step
+            (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem loc ix) step
             tellProg [initArray loc len']
-            compileProg st init
+            withAlias s st $ compileProg st init
             tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
                                     toBlock $ Sequence (body ++
