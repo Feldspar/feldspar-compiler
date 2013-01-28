@@ -123,7 +123,6 @@ arrayRules = [rule copy]
   where
     copy (ProcedureCall "copy" [Out arg1, In arg2])
         | arg1 == arg2 = [replaceWith Empty]
-        | Pointer{} <- typeof arg1    = [replaceWith $ Assign arg1 arg2]
         | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
     copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
