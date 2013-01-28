@@ -318,6 +318,7 @@ instance HasType (Expression t) where
         getStructFieldType :: String -> Type -> Type
         getStructFieldType f (StructType _ l) = fromMaybe (structFieldNotFound f) $ lookup f l
         getStructFieldType f (Alias t _) = getStructFieldType f t
+        getStructFieldType f (Pointer t) = getStructFieldType f t
         getStructFieldType f t = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
         structFieldNotFound f = reprError InternalError $ "Not found struct field with this name: " ++ f

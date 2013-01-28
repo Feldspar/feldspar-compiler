@@ -366,11 +366,13 @@ getTypes opts defs = concatMap mkDef comps
     -- version of isComposite, so keep it private.
     isComposite :: Type -> Bool
     isComposite (StructType {}) = True
-    isComposite e = isArray e
+    isComposite (Pointer t)     = isComposite t
+    isComposite e               = isArray e
     mkDef s@(StructType n members)
       =  concatMap (mkDef . snd) members
       ++ [StructDef n (map (uncurry StructMember) members)]
     mkDef (ArrayType _ typ) = mkDef typ
+    mkDef (Pointer typ)     = mkDef typ
     mkDef _                 = []
 
 assign :: Location -> Expression () -> CodeWriter ()
