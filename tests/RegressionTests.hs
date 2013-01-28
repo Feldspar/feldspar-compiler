@@ -27,6 +27,9 @@ topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
     c = value [1,2,3,4,5] :: Data [Index]
     d = value [2,3,4,5,6] :: Data [Index]
 
+pairParam :: (Data Index, Data Index) -> Data Index
+pairParam (x, _) = x
+
 nativeOpts = defaultOptions{rules=nativeArrayRules}
 
 writeGoldFile fun name opts = compile fun ("tests/gold/" <> name) name opts
@@ -47,6 +50,7 @@ mkBuildTest fun name opts = testCase name $ do let base  = "tests/" <> name <> "
 
 tests = testGroup "RegressionTests" 
     [ mkGoldTest example9 "example9" defaultOptions
+    , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
