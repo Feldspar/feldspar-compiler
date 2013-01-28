@@ -89,7 +89,9 @@ initArray arr len = call "initArray" [Out arr, In s, In len]
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 freeArray :: Variable () -> Program ()
-freeArray arr = call "freeArray" [Out $ varToExpr arr]
+freeArray arr
+  | Pointer{} <- typeof arr = Empty -- Pointers are aliases in practice
+  | otherwise = call "freeArray" [Out $ varToExpr arr]
 
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
