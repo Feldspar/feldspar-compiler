@@ -80,7 +80,7 @@ instance CodeGen (StructMember ())
 
 instance CodeGen (Block ())
   where
-    cgen env Block{..} = sep [ cgenList (newPlace env DeclarationPl) locals
+    cgen env Block{..} = sep [ cgenList env locals
                             , if null locals then empty else text ""
                             , cgen env blockBody
                             ]
