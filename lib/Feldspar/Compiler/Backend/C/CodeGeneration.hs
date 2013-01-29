@@ -140,10 +140,7 @@ instance CodeGen (Pattern ())
 
 instance CodeGen (ActualParameter ())
   where
-    cgen env (In VarExpr{..})
-      | ArrayType{}   <- typeof var  = cgen (newPlace env AddressNeedPl) var
-      | StructType{}  <- typeof var  = cgen (newPlace env AddressNeedPl) var
-    cgen env In{..}                  = cgen (newPlace env FunctionCallInPl) inParam
+    cgen env In{..}                  = cgen (newPlace env AddressNeedPl) inParam
     cgen env Out{..}                 = cgen (newPlace env AddressNeedPl) outParam
     cgen env TypeParameter{..}       = cgen env typeParam
     cgen env FunParameter{..}        = prefix <> text funParamName
@@ -176,10 +173,10 @@ instance CodeGen (Expression ())
                    (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                    _                  -> empty
     cgen env ConstExpr{..} = cgen env constExpr
-    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env FunctionCallInPl)) funCallParams
+    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
                              | funMode function == Infix
                              , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
-                             | otherwise                 = call (text $ funName function) $ map (cgen (newPlace env FunctionCallInPl)) funCallParams
+                             | otherwise                 = call (text $ funName function) $ map (cgen (newPlace env AddressNeedPl)) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
     cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
 
@@ -196,11 +193,9 @@ instance CodeGen (Variable t)
         size = sizeInBrackets varType
         ref  = case (varType, place env, passByReference varType) of
                  (Pointer{}, MainParameterPl,  _    ) -> text "*"
-                 (Pointer{}, AddressNeedPl,    _    ) -> empty
-                 (Pointer{}, FunctionCallInPl, True ) -> empty
+                 (Pointer{}, AddressNeedPl,    True ) -> empty
                  (Pointer{}, _,                _    ) -> text "*" -- char '*'
-                 (_,         AddressNeedPl,    _    ) -> text "&" -- char '&'
-                 (_,         FunctionCallInPl, True ) -> text "&" -- char '&'
+                 (_,         AddressNeedPl,    True ) -> text "&" -- char '&'
                  _                                    -> empty
         name = text varName
         passByReference ArrayType{}   = True

@@ -263,7 +263,6 @@ data Place
     | MainParameterPl
     | ValueNeedPl
     | AddressNeedPl
-    | FunctionCallInPl
     deriving (Eq,Show)
 
 data TypeParameterMode = Auto | Scalar
