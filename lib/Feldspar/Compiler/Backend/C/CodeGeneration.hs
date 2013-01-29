@@ -161,19 +161,16 @@ instance CodeGen (Expression ())
       where
         prefix = case (place env, typeof e) of
                    (AddressNeedPl, _) -> text "&"
-                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                    _                  -> empty
     cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
       where
         prefix = case (place env, typeof e) of
                    (AddressNeedPl, _) -> text "&"
-                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                    _                  -> empty
     cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeedPl) struct <> char '.' <> text fieldName
       where
         prefix = case (place env, typeof e) of
                    (AddressNeedPl, _) -> text "&"
-                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
                    _                  -> empty
     cgen env ConstExpr{..} = cgen env constExpr
     cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
@@ -188,7 +185,7 @@ instance CodeGen (Expression ())
 instance CodeGen (Variable t)
   where
     cgen env Variable{..} = case place env of
-        DeclarationPl   -> typ <+> (ref <> name <> size)
+        DeclarationPl   -> typ <+> (name <> size)
         _               -> ref <> name
       where
         typ  = cgen env varType
@@ -233,7 +230,7 @@ instance CodeGen Type
         toC (UserType u)               = text u
         toC (StructType n _)           = text "struct" <+> text n
         toC (NativeArray _ t)          = toC t
-        toC (Pointer t)                = toC t -- TODO: Callee handling this?
+        toC (Pointer t)                = toC t <+> text "*"
         toC t | Just s <- lookup t pts = text s
         toC t = codeGenerationError InternalError
               $ unwords ["Unhandled type in platform ", name pfm,  ": ", show t]
