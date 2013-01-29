@@ -91,7 +91,7 @@ instance CodeGen (Declaration ())
     cgen env Declaration{..} = cgen (newPlace env DeclarationPl) declVar <+> nest (nestSize $ options env) init <> semi
       where
         init = case (initVal, varType declVar) of
-                 (Just i, _)           -> equals <+> cgen (newPlace env ValueNeedPl) i
+                 (Just i, _)           -> equals <+> cgen env i
                  (_     , ArrayType{}) -> equals <+> braces (int 0)
                  _                     -> empty
     cgenList env = vcat . map (cgen env)
@@ -102,30 +102,27 @@ instance CodeGen (Program ())
     cgen env Comment{..}
       | isBlockComment = blockComment $ map text $ lines commentValue
       | otherwise      = text "//" <+> text commentValue
-    cgen env Assign{..} = cgen env' lhs <+> equals <+> nest (nestSize $ options env) (cgen env' rhs) <> semi
-      where
-        env' = newPlace env ValueNeedPl
+    cgen env Assign{..} = cgen env lhs <+> equals <+> nest (nestSize $ options env) (cgen env rhs) <> semi
     cgen env ProcedureCall{..} = stmt $ call (text procCallName) (map (cgen env) procCallParams)
     cgen env Sequence{..} = cgenList env sequenceProgs
-    cgen env Branch{..} =  text "if" <+> parens (cgen (newPlace env ValueNeedPl) branchCond)
+    cgen env Branch{..} =  text "if" <+> parens (cgen env branchCond)
                        $$ block env (cgen env thenBlock)
                        $$ text "else"
                        $$ block env (cgen env elseBlock)
     cgen env Switch{..} =  text "switch" <+> parens (cgen env scrutinee)
                        $$ block env (vcat [ cgen env p $$ nest (nestSize $ options env) (cgen env b) | (p, b) <- alts])
     cgen env SeqLoop{..} =  cgen env sLoopCondCalc
-                        $$ text "while" <+> parens (cgen (newPlace env ValueNeedPl) sLoopCond)
+                        $$ text "while" <+> parens (cgen env sLoopCond)
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
     cgen env ParLoop{..} =  text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
                         $$ block env (cgen env pLoopBlock)
       where
         ixd   = cgen envd pLoopCounter
-        ixv   = cgen envv pLoopCounter
+        ixv   = cgen env  pLoopCounter
         init  = ixd <+> equals    <+> int 0
-        guard = ixv <+> char '<'  <+> cgen envv pLoopBound
+        guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> int pLoopStep
         envd  = newPlace env DeclarationPl
-        envv  = newPlace env ValueNeedPl
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
