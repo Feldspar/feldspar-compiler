@@ -65,7 +65,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Program(..),
                                                     Entity(..), StructMember(..))
 
-import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
+import Feldspar.Compiler.Backend.C.Options (Options(..))
 
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
@@ -410,9 +410,7 @@ mkLength a t sz
       return lenvar
 
 isComposite :: Type -> Bool
-isComposite t = case t of
-                  ArrayType{}   -> True
-                  NativeArray{} -> True
-                  StructType{}  -> True
-                  _             -> False
-
+isComposite ArrayType{}   = True
+isComposite NativeArray{} = True
+isComposite StructType{}  = True
+isComposite _             = True
