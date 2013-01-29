@@ -413,4 +413,4 @@ isComposite :: Type -> Bool
 isComposite ArrayType{}   = True
 isComposite NativeArray{} = True
 isComposite StructType{}  = True
-isComposite _             = True
+isComposite _             = False
