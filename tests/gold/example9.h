@@ -13,6 +13,6 @@
 #include <complex.h>
 
 
-void example9(int32_t *v0, int32_t *out);
+void example9(int32_t v0, int32_t *out);
 
 #endif // TESTS_GOLD_EXAMPLE9_H

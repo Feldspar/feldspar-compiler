@@ -11,14 +11,14 @@
 #include <complex.h>
 
 
-void topLevelConsts(uint32_t *v0, uint32_t *v1, uint32_t *out)
+void topLevelConsts(uint32_t v0, uint32_t v1, uint32_t *out)
 {
   uint32_t v2;
   struct array x0 = {0};
   struct array x1 = {0};
   
-  v2 = (*v1 + 5);
-  if ((*v0 < 5))
+  v2 = (v1 + 5);
+  if ((v0 < 5))
   {
     initArray(&x0, sizeof(uint32_t), 5);
     at(uint32_t,&x0,0) = 2;
