@@ -190,17 +190,12 @@ instance CodeGen (Variable t)
       where
         typ  = cgen env varType
         size = sizeInBrackets varType
-        ref  = case (varType, place env, passByReference varType) of
-                 (Pointer{}, AddressNeedPl,    True ) -> empty
-                 (Pointer{}, _,                _    ) -> text "*" -- char '*'
-                 (_,         AddressNeedPl,    True ) -> text "&" -- char '&'
-                 _                                    -> empty
+        ref  = case (varType, place env) of
+                 (Pointer{}, AddressNeedPl) -> empty
+                 (Pointer{}, _            ) -> text "*" -- char '*'
+                 (_,         AddressNeedPl) -> text "&" -- char '&'
+                 _                          -> empty
         name = text varName
-        passByReference ArrayType{}   = True
-        passByReference StructType{}  = True
-        passByReference NativeArray{} = True
-        passByReference (Pointer t)   = passByReference t
-        passByReference _             = False
 
     cgenList env = hsep . punctuate comma . map (cgen env)
 
