@@ -57,7 +57,7 @@ import qualified Feldspar.Core.Constructs.Binding as Core
 import qualified Feldspar.Core.Constructs.Literal as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (typeof, Place(..),Block(..),
+import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
                                                     Expression(..),

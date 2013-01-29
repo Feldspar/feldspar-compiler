@@ -40,6 +40,12 @@ import Text.PrettyPrint
 codeGenerationError :: ErrorClass -> String -> a
 codeGenerationError = handleError "CodeGeneration"
 
+data Place
+    = DeclarationPl
+    | ValueNeedPl
+    | AddressNeedPl
+    deriving (Eq,Show)
+
 data PrintEnv = PEnv
     { options :: Options
     , place :: Place

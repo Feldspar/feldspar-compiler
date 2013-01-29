@@ -257,12 +257,6 @@ data Type =
 data FunctionMode = Prefix | Infix
     deriving (Eq,Show)
 
-data Place
-    = DeclarationPl
-    | ValueNeedPl
-    | AddressNeedPl
-    deriving (Eq,Show)
-
 -----------------------
 --   Query functions --
 -----------------------
