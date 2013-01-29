@@ -159,19 +159,19 @@ instance CodeGen (Expression ())
                                                                , cgen (newPlace env ValueNeedPl) arrayIndex
                                                                ])
       where
-        prefix = case (place env, typeof e) of
-                   (AddressNeedPl, _) -> text "&"
-                   _                  -> empty
+        prefix = case place env of
+                   AddressNeedPl -> text "&"
+                   _             -> empty
     cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
       where
-        prefix = case (place env, typeof e) of
-                   (AddressNeedPl, _) -> text "&"
-                   _                  -> empty
+        prefix = case place env of
+                   AddressNeedPl -> text "&"
+                   _             -> empty
     cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeedPl) struct <> char '.' <> text fieldName
       where
-        prefix = case (place env, typeof e) of
-                   (AddressNeedPl, _) -> text "&"
-                   _                  -> empty
+        prefix = case place env of
+                   AddressNeedPl -> text "&"
+                   _             -> empty
     cgen env ConstExpr{..} = cgen env constExpr
     cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
                              | funMode function == Infix
