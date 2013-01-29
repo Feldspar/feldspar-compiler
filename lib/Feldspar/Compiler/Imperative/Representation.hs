@@ -259,7 +259,6 @@ data FunctionMode = Prefix | Infix
 
 data Place
     = DeclarationPl
-    | MainParameterPl
     | ValueNeedPl
     | AddressNeedPl
     deriving (Eq,Show)

@@ -66,8 +66,8 @@ instance CodeGen (Entity ())
   where
     cgen env StructDef{..} = text "struct"   <+> text structName     $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (cgenList (newPlace env MainParameterPl) $ inParams ++ outParams) $$ block env (cgen (newPlace env ValueNeedPl) procBody)
-    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (cgenList (newPlace env MainParameterPl) $ inParams ++ outParams) <> semi
+    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (cgenList (newPlace env DeclarationPl) $ inParams ++ outParams) $$ block env (cgen (newPlace env ValueNeedPl) procBody)
+    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (cgenList (newPlace env DeclarationPl) $ inParams ++ outParams) <> semi
     cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen (newPlace env ValueNeedPl) valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
@@ -185,14 +185,12 @@ instance CodeGen (Expression ())
 instance CodeGen (Variable t)
   where
     cgen env Variable{..} = case place env of
-        MainParameterPl -> typ <+> (ref <> name <> size)
         DeclarationPl   -> typ <+> (ref <> name <> size)
         _               -> ref <> name
       where
         typ  = cgen env varType
         size = sizeInBrackets varType
         ref  = case (varType, place env, passByReference varType) of
-                 (Pointer{}, MainParameterPl,  _    ) -> text "*"
                  (Pointer{}, AddressNeedPl,    True ) -> empty
                  (Pointer{}, _,                _    ) -> text "*" -- char '*'
                  (_,         AddressNeedPl,    True ) -> text "&" -- char '&'
