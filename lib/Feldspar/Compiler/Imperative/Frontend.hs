@@ -119,14 +119,14 @@ iVarInit var = call "ivar_init" [Out var]
 iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
     | isArray typ   = call "ivar_get_array" [Out loc, In ivar]
-    | otherwise     = call "ivar_get" [TypeParameter typ Scalar, Out loc, In ivar]
+    | otherwise     = call "ivar_get" [TypeParameter typ, Out loc, In ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
     | isArray typ   = call "ivar_put_array" [In ivar, Out msg]
-    | otherwise     = call "ivar_put" [TypeParameter typ Auto, In ivar, Out msg]
+    | otherwise     = call "ivar_put" [TypeParameter typ, In ivar, Out msg]
       where
         typ = typeof msg
 
@@ -143,7 +143,7 @@ spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName True
-    typeParams = map ((`TypeParameter` Auto) . vType) vs
+    typeParams = map (TypeParameter . vType) vs
     varParams = map (\v -> In $ VarExpr (Variable (vType v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
@@ -151,7 +151,7 @@ run :: String -> [Variable ()] -> Program ()
 run taskName vs = call runName allParams
   where
     runName = "run" ++ show (length vs)
-    typeParams = map ((`TypeParameter` Auto) . vType) vs
+    typeParams = map (TypeParameter . vType) vs
     taskParam = FunParameter taskName False
     allParams = taskParam : typeParams
 

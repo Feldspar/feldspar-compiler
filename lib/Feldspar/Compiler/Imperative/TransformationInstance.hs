@@ -124,7 +124,7 @@ instance (Transformable t Expression, Default (Up t))
             tr = transform t s d p
         defaultTransform t s d (Out p) = Result (Out (result tr)) (state tr) (up tr) where
             tr = transform t s d p
-        defaultTransform _ s _ (TypeParameter p r) = Result (TypeParameter p r) s def
+        defaultTransform _ s _ (TypeParameter p) = Result (TypeParameter p) s def
         defaultTransform _ s _ (FunParameter n b) = Result (FunParameter n b) s def
 
 instance (Transformable t Variable, Transformable1 t Maybe Expression, Combine (Up t))

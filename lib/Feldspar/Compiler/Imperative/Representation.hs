@@ -151,7 +151,6 @@ data ActualParameter t
         }
     | TypeParameter
         { typeParam                 :: Type
-        , typeParamMode             :: TypeParameterMode
         }
     | FunParameter
         { funParamName              :: String
@@ -263,9 +262,6 @@ data Place
     | MainParameterPl
     | ValueNeedPl
     | AddressNeedPl
-    deriving (Eq,Show)
-
-data TypeParameterMode = Auto | Scalar
     deriving (Eq,Show)
 
 -----------------------
