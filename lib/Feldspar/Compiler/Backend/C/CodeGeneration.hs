@@ -159,22 +159,19 @@ instance CodeGen (Expression ())
                                                                , cgen (newPlace env ValueNeedPl) arrayIndex
                                                                ])
       where
-        prefix = case (place env, typeof e) of
-                   (AddressNeedPl, _) -> text "&"
-                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
-                   _                  -> empty
+        prefix = case place env of
+                   AddressNeedPl -> text "&"
+                   _             -> empty
     cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
       where
-        prefix = case (place env, typeof e) of
-                   (AddressNeedPl, _) -> text "&"
-                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
-                   _                  -> empty
+        prefix = case place env of
+                   AddressNeedPl -> text "&"
+                   _             -> empty
     cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeedPl) struct <> char '.' <> text fieldName
       where
-        prefix = case (place env, typeof e) of
-                   (AddressNeedPl, _) -> text "&"
-                   (_, ArrayType _ _) -> text "&" -- TODO the call site should set the place to AddressNeed_pl for Arrays
-                   _                  -> empty
+        prefix = case place env of
+                   AddressNeedPl -> text "&"
+                   _             -> empty
     cgen env ConstExpr{..} = cgen env constExpr
     cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
                              | funMode function == Infix
@@ -188,22 +185,17 @@ instance CodeGen (Expression ())
 instance CodeGen (Variable t)
   where
     cgen env Variable{..} = case place env of
-        DeclarationPl   -> typ <+> (ref <> name <> size)
+        DeclarationPl   -> typ <+> (name <> size)
         _               -> ref <> name
       where
         typ  = cgen env varType
         size = sizeInBrackets varType
-        ref  = case (varType, place env, passByReference varType) of
-                 (Pointer{}, AddressNeedPl,    True ) -> empty
-                 (Pointer{}, _,                _    ) -> text "*" -- char '*'
-                 (_,         AddressNeedPl,    True ) -> text "&" -- char '&'
-                 _                                    -> empty
+        ref  = case (varType, place env) of
+                 (Pointer{}, AddressNeedPl) -> empty
+                 (Pointer{}, _            ) -> text "*" -- char '*'
+                 (_,         AddressNeedPl) -> text "&" -- char '&'
+                 _                          -> empty
         name = text varName
-        passByReference ArrayType{}   = True
-        passByReference StructType{}  = True
-        passByReference NativeArray{} = True
-        passByReference (Pointer t)   = passByReference t
-        passByReference _             = False
 
     cgenList env = hsep . punctuate comma . map (cgen env)
 
@@ -233,7 +225,7 @@ instance CodeGen Type
         toC (UserType u)               = text u
         toC (StructType n _)           = text "struct" <+> text n
         toC (NativeArray _ t)          = toC t
-        toC (Pointer t)                = toC t -- TODO: Callee handling this?
+        toC (Pointer t)                = toC t <+> text "*"
         toC t | Just s <- lookup t pts = text s
         toC t = codeGenerationError InternalError
               $ unwords ["Unhandled type in platform ", name pfm,  ": ", show t]
