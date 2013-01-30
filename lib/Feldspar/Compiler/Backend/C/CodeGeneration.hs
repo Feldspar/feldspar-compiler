@@ -123,12 +123,11 @@ instance CodeGen (Program ())
     cgen env ParLoop{..} =  text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
                         $$ block env (cgen env pLoopBlock)
       where
-        ixd   = cgen envd pLoopCounter
+        ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
         init  = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> int pLoopStep
-        envd  = newPlace env DeclarationPl
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
