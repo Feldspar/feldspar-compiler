@@ -153,22 +153,13 @@ instance CodeGen (ActualParameter ())
 instance CodeGen (Expression ())
   where
     cgen env VarExpr{..} = cgen env var
-    cgen env e@ArrayElem{..}  =  prefix <> text "at"
+    cgen env e@ArrayElem{..}  =  text "at"
                              <> parens (hcat $ punctuate comma [ cgen env $ typeof e
                                                                , cgen (newPlace env AddressNeedPl) array
                                                                , cgen (newPlace env ValueNeedPl) arrayIndex
                                                                ])
-      where
-        prefix = case place env of
-                   _             -> empty
-    cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
-      where
-        prefix = case place env of
-                   _             -> empty
-    cgen env e@StructField{..} = parens (prefix <> cgen (newPlace env ValueNeedPl) struct) <> char '.' <> text fieldName
-      where
-        prefix = case place env of
-                   _             -> empty
+    cgen env e@NativeElem{..} = cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
+    cgen env e@StructField{..} = parens (cgen (newPlace env ValueNeedPl) struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..} = cgen env constExpr
     cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
                              | funMode function == Infix
