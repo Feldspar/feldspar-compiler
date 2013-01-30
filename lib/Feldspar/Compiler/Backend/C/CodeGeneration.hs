@@ -94,11 +94,8 @@ instance CodeGen (Block ())
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = typ <+> (name <> size) <+> nest (nestSize $ options env) init <> semi
+    cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) init <> semi
       where
-        typ  = cgen env (varType declVar)
-        size = sizeInBrackets (varType declVar)
-        name = text (varName declVar)
         init = case (initVal, varType declVar) of
                  (Just i, _)           -> equals <+> cgen env i
                  (_     , ArrayType{}) -> equals <+> braces (int 0)
@@ -182,12 +179,10 @@ instance CodeGen (Expression ())
 
 instance CodeGen (Variable t)
   where
-    cgen env Variable{..} = case place env of
-        DeclarationPl   -> typ <+> (name <> size)
+    cgen env v@Variable{..} = case place env of
+        DeclarationPl   -> pvar env v
         _               -> ref <> name
       where
-        typ  = cgen env varType
-        size = sizeInBrackets varType
         ref  = case (varType, place env) of
                  (Pointer{}, _            ) -> text "*" -- char '*'
                  _                          -> empty
@@ -250,3 +245,9 @@ block env d = lbrace $+$ nest (nestSize $ options env) d $+$ rbrace
 newPlace :: PrintEnv -> Place -> PrintEnv
 newPlace env plc = env {place = plc}
 
+pvar :: PrintEnv -> Variable t -> Doc
+pvar env Variable{..} = typ <+> (name <> size)
+  where
+    typ  = cgen env varType
+    size = sizeInBrackets varType
+    name = text varName
