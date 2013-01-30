@@ -72,8 +72,8 @@ instance CodeGen (Entity ())
   where
     cgen env StructDef{..} = text "struct"   <+> text structName     $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (cgenList (newPlace env DeclarationPl) $ inParams ++ outParams) $$ block env (cgen (newPlace env ValueNeedPl) procBody)
-    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (cgenList (newPlace env DeclarationPl) $ inParams ++ outParams) <> semi
+    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) $$ block env (cgen (newPlace env ValueNeedPl) procBody)
+    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) <> semi
     cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen (newPlace env ValueNeedPl) valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
@@ -250,3 +250,6 @@ pvar env Variable{..} = typ <+> (name <> size)
     typ  = cgen env varType
     size = sizeInBrackets varType
     name = text varName
+
+pvars :: PrintEnv -> [Variable t] -> Doc
+pvars env = hsep . punctuate comma . map (pvar env)
