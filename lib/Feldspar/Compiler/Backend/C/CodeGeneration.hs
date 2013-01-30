@@ -94,8 +94,11 @@ instance CodeGen (Block ())
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = cgen (newPlace env DeclarationPl) declVar <+> nest (nestSize $ options env) init <> semi
+    cgen env Declaration{..} = typ <+> (name <> size) <+> nest (nestSize $ options env) init <> semi
       where
+        typ  = cgen env (varType declVar)
+        size = sizeInBrackets (varType declVar)
+        name = text (varName declVar)
         init = case (initVal, varType declVar) of
                  (Just i, _)           -> equals <+> cgen env i
                  (_     , ArrayType{}) -> equals <+> braces (int 0)
