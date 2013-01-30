@@ -178,14 +178,11 @@ instance CodeGen (Expression ())
 
 instance CodeGen (Variable t)
   where
-    cgen env v@Variable{..} = case place env of
-        DeclarationPl   -> pvar env v
-        _               -> ref <> name
+    cgen env Variable{..} = prefix <> text varName
       where
-        ref  = case (varType, place env) of
-                 (Pointer{}, _            ) -> text "*" -- char '*'
-                 _                          -> empty
-        name = text varName
+        prefix = case varType of
+                   Pointer{} -> text "*" -- char '*'
+                   _         -> empty
 
     cgenList env = hsep . punctuate comma . map (cgen env)
 
