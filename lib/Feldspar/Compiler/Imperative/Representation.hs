@@ -191,6 +191,9 @@ data Expression t
         { castType                  :: Type
         , castExpr                  :: Expression t
         }
+    | AddrOf
+        { addrExpr                  :: Expression t
+        }
     | SizeOf
         { sizeOf                    :: Either Type (Expression t)
         }
@@ -313,6 +316,7 @@ instance HasType (Expression t) where
     typeof ConstExpr{..}    = typeof constExpr
     typeof FunctionCall{..} = returnType function
     typeof Cast{..}         = castType
+    typeof AddrOf{..}       = typeof addrExpr
     typeof SizeOf{..}       = NumType Signed S32
 
 instance HasType (ActualParameter t) where

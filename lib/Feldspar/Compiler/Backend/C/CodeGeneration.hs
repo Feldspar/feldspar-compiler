@@ -160,17 +160,14 @@ instance CodeGen (Expression ())
                                                                ])
       where
         prefix = case place env of
-                   AddressNeedPl -> text "&"
                    _             -> empty
     cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
       where
         prefix = case place env of
-                   AddressNeedPl -> text "&"
                    _             -> empty
-    cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeedPl) struct <> char '.' <> text fieldName
+    cgen env e@StructField{..} = parens (prefix <> cgen (newPlace env ValueNeedPl) struct) <> char '.' <> text fieldName
       where
         prefix = case place env of
-                   AddressNeedPl -> text "&"
                    _             -> empty
     cgen env ConstExpr{..} = cgen env constExpr
     cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
@@ -178,6 +175,13 @@ instance CodeGen (Expression ())
                              , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
                              | otherwise                 = call (text $ funName function) $ map (cgen (newPlace env AddressNeedPl)) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
+    cgen env AddrOf{..} | VarExpr v@(Variable{..}) <- addrExpr
+                        , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
+                        | otherwise                      = prefix <> cgen env addrExpr
+     where
+       prefix = case typeof addrExpr of
+                  Pointer{} -> empty
+                  _         -> text "&"
     cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
 
     cgenList env = sep . punctuate comma . map (cgen env)
@@ -191,9 +195,7 @@ instance CodeGen (Variable t)
         typ  = cgen env varType
         size = sizeInBrackets varType
         ref  = case (varType, place env) of
-                 (Pointer{}, AddressNeedPl) -> empty
                  (Pointer{}, _            ) -> text "*" -- char '*'
-                 (_,         AddressNeedPl) -> text "&" -- char '&'
                  _                          -> empty
         name = text varName
 

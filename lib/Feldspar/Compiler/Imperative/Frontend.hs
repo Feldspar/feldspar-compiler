@@ -60,7 +60,7 @@ toProg (Block [] p) = p
 toProg e = BlockProgram e
 
 setLength :: Expression () -> Expression () -> Program ()
-setLength arr len = call "setLength" [Out arr, In len]
+setLength arr len = call "setLength" [Out $ AddrOf arr, In len]
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
@@ -91,7 +91,7 @@ initArray arr len = call "initArray" [Out arr, In s, In len]
 freeArray :: Variable () -> Program ()
 freeArray arr
   | Pointer{} <- typeof arr = Empty -- Pointers are aliases in practice
-  | otherwise = call "freeArray" [Out $ varToExpr arr]
+  | otherwise = call "freeArray" [Out $ AddrOf $ varToExpr arr]
 
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
@@ -108,6 +108,7 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
   where go :: Expression t-> [String] -> Maybe (Range Length)
         go (VarExpr (Variable (ArrayType r _) _)) [] | isSingleton r = Just r
         go (StructField e s) ss = go e (s:ss)
+        go (AddrOf e) ss = go e ss
         go (VarExpr (Variable (StructType _ fields) _)) (s:_)
           | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
@@ -205,6 +206,7 @@ lName :: Expression t -> String
 lName (VarExpr v@Variable{}) = vName v
 lName (ArrayElem e _)        = lName e
 lName (StructField e _)      = lName e
+lName (AddrOf e)             = lName e
 lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
 
 varToExpr :: Variable t -> Expression t

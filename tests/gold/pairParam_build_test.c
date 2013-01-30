@@ -1,4 +1,4 @@
-#include "pairParam.h"
+#include "pairParam_build_test.h"
 #include "feldspar_c99.h"
 #include "feldspar_array.h"
 #include "feldspar_future.h"

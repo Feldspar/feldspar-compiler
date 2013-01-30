@@ -83,10 +83,10 @@ literalConst (ComplexType t) _  (r:+i) = ComplexConst re ie
 literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
 literalLoc loc (ArrayType t) (rs :> es) e
     = do
-        tellProg [initArray loc $ litI32 $ toInteger $ upperBound rs]
+        tellProg [initArray (AddrOf loc) $ litI32 $ toInteger $ upperBound rs]
         zipWithM_ (writeElement t es) (map litI32 [0..]) e
   where writeElement :: TypeRep a -> Size a -> Expression () -> a -> CodeWriter ()
-        writeElement ty sz ix = literalLoc (ArrayElem loc ix) ty sz
+        writeElement ty sz ix = literalLoc (ArrayElem (AddrOf loc) ix) ty sz
 
 literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
     do literalLoc (StructField loc "member1") ta sa a
