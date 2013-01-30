@@ -114,26 +114,26 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
   where
     compileProgSym NewArr_ _ loc (len :* Nil) = do
       l <- compileExpr len
-      tellProg [initArray loc l]
+      tellProg [initArray (AddrOf loc) l]
 
     compileProgSym NewArr _ loc (len :* a :* Nil) = do
         nId <- freshId
         let ix = varToExpr $ mkNamedVar "i" (Rep.NumType Rep.Unsigned Rep.S32) nId
         a' <- compileExpr a
         l  <- compileExpr len
-        tellProg [initArray loc l]
-        tellProg [for "i" l 1 $ toBlock (Sequence [copyProg (ArrayElem loc ix) [a']])]
+        tellProg [initArray (AddrOf loc) l]
+        tellProg [for "i" l 1 $ toBlock (Sequence [copyProg (ArrayElem (AddrOf loc) ix) [a']])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr
         i'   <- compileExpr i
-        assign loc (ArrayElem arr' i')
+        assign loc (ArrayElem (AddrOf arr') i')
 
     compileProgSym SetArr _ _ (arr :* i :* a :* Nil) = do
         arr' <- compileExpr arr
         i'   <- compileExpr i
         a'   <- compileExpr a
-        assign (ArrayElem arr' i') a'
+        assign (ArrayElem (AddrOf arr') i') a'
 
     compileProgSym a info loc args = compileExprLoc a info loc args
 

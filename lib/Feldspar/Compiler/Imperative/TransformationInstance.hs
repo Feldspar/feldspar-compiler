@@ -152,6 +152,8 @@ instance (Transformable t Expression, Transformable t Variable, Transformable t 
                 tr = transform1 t s d par
         defaultTransform t s d (Cast typ ex) = Result (Cast typ (result tr)) (state tr) (up tr) where
             tr = transform t s d ex
+        defaultTransform t s d (AddrOf ex) = Result (AddrOf (result tr)) (state tr) (up tr) where
+            tr = transform t s d ex
         defaultTransform t s d (SizeOf par) = case par of
             Left typ -> Result (SizeOf (Left typ)) s def
             Right ex -> Result (SizeOf (Right $ result tr)) (state tr) (up tr) where

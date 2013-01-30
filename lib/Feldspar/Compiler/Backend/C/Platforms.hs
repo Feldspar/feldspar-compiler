@@ -139,7 +139,9 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
   where
     toNativeExpr :: Expression () -> [Action (Expression ())]
     toNativeExpr (ArrayElem arr ix)
-      | native (typeof arr) = [replaceWith $ NativeElem arr ix]
+      | native (typeof arr) = [replaceWith $ NativeElem arr' ix]
+      where arr' | AddrOf{} <- arr = addrExpr arr
+                 | otherwise       = arr
     toNativeExpr _ = []
 
     toNativeProg (ProcedureCall "initArray" [Out arr,esz,num])

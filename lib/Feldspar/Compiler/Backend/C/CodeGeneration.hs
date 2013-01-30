@@ -40,21 +40,14 @@ import Text.PrettyPrint
 codeGenerationError :: ErrorClass -> String -> a
 codeGenerationError = handleError "CodeGeneration"
 
-data Place
-    = DeclarationPl
-    | ValueNeedPl
-    | AddressNeedPl
-    deriving (Eq,Show)
-
 data PrintEnv = PEnv
     { options :: Options
-    , place :: Place
     }
   deriving Show
 
 compToCWithInfos :: Options -> Module () -> CompToCCoreResult ()
 compToCWithInfos opts procedure =
-  CompToCCoreResult { sourceCode  = render $ cgen (PEnv opts DeclarationPl) procedure
+  CompToCCoreResult { sourceCode  = render $ cgen (PEnv opts) procedure
                     , debugModule = procedure
                     }
 
@@ -72,9 +65,9 @@ instance CodeGen (Entity ())
   where
     cgen env StructDef{..} = text "struct"   <+> text structName     $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (cgenList (newPlace env DeclarationPl) $ inParams ++ outParams) $$ block env (cgen (newPlace env ValueNeedPl) procBody)
-    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (cgenList (newPlace env DeclarationPl) $ inParams ++ outParams) <> semi
-    cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen (newPlace env ValueNeedPl) valValue <> semi
+    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) $$ block env (cgen env procBody)
+    cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) <> semi
+    cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen env valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
 
@@ -94,7 +87,7 @@ instance CodeGen (Block ())
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = cgen (newPlace env DeclarationPl) declVar <+> nest (nestSize $ options env) init <> semi
+    cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) init <> semi
       where
         init = case (initVal, varType declVar) of
                  (Just i, _)           -> equals <+> cgen env i
@@ -123,12 +116,11 @@ instance CodeGen (Program ())
     cgen env ParLoop{..} =  text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
                         $$ block env (cgen env pLoopBlock)
       where
-        ixd   = cgen envd pLoopCounter
+        ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
         init  = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> int pLoopStep
-        envd  = newPlace env DeclarationPl
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
@@ -143,8 +135,8 @@ instance CodeGen (Pattern ())
 
 instance CodeGen (ActualParameter ())
   where
-    cgen env In{..}                  = cgen (newPlace env AddressNeedPl) inParam
-    cgen env Out{..}                 = cgen (newPlace env AddressNeedPl) outParam
+    cgen env In{..}                  = cgen env inParam
+    cgen env Out{..}                 = cgen env outParam
     cgen env TypeParameter{..}       = cgen env typeParam
     cgen env FunParameter{..}        = prefix <> text funParamName
       where prefix = if addressNeeded then text "&" else empty
@@ -153,49 +145,37 @@ instance CodeGen (ActualParameter ())
 instance CodeGen (Expression ())
   where
     cgen env VarExpr{..} = cgen env var
-    cgen env e@ArrayElem{..}  =  prefix <> text "at"
+    cgen env e@ArrayElem{..}  =  text "at"
                              <> parens (hcat $ punctuate comma [ cgen env $ typeof e
-                                                               , cgen (newPlace env AddressNeedPl) array
-                                                               , cgen (newPlace env ValueNeedPl) arrayIndex
+                                                               , cgen env array
+                                                               , cgen env arrayIndex
                                                                ])
-      where
-        prefix = case place env of
-                   AddressNeedPl -> text "&"
-                   _             -> empty
-    cgen env e@NativeElem{..} = prefix <> cgen (newPlace env ValueNeedPl) array <> brackets (cgen (newPlace env ValueNeedPl) arrayIndex)
-      where
-        prefix = case place env of
-                   AddressNeedPl -> text "&"
-                   _             -> empty
-    cgen env e@StructField{..} = prefix <> cgen (newPlace env ValueNeedPl) struct <> char '.' <> text fieldName
-      where
-        prefix = case place env of
-                   AddressNeedPl -> text "&"
-                   _             -> empty
+    cgen env e@NativeElem{..} = cgen env array <> brackets (cgen env arrayIndex)
+    cgen env e@StructField{..} = parens (cgen env struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..} = cgen env constExpr
-    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen (newPlace env AddressNeedPl)) funCallParams
+    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen env) funCallParams
                              | funMode function == Infix
                              , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
-                             | otherwise                 = call (text $ funName function) $ map (cgen (newPlace env AddressNeedPl)) funCallParams
+                             | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
+    cgen env AddrOf{..} | VarExpr v@(Variable{..}) <- addrExpr
+                        , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
+                        | otherwise                      = prefix <> cgen env addrExpr
+     where
+       prefix = case typeof addrExpr of
+                  Pointer{} -> empty
+                  _         -> text "&"
     cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
 
     cgenList env = sep . punctuate comma . map (cgen env)
 
 instance CodeGen (Variable t)
   where
-    cgen env Variable{..} = case place env of
-        DeclarationPl   -> typ <+> (name <> size)
-        _               -> ref <> name
+    cgen env Variable{..} = prefix <> text varName
       where
-        typ  = cgen env varType
-        size = sizeInBrackets varType
-        ref  = case (varType, place env) of
-                 (Pointer{}, AddressNeedPl) -> empty
-                 (Pointer{}, _            ) -> text "*" -- char '*'
-                 (_,         AddressNeedPl) -> text "&" -- char '&'
-                 _                          -> empty
-        name = text varName
+        prefix = case varType of
+                   Pointer{} -> text "*" -- char '*'
+                   _         -> empty
 
     cgenList env = hsep . punctuate comma . map (cgen env)
 
@@ -251,6 +231,12 @@ stmt = (<>semi)
 block :: PrintEnv -> Doc -> Doc
 block env d = lbrace $+$ nest (nestSize $ options env) d $+$ rbrace
 
-newPlace :: PrintEnv -> Place -> PrintEnv
-newPlace env plc = env {place = plc}
+pvar :: PrintEnv -> Variable t -> Doc
+pvar env Variable{..} = typ <+> (name <> size)
+  where
+    typ  = cgen env varType
+    size = sizeInBrackets varType
+    name = text varName
 
+pvars :: PrintEnv -> [Variable t] -> Doc
+pvars env = hsep . punctuate comma . map (pvar env)

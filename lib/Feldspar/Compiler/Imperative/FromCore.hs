@@ -122,8 +122,8 @@ compileProgTop opt funname args ents a = Module defs
     ins      = map snd $ reverse args
     inTypes  = getTypes opt $ map (\v -> Declaration v Nothing) ins
     info     = getInfo a
-    outType  = compileTypeRep (infoType info) (infoSize info)
-    outParam = Rep.Variable (Rep.Pointer outType) "out"
+    outType  = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
+    outParam = Rep.Variable outType "out"
     outLoc   = varToExpr outParam
     results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
     decls    = decl results

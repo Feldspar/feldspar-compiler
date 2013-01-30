@@ -53,6 +53,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     ]
