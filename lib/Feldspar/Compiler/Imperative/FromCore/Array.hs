@@ -28,6 +28,7 @@
 
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -35,6 +36,8 @@
 module Feldspar.Compiler.Imperative.FromCore.Array where
 
 
+import Data.List (init)
+import Data.Typeable
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
@@ -43,6 +46,7 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Array
+import Feldspar.Core.Constructs.Tuple
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Constructs.Literal
 
@@ -52,6 +56,7 @@ import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..),
                                                     Block(..), Size(..),
                                                     Signedness(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
+import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)
 
 
 
@@ -61,6 +66,8 @@ instance ( Compile dom dom
          , Project (Variable :|| Type) dom
          , Project Let dom
          , Project (Array :|| Type) dom
+         , Project (Tuple :|| Type) dom
+         , ConstrainedBy dom Typeable
          , AlphaEq dom dom (Decor Info dom) [(VarId, VarId)]
          )
       => Compile (Array :|| Type) dom
@@ -77,11 +84,13 @@ instance ( Compile dom dom
             tellProg [for (lName ix) len' 1 b]
 
 
-    compileProgSym (C' Sequential) _ loc (len :* init :* (lam1 :$ (lam2 :$ (lt :$ step :$ (lam3 :$ (tup :$ a :$ b))))) :* Nil)
+    compileProgSym (C' Sequential) _ loc (len :* init' :* (lam1 :$ (lam2 :$ l@(lt :$ _ :$ _))) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         , Just Let                     <- prj lt
-        , Just (SubConstr2 (Lambda e)) <- prjLambda lam3
+        , (bs, (tup :$ a :$ b))        <- collectLetBinders l
+        , Just (C' Tup2)               <- prjF tup
+        , (e, ASTB step)               <- last bs
         , Just (C' (Variable t1))      <- prjF a
         , Just (C' (Variable t2))      <- prjF b
         , t1 == e
@@ -97,7 +106,7 @@ instance ( Compile dom dom
             declare st
             (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem (AddrOf loc) ix) step
             tellProg [initArray (AddrOf loc) len']
-            withAlias s st $ compileProg st init
+            withAlias s st $ compileProg st init'
             tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
                                     toBlock $ Sequence (body ++
