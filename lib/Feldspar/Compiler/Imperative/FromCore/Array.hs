@@ -96,6 +96,7 @@ instance ( Compile dom dom
         , t1 == e
         , t2 == e
         = do
+            mapM_ compileBind (init bs)
             let tix = argType $ infoType $ getInfo lam1
                 six = fst $ infoSize $ getInfo lam1
                 tst = infoType $ getInfo step
