@@ -67,7 +67,7 @@ instance ( Compile dom dom
                 info2 = getInfo lam2
                 sz = fst $ infoSize info1
             let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
-            let stvar        = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
+            let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
             compileProg loc init
             (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
