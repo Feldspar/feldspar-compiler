@@ -57,11 +57,7 @@ struct array
     int32_t  length;   /* number of elements in the array */
     int32_t  elemSize; /* size of elements in bytes; (- sizeof(struct array)) for nested arrays */
     uint32_t bytes;    /* The number of bytes the buffer can hold */
-    uint32_t inited;   /* To decide between first initialization and reinitialization - This is to catch */
 };
-
-/* Magic number */
-#define INITED 0x89abcdef
 
 /* Indexing into an array: */
 /* Result: element of type 'type' */
@@ -79,7 +75,7 @@ static inline void initArray(struct array *arr, int32_t size, int32_t len)
     if( size < 0 )
         size = sizeof(struct array);
     newBytes = size * len;
-    if( arr->buffer && (arr->inited == INITED) )
+    if( arr->buffer )
     {
         // Re-initialization
         log_1("initArray %p - reinitialize\n",arr);
@@ -105,7 +101,6 @@ static inline void initArray(struct array *arr, int32_t size, int32_t len)
         arr->buffer = (void*)malloc( newBytes );        
         log_5("initArray %p - alloc %d * %d = %d bytes at %p\n"
              , arr, arr->length, arr->elemSize, newBytes, arr->buffer);
-        arr->inited = INITED;
     }
     assert( arr->buffer );
     log_3("initArray %p %d %d - leave\n", arr, size, len);
@@ -117,7 +112,7 @@ static inline void freeArray(struct array *arr)
 {
     log_1("freeArray %p - enter\n", arr);
     // assert(arr);
-    // if( !arr->buffer || arr->inited != INITED )
+    // if( !arr->buffer )
     // {
         // return;
     // }
@@ -132,7 +127,6 @@ static inline void freeArray(struct array *arr)
     // arr->buffer = 0;
     // arr->length = 0;
     // arr->bytes = 0;
-    // arr->inited = 0;
     log_1("freeArray %p - leave\n", arr);
 }
 
@@ -150,7 +144,7 @@ static inline void copyArray(struct array *to, struct array *from)
         {
             struct array *to_row = &at(struct array, to, i);
             struct array *from_row = &at(struct array, from, i);
-            if( !to_row->buffer || to_row->inited != INITED )
+            if( !to_row->buffer )
                 initArray( to_row, from_row->elemSize, from_row->length );
             copyArray( to_row, from_row );
         }
