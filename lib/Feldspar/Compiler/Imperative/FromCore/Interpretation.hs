@@ -272,8 +272,8 @@ compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = mkStructType
         ]
 compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (Core.ArrayType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
-compileTypeRep (MArrType a) (rs :> es)  = ArrayType rs $ compileTypeRep a es
+compileTypeRep (Core.ArrayType a) (rs :> es) = Pointer $ ArrayType rs $ compileTypeRep a es
+compileTypeRep (MArrType a) (rs :> es)  = Pointer $ ArrayType rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (Core.IVarType a) _      = IVarType $ compileTypeRep a $ defaultSize a
 compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz

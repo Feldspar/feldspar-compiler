@@ -38,17 +38,6 @@
 
 #include <stdio.h> /* to be removed */
 
-/* Important: Always zero-initialize struct arrays in the definitions
- * and call initArray on them before use:
- * 
- * struct array my = {0};
- * initArray( &my, sizeof(elementType), numberOfElements );
- * 
- * Zero initialization certifies that initArray works correctly.
- * (There is a "magic number" check in initArray in case you forget to
- * zero-initialize, but it is not 100% safe.)
- */
-
 /* TODO qualify the names to avoid clashes with Haskell names */
 
 struct array
