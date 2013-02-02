@@ -222,6 +222,9 @@ data Constant t
         { realPartComplexValue      :: Constant t
         , imagPartComplexValue      :: Constant t
         }
+    | ArrayConst
+        { arrayValues               :: [Constant t]
+        }
     deriving (Typeable, Show, Eq)
 
 data Variable t
@@ -286,6 +289,8 @@ instance HasType (Constant t) where
     typeof IntConst{..}      = intType
     typeof FloatConst{}      = FloatType
     typeof BoolConst{}       = BoolType
+    typeof ArrayConst{..}    = ArrayType (singletonRange (fromIntegral $ length arrayValues)) t
+      where t = typeof $ head arrayValues
     typeof ComplexConst{..}  = ComplexType $ typeof realPartComplexValue
 
 instance HasType (Expression t) where
