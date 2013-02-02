@@ -71,9 +71,6 @@ copyProg outExp inExp
       && null (tail inExp) = Empty
     | otherwise            = call "copy" (Out outExp:map In inExp)
 
-copyProgPos :: Expression ()-> Expression () -> Expression () -> Program ()
-copyProgPos outExp shift inExp = call "copyArrayPos" [Out outExp, In shift, In inExp]
-
 copyProgLen :: Expression () -> Expression () -> Expression () -> Program ()
 copyProgLen outExp inExp len = call "copyArrayLen" [Out outExp, In inExp, In len]
 
