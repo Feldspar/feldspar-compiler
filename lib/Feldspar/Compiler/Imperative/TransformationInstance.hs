@@ -164,8 +164,8 @@ instance (Transformable t Constant, Transformable1 t [] Constant, Combine (Up t)
         defaultTransform _ s _ (IntConst c typ) = Result (IntConst c typ) s def
         defaultTransform _ s _ (FloatConst c) = Result (FloatConst c) s def
         defaultTransform _ s _ (BoolConst c) = Result (BoolConst c) s def
-        -- defaultTransform t s d (ArrayConst c inf1 inf2) = Result (ArrayConst (result1 tr) (convert inf1) $ convert inf2) (state1 tr) (up1 tr) where
-            -- tr = transform1 t s d c
+        defaultTransform t s d (ArrayConst c) = Result (ArrayConst (result1 tr)) (state1 tr) (up1 tr) where
+          tr = transform1 t s d c
         defaultTransform t s d (ComplexConst re im) = Result (ComplexConst (result tr1) (result tr2)) (state tr2) (combine (up tr1) $ up tr2) where
             tr1 = transform t s d re
             tr2 = transform t (state tr1) d im
