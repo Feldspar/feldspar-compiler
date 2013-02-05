@@ -35,6 +35,8 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Binding where
 
+import Data.Typeable
+
 import Control.Monad.RWS
 
 import Language.Syntactic
@@ -81,3 +83,11 @@ compileLet a info v
         declare var
         compileProg var a
 
+compileBind :: Compile dom dom
+            => (VarId, ASTB (Decor Info dom) Typeable) -> CodeWriter ()
+compileBind (v, ASTB e)
+     = do
+         let info = getInfo e
+             var = mkVar (compileTypeRep (infoType info) (infoSize info)) v
+         declare var
+         compileProg var e
