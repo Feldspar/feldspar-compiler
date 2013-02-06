@@ -163,6 +163,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     nativeArray t = t
 
     native (NativeArray {}) = True
+    native (Pointer t)      = native t
     native _                = False
 
     fromSingleton r = if isSingleton r

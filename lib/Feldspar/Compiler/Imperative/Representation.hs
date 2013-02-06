@@ -321,7 +321,7 @@ instance HasType (Expression t) where
     typeof ConstExpr{..}    = typeof constExpr
     typeof FunctionCall{..} = returnType function
     typeof Cast{..}         = castType
-    typeof AddrOf{..}       = typeof addrExpr
+    typeof AddrOf{..}       = Pointer $ typeof addrExpr
     typeof SizeOf{..}       = NumType Signed S32
 
 instance HasType (ActualParameter t) where
