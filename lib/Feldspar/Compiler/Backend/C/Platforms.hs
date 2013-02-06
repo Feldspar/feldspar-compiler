@@ -124,10 +124,10 @@ arrayRules = [rule copy]
     copy (ProcedureCall "copy" [Out arg1, In arg2])
         | arg1 == arg2 = [replaceWith Empty]
         | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
-    copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(in1:ins))) | isArray (typeof arg1)
+    copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(In in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
                initArray arg1 (foldr ePlus (litI32 0) aLens)
-             , call "copyArray" [dst, in1]
+             , call "copyArray" [dst, In $ AddrOf in1]
              ] ++ flattenCopy dst ins argnLens arg1len)]
            where
              aLens@(arg1len:argnLens) = map (\(In src) -> arrayLength src) ins'

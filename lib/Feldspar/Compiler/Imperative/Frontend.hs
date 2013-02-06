@@ -96,7 +96,7 @@ freeArrays defs = map freeArray arrays
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
-  | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [arr]
+  | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [AddrOf arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
