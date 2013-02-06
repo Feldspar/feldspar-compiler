@@ -10,7 +10,7 @@ before_install:
   - (cd feldspar-language && git rev-parse HEAD)
 
   # Try installing some of the build-deps with apt-get for speed
-  - ./tools/travis-cabal-apt-install feldspar-language/ ./
+  - ./tools/travis-cabal-apt-install $mode feldspar-language/ ./
   - cabal install feldspar-language/
 
 install:
