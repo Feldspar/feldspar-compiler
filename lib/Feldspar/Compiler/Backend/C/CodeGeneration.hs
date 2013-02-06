@@ -91,7 +91,8 @@ instance CodeGen (Declaration ())
       where
         init = case (initVal, varType declVar) of
                  (Just i, _)           -> equals <+> cgen env i
-                 (_     , ArrayType{}) -> equals <+> braces (int 0)
+                 (_     , Pointer (ArrayType{})) -> equals <+> text "calloc(1, sizeof(struct array))"
+                 (_     , Pointer{})   -> equals <+> text "NULL"
                  _                     -> empty
     cgenList env = vcat . map (cgen env)
 

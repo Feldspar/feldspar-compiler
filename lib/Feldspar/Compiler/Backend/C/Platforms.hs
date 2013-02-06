@@ -154,8 +154,11 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     toNativeVariable :: Variable () -> [Action (Variable ())]
     toNativeVariable v@Variable{..} | ArrayType{} <- varType 
       = [replaceWith $ v { varType = nativeArray varType}]
+    toNativeVariable v@Variable{..} | Pointer t@ArrayType{} <- varType
+      = [replaceWith $ v { varType = nativeArray t}]
     toNativeVariable _ = []
 
+    nativeArray (Pointer (ArrayType sz t)) = NativeArray (fromSingleton sz) (nativeArray t)    
     nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray t = t
 

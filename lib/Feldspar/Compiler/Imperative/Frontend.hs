@@ -71,9 +71,6 @@ copyProg outExp inExp
       && null (tail inExp) = Empty
     | otherwise            = call "copy" (Out outExp:map In inExp)
 
-copyProgPos :: Expression ()-> Expression () -> Expression () -> Program ()
-copyProgPos outExp shift inExp = call "copyArrayPos" [Out outExp, In shift, In inExp]
-
 copyProgLen :: Expression () -> Expression () -> Expression () -> Program ()
 copyProgLen outExp inExp len = call "copyArrayLen" [Out outExp, In inExp, In len]
 
@@ -89,9 +86,7 @@ initArray arr len = call "initArray" [Out arr, In s, In len]
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 freeArray :: Variable () -> Program ()
-freeArray arr
-  | Pointer{} <- typeof arr = Empty -- Pointers are aliases in practice
-  | otherwise = call "freeArray" [Out $ AddrOf $ varToExpr arr]
+freeArray arr = call "freeArray" [Out $ AddrOf $ varToExpr arr]
 
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays

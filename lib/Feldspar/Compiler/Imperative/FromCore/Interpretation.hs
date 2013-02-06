@@ -272,8 +272,8 @@ compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = mkStructType
         ]
 compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (Core.ArrayType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
-compileTypeRep (MArrType a) (rs :> es)  = ArrayType rs $ compileTypeRep a es
+compileTypeRep (Core.ArrayType a) (rs :> es) = Pointer $ ArrayType rs $ compileTypeRep a es
+compileTypeRep (MArrType a) (rs :> es)  = Pointer $ ArrayType rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (Core.IVarType a) _      = IVarType $ compileTypeRep a $ defaultSize a
 compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
@@ -317,11 +317,15 @@ freshVar base t size = do
   return var
 
 declare :: Expression () -> CodeWriter ()
-declare (VarExpr v@(Variable{})) = tellDecl [Declaration v Nothing]
+declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
+declareAlias :: Expression () -> CodeWriter ()
+declareAlias (VarExpr v@(Variable{})) = tellDeclWith False [Declaration v Nothing]
+declareAlias expr      = error $ "declareAlias: cannot declare expression: " ++ show expr
+
 initialize :: Expression () -> Expression () -> CodeWriter ()
-initialize (VarExpr v@(Variable{})) e = tellDecl [Declaration v (Just e)]
+initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e)]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
 tellDef :: [Entity ()] -> CodeWriter ()
@@ -331,13 +335,16 @@ tellProg :: [Program ()] -> CodeWriter ()
 tellProg [BlockProgram (Block [] ps)] = tell $ mempty {block = toBlock $ Sequence [ps]}
 tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
-tellDecl :: [Declaration ()] -> CodeWriter ()
-tellDecl ds = do rs <- ask
-                 let frees = freeArrays ds ++ freeIVars ds
-                     defs = getTypes (backendOpts rs) ds
-                     code | True = mempty {decl=ds, epilogue = frees, def = defs}
-                          | otherwise = mempty {block = Block ds $ Sequence [], epilogue = frees, def = defs}
-                 tell code
+tellDeclWith :: Bool -> [Declaration ()] -> CodeWriter ()
+tellDeclWith free ds
+  = do rs <- ask
+       let frees | free = freeArrays ds ++ freeIVars ds
+                 | otherwise = []
+           defs = getTypes (backendOpts rs) ds
+           code | True = mempty {decl=ds, epilogue = frees, def = defs}
+                | otherwise = mempty {block = Block ds $ Sequence [],
+                                      epilogue = frees, def = defs}
+       tell code
 
 encodeType :: Type -> String
 encodeType = go
