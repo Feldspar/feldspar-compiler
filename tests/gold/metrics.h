@@ -19,6 +19,6 @@ struct s_unsignedS32_unsignedS32
   uint32_t member2;
 };
 
-void metrics(struct array * v0, struct array * v1, struct array * v2, struct array * out);
+void metrics(struct array * v0, struct array * v1, struct array * v2, struct array * * out);
 
 #endif // TESTS_GOLD_METRICS_H
