@@ -12,6 +12,7 @@ import Test.HUnit
 import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
+import Feldspar.Vector
 
 import Data.Monoid ((<>))
 import Shelly
@@ -29,6 +30,22 @@ topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
 
 pairParam :: (Data Index, Data Index) -> Data Index
 pairParam (x, _) = x
+
+-- One test starting.
+metrics :: Vector1 IntN -> Vector1 IntN
+           -> Vector (Vector (Data Index, Data Index)) -> Vector (Vector1 IntN)
+metrics s zf = scan (columnMetrics s) initialMetrics
+
+initialMetrics :: Vector1 IntN
+initialMetrics = replicate 8 (-32678)
+
+columnMetrics :: Vector1 IntN -> Vector1 IntN -> Vector (Data Index, Data Index)
+                  -> Vector1 IntN
+columnMetrics s prev zf  = zipWith (metricFast prev) zf s
+
+metricFast :: Vector1 IntN -> (Data Index, Data Index) -> Data IntN -> Data IntN
+metricFast prev (z, _) _ = prev ! z
+-- End one test.
 
 nativeOpts = defaultOptions{rules=nativeArrayRules}
 
@@ -53,9 +70,11 @@ tests = testGroup "RegressionTests"
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkGoldTest metrics "metrics" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkBuildTest metrics "metrics" defaultOptions
     ]
 
 main = defaultMain [tests]

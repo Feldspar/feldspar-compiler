@@ -103,15 +103,17 @@ instance ( Compile dom dom
                 sst = infoSize $ getInfo step
             let ix = mkVar (compileTypeRep tix six) v
             len' <- mkLength len (infoType $ getInfo len) six
-            let st = mkVar (compileTypeRep tst sst) s
+            st1 <- freshVar "st" tst sst
+            let st = mkRef (compileTypeRep tst sst) s
             declare st
             (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem (AddrOf loc) ix) step
-            tellProg [initArray (AddrOf loc) len']
-            withAlias s st $ compileProg st init'
+            withAlias s st $ compileProg st1 init'
+            tellProg [ Assign (AddrOf st) (AddrOf st1)
+                     , initArray (AddrOf loc) len']
             tellProg [toProg $ Block ds $
                       for (lName ix) len' 1 $
                                     toBlock $ Sequence (body ++
-                                         [copyProg (AddrOf st) [AddrOf $ ArrayElem (AddrOf loc) ix]
+                                         [Assign (AddrOf st) (AddrOf $ ArrayElem (AddrOf loc) ix)
                                          ])]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
