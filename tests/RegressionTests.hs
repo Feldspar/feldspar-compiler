@@ -13,6 +13,7 @@ import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
 import Feldspar.Vector
+import qualified Feldspar.Vector.Push as PV
 
 import Data.Monoid ((<>))
 import Shelly
@@ -47,6 +48,26 @@ metricFast :: Vector1 IntN -> (Data Index, Data Index) -> Data IntN -> Data IntN
 metricFast prev (z, _) _ = prev ! z
 -- End one test.
 
+copyPush :: Vector1 Index -> PV.PushVector1 Index
+copyPush v = let pv = PV.toPush v in pv PV.++ pv
+
+tests = testGroup "RegressionTests"
+    [ mkGoldTest example9 "example9" defaultOptions
+    , mkGoldTest pairParam "pairParam" defaultOptions
+    , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
+    , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkGoldTest metrics "metrics" defaultOptions
+    , mkBuildTest pairParam "pairParam" defaultOptions
+    , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
+    , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkBuildTest metrics "metrics" defaultOptions
+    , mkBuildTest copyPush "copyPush" defaultOptions
+    ]
+
+main = defaultMain [tests]
+
+
+-- Helper functions
 nativeOpts = defaultOptions{rules=nativeArrayRules}
 
 writeGoldFile fun name opts = compile fun ("tests/gold/" <> name) name opts
@@ -65,17 +86,4 @@ mkBuildTest fun name opts = testCase name $ do let base  = "tests/" <> name <> "
                                                compile fun base name opts
                                                shellyNoDir $ ghc [pack cfile]
 
-tests = testGroup "RegressionTests" 
-    [ mkGoldTest example9 "example9" defaultOptions
-    , mkGoldTest pairParam "pairParam" defaultOptions
-    , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
-    , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
-    , mkGoldTest metrics "metrics" defaultOptions
-    , mkBuildTest pairParam "pairParam" defaultOptions
-    , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
-    , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
-    , mkBuildTest metrics "metrics" defaultOptions
-    ]
-
-main = defaultMain [tests]
 
