@@ -51,17 +51,22 @@ metricFast prev (z, _) _ = prev ! z
 copyPush :: Vector1 Index -> PV.PushVector1 Index
 copyPush v = let pv = PV.toPush v in pv PV.++ pv
 
+scanlPush :: PV.PushVector1 WordN -> Vector1 WordN -> PV.PushVector (PV.PushVector1 WordN)
+scanlPush = PV.scanl (\a b ->  a )
+
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest metrics "metrics" defaultOptions
+    , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
+    , mkBuildTest scanlPush "scanlPush" defaultOptions
     ]
 
 main = defaultMain [tests]
