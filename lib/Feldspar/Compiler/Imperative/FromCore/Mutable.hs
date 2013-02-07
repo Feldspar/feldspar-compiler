@@ -94,8 +94,8 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile Mutable dom
 
 instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableReference dom
   where
-    compileProgSym NewRef _ loc (a :* Nil) = compileProg loc a
-    compileProgSym GetRef _ loc (r :* Nil) = compileProg loc r
+    compileProgSym NewRef _ loc (a :* Nil) = compileProg (AddrOf loc) a
+    compileProgSym GetRef _ loc (r :* Nil) = compileProg (AddrOf loc) r
     compileProgSym SetRef _ _   (r :* a :* Nil) = do
         var  <- compileExpr r
         compileProg var a
