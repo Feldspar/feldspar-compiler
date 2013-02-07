@@ -139,7 +139,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
 
     compileExprSym ArrLength info (arr :* Nil) = do
         a' <- compileExpr arr
-        return $ fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [a']
+        return $ arrayLength a'
 
     compileExprSym a info args = compileProgFresh a info args
 
