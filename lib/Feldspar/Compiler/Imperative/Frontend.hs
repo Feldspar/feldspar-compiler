@@ -147,15 +147,15 @@ spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName True
-    typeParams = map (TypeParameter . vType) vs
-    varParams = map (\v -> In $ VarExpr (Variable (vType v) (vName v))) vs
+    typeParams = map (TypeParameter . typeof) vs
+    varParams = map (\v -> In $ VarExpr (Variable (typeof v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
 run taskName vs = call runName allParams
   where
     runName = "run" ++ show (length vs)
-    typeParams = map (TypeParameter . vType) vs
+    typeParams = map (TypeParameter . typeof) vs
     taskParam = FunParameter taskName False
     allParams = taskParam : typeParams
 
@@ -195,9 +195,6 @@ isArray _ = False
 isIVar :: Type -> Bool
 isIVar IVarType{} = True
 isIVar _              = False
-
-vType :: Variable () -> Type
-vType Variable{..} = varType
 
 dVar :: Declaration () -> Variable ()
 dVar (Declaration v _)    = v
