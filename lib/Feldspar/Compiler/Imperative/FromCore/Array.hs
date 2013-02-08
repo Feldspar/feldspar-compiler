@@ -178,7 +178,7 @@ instance ( Compile dom dom
 
     compileExprSym (C' GetLength) info (a :* Nil) = do
         aExpr <- compileExpr a
-        return $ fun (compileTypeRep (infoType info) (infoSize info)) "getLength" [AddrOf aExpr]
+        return $ arrayLength aExpr
 
     compileExprSym (C' GetIx) _ (arr :* i :* Nil) = do
         a' <- compileExpr arr
