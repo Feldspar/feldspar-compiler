@@ -53,9 +53,12 @@ struct array
 #define at(type,arr,idx) (((type*)((arr)->buffer))[idx])
 
 /* Array (re)initialization */
-static inline void initArray(struct array *arr, int32_t size, int32_t len)
+static inline struct array *initArray(struct array *arr, int32_t size, int32_t len)
 {
     int newBytes;
+
+    if ( !arr )
+      arr = calloc(1, sizeof(struct array));
 
     log_3("initArray %p %d %d - enter\n", arr, size, len);
     assert(arr);
@@ -93,6 +96,7 @@ static inline void initArray(struct array *arr, int32_t size, int32_t len)
     }
     assert( arr->buffer );
     log_3("initArray %p %d %d - leave\n", arr, size, len);
+    return arr;
 }
 
 // Free array
@@ -134,7 +138,7 @@ static inline void copyArray(struct array *to, struct array *from)
             struct array *to_row = &at(struct array, to, i);
             struct array *from_row = &at(struct array, from, i);
             if( !to_row->buffer )
-                initArray( to_row, from_row->elemSize, from_row->length );
+                to_row = initArray( to_row, from_row->elemSize, from_row->length );
             copyArray( to_row, from_row );
         }
         log_2("copyArray %p %p - nested leave\n", to, from);
@@ -162,10 +166,16 @@ static inline int32_t getLength(struct array *arr)
 }
 
 /* Reset array length */
-static inline void setLength(struct array *arr, int32_t len)
+static inline struct array *setLength(struct array *arr, int32_t size, int32_t len)
 {
+    if ( !arr )
+      arr = calloc(1, sizeof(struct array));
+
     assert(arr);
     log_2("setLength %p %d - enter\n", arr, len);
+    arr->elemSize = size;
+    if( size < 0 )
+        size = sizeof(struct array);
     int newBytes = arr->elemSize * len;
     arr->length = len;
     if( arr->bytes < newBytes )
@@ -176,6 +186,7 @@ static inline void setLength(struct array *arr, int32_t len)
         arr->bytes  = newBytes;
     }
     log_2("setLength %p %d - leave\n", arr, len);
+    return arr;
 }
 
 #endif

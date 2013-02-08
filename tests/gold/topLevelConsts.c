@@ -14,13 +14,13 @@
 void topLevelConsts(uint32_t v0, uint32_t v1, uint32_t * out)
 {
   uint32_t v2;
-  struct array * x0 = calloc(1, sizeof(struct array));
-  struct array * x1 = calloc(1, sizeof(struct array));
+  struct array * x0 = NULL;
+  struct array * x1 = NULL;
   
   v2 = (v1 + 5);
   if ((v0 < 5))
   {
-    initArray(x0, sizeof(uint32_t), 5);
+    x0 = initArray(x0, sizeof(uint32_t), 5);
     at(uint32_t,x0,0) = 2;
     at(uint32_t,x0,1) = 3;
     at(uint32_t,x0,2) = 4;
@@ -30,7 +30,7 @@ void topLevelConsts(uint32_t v0, uint32_t v1, uint32_t * out)
   }
   else
   {
-    initArray(x1, sizeof(uint32_t), 5);
+    x1 = initArray(x1, sizeof(uint32_t), 5);
     at(uint32_t,x1,0) = 1;
     at(uint32_t,x1,1) = 2;
     at(uint32_t,x1,2) = 3;

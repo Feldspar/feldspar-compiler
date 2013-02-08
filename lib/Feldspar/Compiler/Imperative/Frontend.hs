@@ -60,7 +60,15 @@ toProg (Block [] p) = p
 toProg e = BlockProgram e
 
 setLength :: Expression () -> Expression () -> Program ()
-setLength arr len = call "setLength" [Out $ AddrOf arr, In len]
+setLength arr len = Assign arr $ fun (typeof arr) "setLength" [arr, sz, len]
+  where
+    sz | isArray t' = fun' Infix (NumType Unsigned S32) "-" [litI32 0, t]
+       | otherwise = t
+    t = SizeOf (Left t')
+    t' = go $ typeof arr
+    go (ArrayType _ e) = e
+    go (Pointer t) = go t
+    go _               = error $ "Feldspar.Compiler.Imperative.Frontend.setLength: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
@@ -75,12 +83,12 @@ copyProgLen :: Expression () -> Expression () -> Expression () -> Program ()
 copyProgLen outExp inExp len = call "copyArrayLen" [Out outExp, In inExp, In len]
 
 initArray :: Expression () -> Expression () -> Program ()
-initArray arr len = call "initArray" [Out arr, In s, In len]
+initArray arr len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
   where
-    s
-        | isArray t = FunctionCall (Function "-" (NumType Unsigned S32) Infix) [litI32 0,SizeOf (Left t)]
-        | otherwise = SizeOf (Left t)
-    t = go $ typeof arr
+    sz | isArray t' = fun' Infix (NumType Unsigned S32) "-" [litI32 0, t]
+       | otherwise = t
+    t = SizeOf (Left t')
+    t' = go $ typeof arr
     go (ArrayType _ e) = e
     go (Pointer t) = go t
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)

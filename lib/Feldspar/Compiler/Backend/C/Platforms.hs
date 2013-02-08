@@ -144,7 +144,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                  | otherwise       = arr
     toNativeExpr _ = []
 
-    toNativeProg (ProcedureCall "initArray" [Out arr,esz,num])
+    toNativeProg (Assign x (FunctionCall (Function "initArray" t _) [arr,esz,num]))
       | native (typeof arr) = [replaceWith $ call "assert" [Out arr]]
     toNativeProg (ProcedureCall "freeArray" [Out arr])
       | native (typeof arr) = [replaceWith Empty]

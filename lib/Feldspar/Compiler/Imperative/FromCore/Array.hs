@@ -171,7 +171,7 @@ instance ( Compile dom dom
     compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
         len' <- compileExpr len
         compileProg loc arr
-        tellProg [setLength loc len']
+        tellProg [setLength (AddrOf loc) len']
       -- TODO Optimize by using copyProgLen (compare to 0.4)
 
     compileProgSym a info loc args = compileExprLoc a info loc args

@@ -15,13 +15,13 @@ void metrics(struct array * v0, struct array * v1, struct array * v2, struct arr
 {
   uint32_t v20;
   uint32_t len0;
-  struct array * st1 = calloc(1, sizeof(struct array));
+  struct array * st1 = NULL;
   struct array * * v17 = NULL;
   uint32_t len2;
   
   v20 = getLength(v0);
   len0 = getLength(v2);
-  initArray(st1, sizeof(int32_t), 8);
+  st1 = initArray(st1, sizeof(int32_t), 8);
   at(int32_t,st1,0) = -32678;
   at(int32_t,st1,1) = -32678;
   at(int32_t,st1,2) = -32678;
@@ -31,11 +31,11 @@ void metrics(struct array * v0, struct array * v1, struct array * v2, struct arr
   at(int32_t,st1,6) = -32678;
   at(int32_t,st1,7) = -32678;
   *v17 = st1;
-  initArray(*out, (0 - sizeof(struct array *)), len0);
+  *out = initArray(*out, (0 - sizeof(struct array *)), len0);
   for (uint32_t v16 = 0; v16 < len0; v16 += 1)
   {
     len2 = min(getLength(at(struct array *,v2,v16)), v20);
-    initArray(at(struct array *,*out,v16), sizeof(int32_t), len2);
+    at(struct array *,*out,v16) = initArray(at(struct array *,*out,v16), sizeof(int32_t), len2);
     for (uint32_t v18 = 0; v18 < len2; v18 += 1)
     {
       at(int32_t,at(struct array *,*out,v16),v18) = at(int32_t,*v17,(at(struct s_unsignedS32_unsignedS32,at(struct array *,v2,v16),v18)).member1);

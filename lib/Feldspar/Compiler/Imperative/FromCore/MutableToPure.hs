@@ -47,6 +47,7 @@ import Feldspar.Core.Constructs.MutableArray
 import Feldspar.Core.Constructs.MutableToPure
 
 import Feldspar.Compiler.Imperative.Frontend
+import Feldspar.Compiler.Imperative.Representation (Expression(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -83,7 +84,7 @@ instance ( Compile dom dom
         , Just NewArr_ <- prj na
         = do
             len <- compileExpr l
-            tellProg [setLength loc len]
+            tellProg [setLength (AddrOf loc) len]
             withAlias v loc $ compileProg loc body
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr
