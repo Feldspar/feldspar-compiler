@@ -62,8 +62,8 @@ toProg e = BlockProgram e
 setLength :: Expression () -> Expression () -> Program ()
 setLength arr len = Assign arr $ fun (typeof arr) "setLength" [arr, sz, len]
   where
-    sz | isArray t' = fun' Infix (NumType Unsigned S32) "-" [litI32 0, t]
-       | otherwise = t
+    sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
+       | otherwise  = t
     t = SizeOf (Left t')
     t' = go $ typeof arr
     go (ArrayType _ e) = e
@@ -82,8 +82,8 @@ copyProg outExp inExp
 initArray :: Expression () -> Expression () -> Program ()
 initArray arr len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
   where
-    sz | isArray t' = fun' Infix (NumType Unsigned S32) "-" [litI32 0, t]
-       | otherwise = t
+    sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
+       | otherwise  = t
     t = SizeOf (Left t')
     t' = go $ typeof arr
     go (ArrayType _ e) = e
