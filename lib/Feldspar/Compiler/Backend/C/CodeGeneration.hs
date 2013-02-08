@@ -162,20 +162,20 @@ instance CodeGen (Expression ())
                         , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
                         | otherwise                      = prefix <> cgen env addrExpr
      where
-       prefix = case typeof addrExpr of
-                  Pointer{} -> empty
-                  _         -> text "&"
+       prefix = case (addrExpr, typeof addrExpr) of
+                 (ArrayElem e i, Pointer{}) -> empty -- Skip single level AddrOf
+                 _                          -> text "&"
     cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
 
     cgenList env = sep . punctuate comma . map (cgen env)
 
 instance CodeGen (Variable t)
   where
-    cgen env Variable{..} = prefix <> text varName
+    cgen env v = go v
       where
-        prefix = case varType of
-                   Pointer{} -> text "*" -- char '*'
-                   _         -> empty
+        go v@Variable{..} = case varType of
+                   Pointer t -> text "*" <> go (v {varType = t})-- char '*'
+                   _         -> text varName
 
     cgenList env = hsep . punctuate comma . map (cgen env)
 
