@@ -355,6 +355,7 @@ encodeType = go
     go FloatType         = "float"
     go (NumType s w)     = map toLower (show s) ++ show w
     go (ComplexType t)   = "complex" ++ go t
+    go (Pointer t)       = "ptr_" ++ go t
     go (UserType t)      = t
     go (Alias _ s)       = s
     go (IVarType t)      = go t
