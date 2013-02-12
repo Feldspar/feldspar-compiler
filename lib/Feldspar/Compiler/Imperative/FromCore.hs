@@ -119,17 +119,17 @@ compileProgTop opt funname args ents (lt :$ e :$ (lam :$ body))
           evalRWS (compileProg (varToExpr var) e) (initReader opt) initState
 compileProgTop opt funname args ents a = Module defs
   where
-    ins      = map snd $ reverse args
-    inTypes  = getTypes opt $ map (\v -> Declaration v Nothing) ins
-    info     = getInfo a
-    outType  = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
-    outParam = Rep.Variable outType "out"
-    outLoc   = varToExpr outParam
-    results  = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
-    decls    = decl results
-    post     = epilogue results
+    ins        = map snd $ reverse args
+    paramTypes = getTypes opt $ Declaration outParam Nothing:map (\v -> Declaration v Nothing) ins
+    info       = getInfo a
+    outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
+    outParam   = Rep.Variable outType "out"
+    outLoc     = varToExpr outParam
+    results    = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
+    decls      = decl results
+    post       = epilogue results
     Block ds p = block results
-    defs     = reverse ents ++ nub (def results ++ inTypes) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs       = reverse ents ++ nub (def results ++ paramTypes) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname

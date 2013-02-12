@@ -32,6 +32,10 @@ topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
 pairParam :: (Data Index, Data Index) -> Data Index
 pairParam (x, _) = x
 
+pairParam2 :: (Data Int16, Data Int16) ->
+              ((Data Int16, Data Int16), (Data Int16, Data Int16))
+pairParam2 c = (c, c)
+
 -- One test starting.
 metrics :: Vector1 IntN -> Vector1 IntN
            -> Vector (Vector (Data Index, Data Index)) -> Vector (Vector1 IntN)
@@ -57,6 +61,7 @@ scanlPush = PV.scanl (\a b ->  a )
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
+    , mkGoldTest pairParam2 "pairParam2" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest metrics "metrics" defaultOptions
