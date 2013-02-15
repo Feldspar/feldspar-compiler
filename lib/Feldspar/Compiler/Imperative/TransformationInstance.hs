@@ -140,9 +140,6 @@ instance (Transformable t Expression, Transformable t Variable, Transformable t 
         defaultTransform t s d (ArrayElem a i) = Result (ArrayElem (result tr1) (result tr2)) (state tr2) (combine (up tr1) (up tr2)) where
             tr1 = transform t s d a
             tr2 = transform t (state tr1) d i
-        defaultTransform t s d (NativeElem a i) = Result (NativeElem (result tr1) (result tr2)) (state tr2) (combine (up tr1) (up tr2)) where
-            tr1 = transform t s d a
-            tr2 = transform t (state tr1) d i
         defaultTransform t s d (StructField l n) = Result (StructField (result tr) n) (state tr) (up tr) where
             tr = transform t s d l
         defaultTransform t s d (ConstExpr c) = Result (ConstExpr (result tr)) (state tr) (up tr) where

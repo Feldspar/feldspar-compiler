@@ -172,10 +172,6 @@ data Expression t
         { array                     :: Expression t
         , arrayIndex                :: Expression t
         }
-    | NativeElem
-        { array                     :: Expression t
-        , arrayIndex                :: Expression t
-        }
     | StructField
         { struct                    :: Expression t
         , fieldName                 :: String
@@ -299,16 +295,10 @@ instance HasType (Expression t) where
     typeof ArrayElem{..} = decrArrayDepth $ typeof array
       where
         decrArrayDepth :: Type -> Type
-        decrArrayDepth (ArrayType _ t) = t
-        decrArrayDepth (Pointer t)     = decrArrayDepth t
-        decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
-    typeof NativeElem{..} = decrArrayDepth $ typeof array
-      where
-        decrArrayDepth :: Type -> Type
-        decrArrayDepth (ArrayType _ t) = t
+        decrArrayDepth (ArrayType _ t)   = t
         decrArrayDepth (NativeArray _ t) = t
-        decrArrayDepth (Pointer t)     = decrArrayDepth t
-        decrArrayDepth t               = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
+        decrArrayDepth (Pointer t)       = decrArrayDepth t
+        decrArrayDepth t                 = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
         getStructFieldType :: String -> Type -> Type
