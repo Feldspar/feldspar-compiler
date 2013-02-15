@@ -96,11 +96,12 @@ instance ( Compile dom dom
         , t1 == e
         , t2 == e
         = do
-            mapM_ compileBind (init bs)
+            blocks <- mapM (confiscateBlock . compileBind) (init bs)
             let tix = argType $ infoType $ getInfo lam1
                 six = fst $ infoSize $ getInfo lam1
                 tst = infoType $ getInfo step
                 sst = infoSize $ getInfo step
+                (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
             let ix = mkVar (compileTypeRep tix six) v
             len' <- mkLength len (infoType $ getInfo len) six
             st1 <- freshVar "st" tst sst
@@ -110,9 +111,9 @@ instance ( Compile dom dom
             withAlias s st $ compileProg st1 init'
             tellProg [ Assign (AddrOf st) (AddrOf st1)
                      , initArray (AddrOf loc) len']
-            tellProg [toProg $ Block ds $
+            tellProg [toProg $ Block (concat dss ++ ds) $
                       for (lName ix) len' 1 $
-                                    toBlock $ Sequence (body ++
+                                    toBlock $ Sequence (concat lets ++ body ++
                                          [Assign (AddrOf st) (AddrOf $ ArrayElem (AddrOf loc) ix)
                                          ])]
 
