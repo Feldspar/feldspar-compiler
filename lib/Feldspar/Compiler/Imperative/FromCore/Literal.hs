@@ -67,6 +67,7 @@ literal t@BoolType        sz a = return (ConstExpr $ literalConst t sz a)
 literal t@IntType{}       sz a = return (ConstExpr $ literalConst t sz a)
 literal t@FloatType       sz a = return (ConstExpr $ literalConst t sz a)
 literal t@ComplexType{}   sz a = return (ConstExpr $ literalConst t sz a)
+literal t@ArrayType{}     sz a = return (ConstExpr $ literalConst t sz a)
 literal t s a = do loc <- freshVar "x" t s
                    literalLoc loc t s a
                    return loc
@@ -76,17 +77,14 @@ literalConst UnitType        _  ()     = IntConst 0 (Rep.NumType Rep.Unsigned Re
 literalConst BoolType        _  a      = BoolConst a
 literalConst trep@IntType{}  sz a      = IntConst (toInteger a) (compileTypeRep trep sz)
 literalConst FloatType       _  a      = FloatConst $ float2Double a
+literalConst (ArrayType t)   sz a      = ArrayConst $ map (literalConst t (defaultSize t)) a
 literalConst (ComplexType t) _  (r:+i) = ComplexConst re ie
   where re = literalConst t (defaultSize t) r
         ie = literalConst t (defaultSize t) i
 
 literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
-literalLoc loc (ArrayType t) (rs :> es) e
-    = do
-        tellProg [initArray (AddrOf loc) $ litI32 $ toInteger $ upperBound rs]
-        zipWithM_ (writeElement t es) (map litI32 [0..]) e
-  where writeElement :: TypeRep a -> Size a -> Expression () -> a -> CodeWriter ()
-        writeElement ty sz ix = literalLoc (ArrayElem (AddrOf loc) ix) ty sz
+literalLoc loc arr@ArrayType{} sz e
+    = tellProg [copyProg loc [ConstExpr $ literalConst arr sz e]]
 
 literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
     do literalLoc (StructField loc "member1") ta sa a
