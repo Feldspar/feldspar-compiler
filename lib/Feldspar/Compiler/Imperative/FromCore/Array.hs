@@ -54,7 +54,7 @@ import Feldspar.Compiler.Imperative.Frontend
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..))
 import Feldspar.Compiler.Imperative.Representation (Expression(..), Program(..),
                                                     Block(..), Size(..),
-                                                    Signedness(..))
+                                                    Signedness(..), typeof)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)
 
@@ -167,6 +167,14 @@ instance ( Compile dom dom
         compileProg loc arr
         i' <- compileExpr i
         compileProg (ArrayElem (AddrOf loc) i') a
+
+    compileProgSym (C' GetIx) _ loc (arr :* i :* Nil) = do
+        a' <- compileExpr arr
+        i' <- compileExpr i
+        let el = ArrayElem (AddrOf a') i'
+        if isArray $ typeof el
+          then tellProg [Sequence [Assign (AddrOf loc) (AddrOf el)]]
+          else tellProg [copyProg loc [el]]
 
     compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
         len' <- compileExpr len
