@@ -145,12 +145,12 @@ instance CodeGen (ActualParameter ())
 instance CodeGen (Expression ())
   where
     cgen env VarExpr{..} = cgen env var
-    cgen env e@ArrayElem{..}  =  text "at"
-                             <> parens (hcat $ punctuate comma [ cgen env $ typeof e
+    cgen env e@ArrayElem{..}
+     | NativeArray{} <- typeof array = cgen env array <> brackets (cgen env arrayIndex)
+     | otherwise = text "at" <> parens (hcat $ punctuate comma [ cgen env $ typeof e
                                                                , cgen env array
                                                                , cgen env arrayIndex
                                                                ])
-    cgen env e@NativeElem{..} = cgen env array <> brackets (cgen env arrayIndex)
     cgen env e@StructField{..} = parens (cgen env struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..} = cgen env constExpr
     cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen env) funCallParams
