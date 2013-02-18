@@ -52,6 +52,8 @@ import Feldspar.Core.Constructs.Literal
 import Feldspar.Core.Constructs.Binding
 import Feldspar.Core.Frontend
 
+import Feldspar.Range (upperBound)
+
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..))
 import Feldspar.Compiler.Imperative.Representation (ActualParameter(..), Expression(..), Program(..), Block(..), Module(..), Entity(..), Declaration(..))
 import Feldspar.Compiler.Imperative.Frontend
@@ -93,7 +95,7 @@ compileProgTop :: ( Compile dom dom
                   , Project (Literal :|| Type) dom
                   ) =>
     Options -> String -> [((VarId,Expression ()),Rep.Variable ())] ->
-    [Entity ()] -> ASTF (Decor Info dom) a -> Module ()
+    [(VarId, Entity ())] -> ASTF (Decor Info dom) a -> Module ()
 compileProgTop opt funname args ents (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = let ta  = argType $ infoType $ getInfo lam
@@ -109,10 +111,12 @@ compileProgTop opt funname args ents (lt :$ e :$ (lam :$ body))
   , Just (C' Literal{}) <- prjF e -- Input on form let x = n in e
   , [ProcedureCall "copy" [Out (VarExpr vr), In (ConstExpr c)]] <- bd
   , freshName <- vName vr -- Ensure that compiled result is on form x = n
-  = compileProgTop opt funname args (ValueDef var c:ents) body
+  = compileProgTop opt funname args ((v,ValueDef var c):ents) body
   where
     info     = getInfo e
-    outType  = compileTypeRep (infoType info) (infoSize info)
+    outType  = case compileTypeRep (infoType info) (infoSize info) of
+                 Rep.Pointer (Rep.ArrayType rs t) -> Rep.NativeArray (Just $ upperBound rs) t
+                 t -> t
     var@(Rep.Variable _ freshName) = case prjLambda lam of
                Just (SubConstr2 (Lambda v)) -> mkVariable outType v
     bd = sequenceProgs $ blockBody $ block $ snd $
@@ -125,11 +129,12 @@ compileProgTop opt funname args ents a = Module defs
     outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
     outParam   = Rep.Variable outType "out"
     outLoc     = varToExpr outParam
-    results    = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=map fst args} initState
+    aliases    = map fst args ++ map (\(i, ValueDef v c) -> (i, varToExpr $ v)) ents
+    results    = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=aliases} initState
     decls      = decl results
     post       = epilogue results
     Block ds p = block results
-    defs       = reverse ents ++ nub (def results ++ paramTypes) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+    defs       = reverse (map snd ents) ++ nub (def results ++ paramTypes) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname

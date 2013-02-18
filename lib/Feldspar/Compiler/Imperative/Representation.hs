@@ -285,7 +285,7 @@ instance HasType (Constant t) where
     typeof IntConst{..}      = intType
     typeof FloatConst{}      = FloatType
     typeof BoolConst{}       = BoolType
-    typeof ArrayConst{..}    = ArrayType (singletonRange (fromIntegral $ length arrayValues)) t
+    typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) t
       where t = typeof $ head arrayValues
     typeof ComplexConst{..}  = ComplexType $ typeof realPartComplexValue
 

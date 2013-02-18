@@ -105,13 +105,17 @@ arrayLength arr
 
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
-  where go :: Expression t-> [String] -> Maybe (Range Length)
+  where go :: Expression t -> [String] -> Maybe (Range Length)
+        go (ConstExpr (ArrayConst l)) [] = Just (singletonRange $ fromIntegral $ length l)
         go (VarExpr (Variable (ArrayType r _) _)) [] | isSingleton r = Just r
+        go (VarExpr (Variable (NativeArray (Just r) _) _)) [] = Just (singletonRange r)
         go (StructField e s) ss = go e (s:ss)
         go (AddrOf e) ss = go e ss
         go (VarExpr (Variable (StructType _ fields) _)) (s:_)
           | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
+          | Just (NativeArray (Just r) _) <- lookup s fields
+          = Just (singletonRange r)
         go _ _ = Nothing
 
 iVarInit :: Expression () -> Program ()
@@ -188,6 +192,11 @@ isArray :: Type -> Bool
 isArray ArrayType{} = True
 isArray (Pointer t) = isArray t
 isArray _ = False
+
+isNativeArray :: Type -> Bool
+isNativeArray NativeArray{} = True
+isNativeArray (Pointer t)   = isNativeArray t
+isNativeArray _             = False
 
 isIVar :: Type -> Bool
 isIVar IVarType{} = True

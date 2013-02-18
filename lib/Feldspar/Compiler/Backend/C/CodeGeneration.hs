@@ -34,6 +34,7 @@ module Feldspar.Compiler.Backend.C.CodeGeneration where
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Error (handleError, ErrorClass(..))
 import Feldspar.Compiler.Backend.C.Options
+import Feldspar.Compiler.Imperative.Frontend (isNativeArray)
 
 import Text.PrettyPrint
 
@@ -67,7 +68,10 @@ instance CodeGen (Entity ())
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
     cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) $$ block env (cgen env procBody)
     cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) <> semi
-    cgen env ValueDef{..}  = cgen env valVar <+> equals              <+> cgen env valValue <> semi
+    cgen env ValueDef{..}
+      | NativeArray _ t <- typeof valVar
+      = cgen env t <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi
+      | otherwise = cgen env valVar <+> equals              <+> cgen env valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
 
@@ -146,7 +150,12 @@ instance CodeGen (Expression ())
   where
     cgen env VarExpr{..} = cgen env var
     cgen env e@ArrayElem{..}
-     | NativeArray{} <- typeof array = cgen env array <> brackets (cgen env arrayIndex)
+     | isNativeArray $ typeof array
+     , AddrOf c@ConstExpr{} <- array
+     , (NativeArray _ t) <- typeof c
+     = parens (parens (cgen env t <> brackets empty) <> cgen env c) <> brackets (cgen env arrayIndex)
+     | isNativeArray $ typeof array
+     , AddrOf arr <- array = cgen env arr <> brackets (cgen env arrayIndex)
      | otherwise = text "at" <> parens (hcat $ punctuate comma [ cgen env $ typeof e
                                                                , cgen env array
                                                                , cgen env arrayIndex

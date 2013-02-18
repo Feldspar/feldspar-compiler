@@ -123,6 +123,7 @@ arrayRules = [rule copy]
   where
     copy (ProcedureCall "copy" [Out arg1, In arg2])
         | arg1 == arg2 = [replaceWith Empty]
+        | ConstExpr ArrayConst{..} <- arg2 = [replaceWith $ Sequence $ initArray (AddrOf arg1) (litI32 $ toInteger $ length arrayValues):zipWith (\i c -> Assign (ArrayElem (AddrOf arg1) (litI32 i)) (ConstExpr c)) [0..] arrayValues]
         | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
     copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(In in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
@@ -138,10 +139,6 @@ nativeArrayRules :: [Rule]
 nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
   where
     toNativeExpr :: Expression () -> [Action (Expression ())]
-    toNativeExpr (ArrayElem arr ix)
-      | native (typeof arr) = [replaceWith $ ArrayElem arr' ix]
-      where arr' | AddrOf{} <- arr = addrExpr arr
-                 | otherwise       = arr
     toNativeExpr _ = []
 
     toNativeProg (Assign x (FunctionCall (Function "initArray" t _) [arr,esz,num]))
