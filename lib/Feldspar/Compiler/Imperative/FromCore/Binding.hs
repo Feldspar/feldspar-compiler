@@ -49,6 +49,7 @@ import qualified Feldspar.Core.Constructs.Binding as Core
 
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
+import Feldspar.Compiler.Imperative.Representation (Expression(..))
 
 
 instance Compile (Core.Variable :|| Type) dom
@@ -67,14 +68,16 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile Let dom
   where
     compileProgSym Let _ loc (a :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
-        = compileLet a (getInfo lam) v >> compileProg loc body
+        = do var <- compileLet a (getInfo lam) v
+             withAlias v var $ compileProg loc body
 
     compileExprSym Let _ (a :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
-        = compileLet a (getInfo lam) v >> compileExpr body
+        = do var <- compileLet a (getInfo lam) v
+             withAlias v var $ compileExpr body
 
 compileLet :: Compile dom dom
-           => ASTF (Decor Info dom) a -> Info (a -> b) -> VarId -> CodeWriter ()
+           => ASTF (Decor Info dom) a -> Info (a -> b) -> VarId -> CodeWriter (Expression ())
 compileLet a info v
     = do
         let ta  = argType $ infoType info
@@ -82,6 +85,7 @@ compileLet a info v
             var = mkVar (compileTypeRep ta sa) v
         declare var
         compileProg var a
+        return var
 
 compileBind :: Compile dom dom
             => (VarId, ASTB (Decor Info dom) Typeable) -> CodeWriter ()
