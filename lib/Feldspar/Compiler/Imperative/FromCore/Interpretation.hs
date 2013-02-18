@@ -81,6 +81,7 @@ initReader = Readers [] ""
 data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
                        , def      :: [Entity ()]      -- ^ collects top level definitions
                        , decl     :: [Declaration ()] -- ^ collects top level variable declarations
+                       , args     :: [Variable ()]    -- ^ collects top level arguments
                        , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
                        }
 
@@ -89,11 +90,13 @@ instance Monoid Writers
     mempty      = Writers { block    = mempty
                           , def      = mempty
                           , decl     = mempty
+                          , args     = mempty
                           , epilogue = mempty
                           }
     mappend a b = Writers { block    = mappend (block    a) (block    b)
                           , def      = mappend (def      a) (def      b)
                           , decl     = mappend (decl     a) (decl     b)
+                          , args     = mappend (args     a) (args     b)
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 

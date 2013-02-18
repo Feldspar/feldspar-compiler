@@ -94,24 +94,29 @@ compileProgTop :: ( Compile dom dom
                   , Project Let dom
                   , Project (Literal :|| Type) dom
                   ) =>
-    Options -> String -> [((VarId,Expression ()),Rep.Variable ())] ->
-    [(VarId, Entity ())] -> ASTF (Decor Info dom) a -> Module ()
-compileProgTop opt funname args ents (lam :$ body)
+    Options -> String -> 
+    ASTF (Decor Info dom) a -> CodeWriter (Rep.Variable ())
+compileProgTop opt funname (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
-    = let ta  = argType $ infoType $ getInfo lam
-          sa  = fst $ infoSize $ getInfo lam
-          typ = compileTypeRep ta sa
-          arg = if isComposite typ
-                  then ((v, mkRef typ v), mkPointer  typ v)
-                  else ((v, mkVar typ v), mkVariable typ v)
-       in compileProgTop opt funname (arg:args) ents body
-compileProgTop opt funname args ents (lt :$ e :$ (lam :$ body))
+    = do
+         let ta  = argType $ infoType $ getInfo lam
+             sa  = fst $ infoSize $ getInfo lam
+             typ = compileTypeRep ta sa
+             arg = if isComposite typ
+                     then mkPointer  typ v
+                     else mkVariable typ v
+         tell $ mempty {args=[arg]}
+         withAlias v (varToExpr arg) $
+           compileProgTop opt funname body
+compileProgTop opt funname (lt :$ e :$ (lam :$ body))
   | Just (SubConstr2 (Lambda v)) <- prjLambda lam
   , Just Let <- prj lt
   , Just (C' Literal{}) <- prjF e -- Input on form let x = n in e
   , [ProcedureCall "copy" [Out (VarExpr vr), In (ConstExpr c)]] <- bd
   , freshName <- vName vr -- Ensure that compiled result is on form x = n
-  = compileProgTop opt funname args ((v,ValueDef var c):ents) body
+  = do tellDef [ValueDef var c]
+       withAlias v (varToExpr var) $
+         compileProgTop opt funname body
   where
     info     = getInfo e
     outType  = case compileTypeRep (infoType info) (infoSize info) of
@@ -121,25 +126,27 @@ compileProgTop opt funname args ents (lt :$ e :$ (lam :$ body))
                Just (SubConstr2 (Lambda v)) -> mkVariable outType v
     bd = sequenceProgs $ blockBody $ block $ snd $
           evalRWS (compileProg (varToExpr var) e) (initReader opt) initState
-compileProgTop opt funname args ents a = Module defs
-  where
-    ins        = map snd $ reverse args
-    paramTypes = getTypes opt $ Declaration outParam Nothing:map (\v -> Declaration v Nothing) ins
-    info       = getInfo a
-    outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
-    outParam   = Rep.Variable outType "out"
-    outLoc     = varToExpr outParam
-    aliases    = map fst args ++ map (\(i, ValueDef v c) -> (i, varToExpr $ v)) ents
-    results    = snd $ evalRWS (compileProg outLoc a) (initReader opt){alias=aliases} initState
-    decls      = decl results
-    post       = epilogue results
-    Block ds p = block results
-    defs       = reverse (map snd ents) ++ nub (def results ++ paramTypes) ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+compileProgTop opt funname a = do
+    let
+        info       = getInfo a
+        outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
+        outParam   = Rep.Variable outType "out"
+        outLoc     = varToExpr outParam
+    compileProg outLoc a
+    return outParam
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
-fromCore opt funname
-    = compileProgTop opt funname [] []
-    . reifyFeld defaultFeldOpts N32
+fromCore opt funname prog = Module defs
+  where
+    (outParam,results) = evalRWS (compileProgTop opt funname ast) (initReader opt) initState
+    ast        = reifyFeld defaultFeldOpts N32 prog
+    decls      = decl results
+    ins        = args results
+    post       = epilogue results
+    Block ds p = block results
+    paramTypes = getTypes opt $ Declaration outParam Nothing:map (\v -> Declaration v Nothing) ins
+    defs       =  nub (def results ++ paramTypes)
+               ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
