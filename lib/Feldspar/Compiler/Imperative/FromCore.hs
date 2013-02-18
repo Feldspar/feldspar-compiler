@@ -143,4 +143,4 @@ fromCore opt funname
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
-getCore' opts prog = compileProgTop opts "test" [] [] (reifyFeld defaultFeldOpts N32 prog)
+getCore' opts = fromCore opts "test"
