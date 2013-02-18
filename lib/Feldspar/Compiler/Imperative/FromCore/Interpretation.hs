@@ -97,8 +97,6 @@ instance Monoid Writers
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
-type Task = [Program ()]
-
 data States = States { fresh :: VarId -- ^ The first fresh variable id
                      }
 
