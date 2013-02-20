@@ -183,7 +183,8 @@ instance CodeGen (Variable t)
     cgen env v = go v
       where
         go v@Variable{..} = case varType of
-                   Pointer t -> text "*" <> go (v {varType = t})-- char '*'
+                   Pointer t | NativeArray{} <- t -> go (v {varType = t})
+                             | otherwise -> text "*" <> go (v {varType = t})-- char '*'
                    _         -> text varName
 
     cgenList env = hsep . punctuate comma . map (cgen env)
