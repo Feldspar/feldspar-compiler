@@ -46,7 +46,8 @@ import Feldspar.Core.Constructs.Par
 
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..),
-                                                    Entity(..), typeof)
+                                                    Entity(..), typeof,
+                                                    Expression(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -65,7 +66,7 @@ instance ( Compile dom dom
             let info = getInfo ma
             let var = mkVar (compileTypeRep (infoType info) (infoSize info)) v
             declare var
-            tellProg [iVarInit var]
+            tellProg [iVarInit (AddrOf var)]
             compileProg loc body
 
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)

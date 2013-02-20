@@ -123,20 +123,20 @@ iVarInit var = call "ivar_init" [Out var]
 
 iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
-    | isArray typ   = call "ivar_get_array" [Out loc, In ivar]
+    | isArray typ   = call "ivar_get_array" [Out $ AddrOf loc, In ivar]
     | otherwise     = call "ivar_get" [TypeParameter typ, Out loc, In ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = call "ivar_put_array" [In ivar, Out msg]
+    | isArray typ   = call "ivar_put_array" [In $ AddrOf ivar, Out $ AddrOf msg]
     | otherwise     = call "ivar_put" [TypeParameter typ, In ivar, Out msg]
       where
         typ = typeof msg
 
 iVarDestroy :: Variable () -> Program ()
-iVarDestroy v = call "ivar_destroy" [Out $ varToExpr v]
+iVarDestroy v = call "ivar_destroy" [Out $ AddrOf $ varToExpr v]
 
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars

@@ -159,7 +159,7 @@ instance ( Compile dom dom
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
         b' <- compileExpr b
-        tellProg [copyProg loc [AddrOf a',AddrOf b']]
+        tellProg [copyProg (AddrOf loc) [a', b']]
         -- TODO: Optimize by writing to directly to 'loc' instead of 'a'' and 'b''!
         --       But take care of array initialization:
         --       compiling 'a' and 'b' might do initialization itself...
