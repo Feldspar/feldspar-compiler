@@ -58,15 +58,20 @@ copyPush v = let pv = PV.toPush v in pv PV.++ pv
 scanlPush :: PV.PushVector1 WordN -> Vector1 WordN -> PV.PushVector (PV.PushVector1 WordN)
 scanlPush = PV.scanl (\a b ->  a )
 
+concatV :: Vector (Vector1 IntN) -> Vector1 IntN
+concatV = fold (++) Empty
+
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
+    , mkGoldTest concatV "concatV" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest metrics "metrics" defaultOptions
     , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
+    , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest metrics "metrics" defaultOptions
