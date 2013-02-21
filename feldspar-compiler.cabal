@@ -108,7 +108,6 @@ library
 
   c-sources:
     lib/Feldspar/C/feldspar_c99.c
-    lib/Feldspar/C/feldspar_array.c
 --    lib/Feldspar/C/ivar.c
 --    lib/Feldspar/C/taskpool.c
 
@@ -116,7 +115,6 @@ library
 
   install-includes:
     feldspar_array.h
-    feldspar_array.c
     feldspar_c99.h
     feldspar_c99.c
     feldspar_tic64x.h

@@ -176,9 +176,6 @@ static inline void copyArrayPos(struct array *to, unsigned pos, struct array *fr
 }
 
 
-/* Deep array copy with a given length */
-void copyArrayLen(struct array *to, struct array *from, int32_t len);
-
 /* Array length */
 static inline int32_t getLength(struct array *arr)
 {
