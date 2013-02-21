@@ -130,7 +130,7 @@ iVarGet loc ivar
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = call "ivar_put_array" [In $ AddrOf ivar, Out $ AddrOf msg]
+    | isArray typ   = call "ivar_put_array" [In ivar, Out $ AddrOf msg]
     | otherwise     = call "ivar_put" [TypeParameter typ, In ivar, Out msg]
       where
         typ = typeof msg
