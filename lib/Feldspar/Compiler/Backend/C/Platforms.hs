@@ -128,7 +128,7 @@ arrayRules = [rule copy]
     copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(In in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
                initArray arg1 (foldr ePlus (litI32 0) aLens)
-             , call "copyArray" [dst, In $ AddrOf in1]
+             , if (arg1 == AddrOf in1) then Empty else call "copyArray" [dst, In $ AddrOf in1]
              ] ++ flattenCopy dst ins argnLens arg1len)]
            where
              aLens@(arg1len:argnLens) = map (\(In src) -> arrayLength src) ins'
@@ -168,7 +168,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
 
 flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, In cLen, t]
+flattenCopy dst (In t:ts) (l:ls) cLen = call "copyArrayPos" [dst, In cLen, In $ AddrOf t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()

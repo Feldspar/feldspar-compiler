@@ -46,7 +46,8 @@ import Feldspar.Core.Constructs.Par
 
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..),
-                                                    Entity(..), typeof)
+                                                    Entity(..), typeof,
+                                                    Expression(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -65,7 +66,7 @@ instance ( Compile dom dom
             let info = getInfo ma
             let var = mkVar (compileTypeRep (infoType info) (infoSize info)) v
             declare var
-            tellProg [iVarInit var]
+            tellProg [iVarInit (AddrOf var)]
             compileProg loc body
 
     compileProgSym Bind _ loc (ma :* (lam :$ body) :* Nil)
@@ -121,8 +122,7 @@ instance ( Compile dom dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        parId <- freshId
-        tellDef [ProcDef taskName [] [mkNamedVar "params" AIR.VoidType parId] $ toBlock runTask]
+        tellDef [ProcDef taskName [] [mkNamedRef "params" AIR.VoidType (-1)] $ toBlock runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 

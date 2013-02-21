@@ -41,7 +41,7 @@ import Feldspar.Core.Constructs.Future
 import Feldspar.Core.Interpretation
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..), Program(..))
-import Feldspar.Compiler.Imperative.Representation (Entity(..), Block(..))
+import Feldspar.Compiler.Imperative.Representation (Entity(..), Block(..),Expression(..))
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
@@ -65,10 +65,9 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args
-        taskId <- freshId
-        tellDef [ProcDef taskName [] [mkNamedVar "params" Rep.VoidType taskId] $ toBlock runTask]
+        tellDef [ProcDef taskName [] [mkNamedRef "params" Rep.VoidType (-1)] $ toBlock runTask]
         -- Spawn:
-        tellProg [iVarInit loc]
+        tellProg [iVarInit (AddrOf loc)]
         tellProg [spawn taskName args]
 
     compileProgSym (C' Await) _ loc (a :* Nil) = do

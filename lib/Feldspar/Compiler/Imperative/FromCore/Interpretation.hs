@@ -287,11 +287,11 @@ mkVar t i = varToExpr $ mkNamedVar "v" t i
 
 -- | Construct a named variable.
 mkNamedVar :: String -> Type -> VarId -> Variable ()
-mkNamedVar base t i = Variable t $ base ++ show i
+mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 
 -- | Construct a named pointer.
 mkNamedRef :: String -> Type -> VarId -> Variable ()
-mkNamedRef base t i = Variable (Pointer t) $ base ++ show i
+mkNamedRef base t i = Variable (Pointer t) $ base ++ if i < 0 then "" else show i
 
 -- | Construct a pointer.
 mkRef :: Type -> VarId -> Expression ()
