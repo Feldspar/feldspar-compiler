@@ -49,7 +49,7 @@ import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..))
+import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Expression(..), typeof)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance ( Compile dom dom
@@ -66,11 +66,13 @@ instance ( Compile dom dom
             let info1 = getInfo lam1
                 info2 = getInfo lam2
                 sz = fst $ infoSize info1
+                loc' | isArray (typeof loc) = AddrOf loc
+                     | otherwise = loc
             let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
             compileProg loc init
-            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
+            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc' stvar
             declare stvar
             tellProg [toProg $ Block ds (for (lName ix') len' 1 (toBlock body))]
 
@@ -80,9 +82,11 @@ instance ( Compile dom dom
         = do
             let info2 = getInfo lam2
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
+                loc' | isArray (typeof loc) = AddrOf loc
+                     | otherwise = loc
             compileProg loc init
             cond' <- withAlias cv loc $ compileExpr cond
-            (_, Block ds body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
+            (_, Block ds body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc' stvar
             declare stvar
             tellProg [toProg $ Block ds (while Empty cond' body')]
 
