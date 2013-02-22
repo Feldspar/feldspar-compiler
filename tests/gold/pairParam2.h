@@ -21,8 +21,8 @@ struct s_signedS16_signedS16
 
 struct s_s_signedS16_signedS16_s_signedS16_signedS16
 {
-  s_signedS16_signedS16 member1;
-  s_signedS16_signedS16 member2;
+  struct s_signedS16_signedS16 member1;
+  struct s_signedS16_signedS16 member2;
 };
 
 void pairParam2(struct s_signedS16_signedS16 * v0, struct s_s_signedS16_signedS16_s_signedS16_signedS16 * out);

@@ -1,5 +1,5 @@
-#ifndef TESTS_GOLD_TOPLEVELCONSTS_NATIVE_H
-#define TESTS_GOLD_TOPLEVELCONSTS_NATIVE_H
+#ifndef TESTS_TOPLEVELCONSTS_NATIVE_H
+#define TESTS_TOPLEVELCONSTS_NATIVE_H
 
 #include "feldspar_c99.h"
 #include "feldspar_array.h"
@@ -13,6 +13,6 @@
 #include <complex.h>
 
 
-void topLevelConsts__native(uint32_t v0, uint32_t v1, uint32_t *out);
+void topLevelConsts__native(uint32_t v0, uint32_t v1, uint32_t * out);
 
-#endif // TESTS_GOLD_TOPLEVELCONSTS_NATIVE_H
+#endif // TESTS_TOPLEVELCONSTS_NATIVE_H
