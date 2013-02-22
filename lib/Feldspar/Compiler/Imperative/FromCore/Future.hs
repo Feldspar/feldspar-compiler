@@ -56,12 +56,12 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
                    | (v,SomeType t) <- assocs $ infoVars info
                    ]
         -- Task core:
-        (_, bl)  <- confiscateBlock $ do
+        ((_, ws), Block ds bl)  <- confiscateBigBlock $ do
             p' <- compileExprVar p
             tellProg [iVarPut loc p']
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDef coreName args [] bl]
+        tellDef [ProcDef coreName args [] (Block (decl ws ++ ds) bl)]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args

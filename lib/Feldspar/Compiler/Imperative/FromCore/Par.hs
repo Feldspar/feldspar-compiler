@@ -115,10 +115,10 @@ instance ( Compile dom dom
                    | (v,SomeType t) <- assocs $ infoVars info
                    ]
         -- Task core:
-        (_, b) <- confiscateBlock $ compileProg loc p
+        ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg loc p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDef coreName args [] b]
+        tellDef [ProcDef coreName args [] (Block (decl ws ++ ds) b)]
         -- Task:
         let taskName = "task" ++ show funId
         let runTask = run coreName args

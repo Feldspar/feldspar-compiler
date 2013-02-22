@@ -395,6 +395,14 @@ confiscateBlock m
     $ censor (\rec -> rec {block = mempty})
     $ listen m
 
+-- | Like 'listen', but also catches writer things and prevents the program
+-- from being written in the monad.
+confiscateBigBlock :: CodeWriter a -> CodeWriter ((a, Writers), Block ())
+confiscateBigBlock m
+    = liftM (\c -> (c, block $ snd c))
+    $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
+    $ listen m
+
 withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
 withAlias v0 expr =
   local (\e -> e {alias = (v0,expr) : alias e})

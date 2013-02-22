@@ -154,9 +154,27 @@ static inline void copyArray(struct array *to, struct array *from)
     log_2("copyArray %p %p - leave\n", to, from);
 }
 
+/* Deep array copy to a given position */
+static inline void copyArrayPos(struct array *to, unsigned pos, struct array *from)
+{
+    assert(to);
+    assert(from);
+    log_3("copyArrayPos %p %d %p - enter\n", to, pos, from);
+    if( from->elemSize < 0 )
+    {
+        unsigned i;
+        for( i = 0; i < from->length; ++i )
+            copyArray( &at(struct array, to, i + pos), &at(struct array, from, i) );
+    }
+    else
+    {
+        assert(to->buffer);
+        assert(from->buffer);
+        memcpy( (char*)(to->buffer) + pos * to->elemSize, from->buffer, from->length * from->elemSize );
+    }
+    log_3("copyArrayPos %p %d %p - leave\n", to, pos, from);
+}
 
-/* Deep array copy with a given length */
-void copyArrayLen(struct array *to, struct array *from, int32_t len);
 
 /* Array length */
 static inline int32_t getLength(struct array *arr)
