@@ -40,6 +40,7 @@ module Feldspar.Compiler.Imperative.Representation where
 
 import Data.Typeable
 import Data.Maybe (fromMaybe)
+import Data.List (nub)
 
 import Feldspar.Compiler.Error
 
@@ -324,4 +325,18 @@ instance HasType (ActualParameter t) where
 
 reprError :: forall a. ErrorClass -> String -> a
 reprError = handleError "Feldspar.Compiler.Imperative.Representation"
+
+-- | Free variables of an expression.
+fv :: Expression t -> [Variable t]
+fv = nub . fv'
+
+fv' :: Expression t -> [Variable t]
+fv' (VarExpr v)         = [v]
+fv' (ArrayElem e i)     = fv' e ++ fv' i
+fv' (StructField e _)   = fv' e
+fv' (FunctionCall _ ps) = concatMap fv' ps
+fv' (Cast _ e)          = fv' e
+fv' (AddrOf e)          = fv' e
+fv' (SizeOf (Right e))  = fv' e
+fv' _                   = []
 

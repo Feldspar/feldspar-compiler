@@ -41,7 +41,7 @@ import Feldspar.Core.Constructs.Future
 import Feldspar.Core.Interpretation
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..), Program(..))
-import Feldspar.Compiler.Imperative.Representation (Entity(..), Block(..),Expression(..))
+import Feldspar.Compiler.Imperative.Representation (Entity(..), Block(..),Expression(..), fv)
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
@@ -54,7 +54,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
     compileProgSym (C' MkFuture) info loc (p :* Nil) = do
         let args = [mkVariable (compileTypeRep t (defaultSize t)) v
                    | (v,SomeType t) <- assocs $ infoVars info
-                   ]
+                   ] ++ fv loc
         -- Task core:
         ((_, ws), Block ds bl)  <- confiscateBigBlock $ do
             p' <- compileExprVar p
