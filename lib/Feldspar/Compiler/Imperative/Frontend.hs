@@ -147,8 +147,10 @@ spawn :: String -> [Variable ()] -> Program ()
 spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
-    taskParam = FunParameter taskName True
-    typeParams = map (TypeParameter . typeof) vs
+    taskParam = FunParameter taskName
+    typeParams = map (TypeParameter . fixArray . typeof) vs
+      where fixArray (Pointer t@ArrayType{}) = t
+            fixArray t                       = t
     varParams = map (\v -> In $ VarExpr (Variable (typeof v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
@@ -157,7 +159,7 @@ run taskName vs = call runName allParams
   where
     runName = "run" ++ show (length vs)
     typeParams = map (TypeParameter . typeof) vs
-    taskParam = FunParameter taskName False
+    taskParam = FunParameter taskName
     allParams = taskParam : typeParams
 
 intWidth :: Type -> Maybe Integer

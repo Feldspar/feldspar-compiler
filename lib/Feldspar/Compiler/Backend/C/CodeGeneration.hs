@@ -142,8 +142,7 @@ instance CodeGen (ActualParameter ())
     cgen env In{..}                  = cgen env inParam
     cgen env Out{..}                 = cgen env outParam
     cgen env TypeParameter{..}       = cgen env typeParam
-    cgen env FunParameter{..}        = prefix <> text funParamName
-      where prefix = if addressNeeded then text "&" else empty
+    cgen env FunParameter{..}        = text funParamName
     cgenList env = hsep . punctuate comma . map (cgen env)
 
 instance CodeGen (Expression ())

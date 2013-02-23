@@ -47,7 +47,7 @@ import Feldspar.Core.Constructs.Par
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Block(..), Program(..),
                                                     Entity(..), typeof,
-                                                    Expression(..))
+                                                    Expression(..), fv)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
@@ -113,7 +113,7 @@ instance ( Compile dom dom
     compileProgSym ParFork info loc (p :* Nil) = do
         let args = [mkVariable (compileTypeRep t (defaultSize t)) v
                    | (v,SomeType t) <- assocs $ infoVars info
-                   ]
+                   ] ++ fv loc
         -- Task core:
         ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg loc p
         funId  <- freshId
