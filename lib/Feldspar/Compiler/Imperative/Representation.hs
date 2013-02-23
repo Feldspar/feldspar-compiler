@@ -153,9 +153,8 @@ data ActualParameter t
     | TypeParameter
         { typeParam                 :: Type
         }
-    | FunParameter -- TODO: Two producers of addressNeed: run and spawn
+    | FunParameter
         { funParamName              :: String
-        , addressNeeded             :: Bool
         }
     deriving (Typeable, Show, Eq)
 
