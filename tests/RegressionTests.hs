@@ -17,6 +17,7 @@ import qualified Feldspar.Vector.Push as PV
 
 import Data.Monoid ((<>))
 import Shelly
+import qualified Data.Text.Lazy as LT
 import Data.Text.Lazy (pack)
 import Filesystem.Path.CurrentOS (decodeString)
 
@@ -83,18 +84,31 @@ main = defaultMain [tests]
 
 
 -- Helper functions
+jointSuffix = "tmp"
+testDir = "tests/"
+goldDir = "tests/gold/"
+
 nativeOpts = defaultOptions{rules=nativeArrayRules}
 
-writeGoldFile fun name opts = compile fun ("tests/gold/" <> name) name opts
+writeGoldFile fun name opts = compile fun (goldDir <> name) name opts
 
-mkGoldTest fun name opts = goldenVsFile name ("tests/gold/" <> name <> ".c") ("tests/" <> name <> ".c")
-                         $ compile fun ("tests/" <> name) name opts
+mkGoldTest fun name opts = buildTest $ do
+    compile fun (testDir <> name) name opts
+    shellyNoDir $ mkJointFile (pack testDir) name
+    shellyNoDir $ mkJointFile (pack goldDir) name
+    return $ goldenVsFile name (goldDir <> name <> "." <> jointSuffix) ("tests/" <> name <> "." <> jointSuffix) $ return ()
 
 ghc = command_ (decodeString "ghc") [ pack "-c"
                                     , pack "-optc -Ilib/Feldspar/C"
                                     , pack "-optc -std=c99"
                                     , pack "-Wall"
                                     ]
+-- | Creates a temporary file that is used for the comparison by
+-- concatenating the header file and c file into a single temporary file.
+mkJointFile base name = do
+     testH <- readfile (base </> name <.> pack "h")
+     testC <- readfile (base </> name <.> pack "c")
+     writefile (base </> name <.> pack jointSuffix) (LT.append testH testC)
 
 mkBuildTest fun name opts = testCase name $ do let base  = "tests/" <> name <> "_build_test"
                                                    cfile = base <> ".c"

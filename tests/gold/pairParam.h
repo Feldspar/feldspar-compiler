@@ -1,5 +1,5 @@
-#ifndef _TMP_PAIRPARAM_H
-#define _TMP_PAIRPARAM_H
+#ifndef TESTS_PAIRPARAM_H
+#define TESTS_PAIRPARAM_H
 
 #include "feldspar_c99.h"
 #include "feldspar_array.h"
@@ -19,6 +19,6 @@ struct s_unsignedS32_unsignedS32
   uint32_t member2;
 };
 
-void test(struct s_unsignedS32_unsignedS32 *v0, uint32_t *out);
+void pairParam(struct s_unsignedS32_unsignedS32 * v0, uint32_t * out);
 
-#endif // _TMP_PAIRPARAM_H
+#endif // TESTS_PAIRPARAM_H
