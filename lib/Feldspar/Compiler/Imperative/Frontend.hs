@@ -148,7 +148,9 @@ spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName True
-    typeParams = map (TypeParameter . typeof) vs
+    typeParams = map (TypeParameter . fixArray . typeof) vs
+      where fixArray (Pointer t@ArrayType{}) = t
+            fixArray t                       = t
     varParams = map (\v -> In $ VarExpr (Variable (typeof v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
