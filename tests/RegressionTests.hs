@@ -62,6 +62,18 @@ scanlPush = PV.scanl (\a b ->  a )
 concatV :: Vector (Vector1 IntN) -> Vector1 IntN
 concatV = fold (++) Empty
 
+-- One test starting
+divConq3 :: Vector1 IntN -> Vector1 IntN
+divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
+
+pmap :: (Syntax a, Syntax b) => (a -> b) -> Vector a -> Vector b
+pmap f = map await . force . map (future . f)
+
+segment :: Syntax a => Data Length -> Vector a -> Vector (Vector a)
+segment l xs = indexed clen (\ix -> (take l $ drop (ix*l) xs))
+  where clen = (length xs) `div` l
+-- End one test.
+
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
@@ -71,6 +83,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest metrics "metrics" defaultOptions
     , mkGoldTest scanlPush "scanlPush" defaultOptions
+    , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -78,6 +91,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
     , mkBuildTest scanlPush "scanlPush" defaultOptions
+    , mkBuildTest divConq3 "divConq3" defaultOptions
     ]
 
 main = defaultMain [tests]
@@ -96,7 +110,7 @@ mkGoldTest fun name opts = buildTest $ do
     compile fun (testDir <> name) name opts
     shellyNoDir $ mkJointFile (pack testDir) name
     shellyNoDir $ mkJointFile (pack goldDir) name
-    return $ goldenVsFile name (goldDir <> name <> "." <> jointSuffix) ("tests/" <> name <> "." <> jointSuffix) $ return ()
+    return $ goldenVsFile name (goldDir <> name <> "." <> jointSuffix) (testDir <> name <> "." <> jointSuffix) $ return ()
 
 ghc = command_ (decodeString "ghc") [ pack "-c"
                                     , pack "-optc -Ilib/Feldspar/C"
@@ -110,7 +124,7 @@ mkJointFile base name = do
      testC <- readfile (base </> name <.> pack "c")
      writefile (base </> name <.> pack jointSuffix) (LT.append testH testC)
 
-mkBuildTest fun name opts = testCase name $ do let base  = "tests/" <> name <> "_build_test"
+mkBuildTest fun name opts = testCase name $ do let base  = testDir <> name <> "_build_test"
                                                    cfile = base <> ".c"
                                                compile fun base name opts
                                                shellyNoDir $ ghc [pack cfile]
