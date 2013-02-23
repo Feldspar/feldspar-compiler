@@ -147,7 +147,7 @@ spawn :: String -> [Variable ()] -> Program ()
 spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
-    taskParam = FunParameter taskName True
+    taskParam = FunParameter taskName False
     typeParams = map (TypeParameter . fixArray . typeof) vs
       where fixArray (Pointer t@ArrayType{}) = t
             fixArray t                       = t

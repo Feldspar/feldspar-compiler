@@ -63,7 +63,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) );   \
         char *p = buffer;   \
-        void *t0 = (task);    \
+        void *t0 = &task;    \
         memcpy( p, &t0, sizeof(void(*)()) );   \
         spawn( buffer );    \
     }   \
@@ -72,7 +72,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         memcpy( p, &t0, sizeof(void(*)()) );   \
         p += sizeof(void(*)()); \
@@ -85,7 +85,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         t2 temp2 = (p2);    \
         memcpy( p, &t0, sizeof(void(*)()) );   \
@@ -102,7 +102,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) + sizeof(t3) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         t2 temp2 = (p2);    \
         t3 temp3 = (p3);    \
@@ -123,7 +123,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) + sizeof(t3) + sizeof(t4) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         t2 temp2 = (p2);    \
         t3 temp3 = (p3);    \
@@ -148,7 +148,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         t2 temp2 = (p2);    \
         t3 temp3 = (p3);    \
@@ -177,7 +177,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5) + sizeof(t6) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         t2 temp2 = (p2);    \
         t3 temp3 = (p3);    \
@@ -210,7 +210,7 @@ void spawn( void *closure );
     {   \
         void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5) + sizeof(t6) + sizeof(t7) );   \
         char *p = buffer;   \
-        void *t0 = task;    \
+        void *t0 = &task;    \
         t1 temp1 = (p1);    \
         t2 temp2 = (p2);    \
         t3 temp3 = (p3);    \
