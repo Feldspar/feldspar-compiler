@@ -125,6 +125,7 @@ defaultOptions
     , unroll            = NoUnroll
     , debug             = NoDebug
     , memoryInfoVisible = True
+    , printHeader       = False
     , rules             = []
     , frontendOpts      = defaultFeldOpts
     , nestSize          = 2

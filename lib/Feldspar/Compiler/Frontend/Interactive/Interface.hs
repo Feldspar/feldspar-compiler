@@ -40,6 +40,7 @@ import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Imperative.Representation (Module)
 
 import Data.Char
+import Control.Monad (when)
 import System.FilePath (takeBaseName, (<.>))
 
 -- ================================================================================================
@@ -79,9 +80,10 @@ icompileWith opts = icompile' opts "test"
 icompile' :: (SyntacticFeld t) => Options -> String -> t -> IO ()
 icompile' opts functionName prg = do
     let res = compileToCCore (OriginalFunctionSignature functionName []) opts prg
-    putStrLn "=============== Header ================"
-    putStrLn $ sourceCode $ sctccrHeader res
-    putStrLn "=============== Source ================"
+    when (printHeader opts) $ do
+      putStrLn "=============== Header ================"
+      putStrLn $ sourceCode $ sctccrHeader res
+      putStrLn "=============== Source ================"
     putStrLn $ sourceCode $ sctccrSource res
 
 -- | Get the generated core for a program.

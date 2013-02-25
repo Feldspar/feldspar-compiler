@@ -49,6 +49,7 @@ data Options =
     , unroll            :: UnrollStrategy
     , debug             :: DebugOption
     , memoryInfoVisible :: Bool
+    , printHeader       :: Bool
     , rules             :: [Rule]
     , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
