@@ -88,7 +88,7 @@ compileLet a info v
         return var
 
 compileBind :: Compile dom dom
-            => (VarId, ASTB (Decor Info dom) Typeable) -> CodeWriter ()
+            => (VarId, ASTB (Decor Info dom) Type) -> CodeWriter ()
 compileBind (v, ASTB e)
      = do
          let info = getInfo e
