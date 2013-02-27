@@ -124,6 +124,8 @@ arrayRules = [rule copy]
     copy (ProcedureCall "copy" [Out arg1, In arg2])
         | arg1 == arg2 = [replaceWith Empty]
         | ConstExpr ArrayConst{..} <- arg2 = [replaceWith $ Sequence $ initArray (AddrOf arg1) (litI32 $ toInteger $ length arrayValues):zipWith (\i c -> Assign (ArrayElem (AddrOf arg1) (litI32 i)) (ConstExpr c)) [0..] arrayValues]
+        | NativeArray{} <- typeof arg2
+        , l@(ConstExpr (IntConst n _)) <- arrayLength arg2 = [replaceWith $ Sequence $ initArray (AddrOf arg1) l:map (\i -> Assign (ArrayElem (AddrOf arg1) (litI32 i)) (ArrayElem (AddrOf arg2) (litI32 i))) [0..(n-1)]]
         | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
     copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(In in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
