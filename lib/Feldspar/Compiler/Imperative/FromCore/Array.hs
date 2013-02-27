@@ -84,10 +84,10 @@ instance ( Compile dom dom
             tellProg [for (lName ix) len' 1 b]
 
 
-    compileProgSym (C' Sequential) _ loc (len :* init' :* (lam1 :$ (lam2 :$ l@(lt :$ _ :$ _))) :* Nil)
+    compileProgSym (C' Sequential) _ loc (len :* init' :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
+        , (bs1, (lam2 :$ l)) <- collectLetBinders lt1
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
-        , Just Let                     <- prj lt
         , (bs, (tup :$ a :$ b))        <- collectLetBinders l
         , Just (C' Tup2)               <- prjF tup
         , (e, ASTB step)               <- last bs
@@ -96,7 +96,7 @@ instance ( Compile dom dom
         , t1 == e
         , t2 == e
         = do
-            blocks <- mapM (confiscateBlock . compileBind) (init bs)
+            blocks <- mapM (confiscateBlock . compileBind) (bs1 ++ init bs)
             let tix = argType $ infoType $ getInfo lam1
                 six = fst $ infoSize $ getInfo lam1
                 tst = infoType $ getInfo step
@@ -117,23 +117,26 @@ instance ( Compile dom dom
                                          [Assign (AddrOf st) (AddrOf $ ArrayElem (AddrOf loc) ix)
                                          ])]
 
-    compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ (lam2 :$ step)) :* Nil)
+    compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
+        , (bs1, (lam2 :$ step)) <- collectLetBinders lt1
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         = do
+            blocks <- mapM (confiscateBlock . compileBind) bs1
             let t = argType $ infoType $ getInfo lam1
             let sz = fst $ infoSize $ getInfo lam1
             let tr' = resType $ infoType $ getInfo lam2
             let sr' = snd $ infoSize $ getInfo lam2
             let ix = mkVar (compileTypeRep t sz) v
+                (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
             len' <- mkLength len (infoType $ getInfo len) sz
             tmp  <- freshVar "seq" tr' sr'
             (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg tmp step
             tellProg [initArray (AddrOf loc) len']
             compileProg (StructField tmp "member2") st
-            tellProg [toProg $ Block ds $
+            tellProg [toProg $ Block (concat dss ++ ds) $
                       for (lName ix) len' 1 $
-                                    toBlock $ Sequence (body ++
+                                    toBlock $ Sequence (concat lets ++ body ++
                                          [copyProg (ArrayElem (AddrOf loc) ix) [StructField tmp "member1"]
                                          ])]
 

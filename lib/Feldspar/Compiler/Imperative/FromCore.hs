@@ -38,6 +38,7 @@ module Feldspar.Compiler.Imperative.FromCore where
 
 
 import Data.List (nub)
+import Data.Typeable
 
 import Control.Monad.RWS
 
@@ -59,7 +60,7 @@ import Feldspar.Compiler.Imperative.Representation (ActualParameter(..), Express
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
-import Feldspar.Compiler.Imperative.FromCore.Binding ()
+import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)
 import Feldspar.Compiler.Imperative.FromCore.Condition ()
 import Feldspar.Compiler.Imperative.FromCore.ConditionM ()
 import Feldspar.Compiler.Imperative.FromCore.Error ()
@@ -93,10 +94,11 @@ compileProgTop :: ( Compile dom dom
                   , Project (CLambda Type) dom
                   , Project Let dom
                   , Project (Literal :|| Type) dom
+                  , ConstrainedBy dom Typeable
                   ) =>
-    Options -> String -> 
+    Options -> String -> [(VarId, ASTB (Decor Info dom) Type)] ->
     ASTF (Decor Info dom) a -> CodeWriter (Rep.Variable ())
-compileProgTop opt funname (lam :$ body)
+compileProgTop opt funname bs (lam :$ body)
     | Just (SubConstr2 (Lambda v)) <- prjLambda lam
     = do
          let ta  = argType $ infoType $ getInfo lam
@@ -107,8 +109,8 @@ compileProgTop opt funname (lam :$ body)
                      else mkVariable typ v
          tell $ mempty {args=[arg]}
          withAlias v (varToExpr arg) $
-           compileProgTop opt funname body
-compileProgTop opt funname (lt :$ e :$ (lam :$ body))
+           compileProgTop opt funname bs body
+compileProgTop opt funname bs (lt :$ e :$ (lam :$ body))
   | Just (SubConstr2 (Lambda v)) <- prjLambda lam
   , Just Let <- prj lt
   , Just (C' Literal{}) <- prjF e -- Input on form let x = n in e
@@ -116,7 +118,7 @@ compileProgTop opt funname (lt :$ e :$ (lam :$ body))
   , freshName Prelude.== vName vr -- Ensure that compiled result is on form x = n
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
-         compileProgTop opt funname body
+         compileProgTop opt funname bs body
   where
     info     = getInfo e
     outType  = case compileTypeRep (infoType info) (infoSize info) of
@@ -126,19 +128,24 @@ compileProgTop opt funname (lt :$ e :$ (lam :$ body))
                Just (SubConstr2 (Lambda v)) -> mkVariable outType v
     bd = sequenceProgs $ blockBody $ block $ snd $
           evalRWS (compileProg (varToExpr var) e) (initReader opt) initState
-compileProgTop opt funname a = do
+compileProgTop opt funname bs e@(lt :$ _ :$ _)
+  | Just Let <- prj lt
+  , (bs', body) <- collectLetBinders e
+  = compileProgTop opt funname (reverse bs' ++ bs) body
+compileProgTop opt funname bs a = do
     let
         info       = getInfo a
         outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
         outParam   = Rep.Variable outType "out"
         outLoc     = varToExpr outParam
+    mapM compileBind (reverse bs)
     compileProg outLoc a
     return outParam
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
-    (outParam,results) = evalRWS (compileProgTop opt funname ast) (initReader opt) initState
+    (outParam,results) = evalRWS (compileProgTop opt funname [] ast) (initReader opt) initState
     ast        = reifyFeld defaultFeldOpts N32 prog
     decls      = decl results
     ins        = args results
