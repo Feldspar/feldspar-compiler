@@ -36,9 +36,6 @@ void scanlPush(struct array * v0, struct array * v1, struct array * * out)
   {
     v25 = getLength(v7);
     v7 = setLength(v7, sizeof(uint32_t), v25);
-    for (uint32_t v11 = 0; v11 < v25; v11 += 1)
-    {
-    }
     v15 = initArray(v15, sizeof(uint32_t), getLength(v7));
     copyArray(v15, v7);
     v26 = getLength(v15);
