@@ -43,6 +43,7 @@ import Control.Applicative
 
 import Feldspar.Transformation
 import Feldspar.Core.Constructs (SyntacticFeld)
+import Feldspar.Core.Interpretation (defaultFeldOpts)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -129,6 +130,7 @@ defaultOptions
     , debug             = NoDebug
     , memoryInfoVisible = True
     , rules             = []
+    , frontendOpts      = defaultFeldOpts
     , nestSize          = 2
     }
 

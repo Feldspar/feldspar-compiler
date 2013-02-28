@@ -81,6 +81,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest concatV "concatV" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
     , mkGoldTest metrics "metrics" defaultOptions
     , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkGoldTest divConq3 "divConq3" defaultOptions
@@ -88,6 +89,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
+    , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOpts
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
     , mkBuildTest scanlPush "scanlPush" defaultOptions
@@ -103,6 +105,7 @@ testDir = "tests/"
 goldDir = "tests/gold/"
 
 nativeOpts = defaultOptions{rules=nativeArrayRules}
+sicsOpts = defaultOptions{frontendOpts=defaultFeldOpts{targets= [SICS]}}
 
 writeGoldFile fun name opts = compile fun (goldDir <> name) name opts
 
