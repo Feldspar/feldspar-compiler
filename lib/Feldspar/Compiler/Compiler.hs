@@ -54,7 +54,7 @@ import Feldspar.Compiler.Imperative.Plugin.IVars
 data OriginalFunctionSignature = OriginalFunctionSignature {
     originalFunctionName   :: String,
     originalParameterNames :: [Maybe String]
-} deriving (Show, Eq)
+} deriving (Show)
 
 data SplitModuleDescriptor = SplitModuleDescriptor
     { smdSource :: Module ()
