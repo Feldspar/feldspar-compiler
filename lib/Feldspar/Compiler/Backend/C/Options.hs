@@ -49,7 +49,7 @@ data Options =
     , memoryInfoVisible :: Bool
     , rules             :: [Rule]
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
-    } deriving (Eq, Show)
+    } deriving (Show)
 
 data UnrollStrategy = NoUnroll | Unroll Int
     deriving (Eq, Show)
@@ -64,7 +64,7 @@ data Platform = Platform {
     includes        :: [String],
     platformRules   :: [Rule],
     isRestrict      :: IsRestrict
-} deriving (Eq, Show)
+} deriving (Show)
 
 type ShowValue = Constant () -> String
 
