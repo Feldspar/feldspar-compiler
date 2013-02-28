@@ -49,7 +49,7 @@ data Options =
     , memoryInfoVisible :: Bool
     , rules             :: [Rule]
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
-    } deriving (Show)
+    }
 
 data UnrollStrategy = NoUnroll | Unroll Int
     deriving (Eq, Show)
