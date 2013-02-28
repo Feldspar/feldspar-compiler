@@ -37,7 +37,6 @@ module Feldspar.Compiler.Compiler where
 
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
-import Data.Typeable as DT
 import Control.Arrow
 import Control.Applicative
 
@@ -56,9 +55,6 @@ data OriginalFunctionSignature = OriginalFunctionSignature {
     originalFunctionName   :: String,
     originalParameterNames :: [Maybe String]
 } deriving (Show, Eq)
-
-data SomeCompilable = forall a . SyntacticFeld a => SomeCompilable a
-    deriving (DT.Typeable)
 
 data SplitModuleDescriptor = SplitModuleDescriptor
     { smdSource :: Module ()

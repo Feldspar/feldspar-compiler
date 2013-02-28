@@ -26,10 +26,12 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 -- ====================================== Feldspar imports ==================================
+import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Compiler.Compiler
 import qualified Feldspar.Compiler.Compiler as CompilerCore
 import Feldspar.Compiler.Backend.C.Options
@@ -62,9 +64,12 @@ import Control.Monad.CatchIO
 import Data.List
 import Data.Maybe (fromMaybe)
 import Data.Either (lefts, rights)
+import Data.Typeable (Typeable(..))
 import Debug.Trace
 import Language.Haskell.Interpreter
 
+data SomeCompilable = forall a . SyntacticFeld a => SomeCompilable a
+    deriving (Typeable)
 
 data CompilationError =
       InterpreterError InterpreterError
