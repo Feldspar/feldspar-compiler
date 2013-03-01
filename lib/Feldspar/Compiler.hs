@@ -7,6 +7,8 @@ module Feldspar.Compiler
     , printCore
     , Options (..)
     , defaultOptions
+    , FeldOpts(..)
+    , Target(..)
     , c99PlatformOptions
     , tic64xPlatformOptions
     , nativeArrayRules
@@ -16,4 +18,5 @@ module Feldspar.Compiler
     ) where
 
 import Feldspar.Compiler.Internal
+import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
 

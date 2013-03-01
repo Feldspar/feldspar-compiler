@@ -146,7 +146,7 @@ fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
     (outParam,results) = evalRWS (compileProgTop opt funname [] ast) (initReader opt) initState
-    ast        = reifyFeld defaultFeldOpts N32 prog
+    ast        = reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = args results
     post       = epilogue results

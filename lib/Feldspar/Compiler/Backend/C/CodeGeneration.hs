@@ -44,7 +44,6 @@ codeGenerationError = handleError "CodeGeneration"
 data PrintEnv = PEnv
     { options :: Options
     }
-  deriving Show
 
 compToCWithInfos :: Options -> Module () -> CompToCCoreResult ()
 compToCWithInfos opts procedure =

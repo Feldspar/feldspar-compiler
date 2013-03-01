@@ -37,12 +37,12 @@ module Feldspar.Compiler.Compiler where
 
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
-import Data.Typeable as DT
 import Control.Arrow
 import Control.Applicative
 
 import Feldspar.Transformation
 import Feldspar.Core.Constructs (SyntacticFeld)
+import Feldspar.Core.Interpretation (defaultFeldOpts)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -54,10 +54,7 @@ import Feldspar.Compiler.Imperative.Plugin.IVars
 data OriginalFunctionSignature = OriginalFunctionSignature {
     originalFunctionName   :: String,
     originalParameterNames :: [Maybe String]
-} deriving (Show, Eq)
-
-data SomeCompilable = forall a . SyntacticFeld a => SomeCompilable a
-    deriving (DT.Typeable)
+} deriving (Show)
 
 data SplitModuleDescriptor = SplitModuleDescriptor
     { smdSource :: Module ()
@@ -129,6 +126,7 @@ defaultOptions
     , debug             = NoDebug
     , memoryInfoVisible = True
     , rules             = []
+    , frontendOpts      = defaultFeldOpts
     , nestSize          = 2
     }
 

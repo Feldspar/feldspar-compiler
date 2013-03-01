@@ -38,6 +38,8 @@ module Feldspar.Compiler.Backend.C.Options where
 import Data.Typeable
 import Text.Show.Functions
 
+import Feldspar.Core.Interpretation (FeldOpts(..))
+
 import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..),
                                                     Module(..))
 
@@ -48,8 +50,9 @@ data Options =
     , debug             :: DebugOption
     , memoryInfoVisible :: Bool
     , rules             :: [Rule]
+    , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
-    } deriving (Eq, Show)
+    }
 
 data UnrollStrategy = NoUnroll | Unroll Int
     deriving (Eq, Show)
@@ -64,7 +67,7 @@ data Platform = Platform {
     includes        :: [String],
     platformRules   :: [Rule],
     isRestrict      :: IsRestrict
-} deriving (Eq, Show)
+} deriving (Show)
 
 type ShowValue = Constant () -> String
 
