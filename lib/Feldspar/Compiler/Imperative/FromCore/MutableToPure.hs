@@ -43,7 +43,6 @@ import Language.Syntactic.Constructs.Binding.HigherOrder
 import Feldspar.Core.Types
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Binding
-import Feldspar.Core.Constructs.Mutable
 import Feldspar.Core.Constructs.MutableArray
 import Feldspar.Core.Constructs.MutableToPure
 
@@ -56,7 +55,6 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 instance ( Compile dom dom
          , Project (CLambda Type) dom
          , Project (Variable :|| Type) dom
-         , Project (MONAD Mut) dom
          , Project MutableArray dom
          )
       => Compile MutableToPure dom
@@ -81,18 +79,13 @@ instance ( Compile dom dom
             e <- compileExpr body
             tellProg [copyProg loc [e]]
 
-    compileProgSym RunMutableArray _ loc ((bnd :$ (na :$ l) :$ (lam :$ (thn :$ body :$ (ret :$ var)))) :* Nil)
-        | Just Bind    <- prjMonad monadProxy bnd
-        , Just (SubConstr2 (Lambda v1)) <- prjLambda lam
+    compileProgSym RunMutableArray _ loc ((bnd :$ (na :$ l) :$ (lam :$ body)) :* Nil)
+        | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         , Just NewArr_ <- prj na
-        , Just Then    <- prjMonad monadProxy thn
-        , Just Return  <- prjMonad monadProxy ret
-        , Just (C' (Variable v2)) <- prjF var
-        , v1 == v2
         = do
             len <- compileExpr l
-            tellProg [initArray (AddrOf loc) len]
-            withAlias v1 loc $ compileProg loc body
+            tellProg [setLength (AddrOf loc) len]
+            withAlias v loc $ compileProg loc body
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr
 
