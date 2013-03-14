@@ -62,6 +62,9 @@ scanlPush = PV.scanl (\a b ->  a )
 concatV :: Vector (Vector1 IntN) -> Vector1 IntN
 concatV = fold (++) Empty
 
+complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
+complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> ((a+1),b))
+
 -- One test starting
 divConq3 :: Vector1 IntN -> Vector1 IntN
 divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
@@ -79,6 +82,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
     , mkGoldTest concatV "concatV" defaultOptions
+    , mkGoldTest complexWhileCond "complexWhileCond" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
