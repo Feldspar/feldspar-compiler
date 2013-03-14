@@ -82,7 +82,7 @@ library
     MonadCatchIO-mtl,
     mtl,
     process,
-    syntactic >= 1.5.2 && < 1.6,
+    syntactic >= 1.6 && < 1.7,
     pretty
 
   default-extensions:
@@ -147,7 +147,7 @@ executable feldspar
   build-depends:
     feldspar-language >= 0.6.1 && < 0.7,
     feldspar-compiler,
-    syntactic >= 1.5.2 && < 1.6,
+    syntactic >= 1.6 && < 1.7,
     base >= 4 && < 4.7,
     hint,
     MonadCatchIO-mtl,
