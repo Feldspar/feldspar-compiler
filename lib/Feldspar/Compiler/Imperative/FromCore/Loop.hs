@@ -89,14 +89,17 @@ instance ( Compile dom dom
         , Just (SubConstr2 (Lambda cb)) <- prjLambda lam2
         = do
             let info2 = getInfo lam2
+                info1 = getInfo lam1
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
+                condv = mkVar (compileTypeRep (infoType info1) (infoSize info1)) cv
                 loc' | isArray (typeof loc) = AddrOf loc
                      | otherwise = loc
             compileProg loc init
-            cond' <- withAlias cv loc $ compileExpr cond
-            (_, Block ds body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc' stvar
+            (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg condv cond
+            (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc' stvar
             declare stvar
-            tellProg [toProg $ Block ds (while Empty cond' body')]
+            declare condv
+            tellProg [while cond' condv body']
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -118,7 +121,9 @@ instance ( Compile dom dom
 -- TODO Missing While
     compileProgSym Core.While _ loc (cond :* step :* Nil)
         = do
-            cond'     <- compileExpr cond
-            (_, Block ds step') <- confiscateBlock $ compileProg loc step
-            tellProg [toProg $ Block ds (while Empty cond' step')]
+            let info1 = getInfo cond
+            condv <- freshVar "cond" (infoType info1) (infoSize info1)
+            (_, cond')          <- confiscateBlock $ compileProg condv cond
+            (_, step') <- confiscateBlock $ compileProg loc step
+            tellProg [while cond' condv step']
 

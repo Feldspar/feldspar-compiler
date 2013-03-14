@@ -236,5 +236,5 @@ for :: String -> Expression () -> Int -> Block () -> Program ()
 for _ _ _ (Block [] (Sequence [Empty])) = Empty
 for s e i b = ParLoop (Variable (NumType Unsigned S32) s) e i b
 
-while :: Program () -> Expression () -> Program () -> Program ()
-while p e b = SeqLoop e (toBlock $ Sequence [p]) (toBlock $ Sequence [b])
+while :: Block () -> Expression () -> Block () -> Program ()
+while p e b = SeqLoop e p b
