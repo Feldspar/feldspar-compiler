@@ -385,8 +385,8 @@ getTypes opts defs = concatMap mkDef comps
     mkDef _                 = []
 
 assign :: Location -> Expression () -> CodeWriter ()
-assign lhs rhs = tellProg [copyProg lhs [rhs]]
-
+assign lhs rhs = tellProg [if lhs == rhs then Empty else copyProg lhs' [rhs]]
+  where lhs' = if (isArray $ typeof lhs) then AddrOf lhs else lhs
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
 confiscateBlock :: CodeWriter a -> CodeWriter (a, Block ())

@@ -170,7 +170,11 @@ instance CodeGen (Expression ())
                         | otherwise                      = prefix <> cgen env addrExpr
      where
        prefix = case (addrExpr, typeof addrExpr) of
-                 (ArrayElem e i, Pointer{}) -> empty -- Skip single level AddrOf
+                 (e, Pointer{}) | specialConstruct e -> empty -- Skip single level AddrOf
+                   where specialConstruct ArrayElem{}   = True
+                         specialConstruct StructField{} = True
+                         specialConstruct _             = False
+
                  _                          -> text "&"
     cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
 
