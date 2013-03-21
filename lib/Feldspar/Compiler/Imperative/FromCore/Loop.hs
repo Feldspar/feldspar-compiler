@@ -73,14 +73,12 @@ instance ( Compile dom dom
             let info1 = getInfo lam1
                 info2 = getInfo lam2
                 sz = fst $ infoSize info1
-                loc' | isArray (typeof loc) = AddrOf loc
-                     | otherwise = loc
                 (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
             let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
             compileProg loc init
-            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc' stvar
+            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
             declare stvar
             tellProg [toProg $ Block (concat dss ++ ds) (for (lName ix') len' 1 (toBlock $ Sequence $ concat lets ++ [body]))]
 
@@ -92,11 +90,9 @@ instance ( Compile dom dom
                 info1 = getInfo lam1
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
                 condv = mkVar (compileTypeRep (infoType info1) (infoSize info1)) cv
-                loc' | isArray (typeof loc) = AddrOf loc
-                     | otherwise = loc
             compileProg loc init
             (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg condv cond
-            (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc' stvar
+            (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
             declare stvar
             declare condv
             tellProg [while cond' condv body']
