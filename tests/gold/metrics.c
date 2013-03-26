@@ -45,6 +45,5 @@ void metrics(struct array * v0, struct array * v1, struct array * v2, struct arr
     *v17 = at(struct array *,*out,v16);
   }
   freeArray(st1);
-  freeArray(*v17);
   freeArray(v21);
 }
