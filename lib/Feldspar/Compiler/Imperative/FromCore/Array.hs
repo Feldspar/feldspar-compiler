@@ -106,7 +106,7 @@ instance ( Compile dom dom
             len' <- mkLength len (infoType $ getInfo len) six
             st1 <- freshVar "st" tst sst
             let st = mkRef (compileTypeRep tst sst) s
-            declare st
+            declareAlias st
             (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem (AddrOf loc) ix) step
             withAlias s st $ compileProg st1 init'
             tellProg [ Assign (AddrOf st) (AddrOf st1)
