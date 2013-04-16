@@ -138,8 +138,7 @@ instance CodeGen (Pattern ())
 
 instance CodeGen (ActualParameter ())
   where
-    cgen env In{..}                  = cgen env inParam
-    cgen env Out{..}                 = cgen env outParam
+    cgen env ValueParameter{..}      = cgen env valueParam
     cgen env TypeParameter{..}       = cgen env typeParam
     cgen env FunParameter{..}        = text funParamName
     cgenList env = hsep . punctuate comma . map (cgen env)

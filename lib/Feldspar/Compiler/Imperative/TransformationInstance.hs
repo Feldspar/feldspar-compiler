@@ -120,9 +120,7 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
 
 instance (Transformable t Expression, Default (Up t))
     => DefaultTransformable t ActualParameter where
-        defaultTransform t s d (In p) = Result (In (result tr)) (state tr) (up tr) where
-            tr = transform t s d p
-        defaultTransform t s d (Out p) = Result (Out (result tr)) (state tr) (up tr) where
+        defaultTransform t s d (ValueParameter p) = Result (ValueParameter (result tr)) (state tr) (up tr) where
             tr = transform t s d p
         defaultTransform _ s _ (TypeParameter p) = Result (TypeParameter p) s def
         defaultTransform _ s _ (FunParameter n) = Result (FunParameter n) s def

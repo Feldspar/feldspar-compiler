@@ -67,6 +67,6 @@ compileAssert :: (Compile dom dom)
               => ASTF (Decor Info dom) a -> String -> CodeWriter ()
 compileAssert cond msg = do
     condExpr <- compileExpr cond
-    tellProg [call "assert" [In condExpr]]
+    tellProg [call "assert" [ValueParameter condExpr]]
     unless (null msg) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
 
