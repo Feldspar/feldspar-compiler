@@ -39,7 +39,7 @@ import qualified Feldspar.Compiler.Backend.C.Options as CoreOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Options as StandaloneOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Constants
 import Feldspar.Compiler.Frontend.CommandLine.API.Library as StandaloneLib
-import Feldspar.Compiler.Frontend.CommandLine.NameExtractor
+import Feldspar.Compiler.Frontend.CommandLine.NameExtractor (getModuleInfo)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Frontend.CommandLine.API
 import Feldspar.Compiler.Imperative.Representation
@@ -191,9 +191,7 @@ main = do
     fileDescriptor <- openFile inputFileName ReadMode
     fileContents <- hGetContents fileDescriptor
 
-    let mod = parse inputFileName fileContents
-        declarationList = getExtendedDeclarationList mod
-        moduleName = getModuleName mod
+    let (moduleName, declarationList) = getModuleInfo inputFileName fileContents
     fancyWrite $ "Compilation target: module " ++ moduleName
     fancyWrite $ "Output file: " ++ outputFileName
 

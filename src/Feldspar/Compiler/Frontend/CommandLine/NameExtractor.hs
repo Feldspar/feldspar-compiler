@@ -26,7 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Feldspar.Compiler.Frontend.CommandLine.NameExtractor where
+module Feldspar.Compiler.Frontend.CommandLine.NameExtractor (getModuleInfo) where
 
 import Data.Maybe (mapMaybe)
 import System.IO
@@ -78,8 +78,8 @@ stripName :: Name -> String
 stripName (Ident a) = a
 stripName (Symbol a) = a
 
-getModuleName :: Module -> String
-getModuleName (Module _ (ModuleName n) _ _ _ _ _) = n
+moduleName :: Module -> String
+moduleName (Module _ (ModuleName n) _ _ _ _ _) = n
 
 parse :: FilePath -> String -> Module
 parse fileName contents = fromParseResult $ parseFileContentsWithMode
@@ -91,3 +91,7 @@ parse fileName contents = fromParseResult $ parseFileContentsWithMode
 
 getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]
 getExtendedDeclarationList mod = mapMaybe stripFunBind (declarations mod)
+
+getModuleInfo :: FilePath -> String -> (String, [OriginalFunctionSignature])
+getModuleInfo fileName contents = (moduleName mod, getExtendedDeclarationList mod)
+  where mod = parse fileName contents
