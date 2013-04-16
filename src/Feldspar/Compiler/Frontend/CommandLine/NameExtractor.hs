@@ -33,7 +33,6 @@ import System.IO
 import System.IO.Unsafe
 import Language.Haskell.Exts hiding (parse)
 import Feldspar.Compiler.Error
-import Feldspar.Compiler.Compiler (OriginalFunctionSignature(..))
 import Feldspar.Compiler.Backend.C.Library
 
 nameExtractorError :: ErrorClass -> String -> a
@@ -50,15 +49,15 @@ warning msg retval = unsafePerformIO $ do
 declarations :: Module -> [Decl]
 declarations (Module _ _ _ _ _ _ g) = g
 
-stripFunBind :: Decl -> Maybe OriginalFunctionSignature
+stripFunBind :: Decl -> Maybe String
 stripFunBind (FunBind [Match _ b c _ _ _])
-  = Just $ OriginalFunctionSignature (stripName b) (map stripPattern c) -- going for name and parameter list
+  = Just $ stripName b
             -- "Match SrcLoc Name [Pat] (Maybe Type) Rhs Binds"
 stripFunBind (FunBind l@(Match _ b _ _ _ _ : tl)) | not (null tl) = warning
             ("Ignoring function " ++ stripName b ++
             ": multi-pattern function definitions are not compilable as Feldspar functions.") ignore
 stripFunBind (PatBind _ b _ _ _) = case stripPattern b of
-            Just functionName -> Just $ OriginalFunctionSignature functionName [] -- parameterless declarations (?)
+            Just functionName -> Just $ functionName -- parameterless declarations (?)
             Nothing           -> nameExtractorError InternalError ("Unsupported pattern binding: " ++ show b)
 stripFunBind TypeSig{} = ignore -- we don't need the type signature (yet)
 stripFunBind DataDecl{} = ignore
@@ -89,9 +88,9 @@ parse fileName contents = fromParseResult $ parseFileContentsWithMode
     }
   contents
 
-getExtendedDeclarationList :: Module -> [OriginalFunctionSignature]
+getExtendedDeclarationList :: Module -> [String]
 getExtendedDeclarationList mod = mapMaybe stripFunBind (declarations mod)
 
-getModuleInfo :: FilePath -> String -> (String, [OriginalFunctionSignature])
+getModuleInfo :: FilePath -> String -> (String, [String])
 getModuleInfo fileName contents = (moduleName mod, getExtendedDeclarationList mod)
   where mod = parse fileName contents

@@ -56,7 +56,7 @@ compile prg fileName functionName opts = do
   where
     hfile = makeHFileName fileName
     cfile = makeCFileName fileName
-    compilationResult = compileToCCore (OriginalFunctionSignature functionName []) opts prg
+    compilationResult = compileToCCore functionName opts prg
 
     withIncludeGuard code = unlines [ "#ifndef " ++ guardName
                                     , "#define " ++ guardName
@@ -79,7 +79,7 @@ icompileWith opts = icompile' opts "test"
 
 icompile' :: (SyntacticFeld t) => Options -> String -> t -> IO ()
 icompile' opts functionName prg = do
-    let res = compileToCCore (OriginalFunctionSignature functionName []) opts prg
+    let res = compileToCCore functionName opts prg
     when (printHeader opts) $ do
       putStrLn "=============== Header ================"
       putStrLn $ sourceCode $ sctccrHeader res
