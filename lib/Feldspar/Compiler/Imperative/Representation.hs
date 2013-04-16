@@ -256,15 +256,6 @@ data Type =
 data FunctionMode = Prefix | Infix
     deriving (Eq,Show)
 
------------------------
---   Query functions --
------------------------
-
--- | True if the expression is a value.
-isValue :: Expression t -> Bool
-isValue (ConstExpr {}) = True
-isValue _              = False
-
 ----------------------
 --   Type inference --
 ----------------------
