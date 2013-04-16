@@ -65,7 +65,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Program(..),
                                                     Entity(..), StructMember(..))
 
-import Feldspar.Compiler.Backend.C.Options (Options(..))
+import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
@@ -341,8 +341,9 @@ tellDeclWith free ds
   = do rs <- ask
        let frees | free = freeArrays ds ++ freeIVars ds
                  | otherwise = []
-           defs = getTypes (backendOpts rs) ds
-           code | True = mempty {decl=ds, epilogue = frees, def = defs}
+           opts = backendOpts rs
+           defs = getTypes opts ds
+           code | (varFloating $ platform opts) = mempty {decl=ds, epilogue = frees, def = defs}
                 | otherwise = mempty {block = Block ds $ Sequence [],
                                       epilogue = frees, def = defs}
        tell code
