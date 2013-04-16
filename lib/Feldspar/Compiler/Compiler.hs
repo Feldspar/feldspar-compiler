@@ -51,11 +51,6 @@ import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
 
-data OriginalFunctionSignature = OriginalFunctionSignature {
-    originalFunctionName   :: String,
-    originalParameterNames :: [Maybe String]
-} deriving (Show)
-
 data SplitModuleDescriptor = SplitModuleDescriptor
     { smdSource :: Module ()
     , smdHeader :: Module ()
@@ -94,9 +89,7 @@ moduleToCCore opts mdl = res { sourceCode = incls ++ sourceCode res }
 -- | Compiler core
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
-  :: SyntacticFeld c
-  => OriginalFunctionSignature -> Options -> c
-  -> SplitCompToCCoreResult
+  :: SyntacticFeld c => String -> Options -> c -> SplitCompToCCoreResult
 compileToCCore funSig coreOptions prg =
     createSplit $ moduleToCCore coreOptions <$> separatedModules
       where
@@ -160,9 +153,8 @@ data ExternalInfoCollection = ExternalInfoCollection
     }
 
 executePluginChain :: SyntacticFeld c
-                   => OriginalFunctionSignature
-                   -> Options -> c -> Module ()
-executePluginChain OriginalFunctionSignature{..} opt prg =
+                   => String -> Options -> c -> Module ()
+executePluginChain originalFunctionName opt prg =
   pluginChain ExternalInfoCollection
     { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo       = opt

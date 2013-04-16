@@ -143,7 +143,7 @@ prepareInputFile inputFileName = do
     removeFileIfPossible $ replaceExtension inputFileName ".o"
 
 standaloneCompile :: (SyntacticFeld t) =>
-    FilePath -> FilePath -> OriginalFunctionSignature -> Options -> t -> IO ()
+    FilePath -> FilePath -> String -> Options -> t -> IO ()
 standaloneCompile inputFileName outputFileName sig opts prg = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult

@@ -39,7 +39,7 @@ import qualified Feldspar.Compiler.Backend.C.Options as CoreOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Options as StandaloneOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Constants
 import Feldspar.Compiler.Frontend.CommandLine.API.Library as StandaloneLib
-import Feldspar.Compiler.Frontend.CommandLine.NameExtractor
+import Feldspar.Compiler.Frontend.CommandLine.NameExtractor (getModuleInfo)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Frontend.CommandLine.API
 import Feldspar.Compiler.Imperative.Representation
@@ -75,30 +75,28 @@ data CompilationError =
       InterpreterError InterpreterError
     | InternalErrorCall String
 
-compileFunction :: String -> String -> CoreOptions.Options -> OriginalFunctionSignature
+compileFunction :: String -> String -> CoreOptions.Options -> String
                 -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
-compileFunction inFileName outFileName coreOptions originalFunctionSignature = do
-    let functionName = originalFunctionName originalFunctionSignature
+compileFunction inFileName outFileName coreOptions functionName = do
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
-    let splitModuleDescriptor = moduleSplitter $ executePluginChain originalFunctionSignature coreOptions prg
+    let splitModuleDescriptor = moduleSplitter $ executePluginChain functionName coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do
         tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
-        let core = compileToCCore originalFunctionSignature coreOptions prg
+        let core = compileToCCore functionName coreOptions prg
         Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
                                       hPutStrLn temph $ sourceCode $ sctccrHeader core)
                                   (do hClose temph
                                       removeFileIfPossible tempfile)
         return $ Left (functionName, splitModuleDescriptor)
 
-compileAllFunctions :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature]
+compileAllFunctions :: String -> String -> CoreOptions.Options -> [String]
                     -> Interpreter [Either (String, SplitModuleDescriptor) (String, CompilationError)]
 compileAllFunctions inFileName outFileName options []     = return []
-compileAllFunctions inFileName outFileName options (x:xs) = do
-    let functionName = originalFunctionName x
-    resultCurrent <- catchError (compileFunction inFileName outFileName options x)
+compileAllFunctions inFileName outFileName options (functionName:xs) = do
+    resultCurrent <- catchError (compileFunction inFileName outFileName options functionName)
                               (\(e::InterpreterError) -> return $ Right (functionName, InterpreterError e))
                           `Control.Monad.CatchIO.catch`
                           (\msg -> return $ Right (functionName, InternalErrorCall (errorPrefix ++ show (msg::Control.Exception.ErrorCall))))
@@ -106,13 +104,13 @@ compileAllFunctions inFileName outFileName options (x:xs) = do
     return $ resultCurrent : resultRest
 
 -- | Interpreter body for single-function compilation
-singleFunctionCompilationBody :: String -> String -> CoreOptions.Options -> OriginalFunctionSignature
+singleFunctionCompilationBody :: String -> String -> CoreOptions.Options -> String
                               -> Interpreter (IO ())
-singleFunctionCompilationBody inFileName outFileName coreOptions originalFunctionSignature = do
-    liftIO $ fancyWrite $ "Compiling function " ++ originalFunctionName originalFunctionSignature ++ "..."
+singleFunctionCompilationBody inFileName outFileName coreOptions functionName = do
+    liftIO $ fancyWrite $ "Compiling function " ++ functionName ++ "..."
     SomeCompilable prg <-
-        interpret ("SomeCompilable " ++ originalFunctionName originalFunctionSignature) (as::SomeCompilable)
-    liftIO $ standaloneCompile inFileName outFileName originalFunctionSignature coreOptions prg
+        interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
+    liftIO $ standaloneCompile inFileName outFileName functionName coreOptions prg
     return $ return ()
 
 mergeModules :: [Module ()] -> Module ()
@@ -142,7 +140,7 @@ writeSummary (Right (functionName, msg)) = do
     withColor Red $ putStrLn "[FAILED]"
 
 -- | Interpreter body for multi-function compilation
-multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [OriginalFunctionSignature] -> Interpreter (IO ())
+multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [String] -> Interpreter (IO ())
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
     let hOutFileName   = makeHFileName outFileName
         cOutFileName   = makeCFileName outFileName
@@ -191,9 +189,7 @@ main = do
     fileDescriptor <- openFile inputFileName ReadMode
     fileContents <- hGetContents fileDescriptor
 
-    let mod = parse inputFileName fileContents
-        declarationList = getExtendedDeclarationList mod
-        moduleName = getModuleName mod
+    let (moduleName, declarationList) = getModuleInfo inputFileName fileContents
     fancyWrite $ "Compilation target: module " ++ moduleName
     fancyWrite $ "Output file: " ++ outputFileName
 
@@ -210,11 +206,9 @@ main = do
                     (multiFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) declarationList)
                 return ()
         SingleFunction funName -> do
-            let originalFunctionSignatureNeeded =
-                    case filter ((==funName).originalFunctionName) declarationList of
-                            [a] -> a
-                            []  -> error $ "Function " ++ funName ++ " not found"
-                            _   -> error "Unexpected error SC/01"
+            let originalFunctionSignatureNeeded
+                  | funName `elem` declarationList = funName
+                  | otherwise = error $ "Function " ++ funName ++ " not found"
             highLevelInterpreterWithModuleInfo
                 (singleFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) originalFunctionSignatureNeeded)
             return ()
