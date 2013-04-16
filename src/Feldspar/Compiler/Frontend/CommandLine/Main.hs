@@ -206,11 +206,9 @@ main = do
                     (multiFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) declarationList)
                 return ()
         SingleFunction funName -> do
-            let originalFunctionSignatureNeeded =
-                    case filter (==funName) declarationList of
-                            [a] -> a
-                            []  -> error $ "Function " ++ funName ++ " not found"
-                            _   -> error "Unexpected error SC/01"
+            let originalFunctionSignatureNeeded
+                  | funName `elem` declarationList = funName
+                  | otherwise = error $ "Function " ++ funName ++ " not found"
             highLevelInterpreterWithModuleInfo
                 (singleFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) originalFunctionSignatureNeeded)
             return ()
