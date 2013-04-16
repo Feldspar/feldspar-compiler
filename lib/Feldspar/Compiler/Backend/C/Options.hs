@@ -67,6 +67,7 @@ data Platform = Platform {
     values          :: [(Type, ShowValue)],
     includes        :: [String],
     platformRules   :: [Rule],
+    varFloating     :: Bool,
     isRestrict      :: IsRestrict
 } deriving (Show)
 
