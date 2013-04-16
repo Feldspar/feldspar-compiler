@@ -77,7 +77,7 @@ copyProg _ [] = error "copyProg: missing source parameter."
 copyProg outExp inExp
     | outExp == head inExp
       && null (tail inExp) = Empty
-    | otherwise            = call "copy" (Out outExp:map In inExp)
+    | otherwise            = call "copy" (ValueParameter outExp:map ValueParameter inExp)
 
 initArray :: Expression () -> Expression () -> Program ()
 initArray arr len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
@@ -91,7 +91,7 @@ initArray arr len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 freeArray :: Variable () -> Program ()
-freeArray arr = call "freeArray" [Out $ AddrOf $ varToExpr arr]
+freeArray arr = call "freeArray" [ValueParameter $ AddrOf $ varToExpr arr]
 
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
@@ -119,24 +119,24 @@ chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
         go _ _ = Nothing
 
 iVarInit :: Expression () -> Program ()
-iVarInit var = call "ivar_init" [Out var]
+iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
-    | isArray typ   = call "ivar_get_array" [Out $ AddrOf loc, In ivar]
-    | otherwise     = call "ivar_get" [TypeParameter typ, Out loc, In ivar]
+    | isArray typ   = call "ivar_get_array" [ValueParameter $ AddrOf loc, ValueParameter ivar]
+    | otherwise     = call "ivar_get" [TypeParameter typ, ValueParameter loc, ValueParameter ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = call "ivar_put_array" [In ivar, Out $ AddrOf msg]
-    | otherwise     = call "ivar_put" [TypeParameter typ, In ivar, Out msg]
+    | isArray typ   = call "ivar_put_array" [ValueParameter ivar, ValueParameter $ AddrOf msg]
+    | otherwise     = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter msg]
       where
         typ = typeof msg
 
 iVarDestroy :: Variable () -> Program ()
-iVarDestroy v = call "ivar_destroy" [Out $ AddrOf $ varToExpr v]
+iVarDestroy v = call "ivar_destroy" [ValueParameter $ AddrOf $ varToExpr v]
 
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
@@ -151,7 +151,7 @@ spawn taskName vs = call spawnName allParams
     typeParams = map (TypeParameter . fixArray . typeof) vs
       where fixArray (Pointer t@ArrayType{}) = t
             fixArray t                       = t
-    varParams = map (\v -> In $ VarExpr (Variable (typeof v) (vName v))) vs
+    varParams = map (\v -> ValueParameter $ VarExpr (Variable (typeof v) (vName v))) vs
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()

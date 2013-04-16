@@ -122,19 +122,19 @@ showConstant (FloatConst c) = show c ++ "f"
 arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
-    copy (ProcedureCall "copy" [Out arg1, In arg2])
+    copy (ProcedureCall "copy" [ValueParameter arg1, ValueParameter arg2])
         | arg1 == arg2 = [replaceWith Empty]
         | ConstExpr ArrayConst{..} <- arg2 = [replaceWith $ Sequence $ initArray (AddrOf arg1) (litI32 $ toInteger $ length arrayValues):zipWith (\i c -> Assign (ArrayElem (AddrOf arg1) (litI32 i)) (ConstExpr c)) [0..] arrayValues]
         | NativeArray{} <- typeof arg2
         , l@(ConstExpr (IntConst n _)) <- arrayLength arg2 = [replaceWith $ Sequence $ initArray arg1 l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem (AddrOf arg2) (litI32 i))) [0..(n-1)]]
         | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
-    copy (ProcedureCall "copy" (dst@(Out arg1):ins'@(In in1:ins))) | isArray (typeof arg1)
+    copy (ProcedureCall "copy" (dst@(ValueParameter arg1):ins'@(ValueParameter in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
                initArray arg1 (foldr ePlus (litI32 0) aLens)
-             , if (arg1 == AddrOf in1) then Empty else call "copyArray" [dst, In $ AddrOf in1]
+             , if (arg1 == AddrOf in1) then Empty else call "copyArray" [dst, ValueParameter $ AddrOf in1]
              ] ++ flattenCopy dst ins argnLens arg1len)]
            where
-             aLens@(arg1len:argnLens) = map (\(In src) -> arrayLength src) ins'
+             aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
     copy (ProcedureCall "copy" _) = error "Multiple scalar arguments to copy"
     copy _ = []
 
@@ -145,8 +145,8 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     toNativeExpr _ = []
 
     toNativeProg (Assign x (FunctionCall (Function "initArray" t _) [arr,esz,num]))
-      | native (typeof arr) = [replaceWith $ call "assert" [Out arr]]
-    toNativeProg (ProcedureCall "freeArray" [Out arr])
+      | native (typeof arr) = [replaceWith $ call "assert" [ValueParameter arr]]
+    toNativeProg (ProcedureCall "freeArray" [ValueParameter arr])
       | native (typeof arr) = [replaceWith Empty]
     toNativeProg _ = []
 
@@ -171,7 +171,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
 
 flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (In t:ts) (l:ls) cLen = call "copyArrayPos" [dst, In cLen, In $ AddrOf t]
+flattenCopy dst (ValueParameter t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, ValueParameter $ AddrOf t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
@@ -323,7 +323,7 @@ traceRules = [rule trace]
             decl (Block defs prg) = [replaceWith $ Block (defs ++ [defTrcVar]) prg]
             trc :: Program () -> [Action (Program ())]
             trc instr = [replaceWith $ Sequence [Assign trcVar val,trcCall,instr]]
-            trcCall = call (extend' "trace" t) [In trcVar, In lab]
+            trcCall = call (extend' "trace" t) [ValueParameter trcVar, ValueParameter lab]
             frame (ProcDef pname ins outs prg) = [replaceWith $ ProcDef pname ins outs prg']
               where
                 prg' = case prg of

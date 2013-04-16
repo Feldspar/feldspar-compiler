@@ -114,7 +114,7 @@ compileProgTop opt funname bs (lt :$ e :$ (lam :$ body))
   | Just (SubConstr2 (Lambda v)) <- prjLambda lam
   , Just Let <- prj lt
   , Just (C' Literal{}) <- prjF e -- Input on form let x = n in e
-  , [ProcedureCall "copy" [Out (VarExpr vr), In (ConstExpr c)]] <- bd
+  , [ProcedureCall "copy" [ValueParameter (VarExpr vr), ValueParameter (ConstExpr c)]] <- bd
   , freshName Prelude.== vName vr -- Ensure that compiled result is on form x = n
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $

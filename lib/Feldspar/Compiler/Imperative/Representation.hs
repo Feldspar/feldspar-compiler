@@ -144,11 +144,8 @@ data Pattern t
      deriving (Typeable, Show, Eq)
 
 data ActualParameter t
-    = In
-        { inParam                   :: Expression t
-        }
-    | Out
-        { outParam                  :: Expression t
+    = ValueParameter
+        { valueParam                :: Expression t
         }
     | TypeParameter
         { typeParam                 :: Type
@@ -316,8 +313,7 @@ instance HasType (Expression t) where
 
 instance HasType (ActualParameter t) where
     type TypeOf (ActualParameter t) = Type
-    typeof In{..}            = typeof inParam
-    typeof Out{..}           = typeof outParam
+    typeof ValueParameter{..}= typeof valueParam
     typeof TypeParameter{..} = typeParam
     typeof FunParameter{}    = VoidType
 

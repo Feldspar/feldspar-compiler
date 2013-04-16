@@ -63,6 +63,6 @@ instance Compile dom dom => Compile (NoInline :|| Type) dom
         funId  <- freshId
         let funname = "noinline" ++ show funId
         tellDef [ProcDef funname ins outs b]
-        let ins' = map (\v -> In $ varToExpr $ Variable (typeof v) (vName v)) ins
-        tellProg [call funname $ ins' ++ [Out loc]]
+        let ins' = map (\v -> ValueParameter $ varToExpr $ Variable (typeof v) (vName v)) ins
+        tellProg [call funname $ ins' ++ [ValueParameter loc]]
 
