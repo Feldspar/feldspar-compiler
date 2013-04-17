@@ -128,7 +128,8 @@ data Program t
         , sLoopBlock                :: Block t
         }
     | ParLoop
-        { pLoopCounter              :: Variable t
+        { pParallel                 :: Bool
+        , pLoopCounter              :: Variable t
         , pLoopBound                :: Expression t
         , pLoopStep                 :: Int
         , pLoopBlock                :: Block t
