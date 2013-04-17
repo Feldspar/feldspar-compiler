@@ -232,9 +232,9 @@ fun' m t n = FunctionCall (Function n t m)
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
-for :: String -> Expression () -> Int -> Block () -> Program ()
-for _ _ _ (Block [] (Sequence [Empty])) = Empty
-for s e i b = ParLoop (Variable (NumType Unsigned S32) s) e i b
+for :: Bool -> String -> Expression () -> Int -> Block () -> Program ()
+for _ _ _ _ (Block [] (Sequence [Empty])) = Empty
+for p s e i b = ParLoop p (Variable (NumType Unsigned S32) s) e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e b = SeqLoop e p b
