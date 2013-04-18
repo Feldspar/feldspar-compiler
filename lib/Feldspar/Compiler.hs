@@ -10,6 +10,7 @@ module Feldspar.Compiler
     , FeldOpts(..)
     , Target(..)
     , c99PlatformOptions
+    , c99OpenMpPlatformOptions
     , tic64xPlatformOptions
     , nativeArrayRules
     , unrollOptions

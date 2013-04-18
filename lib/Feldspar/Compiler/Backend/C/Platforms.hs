@@ -32,6 +32,7 @@
 module Feldspar.Compiler.Backend.C.Platforms
     ( availablePlatforms
     , c99
+    , c99OpenMp
     , tic64x
     , c99Rules
     , tic64xRules
@@ -47,7 +48,7 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
-availablePlatforms = [ c99, tic64x ]
+availablePlatforms = [ c99, c99OpenMp, tic64x ]
 
 c99 :: Platform
 c99 = Platform {
@@ -84,6 +85,11 @@ c99 = Platform {
     varFloating = True,
     isRestrict = NoRestrict
 }
+
+c99OpenMp :: Platform
+c99OpenMp = c99 { name = "c99OpenMp"
+                , varFloating = False
+                }
 
 tic64x :: Platform
 tic64x = Platform {

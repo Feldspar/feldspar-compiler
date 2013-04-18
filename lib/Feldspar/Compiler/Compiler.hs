@@ -127,6 +127,9 @@ defaultOptions
 c99PlatformOptions :: Options
 c99PlatformOptions              = defaultOptions
 
+c99OpenMpPlatformOptions :: Options
+c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
+
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
 
