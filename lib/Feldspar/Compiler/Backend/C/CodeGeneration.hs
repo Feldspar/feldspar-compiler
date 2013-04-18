@@ -116,9 +116,13 @@ instance CodeGen (Program ())
     cgen env SeqLoop{..} =  cgen env sLoopCondCalc
                         $$ text "while" <+> parens (cgen env sLoopCond)
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
-    cgen env ParLoop{..} =  text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
-                        $$ block env (cgen env pLoopBlock)
+    cgen env ParLoop{..}
+     | pParallel && (name . platform . options $ env) == "c99OpenMp"
+     = text "#pragma omp parallel for" $$ forL
+     | otherwise = forL
       where
+        forL  = text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
+              $$ block env (cgen env pLoopBlock)
         ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
         init  = ixd <+> equals    <+> int 0
