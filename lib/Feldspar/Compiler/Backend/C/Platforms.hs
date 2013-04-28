@@ -62,12 +62,15 @@ c99 = Platform {
         , (NumType Unsigned S16,  "uint16_t")
         , (NumType Unsigned S32,  "uint32_t")
         , (NumType Unsigned S64,  "uint64_t")
-        , (BoolType,              "uint32_t") -- TODO sizeof(bool) is implementation dependent
+        , (BoolType,              "uint32_t")
         , (FloatType,             "float")
+        , (DoubleType,            "double")
         , (ComplexType FloatType, "float complex")
+        , (ComplexType DoubleType,"double complex")
         ] ,
     values =
         [ (ComplexType FloatType, \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
+        , (ComplexType DoubleType, \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
         , (BoolType, \b -> if boolValue b then "true" else "false")
         ] ,
     includes =
@@ -107,10 +110,13 @@ tic64x = Platform {
         , (NumType Unsigned S64,  "unsigned long long")
         , (BoolType,              "int")
         , (FloatType,             "float")
+        , (DoubleType,            "double")
         , (ComplexType FloatType, "complexOf_float")
+        , (ComplexType DoubleType,"complexOf_double")
         ] ,
     values = 
         [ (ComplexType FloatType, \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
+        , (ComplexType DoubleType, \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
         , (BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
     includes = ["feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>", "<math.h>"],
@@ -124,8 +130,8 @@ showRe = showConstant . realPartComplexValue
 showIm = showConstant . imagPartComplexValue
 
 showConstant :: Constant t -> String
-showConstant (IntConst c _) = show c
-showConstant (FloatConst c) = show c ++ "f"
+showConstant (IntConst c _)  = show c
+showConstant (FloatConst c)  = show c ++ "f"
 
 arrayRules :: [Rule]
 arrayRules = [rule copy]

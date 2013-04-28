@@ -228,6 +228,20 @@ float logBase_fun_float( float a, float b )
 }
 
 
+double signum_fun_double( double a )
+{
+    // From Bit Twiddling Hacks: "Compute the sign of an integer"
+    return (a > 0) - (a < 0);
+}
+
+
+
+double logBase_fun_double( double a, double b )
+{
+    return log(b) / log(a);
+}
+
+
 
 /*--------------------------------------------------------------------------*
  *                 Bit operations                                           *
@@ -1029,6 +1043,18 @@ float complex signum_fun_complexOf_float( float complex a )
 }
 
 
+double complex signum_fun_complexOf_double( double complex a )
+{
+    double m;
+    if (a == 0) {
+        return a;
+    } else {
+        m = cabsf(a);
+        return crealf(a) / m + cimagf(a) / m * I;
+    }
+}
+
+
 
 complexOf_int8_t add_fun_complexOf_int8_t( complexOf_int8_t a, complexOf_int8_t b )
 {
@@ -1224,6 +1250,12 @@ float complex logBase_fun_complexOf_float( float complex a, float complex b )
 }
 
 
+double complex logBase_fun_complexOf_double( double complex a, double complex b )
+{
+    return clogf(b) / clogf(a);
+}
+
+
 
 complexOf_int8_t complex_fun_int8_t( int8_t re, int8_t im )
 {
@@ -1290,6 +1322,12 @@ complexOf_uint64_t complex_fun_uint64_t( uint64_t re, uint64_t im )
 }
 
 float complex complex_fun_float( float re, float im )
+{
+    return ( re + im * I );
+}
+
+
+double complex complex_fun_double( double re, double im )
 {
     return ( re + im * I );
 }
@@ -1592,6 +1630,12 @@ float complex mkPolar_fun_float( float r, float t )
 }
 
 
+double complex mkPolar_fun_double( double r, double t )
+{
+    return r * cosf(t) + r * sinf(t) * I;
+}
+
+
 
 complexOf_int8_t cis_fun_int8_t( int8_t t )
 {
@@ -1658,6 +1702,12 @@ complexOf_uint64_t cis_fun_uint64_t( uint64_t t )
 }
 
 float complex cis_fun_float( float t )
+{
+    return cosf(t) + sinf(t) * I;
+}
+
+
+double complex cis_fun_double( double t )
 {
     return cosf(t) + sinf(t) * I;
 }
@@ -1818,6 +1868,14 @@ void trace_float( float val, int32_t id )
     fflush(trace_log_file);
 }
 
+void trace_double( double val, int32_t id )
+{
+    char timestr [80];
+    elapsedTimeString(timestr);
+    fprintf(trace_log_file, "id=%d, time=%s, value=%f\n", id, timestr, val);
+    fflush(trace_log_file);
+}
+
 void trace_complexOf_int8_t( complexOf_int8_t val, int32_t id )
 {
     char timestr [80];
@@ -1883,6 +1941,14 @@ void trace_complexOf_uint64_t( complexOf_uint64_t val, int32_t id )
 }
 
 void trace_complexOf_float( float complex val, int32_t id )
+{
+    char timestr [80];
+    elapsedTimeString(timestr);
+    fprintf(trace_log_file, "id=%d, time=%s, value=%f+%f*I\n", id, timestr, creal(val), cimag(val));
+    fflush(trace_log_file);
+}
+
+void trace_complexOf_double( double complex val, int32_t id )
 {
     char timestr [80];
     elapsedTimeString(timestr);

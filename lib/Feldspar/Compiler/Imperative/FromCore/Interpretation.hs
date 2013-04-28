@@ -49,7 +49,7 @@ import Language.Syntactic.Constraint
 import Language.Syntactic.Constructs.Binding (VarId)
 
 import Feldspar.Range (upperBound, isSingleton)
-import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType,
+import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType, DoubleType,
                                    ComplexType, IVarType, Signedness, Size)
 import Feldspar.Core.Interpretation
 import qualified Feldspar.Core.Types as Core
@@ -231,6 +231,7 @@ compileTypeRep UnitType _                = VoidType
 compileTypeRep Core.BoolType _           = BoolType
 compileTypeRep (IntType s n) _           = compileNumType s n
 compileTypeRep Core.FloatType _          = FloatType
+compileTypeRep Core.DoubleType _         = DoubleType
 compileTypeRep (Core.ComplexType t) _    = ComplexType (compileTypeRep t (defaultSize t))
 compileTypeRep (Tup2Type a b) (sa,sb)          = mkStructType
         [ ("member1", compileTypeRep a sa)

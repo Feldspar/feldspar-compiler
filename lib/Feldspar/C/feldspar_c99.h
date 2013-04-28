@@ -60,8 +60,10 @@ uint16_t signum_fun_uint16_t( uint16_t );
 uint32_t signum_fun_uint32_t( uint32_t );
 uint64_t signum_fun_uint64_t( uint64_t );
 float signum_fun_float( float );
+double signum_fun_double( double );
 
 float logBase_fun_float( float, float );
+double logBase_fun_double( double, double );
 
 
 
@@ -224,6 +226,7 @@ complexOf_uint16_t signum_fun_complexOf_uint16_t( complexOf_uint16_t );
 complexOf_uint32_t signum_fun_complexOf_uint32_t( complexOf_uint32_t );
 complexOf_uint64_t signum_fun_complexOf_uint64_t( complexOf_uint64_t );
 float complex signum_fun_complexOf_float( float complex );
+double complex signum_fun_complexOf_double( double complex );
 
 complexOf_int8_t add_fun_complexOf_int8_t( complexOf_int8_t, complexOf_int8_t );
 complexOf_int16_t add_fun_complexOf_int16_t( complexOf_int16_t, complexOf_int16_t );
@@ -253,6 +256,7 @@ complexOf_uint32_t mult_fun_complexOf_uint32_t( complexOf_uint32_t, complexOf_ui
 complexOf_uint64_t mult_fun_complexOf_uint64_t( complexOf_uint64_t, complexOf_uint64_t );
 
 float complex logBase_fun_complexOf_float( float complex, float complex );
+double complex logBase_fun_complexOf_double( double complex, double complex );
 
 complexOf_int8_t complex_fun_int8_t( int8_t, int8_t );
 complexOf_int16_t complex_fun_int16_t( int16_t, int16_t );
@@ -263,6 +267,7 @@ complexOf_uint16_t complex_fun_uint16_t( uint16_t, uint16_t );
 complexOf_uint32_t complex_fun_uint32_t( uint32_t, uint32_t );
 complexOf_uint64_t complex_fun_uint64_t( uint64_t, uint64_t );
 float complex complex_fun_float( float, float );
+double complex complex_fun_double( double, double );
 
 int8_t creal_fun_complexOf_int8_t( complexOf_int8_t );
 int16_t creal_fun_complexOf_int16_t( complexOf_int16_t );
@@ -318,6 +323,7 @@ complexOf_uint16_t mkPolar_fun_uint16_t( uint16_t, uint16_t );
 complexOf_uint32_t mkPolar_fun_uint32_t( uint32_t, uint32_t );
 complexOf_uint64_t mkPolar_fun_uint64_t( uint64_t, uint64_t );
 float complex mkPolar_fun_float( float, float );
+double complex mkPolar_fun_double( double, double );
 
 complexOf_int8_t cis_fun_int8_t( int8_t );
 complexOf_int16_t cis_fun_int16_t( int16_t );
@@ -328,6 +334,7 @@ complexOf_uint16_t cis_fun_uint16_t( uint16_t );
 complexOf_uint32_t cis_fun_uint32_t( uint32_t );
 complexOf_uint64_t cis_fun_uint64_t( uint64_t );
 float complex cis_fun_float( float );
+double complex cis_fun_double( double );
 
 
 
@@ -343,6 +350,7 @@ void trace_uint16_t( uint16_t, int32_t );
 void trace_uint32_t( uint32_t, int32_t );
 void trace_uint64_t( uint64_t, int32_t );
 void trace_float( float, int32_t );
+void trace_double( double, int32_t );
 void trace_complexOf_int8_t( complexOf_int8_t, int32_t );
 void trace_complexOf_int16_t( complexOf_int16_t, int32_t );
 void trace_complexOf_int32_t( complexOf_int32_t, int32_t );
@@ -352,5 +360,6 @@ void trace_complexOf_uint16_t( complexOf_uint16_t, int32_t );
 void trace_complexOf_uint32_t( complexOf_uint32_t, int32_t );
 void trace_complexOf_uint64_t( complexOf_uint64_t, int32_t );
 void trace_complexOf_float( float complex, int32_t );
+void trace_complexOf_double( double complex, int32_t );
 
 #endif /* FELDSPAR_C99_H */

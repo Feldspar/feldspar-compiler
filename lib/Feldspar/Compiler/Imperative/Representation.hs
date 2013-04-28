@@ -243,6 +243,7 @@ data Type =
     | BoolType
     | BitType
     | FloatType
+    | DoubleType
     | NumType Signedness Size
     | ComplexType Type
     | UserType String
