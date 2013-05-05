@@ -90,7 +90,7 @@ instance ( Compile dom dom
                 info1 = getInfo lam1
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
                 condv = mkVar (compileTypeRep (infoType info1) (infoSize info1)) cv
-            compileProg loc init
+            compileProg loc init >> assign stvar loc
             (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg condv cond
             (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
             declare stvar

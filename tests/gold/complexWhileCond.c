@@ -19,6 +19,7 @@ void complexWhileCond(int32_t v0, struct s_signedS32_signedS32 * out)
   
   (*out).member1 = 0;
   (*out).member2 = v0;
+  v2 = *out;
   v5 = ((*out).member2 - (*out).member1);
   v1 = (((*out).member1 * (*out).member1) != (v5 * v5));
   while (v1)
