@@ -66,19 +66,3 @@ instance Transformable IVarPlugin Program where
         name' | d           = name
               | otherwise   = name ++ "_nontask"
     transform t _ d x = defaultTransform t () d x
-
-{-
-instance Transformable IVarPlugin Block where
-    transform t _ d b = Result b{ blockBody = body' } () ()
-      where
-        body' = Sequence prg
-        prg = result (transform t () d $ blockBody b) : destrs
-        iVars = filter isIVar $ map declVar $ locals b
-        isIVar v = case varType v of
-            IVarType _  -> True
-            _           -> False
-        ivarFun s v = ProcedureCall ("ivar_" ++ s) KIVar [p]
-          where
-            p = Out (VarExpr v)
-        destrs = map (ivarFun "destroy") iVars
--}
