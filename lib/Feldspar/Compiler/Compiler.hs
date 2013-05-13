@@ -61,6 +61,11 @@ data SplitCompToCCoreResult = SplitCompToCCoreResult
     , sctccrHeader :: CompToCCoreResult ()
     }
 
+data CompToCCoreResult t = CompToCCoreResult {
+    sourceCode      :: String,
+    debugModule     :: Module t
+}
+
 moduleSplitter :: Module () -> SplitModuleDescriptor
 moduleSplitter m = SplitModuleDescriptor {
     smdHeader = Module (hdr ++ createProcDecls (entities m)),
@@ -80,7 +85,9 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl _ = []
 
 moduleToCCore :: Options -> Module () -> CompToCCoreResult ()
-moduleToCCore opts mdl = res { sourceCode = incls ++ sourceCode res }
+moduleToCCore opts mdl = CompToCCoreResult { sourceCode  = incls ++ res
+                                           , debugModule = mdl
+                                           }
   where
     res = compToCWithInfos opts mdl
     incls = genIncludeLines opts Nothing

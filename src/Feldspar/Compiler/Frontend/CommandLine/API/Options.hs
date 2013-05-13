@@ -51,17 +51,19 @@ availablePlatformsStrRep = StandaloneLib.formatStringList $
 
 data StandaloneMode = SingleFunction String | MultiFunction
 
-data Options = Options  { optStandaloneMode     :: StandaloneMode
-                        , optOutputFileName     :: Maybe String
-                        , optCompilerMode       :: CompilerCoreOptions.Options
-                        }
+data FrontendOptions = FrontendOptions
+                       { optStandaloneMode     :: StandaloneMode
+                       , optOutputFileName     :: Maybe String
+                       , optCompilerMode       :: CompilerCoreOptions.Options
+                       }
 
 -- | Default options
-startOptions :: Options
-startOptions = Options  { optStandaloneMode = MultiFunction
-                        , optOutputFileName = Nothing
-                        , optCompilerMode   = CompilerCore.defaultOptions
-                        }
+startOptions :: FrontendOptions
+startOptions = FrontendOptions
+                { optStandaloneMode = MultiFunction
+                , optOutputFileName = Nothing
+                , optCompilerMode   = CompilerCore.defaultOptions
+                }
 
 helpHeader = "Standalone Feldspar Compiler\nUsage: feldspar [options] inputfile\n" ++
          "Notes: \n" ++
@@ -70,7 +72,7 @@ helpHeader = "Standalone Feldspar Compiler\nUsage: feldspar [options] inputfile\
          "\nAvailable options: \n"
 
 -- | Option descriptions for getOpt
-optionDescriptors :: [ OptDescr (Options -> IO Options) ]
+optionDescriptors :: [ OptDescr (FrontendOptions -> IO FrontendOptions) ]
 optionDescriptors =
     [ Option "f" ["singlefunction"]
         (ReqArg

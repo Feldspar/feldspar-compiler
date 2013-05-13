@@ -32,15 +32,13 @@
 module Feldspar.Compiler.Frontend.CommandLine.API where
 
 import Feldspar.Core.Constructs (SyntacticFeld)
-import Feldspar.Compiler.Backend.C.Options
+import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Compiler
-import Feldspar.Compiler.Imperative.FromCore
-import Feldspar.Compiler.Frontend.CommandLine.API.Library
-import Feldspar.Compiler.Backend.C.Library
+import Feldspar.Compiler.Backend.C.Library (replace, makeHFileName, makeCFileName)
 import Language.Haskell.Interpreter
-import Language.Haskell.Interpreter.Unsafe
-import qualified Data.Typeable as T
-import Control.Monad
+import Language.Haskell.Interpreter.Unsafe (unsafeSetGhcOption)
+import Data.Typeable (Typeable(..))
+import Control.Monad (when, unless)
 
 -- ====================================== System imports ==================================
 import System.Directory
@@ -55,7 +53,7 @@ import Control.Exception (catch, IOException)
 data CompilationResult
     = CompilationSuccess
     | CompilationFailure
-  deriving (Eq, Show, T.Typeable)
+  deriving (Show, Typeable)
 
 #ifdef RELEASE
 releaseMode = True
@@ -64,13 +62,13 @@ releaseMode = False
 #endif
 
   -- A general interpreter body for interpreting an expression
-generalInterpreterBody :: forall a . (T.Typeable (IO a))
+generalInterpreterBody :: forall a . (Typeable (IO a))
                        => String -- the expression to interpret
                        -> Interpreter (IO a)
 generalInterpreterBody expression = interpret expression (as::IO a)
 
 -- A high-level interface for calling the interpreter
-highLevelInterpreter :: T.Typeable (IO a)
+highLevelInterpreter :: Typeable (IO a)
                      => String -- the module name (for example My.Module)
                      -> String -- the input file name (for example "My/Module.hs")
                      -> [String] -- globalImportList

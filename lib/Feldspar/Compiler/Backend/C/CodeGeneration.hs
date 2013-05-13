@@ -45,11 +45,8 @@ data PrintEnv = PEnv
     { options :: Options
     }
 
-compToCWithInfos :: Options -> Module () -> CompToCCoreResult ()
-compToCWithInfos opts procedure =
-  CompToCCoreResult { sourceCode  = render $ cgen (PEnv opts) procedure
-                    , debugModule = procedure
-                    }
+compToCWithInfos :: Options -> Module () -> String
+compToCWithInfos opts procedure = render $ cgen (PEnv opts) procedure
 
 class CodeGen a
   where

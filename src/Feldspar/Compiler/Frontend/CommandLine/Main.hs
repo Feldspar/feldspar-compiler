@@ -33,9 +33,7 @@ module Main where
 -- ====================================== Feldspar imports ==================================
 import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Compiler.Compiler
-import qualified Feldspar.Compiler.Compiler as CompilerCore
 import Feldspar.Compiler.Backend.C.Options
-import qualified Feldspar.Compiler.Backend.C.Options as CoreOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Options as StandaloneOptions
 import Feldspar.Compiler.Frontend.CommandLine.API.Constants
 import Feldspar.Compiler.Frontend.CommandLine.API.Library as StandaloneLib
@@ -43,7 +41,6 @@ import Feldspar.Compiler.Frontend.CommandLine.NameExtractor (getModuleInfo)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Frontend.CommandLine.API
 import Feldspar.Compiler.Imperative.Representation
-import Feldspar.Compiler.Backend.C.CodeGeneration (compToCWithInfos)
 import Feldspar.Compiler.Error
 -- ====================================== System imports ==================================
 import System.IO
@@ -75,7 +72,7 @@ data CompilationError =
       InterpreterError InterpreterError
     | InternalErrorCall String
 
-compileFunction :: String -> String -> CoreOptions.Options -> String
+compileFunction :: String -> String -> Options -> String
                 -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
 compileFunction inFileName outFileName coreOptions functionName = do
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
@@ -92,7 +89,7 @@ compileFunction inFileName outFileName coreOptions functionName = do
                                       removeFileIfPossible tempfile)
         return $ Left (functionName, splitModuleDescriptor)
 
-compileAllFunctions :: String -> String -> CoreOptions.Options -> [String]
+compileAllFunctions :: String -> String -> Options -> [String]
                     -> Interpreter [Either (String, SplitModuleDescriptor) (String, CompilationError)]
 compileAllFunctions inFileName outFileName options []     = return []
 compileAllFunctions inFileName outFileName options (functionName:xs) = do
@@ -104,7 +101,7 @@ compileAllFunctions inFileName outFileName options (functionName:xs) = do
     return $ resultCurrent : resultRest
 
 -- | Interpreter body for single-function compilation
-singleFunctionCompilationBody :: String -> String -> CoreOptions.Options -> String
+singleFunctionCompilationBody :: String -> String -> Options -> String
                               -> Interpreter (IO ())
 singleFunctionCompilationBody inFileName outFileName coreOptions functionName = do
     liftIO $ fancyWrite $ "Compiling function " ++ functionName ++ "..."
@@ -140,7 +137,7 @@ writeSummary (Right (functionName, msg)) = do
     withColor Red $ putStrLn "[FAILED]"
 
 -- | Interpreter body for multi-function compilation
-multiFunctionCompilationBody :: String -> String -> CoreOptions.Options -> [String] -> Interpreter (IO ())
+multiFunctionCompilationBody :: String -> String -> Options -> [String] -> Interpreter (IO ())
 multiFunctionCompilationBody inFileName outFileName coreOptions declarationList = do
     let hOutFileName   = makeHFileName outFileName
         cOutFileName   = makeCFileName outFileName
@@ -157,8 +154,8 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
-        let cCompToCResult = compToCWithInfos coreOptions mergedCModules
-        let hCompToCResult = compToCWithInfos coreOptions mergedHModules
+        let cCompToCResult = moduleToCCore coreOptions mergedCModules
+        let hCompToCResult = moduleToCCore coreOptions mergedHModules
         appendFile cOutFileName (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
         appendFile hOutFileName (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
         writeFile cdbgOutFileName (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
