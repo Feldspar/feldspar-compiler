@@ -91,7 +91,7 @@ initArray arr len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 freeArray :: Variable () -> Program ()
-freeArray arr = call "freeArray" [ValueParameter $ AddrOf $ varToExpr arr]
+freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
 
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
@@ -101,7 +101,7 @@ freeArrays defs = map freeArray arrays
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
-  | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [AddrOf arr]
+  | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
@@ -123,14 +123,14 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
-    | isArray typ   = call "ivar_get_array" [ValueParameter $ AddrOf loc, ValueParameter ivar]
+    | isArray typ   = call "ivar_get_array" [ValueParameter loc, ValueParameter ivar]
     | otherwise     = call "ivar_get" [TypeParameter typ, ValueParameter loc, ValueParameter ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = call "ivar_put_array" [ValueParameter ivar, ValueParameter $ AddrOf msg]
+    | isArray typ   = call "ivar_put_array" [ValueParameter ivar, ValueParameter  msg]
     | otherwise     = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter msg]
       where
         typ = typeof msg

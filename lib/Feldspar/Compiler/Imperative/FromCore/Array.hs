@@ -79,8 +79,8 @@ instance ( Compile dom dom
             let sa = fst $ infoSize $ getInfo lam
             let ix = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
-            (_, b) <- confiscateBlock $ compileProg (ArrayElem (AddrOf loc) ix) ixf
-            tellProg [initArray (AddrOf loc) len']
+            (_, b) <- confiscateBlock $ compileProg (ArrayElem loc ix) ixf
+            tellProg [initArray loc len']
             tellProg [for True (lName ix) len' 1 b]
 
 
@@ -107,14 +107,14 @@ instance ( Compile dom dom
             st1 <- freshVar "st" tst sst
             let st = mkRef (compileTypeRep tst sst) s
             declareAlias st
-            (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem (AddrOf loc) ix) step
+            (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem loc ix) step
             withAlias s st $ compileProg st1 init'
-            tellProg [ Assign (AddrOf st) (AddrOf st1)
-                     , initArray (AddrOf loc) len']
+            tellProg [ Assign st st1
+                     , initArray loc len']
             tellProg [toProg $ Block (concat dss ++ ds) $
                       for False (lName ix) len' 1 $
                                     toBlock $ Sequence (concat lets ++ body ++
-                                         [Assign (AddrOf st) (AddrOf $ ArrayElem (AddrOf loc) ix)
+                                         [Assign st (ArrayElem loc ix)
                                          ])]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ lt1) :* Nil)
@@ -132,12 +132,12 @@ instance ( Compile dom dom
             len' <- mkLength len (infoType $ getInfo len) sz
             tmp  <- freshVar "seq" tr' sr'
             (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg tmp step
-            tellProg [initArray (AddrOf loc) len']
+            tellProg [initArray loc len']
             compileProg (StructField tmp "member2") st
             tellProg [toProg $ Block (concat dss ++ ds) $
                       for False (lName ix) len' 1 $
                                     toBlock $ Sequence (concat lets ++ body ++
-                                         [copyProg (ArrayElem (AddrOf loc) ix) [StructField tmp "member1"]
+                                         [copyProg (ArrayElem loc ix) [StructField tmp "member1"]
                                          ])]
 
     -- loc = parallel l f ++ parallel l g ==> for l (\i -> loc[i] = f i; loc[i+l] = g i)
@@ -153,16 +153,16 @@ instance ( Compile dom dom
                 ix1 = mkVar (compileTypeRep t sz) v1
                 ix2 = mkVar (compileTypeRep t sz) v2
             len <- mkLength l1 (infoType $ getInfo l1) sz
-            (_, Block ds1 (Sequence b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem (AddrOf loc) ix1) body1
-            (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem (AddrOf loc) ix2) body2
-            tellProg [initArray (AddrOf loc) len]
+            (_, Block ds1 (Sequence b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem loc ix1) body1
+            (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem loc ix2) body2
+            tellProg [initArray loc len]
             assign ix2 len
             tellProg [for True (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg ix2 [(binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1))]]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
         b' <- compileExpr b
-        tellProg [copyProg (AddrOf loc) [a', b']]
+        tellProg [copyProg loc [a', b']]
         -- TODO: Optimize by writing to directly to 'loc' instead of 'a'' and 'b''!
         --       But take care of array initialization:
         --       compiling 'a' and 'b' might do initialization itself...
@@ -170,20 +170,20 @@ instance ( Compile dom dom
     compileProgSym (C' SetIx) _ loc (arr :* i :* a :* Nil) = do
         compileProg loc arr
         i' <- compileExpr i
-        compileProg (ArrayElem (AddrOf loc) i') a
+        compileProg (ArrayElem loc i') a
 
     compileProgSym (C' GetIx) _ loc (arr :* i :* Nil) = do
         a' <- compileExpr arr
         i' <- compileExpr i
-        let el = ArrayElem (AddrOf a') i'
+        let el = ArrayElem a' i'
         if isArray $ typeof el
-          then tellProg [Sequence [Assign (AddrOf loc) (AddrOf el)]]
+          then tellProg [Sequence [Assign loc el]]
           else tellProg [copyProg loc [el]]
 
     compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
         len' <- compileExpr len
         compileProg loc arr
-        tellProg [setLength (AddrOf loc) len']
+        tellProg [setLength loc len']
       -- TODO Optimize by using copyProgLen (compare to 0.4)
 
     compileProgSym a info loc args = compileExprLoc a info loc args
@@ -195,7 +195,7 @@ instance ( Compile dom dom
     compileExprSym (C' GetIx) _ (arr :* i :* Nil) = do
         a' <- compileExpr arr
         i' <- compileExpr i
-        return $ ArrayElem (AddrOf a') i'
+        return $ ArrayElem a' i'
 
     compileExprSym a info args = compileProgFresh a info args
 

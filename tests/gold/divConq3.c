@@ -48,7 +48,7 @@ void divConq3(struct array * v0, struct array * * out)
   {
     v23 = (v12 << 10);
     ivar_init(&at(struct ivar,v24,v12));
-    spawn5(task3, struct array, *v0, uint32_t, v22, uint32_t, v23, struct array, *v24, uint32_t, v12);
+    spawn5(task3, struct array *, v0, uint32_t, v22, uint32_t, v23, struct array *, v24, uint32_t, v12);
   }
   len4 = getLength(v24);
   *out = initArray(*out, sizeof(int32_t), 0);

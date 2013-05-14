@@ -104,9 +104,8 @@ compileProgTop opt funname bs (lam :$ body)
          let ta  = argType $ infoType $ getInfo lam
              sa  = fst $ infoSize $ getInfo lam
              typ = compileTypeRep ta sa
-             arg = if isComposite typ
-                     then mkPointer  typ v
-                     else mkVariable typ v
+             arg | Rep.StructType{} <- typ = mkPointer typ v
+                 | otherwise               = mkVariable typ v
          tell $ mempty {args=[arg]}
          withAlias v (varToExpr arg) $
            compileProgTop opt funname bs body
@@ -122,7 +121,7 @@ compileProgTop opt funname bs (lt :$ e :$ (lam :$ body))
   where
     info     = getInfo e
     outType  = case compileTypeRep (infoType info) (infoSize info) of
-                 Rep.Pointer (Rep.ArrayType rs t) -> Rep.NativeArray (Just $ upperBound rs) t
+                 Rep.ArrayType rs t -> Rep.NativeArray (Just $ upperBound rs) t
                  t -> t
     var@(Rep.Variable _ freshName) = case prjLambda lam of
                Just (SubConstr2 (Lambda v)) -> mkVariable outType v

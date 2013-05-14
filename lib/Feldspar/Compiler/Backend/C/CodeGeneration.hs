@@ -65,8 +65,8 @@ instance CodeGen (Entity ())
     cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) $$ block env (cgen env procBody)
     cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) <> semi
     cgen env ValueDef{..}
-      | NativeArray _ t <- typeof valVar
-      = cgen env t <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi
+      | isNativeArray $ typeof valVar
+      = cgen env (typeof valVar) <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi
       | otherwise = cgen env valVar <+> equals              <+> cgen env valValue <> semi
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
@@ -92,6 +92,7 @@ instance CodeGen (Declaration ())
         init = case (initVal, varType declVar) of
                  (Just i, _)           -> equals <+> cgen env i
                  (_     , Pointer{})   -> equals <+> text "NULL"
+                 (_     , ArrayType{}) -> equals <+> text "NULL"
                  _                     -> empty
     cgenList env = vcat . map (cgen env)
 
@@ -148,12 +149,11 @@ instance CodeGen (Expression ())
   where
     cgen env VarExpr{..} = cgen env var
     cgen env e@ArrayElem{..}
-     | isNativeArray $ typeof array
-     , AddrOf c@ConstExpr{} <- array
+     | c@ConstExpr{} <- array
      , (NativeArray _ t) <- typeof c
      = parens (parens (cgen env t <> brackets empty) <> cgen env c) <> brackets (cgen env arrayIndex)
      | isNativeArray $ typeof array
-     , AddrOf arr <- array = cgen env arr <> brackets (cgen env arrayIndex)
+     = cgen env array <> brackets (cgen env arrayIndex)
      | otherwise = text "at" <> parens (hcat $ punctuate comma [ cgen env $ typeof e
                                                                , cgen env array
                                                                , cgen env arrayIndex
@@ -185,8 +185,7 @@ instance CodeGen (Variable t)
     cgen env v = go v
       where
         go v@Variable{..} = case varType of
-                   Pointer t | NativeArray{} <- t -> go (v {varType = t})
-                             | otherwise -> text "*" <> go (v {varType = t})-- char '*'
+                   Pointer t -> text "*" <> go (v {varType = t})-- char '*'
                    _         -> text varName
 
     cgenList env = hsep . punctuate comma . map (cgen env)
@@ -213,7 +212,7 @@ instance CodeGen Type
     cgen env = toC
       where
         toC VoidType                   = text "void"
-        toC ArrayType{}                = text "struct array"
+        toC ArrayType{}                = text "struct array *"
         toC IVarType{}                 = text "struct ivar"
         toC (UserType u)               = text u
         toC (StructType n _)           = text "struct" <+> text n

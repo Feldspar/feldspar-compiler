@@ -274,8 +274,8 @@ compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = mkStructType
         ]
 compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (Core.ArrayType a) (rs :> es) = Pointer $ ArrayType rs $ compileTypeRep a es
-compileTypeRep (MArrType a) (rs :> es)  = Pointer $ ArrayType rs $ compileTypeRep a es
+compileTypeRep (Core.ArrayType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
+compileTypeRep (MArrType a) (rs :> es)  = ArrayType rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (Core.IVarType a) _      = IVarType $ compileTypeRep a $ defaultSize a
 compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
@@ -387,8 +387,8 @@ getTypes opts defs = concatMap mkDef comps
     mkDef _                 = []
 
 assign :: Location -> Expression () -> CodeWriter ()
-assign lhs rhs = tellProg [if lhs == rhs then Empty else copyProg lhs' [rhs]]
-  where lhs' = if (isArray $ typeof lhs) then AddrOf lhs else lhs
+assign lhs rhs = tellProg [if lhs == rhs then Empty else copyProg lhs [rhs]]
+
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
 confiscateBlock :: CodeWriter a -> CodeWriter (a, Block ())
