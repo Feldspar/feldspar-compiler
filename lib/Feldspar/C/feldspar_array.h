@@ -107,13 +107,12 @@ static inline void freeArray(struct array *arr)
     assert(arr);
     if( !arr->buffer )
     {
-     // return;
+      return;
     }
     if( arr->elemSize < 0 )
     {
-     // int i;
-     // for( i=0; i<arr->length; ++i )
-         // freeArray( &at(struct array,arr,i) );
+      for(int i=0; i<arr->length; ++i )
+        freeArray( &at(struct array,arr,i) );
     }
     free(arr->buffer);
     // For the sake of extra safety:
