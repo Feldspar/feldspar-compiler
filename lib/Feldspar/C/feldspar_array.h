@@ -104,22 +104,23 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
 static inline void freeArray(struct array *arr)
 {
     log_1("freeArray %p - enter\n", arr);
-    // assert(arr);
-    // if( !arr->buffer )
-    // {
-        // return;
-    // }
-    // if( arr->elemSize < 0 )
-    // {
-        // int i;
-        // for( i=0; i<arr->length; ++i )
-            // freeArray( &at(struct array,arr,i) );
-    // }
-    // free(arr->buffer);
+    assert(arr);
+    if( !arr->buffer )
+    {
+     // return;
+    }
+    if( arr->elemSize < 0 )
+    {
+     // int i;
+     // for( i=0; i<arr->length; ++i )
+         // freeArray( &at(struct array,arr,i) );
+    }
+    free(arr->buffer);
     // For the sake of extra safety:
-    // arr->buffer = 0;
-    // arr->length = 0;
-    // arr->bytes = 0;
+    arr->buffer = 0;
+    arr->length = 0;
+    arr->bytes = 0;
+    free(arr);
     log_1("freeArray %p - leave\n", arr);
 }
 
@@ -135,9 +136,9 @@ static inline void copyArray(struct array *to, struct array *from)
         unsigned i;
         for( i = 0; i < from->length; ++i )
         {
-            struct array *to_row = &at(struct array, to, i);
+            struct array *to_row   = &at(struct array, to, i);
             struct array *from_row = &at(struct array, from, i);
-            if( !to_row->buffer )
+            if( to_row == NULL )
                 to_row = initArray( to_row, from_row->elemSize, from_row->length );
             copyArray( to_row, from_row );
         }
