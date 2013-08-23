@@ -78,7 +78,6 @@ library
     haskell-src-exts  >= 1.12,
     filepath,
     mtl,
-    process,
     syntactic         >= 1.6 && < 1.8,
     pretty
 
