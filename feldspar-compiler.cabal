@@ -72,14 +72,13 @@ library
   default-language: Haskell98
 
   build-depends:
+    base              >= 4.0   && < 4.7,
+    syntactic         >= 1.6   && < 1.8,
     feldspar-language >= 0.6.1 && < 0.7,
-    base              >= 4 && < 4.7,
-    containers,
-    haskell-src-exts  >= 1.12,
-    filepath,
     mtl,
-    syntactic         >= 1.6 && < 1.8,
-    pretty
+    pretty,
+    filepath,
+    containers
 
   default-extensions:
     DeriveDataTypeable
