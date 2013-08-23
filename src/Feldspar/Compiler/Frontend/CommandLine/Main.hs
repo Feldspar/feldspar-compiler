@@ -51,6 +51,7 @@ import System.IO.Error
 import System.FilePath
 import System.Directory
 import System.Environment
+import System.Console.ANSI
 import System.Console.GetOpt
 -- ====================================== Control imports ==================================
 import Control.Monad

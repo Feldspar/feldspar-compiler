@@ -60,3 +60,9 @@ fancyWrite s = do
     withColor Blue $ putStr "=== [ "
     withColor Cyan $ putStr $ rpad 70 s
     withColor Blue $ putStrLn " ] ==="
+
+withColor :: Color -> IO () -> IO ()
+withColor color action = do
+    setSGR [SetColor Foreground Vivid color, SetColor Background Dull Black] -- , SetConsoleIntensity BoldIntensity]
+    action
+    setSGR [Reset]

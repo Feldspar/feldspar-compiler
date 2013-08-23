@@ -31,9 +31,10 @@ module Feldspar.Compiler.Frontend.CommandLine.NameExtractor (getModuleInfo) wher
 import Data.Maybe (mapMaybe)
 import System.IO
 import System.IO.Unsafe
+import System.Console.ANSI
 import Language.Haskell.Exts hiding (parse)
 import Feldspar.Compiler.Error
-import Feldspar.Compiler.Backend.C.Library
+import Feldspar.Compiler.Frontend.CommandLine.API.Library
 
 nameExtractorError :: ErrorClass -> String -> a
 nameExtractorError = handleError "NameExtractor"

@@ -73,7 +73,6 @@ library
 
   build-depends:
     feldspar-language >= 0.6.1 && < 0.7,
-    ansi-terminal,
     base              >= 4 && < 4.7,
     containers,
     haskell-src-exts  >= 1.12,

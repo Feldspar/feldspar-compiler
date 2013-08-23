@@ -26,12 +26,9 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Feldspar.Compiler.Backend.C.Library
-    (module System.Console.ANSI,
-     module Feldspar.Compiler.Backend.C.Library) where
+module Feldspar.Compiler.Backend.C.Library where
 
 import Data.List (isPrefixOf)
-import System.Console.ANSI
 import System.FilePath ((<.>))
 
 -- ===========================================================================
@@ -56,12 +53,3 @@ makeHFileName = (<.> "h")
 makeCFileName :: String -> String
 makeCFileName = (<.> "c")
 
--- ===========================================================================
---  == Console tools
--- ===========================================================================
-
-withColor :: Color -> IO () -> IO ()
-withColor color action = do
-    setSGR [SetColor Foreground Vivid color, SetColor Background Dull Black] -- , SetConsoleIntensity BoldIntensity]
-    action
-    setSGR [Reset]
