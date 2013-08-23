@@ -126,16 +126,14 @@ executable feldspar
   build-depends:
     feldspar-language,
     feldspar-compiler,
-    syntactic,
+    mtl,
     base,
     hint,
-    MonadCatchIO-mtl,
-    mtl,
-    directory,
-    filepath,
     process,
+    filepath,
+    directory,
     ansi-terminal,
-    containers,
+    MonadCatchIO-mtl,
     haskell-src-exts >= 1.12
 
   default-extensions:
