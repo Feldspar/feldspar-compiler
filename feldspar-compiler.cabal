@@ -76,7 +76,6 @@ library
     base              >= 4 && < 4.7,
     containers,
     haskell-src-exts  >= 1.12,
-    directory,
     filepath,
     MonadCatchIO-mtl,
     mtl,
