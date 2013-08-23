@@ -4,10 +4,9 @@ module Main where
 -- > ghc -ilib -isrc -itests tests/RegressionTests.hs -e 'writeGoldFile example9 "example9" defaultOptions'
 -- > ghc -ilib -isrc -itests tests/RegressionTests.hs -e 'writeGoldFile example9 "example9_native" nativeOpts'
 
-import Test.Framework
-import Test.Golden
-import Test.Framework.Providers.HUnit
-import Test.HUnit
+import Test.Tasty
+import Test.Tasty.Golden
+import Test.Tasty.Golden.Advanced
 
 import qualified Prelude
 import Feldspar
@@ -15,11 +14,12 @@ import Feldspar.Compiler
 import Feldspar.Vector
 import qualified Feldspar.Vector.Push as PV
 
+import Control.Monad
+import Control.Monad.Error (liftIO)
 import Data.Monoid ((<>))
-import Shelly
-import qualified Data.Text.Lazy as LT
-import Data.Text.Lazy (pack)
-import Filesystem.Path.CurrentOS (decodeString)
+import qualified Data.ByteString.Lazy as LB
+import System.Process
+import Text.Printf
 
 example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
@@ -40,7 +40,7 @@ pairParam2 c = (c, c)
 -- One test starting.
 metrics :: Vector1 IntN -> Vector1 IntN
            -> Vector (Vector (Data Index, Data Index)) -> Vector (Vector1 IntN)
-metrics s zf = scan (columnMetrics s) initialMetrics
+metrics s _ = scan (columnMetrics s) initialMetrics
 
 initialMetrics :: Vector1 IntN
 initialMetrics = replicate 8 (-32678)
@@ -57,13 +57,13 @@ copyPush :: Vector1 Index -> PV.PushVector1 Index
 copyPush v = let pv = PV.toPush v in pv PV.++ pv
 
 scanlPush :: PV.PushVector1 WordN -> Vector1 WordN -> PV.PushVector (PV.PushVector1 WordN)
-scanlPush = PV.scanl (\a b ->  a )
+scanlPush = PV.scanl const
 
 concatV :: Vector (Vector1 IntN) -> Vector1 IntN
 concatV = fold (++) Empty
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
-complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> ((a+1),b))
+complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
 
 -- One test starting
 divConq3 :: Vector1 IntN -> Vector1 IntN
@@ -73,8 +73,8 @@ pmap :: (Syntax a, Syntax b) => (a -> b) -> Vector a -> Vector b
 pmap f = map await . force . map (future . f)
 
 segment :: Syntax a => Data Length -> Vector a -> Vector (Vector a)
-segment l xs = indexed clen (\ix -> (take l $ drop (ix*l) xs))
-  where clen = (length xs) `div` l
+segment l xs = indexed clen (\ix -> take l $ drop (ix*l) xs)
+  where clen = length xs `div` l
 -- End one test.
 
 tests = testGroup "RegressionTests"
@@ -100,40 +100,41 @@ tests = testGroup "RegressionTests"
     , mkBuildTest divConq3 "divConq3" defaultOptions
     ]
 
-main = defaultMain [tests]
+main = defaultMain tests
 
 
 -- Helper functions
-jointSuffix = "tmp"
 testDir = "tests/"
 goldDir = "tests/gold/"
 
 nativeOpts = defaultOptions{rules=nativeArrayRules}
-sicsOpts = defaultOptions{frontendOpts=defaultFeldOpts{targets= [SICS]}}
+sicsOpts   = defaultOptions{frontendOpts=defaultFeldOpts{targets= [SICS]}}
 
-writeGoldFile fun name opts = compile fun (goldDir <> name) name opts
+writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
+writeGoldFile fun name = compile fun (goldDir <> name) name
 
-mkGoldTest fun name opts = buildTest $ do
-    compile fun (testDir <> name) name opts
-    shellyNoDir $ mkJointFile (pack testDir) name
-    shellyNoDir $ mkJointFile (pack goldDir) name
-    return $ goldenVsFile name (goldDir <> name <> "." <> jointSuffix) (testDir <> name <> "." <> jointSuffix) $ return ()
+mkGoldTest fun name opts = do
+    let ref = goldDir <> name
+        new = testDir <> name
+        act = compile fun new name opts
+        cmp = simpleCmp $ printf "Files '%s' and '%s' differ" ref new
+        upd = LB.writeFile ref
+    goldenTest name (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
 
-ghc = command_ (decodeString "ghc") [ pack "-c"
-                                    , pack "-optc -Ilib/Feldspar/C"
-                                    , pack "-optc -std=c99"
-                                    , pack "-Wall"
-                                    ]
--- | Creates a temporary file that is used for the comparison by
--- concatenating the header file and c file into a single temporary file.
-mkJointFile base name = do
-     testH <- readfile (base </> name <.> pack "h")
-     testC <- readfile (base </> name <.> pack "c")
-     writefile (base </> name <.> pack jointSuffix) (LT.append testH testC)
+simpleCmp :: Prelude.Eq a => String -> a -> a -> IO (Maybe String)
+simpleCmp e x y =
+  return $ if x Prelude.== y then Nothing else Just e
 
-mkBuildTest fun name opts = testCase name $ do let base  = testDir <> name <> "_build_test"
-                                                   cfile = base <> ".c"
-                                               compile fun base name opts
-                                               shellyNoDir $ ghc [pack cfile]
+vgReadFiles :: String -> ValueGetter r LB.ByteString
+vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]
 
+mkBuildTest fun name opts = do
+    let new = testDir <> name <> "_build_test"
+        cfile = new <> ".c"
+        act = do compile fun new name opts
+                 (e,so,se) <- readProcessWithExitCode "ghc" [cfile, "-c", "-optc -Ilib/Feldspar/C", "-optc -std=c99", "-Wall"] ""
+                 return $ so <> se
+        cmp _ _ = return Nothing
+        upd _ = return ()
+    goldenTest name (return "") (liftIO act >> return "") cmp upd
 

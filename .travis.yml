@@ -1,8 +1,7 @@
 language: haskell
 
 before_install:
-  # Update index.
-  - cabal update
+  - cabal install tasty --constraint="stm > 2.3"
 
   # Fetch the latest feldspar-language from github
   - git clone -v -b master https://github.com/Feldspar/feldspar-language

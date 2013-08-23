@@ -74,15 +74,15 @@ library
   build-depends:
     feldspar-language >= 0.6.1 && < 0.7,
     ansi-terminal,
-    base >= 4 && < 4.7,
+    base              >= 4 && < 4.7,
     containers,
-    haskell-src-exts >= 1.12,
+    haskell-src-exts  >= 1.12,
     directory,
     filepath,
     MonadCatchIO-mtl,
     mtl,
     process,
-    syntactic >= 1.6 && < 1.7,
+    syntactic         >= 1.6 && < 1.8,
     pretty
 
   default-extensions:
@@ -145,10 +145,10 @@ executable feldspar
     Feldspar.Compiler.Frontend.CommandLine.API
 
   build-depends:
-    feldspar-language >= 0.6.1 && < 0.7,
+    feldspar-language,
     feldspar-compiler,
-    syntactic >= 1.6 && < 1.7,
-    base >= 4 && < 4.7,
+    syntactic,
+    base,
     hint,
     MonadCatchIO-mtl,
     mtl,
@@ -160,7 +160,6 @@ executable feldspar
     haskell-src-exts >= 1.12
 
   default-extensions:
-    CPP
     DeriveDataTypeable
     EmptyDataDecls
     FlexibleContexts
@@ -192,16 +191,12 @@ test-suite regression
   default-language: Haskell2010
 
   build-depends:
-    feldspar-language >= 0.6.1 && < 0.7,
+    feldspar-language,
     feldspar-compiler,
-    base                  >= 4      && < 4.7,
-    text                  >= 0.11.2 && < 0.12,
-    bytestring            >= 0.9    && < 0.11,
-    test-framework        >= 0.6    && < 0.9,
-    test-framework-golden >= 1.1    && < 1.2,
-    test-framework-hunit  >= 0.3    && < 0.4,
-    system-filepath       >= 0.4.7  && < 0.5,
-    shelly                >= 0.14.1 && < 0.15,
-    HUnit                 >= 1.2.5  && < 1.3,
-    QuickCheck            >= 2.5    && < 3
+    mtl,
+    base,
+    process,
+    bytestring   >= 0.9 && < 0.11,
+    tasty        >= 0.2 && < 0.3,
+    tasty-golden >= 2.0 && < 2.1
 
