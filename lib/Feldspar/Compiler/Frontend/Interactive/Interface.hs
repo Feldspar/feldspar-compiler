@@ -41,7 +41,7 @@ import Feldspar.Compiler.Imperative.Representation (Module)
 
 import Data.Char
 import Control.Monad (when)
-import System.FilePath (takeBaseName, (<.>))
+import System.FilePath (takeFileName)
 
 -- ================================================================================================
 --  == Interactive compilation
@@ -49,7 +49,7 @@ import System.FilePath (takeBaseName, (<.>))
 
 compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName functionName opts = do
-    writeFile cfile $ unlines [ "#include \"" ++ takeBaseName fileName <.> "h" ++ "\""
+    writeFile cfile $ unlines [ "#include \"" ++ takeFileName hfile ++ "\""
                               , sourceCode $ sctccrSource compilationResult
                               ]
     writeFile hfile $ withIncludeGuard $ sourceCode $ sctccrHeader compilationResult
