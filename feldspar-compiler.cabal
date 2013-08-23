@@ -77,7 +77,6 @@ library
     containers,
     haskell-src-exts  >= 1.12,
     filepath,
-    MonadCatchIO-mtl,
     mtl,
     process,
     syntactic         >= 1.6 && < 1.8,
