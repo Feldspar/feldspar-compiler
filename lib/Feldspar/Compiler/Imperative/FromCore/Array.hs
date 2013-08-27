@@ -90,6 +90,7 @@ instance ( Compile dom dom
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         , (bs, (tup :$ a :$ b))        <- collectLetBinders l
         , Just (C' Tup2)               <- prjF tup
+        , not $ null bs
         , (e, ASTB step)               <- last bs
         , Just (C' (Variable t1))      <- prjF a
         , Just (C' (Variable t2))      <- prjF b
