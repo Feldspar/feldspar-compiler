@@ -12,6 +12,7 @@ import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
 import Feldspar.Vector
+import Feldspar.Vector.Internal (scan)
 import qualified Feldspar.Vector.Push as PV
 
 import Control.Monad
