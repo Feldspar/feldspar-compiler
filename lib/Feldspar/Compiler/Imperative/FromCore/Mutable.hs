@@ -72,9 +72,7 @@ instance ( Compile dom dom
             compileProg loc body
 
     compileProgSym Then _ loc (ma :* mb :* Nil) = do
-        let err = error $  "compileProgSym Then: "
-                        ++ "Should not assign from the first action"
-        compileProg err ma
+        _ <- compileExpr ma
         compileProg loc mb
 
     compileProgSym Return info loc (a :* Nil)
