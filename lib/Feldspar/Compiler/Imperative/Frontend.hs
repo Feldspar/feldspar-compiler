@@ -72,15 +72,17 @@ setLength arr len = Assign arr $ fun (typeof arr) "setLength" [arr, sz, len]
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
-copyProg :: Expression ()-> [Expression ()] -> Program ()
+copyProg :: Maybe (Expression ())-> [Expression ()] -> Program ()
 copyProg _ [] = error "copyProg: missing source parameter."
-copyProg outExp inExp
+copyProg Nothing _ = Empty
+copyProg (Just outExp) inExp
     | outExp == head inExp
       && null (tail inExp) = Empty
     | otherwise            = call "copy" (ValueParameter outExp:map ValueParameter inExp)
 
-initArray :: Expression () -> Expression () -> Program ()
-initArray arr len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
+initArray :: Maybe (Expression ()) -> Expression () -> Program ()
+initArray Nothing _      = Empty
+initArray (Just arr) len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
   where
     sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
        | otherwise  = t

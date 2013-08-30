@@ -84,7 +84,7 @@ compileLet a info v
             sa  = infoSize $ getInfo a
             var = mkVar (compileTypeRep ta sa) v
         declare var
-        compileProg var a
+        compileProg (Just var) a
         return var
 
 compileBind :: Compile dom dom
@@ -94,4 +94,4 @@ compileBind (v, ASTB e)
          let info = getInfo e
              var = mkVar (compileTypeRep (infoType info) (infoSize info)) v
          declare var
-         compileProg var e
+         compileProg (Just var) e

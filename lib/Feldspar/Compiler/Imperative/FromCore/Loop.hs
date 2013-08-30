@@ -64,7 +64,7 @@ instance ( Compile dom dom
          )
       => Compile (Loop :|| Type) dom
   where
-    compileProgSym (C' ForLoop) _ loc (len :* init :* (lam1 :$ lt1) :* Nil)
+    compileProgSym (C' ForLoop) _ (Just loc) (len :* init :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda ix)) <- prjLambda lam1
         , (bs1, (lam2 :$ ixf)) <- collectLetBinders lt1
         , Just (SubConstr2 (Lambda st)) <- prjLambda lam2
@@ -77,12 +77,12 @@ instance ( Compile dom dom
             let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
-            compileProg loc init
-            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg stvar ixf >> assign loc stvar
+            compileProg (Just loc) init
+            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg (Just stvar) ixf >> assign (Just loc) stvar
             declare stvar
             tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' 1 (toBlock $ Sequence $ concat lets ++ [body]))]
 
-    compileProgSym (C' WhileLoop) _ loc (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
+    compileProgSym (C' WhileLoop) _ (Just loc) (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
         , Just (SubConstr2 (Lambda cb)) <- prjLambda lam2
         = do
@@ -90,9 +90,9 @@ instance ( Compile dom dom
                 info1 = getInfo lam1
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
                 condv = mkVar (compileTypeRep (infoType info1) (infoSize info1)) cv
-            compileProg loc init >> assign stvar loc
-            (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg condv cond
-            (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg stvar body >> assign loc stvar
+            compileProg (Just loc) init >> assign (Just stvar) loc
+            (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg (Just condv) cond
+            (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg (Just stvar) body >> assign (Just loc) stvar
             declare stvar
             declare condv
             tellProg [while cond' condv body']
@@ -119,7 +119,7 @@ instance ( Compile dom dom
         = do
             let info1 = getInfo cond
             condv <- freshVar "cond" (infoType info1) (infoSize info1)
-            (_, cond')          <- confiscateBlock $ compileProg condv cond
+            (_, cond') <- confiscateBlock $ compileProg (Just condv) cond
             (_, step') <- confiscateBlock $ compileProg loc step
             tellProg [while cond' condv step']
 

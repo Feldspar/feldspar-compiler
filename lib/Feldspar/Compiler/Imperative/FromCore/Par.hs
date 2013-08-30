@@ -99,7 +99,7 @@ instance ( Compile dom dom
 
     compileProgSym ParGet _ loc (r :* Nil) = do
         iv <- compileExpr r
-        tellProg [iVarGet loc iv]
+        tellProg [iVarGet l iv | Just l <- [loc]]
 
     compileProgSym ParPut _ _ (r :* a :* Nil) = do
             iv  <- compileExpr r
@@ -107,15 +107,15 @@ instance ( Compile dom dom
             i   <- freshId
             let var = varToExpr $ mkNamedVar "msg" (typeof val) i
             declare var
-            assign var val
+            assign (Just var) val
             tellProg [iVarPut iv var]
 
-    compileProgSym ParFork info loc (p :* Nil) = do
+    compileProgSym ParFork info (Just loc) (p :* Nil) = do
         let args = [mkVariable (compileTypeRep t (defaultSize t)) v
                    | (v,SomeType t) <- assocs $ infoVars info
                    ] ++ fv loc
         -- Task core:
-        ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg loc p
+        ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg (Just loc) p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
         tellDef [ProcDef coreName args [] (Block (decl ws ++ ds) b)]

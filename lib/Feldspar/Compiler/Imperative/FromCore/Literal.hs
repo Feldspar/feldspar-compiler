@@ -32,13 +32,16 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Feldspar.Compiler.Imperative.FromCore.Literal where
+module Feldspar.Compiler.Imperative.FromCore.Literal
+  (literal)
+  where
 
 
 
 import Control.Monad.RWS
 import Data.Complex
 import GHC.Float (float2Double)
+import Control.Applicative
 
 import Language.Syntactic
 
@@ -59,7 +62,9 @@ instance Compile (Literal :|| Core.Type) dom
   where
     compileExprSym (C' (Literal a)) info Nil = literal (infoType info) (infoSize info) a
 
-    compileProgSym (C' (Literal a)) info loc Nil = literalLoc loc (infoType info) (infoSize info) a
+    compileProgSym (C' (Literal a)) info loc Nil = case loc of
+        Just l  -> literalLoc l (infoType info) (infoSize info) a
+        Nothing -> return ()
 
 literal :: TypeRep a -> Size a -> a -> CodeWriter (Expression ())
 literal t@UnitType        sz a = return (ConstExpr $ literalConst t sz a)
@@ -84,9 +89,9 @@ literalConst (ComplexType t) _  (r:+i) = ComplexConst re ie
   where re = literalConst t (defaultSize t) r
         ie = literalConst t (defaultSize t) i
 
-literalLoc :: Location -> TypeRep a -> Size a -> a -> CodeWriter ()
+literalLoc :: Expression () -> TypeRep a -> Size a -> a -> CodeWriter ()
 literalLoc loc arr@ArrayType{} sz e
-    = tellProg [copyProg loc [ConstExpr $ literalConst arr sz e]]
+    = tellProg [copyProg (Just loc) [ConstExpr $ literalConst arr sz e]]
 
 literalLoc loc (Tup2Type ta tb) (sa,sb) (a,b) =
     do literalLoc (StructField loc "member1") ta sa a
@@ -129,5 +134,5 @@ literalLoc loc (Tup7Type ta tb tc td te tf tg) (sa,sb,sc,sd,se,sf,sg) (a,b,c,d,e
 
 literalLoc loc t sz a =
     do rhs <- literal t sz a
-       assign loc rhs
+       assign (Just loc) rhs
 
