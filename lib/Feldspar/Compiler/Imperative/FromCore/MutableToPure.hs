@@ -84,7 +84,7 @@ instance ( Compile dom dom
         , Just NewArr_ <- prj na
         = do
             len <- compileExpr l
-            tellProg [setLength loc len]
+            tellProg [setLength (Just loc) len]
             withAlias v loc $ compileProg (Just loc) body
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr

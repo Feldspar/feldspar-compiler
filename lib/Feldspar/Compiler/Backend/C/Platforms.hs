@@ -145,7 +145,7 @@ arrayRules = [rule copy]
     copy (ProcedureCall "copy" (dst@(ValueParameter arg1):ins'@(ValueParameter in1:ins))) | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
                initArray (Just arg1) (foldr ePlus (litI32 0) aLens)
-             , if (arg1 == in1) then Empty else call "copyArray" [dst, ValueParameter in1]
+             , if arg1 == in1 then Empty else call "copyArray" [dst, ValueParameter in1]
              ] ++ flattenCopy dst ins argnLens arg1len)]
            where
              aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'

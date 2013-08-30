@@ -48,9 +48,6 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance Compile dom dom => Compile (Condition :|| Core.Type) dom
   where
-    compileProgSym (C' Condition) _ loc (cond :* tHEN :* eLSE :* Nil) = do
-        condExpr <- compileExpr cond
-        (_, tb) <- confiscateBlock $ compileProg loc tHEN
-        (_, eb) <- confiscateBlock $ compileProg loc eLSE
-        tellProg [Branch condExpr tb eb]
+    compileProgSym (C' Condition) _ loc (cond :* tHEN :* eLSE :* Nil) =
+        mkBranch loc cond tHEN eLSE
 

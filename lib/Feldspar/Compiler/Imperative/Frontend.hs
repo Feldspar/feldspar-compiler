@@ -59,17 +59,6 @@ toProg :: Block () -> Program ()
 toProg (Block [] p) = p
 toProg e = BlockProgram e
 
-setLength :: Expression () -> Expression () -> Program ()
-setLength arr len = Assign arr $ fun (typeof arr) "setLength" [arr, sz, len]
-  where
-    sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
-       | otherwise  = t
-    t = SizeOf (Left t')
-    t' = go $ typeof arr
-    go (ArrayType _ e) = e
-    go (Pointer t) = go t
-    go _               = error $ "Feldspar.Compiler.Imperative.Frontend.setLength: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
-
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
 copyProg :: Maybe (Expression ())-> [Expression ()] -> Program ()
@@ -80,9 +69,9 @@ copyProg (Just outExp) inExp
       && null (tail inExp) = Empty
     | otherwise            = call "copy" (ValueParameter outExp:map ValueParameter inExp)
 
-initArray :: Maybe (Expression ()) -> Expression () -> Program ()
-initArray Nothing _      = Empty
-initArray (Just arr) len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, len]
+mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
+mkInitialize _    Nothing    _   = Empty
+mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) name [arr, sz, len]
   where
     sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
        | otherwise  = t
@@ -90,7 +79,13 @@ initArray (Just arr) len = Assign arr $ fun (typeof arr) "initArray" [arr, sz, l
     t' = go $ typeof arr
     go (ArrayType _ e) = e
     go (Pointer t) = go t
-    go _               = error $ "Feldspar.Compiler.Imperative.Frontend.initArray: invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
+    go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
+
+initArray :: Maybe (Expression ()) -> Expression () -> Program ()
+initArray = mkInitialize "initArray"
+
+setLength :: Maybe (Expression ()) -> Expression () -> Program ()
+setLength = mkInitialize "setLength"
 
 freeArray :: Variable () -> Program ()
 freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
@@ -239,4 +234,5 @@ for _ _ _ _ (Block [] (Sequence [Empty])) = Empty
 for p s e i b = ParLoop p (Variable (NumType Unsigned S32) s) e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
-while p e b = SeqLoop e p b
+while p e = SeqLoop e p
+

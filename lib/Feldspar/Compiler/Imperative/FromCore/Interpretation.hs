@@ -339,16 +339,16 @@ tellProg [BlockProgram (Block [] ps)] = tell $ mempty {block = toBlock $ Sequenc
 tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
 tellDeclWith :: Bool -> [Declaration ()] -> CodeWriter ()
-tellDeclWith free ds
-  = do rs <- ask
-       let frees | free = freeArrays ds ++ freeIVars ds
-                 | otherwise = []
-           opts = backendOpts rs
-           defs = getTypes opts ds
-           code | (varFloating $ platform opts) = mempty {decl=ds, epilogue = frees, def = defs}
-                | otherwise = mempty {block = Block ds $ Sequence [],
-                                      epilogue = frees, def = defs}
-       tell code
+tellDeclWith free ds = do
+    rs <- ask
+    let frees | free = freeArrays ds ++ freeIVars ds
+              | otherwise = []
+        opts = backendOpts rs
+        defs = getTypes opts ds
+        code | varFloating $ platform opts = mempty {decl=ds, epilogue = frees, def = defs}
+             | otherwise = mempty {block = Block ds $ Sequence [],
+                                   epilogue = frees, def = defs}
+    tell code
 
 encodeType :: Type -> String
 encodeType = go
@@ -429,6 +429,15 @@ mkLength a t sz
       lenvar    <- freshVar "len" t sz
       compileProg (Just lenvar) a
       return lenvar
+
+mkBranch :: (Compile dom dom)
+         => Location -> ASTF (Decor Info dom) Bool -> ASTF (Decor Info dom) a -> ASTF (Decor Info dom) a -> CodeWriter ()
+mkBranch loc c th el = do
+    ce <- compileExpr c
+    (_, tb) <- confiscateBlock $ compileProg loc th
+    (_, eb) <- confiscateBlock $ compileProg loc el
+    tellProg [Branch ce tb eb]
+
 
 isComposite :: Type -> Bool
 isComposite ArrayType{}   = True

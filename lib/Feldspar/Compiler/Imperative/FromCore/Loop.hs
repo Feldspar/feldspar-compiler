@@ -66,7 +66,7 @@ instance ( Compile dom dom
   where
     compileProgSym (C' ForLoop) _ (Just loc) (len :* init :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda ix)) <- prjLambda lam1
-        , (bs1, (lam2 :$ ixf)) <- collectLetBinders lt1
+        , (bs1, lam2 :$ ixf)            <- collectLetBinders lt1
         , Just (SubConstr2 (Lambda st)) <- prjLambda lam2
         = do
             blocks <- mapM (confiscateBlock . compileBind) bs1

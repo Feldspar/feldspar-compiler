@@ -88,9 +88,9 @@ instance ( Compile dom dom
 
     compileProgSym (C' Sequential) _ loc (len :* init' :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
-        , (bs1, (lam2 :$ l)) <- collectLetBinders lt1
+        , (bs1, lam2 :$ l)             <- collectLetBinders lt1
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
-        , (bs, (tup :$ a :$ b))        <- collectLetBinders l
+        , (bs, tup :$ a :$ b)          <- collectLetBinders l
         , Just (C' Tup2)               <- prjF tup
         , not $ null bs
         , (e, ASTB step)               <- last bs
@@ -120,7 +120,7 @@ instance ( Compile dom dom
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
-        , (bs1, (lam2 :$ step)) <- collectLetBinders lt1
+        , (bs1, lam2 :$ step)          <- collectLetBinders lt1
         , Just (SubConstr2 (Lambda s)) <- prjLambda lam2
         = do
             blocks <- mapM (confiscateBlock . compileBind) bs1
@@ -158,7 +158,7 @@ instance ( Compile dom dom
             (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem <$> loc <*> pure ix2) body2
             tellProg [initArray loc len]
             assign (Just ix2) len
-            tellProg [for True (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg (Just ix2) [(binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1))]]))]
+            tellProg [for True (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg (Just ix2) [binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1)]]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
@@ -177,14 +177,14 @@ instance ( Compile dom dom
         a' <- compileExpr arr
         i' <- compileExpr i
         let el = ArrayElem a' i'
-        if isArray $ typeof el
-          then tellProg [Sequence [Assign loc el]]
-          else tellProg [copyProg (Just loc) [el]]
+        tellProg $ if isArray $ typeof el
+                     then [Sequence [Assign loc el]]
+                     else [copyProg (Just loc) [el]]
 
     compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
         len' <- compileExpr len
         compileProg loc arr
-        tellProg [setLength l len' | Just l <- [loc]]
+        tellProg [setLength loc len']
       -- TODO Optimize by using copyProgLen (compare to 0.4)
 
     compileProgSym a info loc args = compileExprLoc a info loc args

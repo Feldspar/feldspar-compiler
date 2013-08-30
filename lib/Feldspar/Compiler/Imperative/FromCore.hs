@@ -137,7 +137,7 @@ compileProgTop opt funname bs a = do
         outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
         outParam   = Rep.Variable outType "out"
         outLoc     = varToExpr outParam
-    mapM compileBind (reverse bs)
+    mapM_ compileBind (reverse bs)
     compileProg (Just outLoc) a
     return outParam
 
@@ -150,7 +150,7 @@ fromCore opt funname prog = Module defs
     ins        = args results
     post       = epilogue results
     Block ds p = block results
-    paramTypes = getTypes opt $ Declaration outParam Nothing:map (\v -> Declaration v Nothing) ins
+    paramTypes = getTypes opt $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
     defs       =  nub (def results ++ paramTypes)
                ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
 
