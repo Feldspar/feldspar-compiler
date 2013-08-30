@@ -75,17 +75,17 @@ instance ( Compile dom dom
             let sa = fst $ infoSize $ getInfo lam
             let var = mkVar (compileTypeRep ta sa) v
             declare var
-            compileProg var marr
+            compileProg (Just var) marr
             e <- compileExpr body
             tellProg [copyProg loc [e]]
 
-    compileProgSym RunMutableArray _ loc ((bnd :$ (na :$ l) :$ (lam :$ body)) :* Nil)
+    compileProgSym RunMutableArray _ (Just loc) ((bnd :$ (na :$ l) :$ (lam :$ body)) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         , Just NewArr_ <- prj na
         = do
             len <- compileExpr l
             tellProg [setLength loc len]
-            withAlias v loc $ compileProg loc body
+            withAlias v loc $ compileProg (Just loc) body
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr
 

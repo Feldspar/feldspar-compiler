@@ -35,6 +35,7 @@
 module Feldspar.Compiler.Imperative.FromCore.Mutable where
 
 
+import Control.Applicative
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
@@ -68,13 +69,11 @@ instance ( Compile dom dom
             let info = getInfo ma
                 var  = mkVar (compileTypeRep (infoType info) (infoSize info)) v
             declare var
-            compileProg var ma
+            compileProg (Just var) ma
             compileProg loc body
 
     compileProgSym Then _ loc (ma :* mb :* Nil) = do
-        let err = error $  "compileProgSym Then: "
-                        ++ "Should not assign from the first action"
-        compileProg err ma
+        compileProg Nothing ma
         compileProg loc mb
 
     compileProgSym Return info loc (a :* Nil)
@@ -98,12 +97,12 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableReferen
     compileProgSym GetRef _ loc (r :* Nil) = compileProg loc r
     compileProgSym SetRef _ _   (r :* a :* Nil) = do
         var  <- compileExpr r
-        compileProg var a
+        compileProg (Just var) a
     compileProgSym ModRef _ loc (r :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             var <- compileExpr r
-            withAlias v var $ compileProg var body
+            withAlias v var $ compileProg (Just var) body
                -- Since the modifier function is pure it is safe to alias
                -- v with var here
 
@@ -122,7 +121,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]
-        tellProg [for False "i" l 1 $ toBlock (Sequence [copyProg (ArrayElem loc ix) [a']])]
+        tellProg [for False "i" l 1 $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
 
     compileProgSym GetArr _ loc (arr :* i :* Nil) = do
         arr' <- compileExpr arr
@@ -133,7 +132,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
         arr' <- compileExpr arr
         i'   <- compileExpr i
         a'   <- compileExpr a
-        assign (ArrayElem arr' i') a'
+        assign (Just $ ArrayElem arr' i') a'
 
     compileProgSym a info loc args = compileExprLoc a info loc args
 

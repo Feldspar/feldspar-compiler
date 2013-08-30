@@ -51,7 +51,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
   where
     compileExprSym = compileProgFresh
 
-    compileProgSym (C' MkFuture) info loc (p :* Nil) = do
+    compileProgSym (C' MkFuture) info (Just loc) (p :* Nil) = do
         let args = [mkVariable (compileTypeRep t (defaultSize t)) v
                    | (v,SomeType t) <- assocs $ infoVars info
                    ] ++ fv loc
@@ -72,5 +72,5 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
 
     compileProgSym (C' Await) _ loc (a :* Nil) = do
         fut <- compileExprVar a -- compileExpr a
-        tellProg [iVarGet loc fut]
+        tellProg [iVarGet l fut | Just l <- [loc]]
 

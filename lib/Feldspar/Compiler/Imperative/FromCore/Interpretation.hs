@@ -39,6 +39,7 @@ module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
 import Control.Arrow
 import Control.Monad.RWS
+import Control.Applicative
 
 import Data.Char (toLower)
 import Data.List (intercalate)
@@ -107,7 +108,7 @@ initState :: States
 initState = States 0
 
 -- | Where to place the program result
-type Location = Expression ()
+type Location = Maybe (Expression ())
 
 -- | A minimal complete instance has to define either 'compileProgSym' or
 -- 'compileExprSym'.
@@ -160,7 +161,7 @@ compileProgFresh :: Compile sub dom
     -> CodeWriter (Expression ())
 compileProgFresh a info args = do
     loc <- freshVar "e" (infoType info) (infoSize info)
-    compileProgSym a info loc args
+    compileProgSym a info (Just loc) args
     return loc
 
 compileDecor :: Info a -> CodeWriter b -> CodeWriter b
@@ -202,7 +203,7 @@ compileExprVar e = do
             varId <- freshId
             let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
             declare loc
-            assign loc e'
+            assign (Just loc) e'
             return loc
 
 --------------------------------------------------------------------------------
@@ -387,7 +388,8 @@ getTypes opts defs = concatMap mkDef comps
     mkDef _                 = []
 
 assign :: Location -> Expression () -> CodeWriter ()
-assign lhs rhs = tellProg [if lhs == rhs then Empty else copyProg lhs [rhs]]
+assign (Just lhs) rhs = tellProg [if lhs == rhs then Empty else copyProg (Just lhs) [rhs]]
+assign _          _   = return ()
 
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
@@ -425,7 +427,7 @@ mkLength a t sz
   | isVariableOrLiteral a = compileExpr a
   | otherwise             = do
       lenvar    <- freshVar "len" t sz
-      compileProg lenvar a
+      compileProg (Just lenvar) a
       return lenvar
 
 isComposite :: Type -> Bool

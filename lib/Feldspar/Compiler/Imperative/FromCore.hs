@@ -126,7 +126,7 @@ compileProgTop opt funname bs (lt :$ e :$ (lam :$ body))
     var@(Rep.Variable _ freshName) = case prjLambda lam of
                Just (SubConstr2 (Lambda v)) -> mkVariable outType v
     bd = sequenceProgs $ blockBody $ block $ snd $
-          evalRWS (compileProg (varToExpr var) e) (initReader opt) initState
+          evalRWS (compileProg (Just $ varToExpr var) e) (initReader opt) initState
 compileProgTop opt funname bs e@(lt :$ _ :$ _)
   | Just Let <- prj lt
   , (bs', body) <- collectLetBinders e
@@ -138,7 +138,7 @@ compileProgTop opt funname bs a = do
         outParam   = Rep.Variable outType "out"
         outLoc     = varToExpr outParam
     mapM compileBind (reverse bs)
-    compileProg outLoc a
+    compileProg (Just outLoc) a
     return outParam
 
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()

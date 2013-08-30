@@ -53,11 +53,11 @@ instance Compile dom dom => Compile (NoInline :|| Type) dom
   where
     compileExprSym = compileProgFresh
 
-    compileProgSym (C' NoInline) info loc (p :* Nil) = do
+    compileProgSym (C' NoInline) info (Just loc) (p :* Nil) = do
         let args = [mkVariable (compileTypeRep t (defaultSize t)) v
                    | (v,SomeType t) <- assocs $ infoVars info
                    ]
-        (_, b)  <- confiscateBlock $ compileProg loc p
+        (_, b)  <- confiscateBlock $ compileProg (Just loc) p
         let isInParam v = vName v /= lName loc
         let (ins,outs) = partition isInParam args
         funId  <- freshId
