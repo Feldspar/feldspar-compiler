@@ -7,6 +7,7 @@ module Main where
 import Test.Tasty
 import Test.Tasty.Golden
 import Test.Tasty.Golden.Advanced
+import Test.Tasty.QuickCheck
 
 import qualified Prelude
 import Feldspar
@@ -78,6 +79,13 @@ segment l xs = indexed clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
 -- End one test.
 
+-- | We rewrite `return x >>= \_ -> return y` into `return x >> return y`
+--   This test ensures that we can still `return x` in the first action.
+bindToThen :: Data Index -> Data Index -> Data Index
+bindToThen x y = runMutable $ do
+    _ <- return x
+    return y
+
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
@@ -99,6 +107,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest copyPush "copyPush" defaultOptions
     , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
+    , testProperty "bindToThen" (\x y -> eval bindToThen x y Prelude.== y)
     ]
 
 main = defaultMain tests
