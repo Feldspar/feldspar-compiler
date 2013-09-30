@@ -357,6 +357,7 @@ encodeType = go
     go BoolType          = "bool"
     go BitType           = "bit"
     go FloatType         = "float"
+    go DoubleType        = "double"
     go (NumType s w)     = map toLower (show s) ++ show w
     go (ComplexType t)   = "complex" ++ go t
     go (Pointer t)       = "ptr_" ++ go t
