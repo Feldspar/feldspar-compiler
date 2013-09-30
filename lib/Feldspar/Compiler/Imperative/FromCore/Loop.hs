@@ -51,7 +51,7 @@ import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Expression(..), typeof)
+import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)
 

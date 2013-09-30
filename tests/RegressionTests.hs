@@ -5,7 +5,6 @@ module Main where
 -- > ghc -ilib -isrc -itests tests/RegressionTests.hs -e 'writeGoldFile example9 "example9_native" nativeOpts'
 
 import Test.Tasty
-import Test.Tasty.Golden
 import Test.Tasty.Golden.Advanced
 import Test.Tasty.QuickCheck
 
@@ -87,6 +86,7 @@ bindToThen y = runMutable $ do
     _ <- getRef ref
     getRef ref
 
+tests :: TestTree
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
@@ -111,26 +111,30 @@ tests = testGroup "RegressionTests"
     , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
     ]
 
+main :: IO ()
 main = defaultMain tests
 
 
 -- Helper functions
+testDir, goldDir :: Prelude.FilePath
 testDir = "tests/"
 goldDir = "tests/gold/"
 
+nativeOpts :: Options
 nativeOpts = defaultOptions{rules=nativeArrayRules}
+sicsOpts :: Options
 sicsOpts   = defaultOptions{frontendOpts=defaultFeldOpts{targets= [SICS]}}
 
 writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
-writeGoldFile fun name = compile fun (goldDir <> name) name
+writeGoldFile fun n = compile fun (goldDir <> n) n
 
-mkGoldTest fun name opts = do
-    let ref = goldDir <> name
-        new = testDir <> name
-        act = compile fun new name opts
+mkGoldTest fun n opts = do
+    let ref = goldDir <> n
+        new = testDir <> n
+        act = compile fun new n opts
         cmp = simpleCmp $ printf "Files '%s' and '%s' differ" ref new
         upd = LB.writeFile ref
-    goldenTest name (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
+    goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
 
 simpleCmp :: Prelude.Eq a => String -> a -> a -> IO (Maybe String)
 simpleCmp e x y =
@@ -139,13 +143,13 @@ simpleCmp e x y =
 vgReadFiles :: String -> ValueGetter r LB.ByteString
 vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]
 
-mkBuildTest fun name opts = do
-    let new = testDir <> name <> "_build_test"
+mkBuildTest fun n opts = do
+    let new = testDir <> n <> "_build_test"
         cfile = new <> ".c"
-        act = do compile fun new name opts
-                 (e,so,se) <- readProcessWithExitCode "ghc" [cfile, "-c", "-optc -Ilib/Feldspar/C", "-optc -std=c99", "-Wall"] ""
+        act = do compile fun new n opts
+                 (_,so,se) <- readProcessWithExitCode "ghc" [cfile, "-c", "-optc -Ilib/Feldspar/C", "-optc -std=c99", "-Wall"] ""
                  return $ so <> se
         cmp _ _ = return Nothing
         upd _ = return ()
-    goldenTest name (return "") (liftIO act >> return "") cmp upd
+    goldenTest n (return "") (liftIO act >> return "") cmp upd
 

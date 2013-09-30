@@ -76,7 +76,7 @@ instance ( Compile dom dom
             withAlias v e $ compileProg loc body
 
     compileProgSym Then _ loc (ma :* mb :* Nil) = do
-        compileExpr ma
+        compileProg Nothing ma
         compileProg loc mb
 
     compileProgSym Return info loc (a :* Nil)
@@ -84,9 +84,9 @@ instance ( Compile dom dom
         | otherwise                         = compileProg loc a
 
     compileProgSym When _ loc (c :* action :* Nil) = do
-        c' <- compileExpr c
+        ce <- compileExpr c
         (_, b) <- confiscateBlock $ compileProg loc action
-        tellProg [Branch c' b (toBlock Empty)]
+        tellProg [Branch ce b (toBlock Empty)]
 
 instance ( Compile dom dom
          , Project (Variable :|| Type) dom

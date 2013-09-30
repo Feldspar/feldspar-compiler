@@ -42,7 +42,6 @@ import Language.Syntactic
 import Feldspar.Core.Types
 import Feldspar.Core.Constructs.Tuple
 
-import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Expression(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 

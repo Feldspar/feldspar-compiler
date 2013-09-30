@@ -31,7 +31,6 @@ module Feldspar.Compiler.Frontend.CommandLine.API.Options where
 import qualified Feldspar.Compiler.Backend.C.Options as CompilerCoreOptions
 import qualified Feldspar.Compiler.Compiler as CompilerCore
 import qualified Feldspar.Compiler.Frontend.CommandLine.API.Library as StandaloneLib
-import Feldspar.Compiler.Frontend.CommandLine.API.Constants
 import Feldspar.Compiler.Backend.C.Platforms
 
 import Data.List
@@ -40,12 +39,9 @@ import Data.Maybe (fromMaybe)
 
 import System.Console.GetOpt
 import System.Exit
-import System.Environment
 import System.IO
-import System.Process
-import System.Info
-import System.Directory
 
+availablePlatformsStrRep :: String
 availablePlatformsStrRep = StandaloneLib.formatStringList $
                               map (StandaloneLib.upperFirst . CompilerCoreOptions.name) availablePlatforms
 
@@ -65,6 +61,7 @@ startOptions = FrontendOptions
                 , optCompilerMode   = CompilerCore.defaultOptions
                 }
 
+helpHeader :: String
 helpHeader = "Standalone Feldspar Compiler\nUsage: feldspar [options] inputfile\n" ++
          "Notes: \n" ++
          " * When no output file name is specified, the input file's name with .c extension is used\n" ++
@@ -128,6 +125,7 @@ decodePlatform :: String -> CompilerCoreOptions.Platform
 decodePlatform s = fromMaybe (error $ "Invalid platform specified. Valid platforms are: " ++ availablePlatformsStrRep)
                  $ findPlatformByName s
 
+decodeDebug :: String -> CompilerCoreOptions.DebugOption
 decodeDebug "NoPrimitiveInstructionHandling" = CompilerCoreOptions.NoPrimitiveInstructionHandling
 decodeDebug _ = error "Invalid debug level specified"
 

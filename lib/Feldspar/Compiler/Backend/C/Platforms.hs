@@ -130,8 +130,9 @@ showRe = showConstant . realPartComplexValue
 showIm = showConstant . imagPartComplexValue
 
 showConstant :: Constant t -> String
-showConstant (IntConst c _)  = show c
+showConstant (DoubleConst c) = show c ++ "f"
 showConstant (FloatConst c)  = show c ++ "f"
+showConstant c               = show c
 
 arrayRules :: [Rule]
 arrayRules = [rule copy]
@@ -158,7 +159,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
     toNativeExpr :: Expression () -> [Action (Expression ())]
     toNativeExpr _ = []
 
-    toNativeProg (Assign x (FunctionCall (Function "initArray" t _) [arr,esz,num]))
+    toNativeProg (Assign _ (FunctionCall (Function "initArray" _ _) [arr,_,_]))
       | native (typeof arr) = [replaceWith $ call "assert" [ValueParameter arr]]
     toNativeProg (ProcedureCall "freeArray" [ValueParameter arr])
       | native (typeof arr) = [replaceWith Empty]
@@ -222,13 +223,14 @@ c99Rules = [rule go]
     go (FunctionCall (Function "(*)" t _) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
     go (FunctionCall (Function "(*)" t _) [arg1, arg2])   = [replaceWith $ binop t "*" arg1 arg2]
     go (FunctionCall (Function "(/)" t _) [arg1, arg2])   = [replaceWith $ binop t "/" arg1 arg2]
-    go (FunctionCall (Function "div" t _) [arg1, arg2]) = [replaceWith $ StructField (fun div_t (div t) [arg1, arg2]) "quot"]
+    go (FunctionCall (Function "div" t _) [arg1, arg2]) = [replaceWith $ StructField (fun div_t (div_f t) [arg1, arg2]) "quot"]
       where div_t = Alias (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
-            div (NumType Signed S8)  = "div"
-            div (NumType Signed S16) = "div"
-            div (NumType Signed S32) = "div"
-            div (NumType Signed S40) = "ldiv"
-            div (NumType Signed S64) = "lldiv"
+            div_f (NumType Signed S8)  = "div"
+            div_f (NumType Signed S16) = "div"
+            div_f (NumType Signed S32) = "div"
+            div_f (NumType Signed S40) = "ldiv"
+            div_f (NumType Signed S64) = "lldiv"
+            div_f typ = error $ "div not defined for " ++ show typ
     go (FunctionCall (Function "exp" t@(ComplexType _) _) [arg])  = [replaceWith $ fun t "cexpf" [arg]]
     go (FunctionCall (Function "exp" t _) [arg])  = [replaceWith $ fun t "expf" [arg]]
     go (FunctionCall (Function "sqrt" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "csqrtf" [arg]]
@@ -356,7 +358,7 @@ log2 n
     | n == 2 Prelude.^ l = Just l
     | otherwise          = Nothing
   where
-    l = toInteger $ length $ takeWhile (<=n) $ map (2 Prelude.^) [1..]
+    l = toInteger $ length $ takeWhile (<n) $ iterate (*2) 1
 
 first, second :: String
 first  = "member1"

@@ -30,9 +30,7 @@ module Feldspar.Compiler.Frontend.CommandLine.API.Library where
 
 
 import Data.Char (toUpper)
-import Language.Haskell.Interpreter
 import System.Console.ANSI
-import Feldspar.Compiler.Backend.C.Library
 
 upperFirst :: String -> String
 upperFirst (first:rest) = toUpper first : rest

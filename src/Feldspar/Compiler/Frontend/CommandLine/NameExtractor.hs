@@ -29,7 +29,6 @@
 module Feldspar.Compiler.Frontend.CommandLine.NameExtractor (getModuleInfo) where
 
 import Data.Maybe (mapMaybe)
-import System.IO
 import System.IO.Unsafe
 import System.Console.ANSI
 import Language.Haskell.Exts hiding (parse)
@@ -39,6 +38,7 @@ import Feldspar.Compiler.Frontend.CommandLine.API.Library
 nameExtractorError :: ErrorClass -> String -> a
 nameExtractorError = handleError "NameExtractor"
 
+ignore :: Maybe a
 ignore = Nothing
 
 warning :: String -> a -> a
@@ -51,14 +51,14 @@ declarations :: Module -> [Decl]
 declarations (Module _ _ _ _ _ _ g) = g
 
 stripFunBind :: Decl -> Maybe String
-stripFunBind (FunBind [Match _ b c _ _ _])
+stripFunBind (FunBind [Match _ b _ _ _ _])
   = Just $ stripName b
             -- "Match SrcLoc Name [Pat] (Maybe Type) Rhs Binds"
-stripFunBind (FunBind l@(Match _ b _ _ _ _ : tl)) | not (null tl) = warning
+stripFunBind (FunBind (Match _ b _ _ _ _ : tl)) | not (null tl) = warning
             ("Ignoring function " ++ stripName b ++
             ": multi-pattern function definitions are not compilable as Feldspar functions.") ignore
 stripFunBind (PatBind _ b _ _ _) = case stripPattern b of
-            Just functionName -> Just $ functionName -- parameterless declarations (?)
+            Just functionName -> Just functionName -- parameterless declarations (?)
             Nothing           -> nameExtractorError InternalError ("Unsupported pattern binding: " ++ show b)
 stripFunBind TypeSig{} = ignore -- we don't need the type signature (yet)
 stripFunBind DataDecl{} = ignore
@@ -90,8 +90,8 @@ parse fileName contents = fromParseResult $ parseFileContentsWithMode
   contents
 
 getExtendedDeclarationList :: Module -> [String]
-getExtendedDeclarationList mod = mapMaybe stripFunBind (declarations mod)
+getExtendedDeclarationList m = mapMaybe stripFunBind (declarations m)
 
 getModuleInfo :: FilePath -> String -> (String, [String])
-getModuleInfo fileName contents = (moduleName mod, getExtendedDeclarationList mod)
-  where mod = parse fileName contents
+getModuleInfo fileName contents = (moduleName m, getExtendedDeclarationList m)
+  where m = parse fileName contents

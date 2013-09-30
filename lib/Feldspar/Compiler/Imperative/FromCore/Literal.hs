@@ -38,18 +38,13 @@ module Feldspar.Compiler.Imperative.FromCore.Literal
 
 
 
-import Control.Monad.RWS
 import Data.Complex
-import GHC.Float (float2Double)
-import Control.Applicative
 
 import Language.Syntactic
 
 import Feldspar.Core.Types as Core
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Literal
-
-import Feldspar.Range (upperBound)
 
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Expression(..),Constant(..))
@@ -82,9 +77,9 @@ literalConst :: TypeRep a -> Size a -> a -> Constant ()
 literalConst UnitType        _  ()     = IntConst 0 (Rep.NumType Rep.Unsigned Rep.S32)
 literalConst BoolType        _  a      = BoolConst a
 literalConst trep@IntType{}  sz a      = IntConst (toInteger a) (compileTypeRep trep sz)
-literalConst FloatType       _  a      = FloatConst $ float2Double a
-literalConst DoubleType      _  a      = FloatConst a
-literalConst (ArrayType t)   sz a      = ArrayConst $ map (literalConst t (defaultSize t)) a
+literalConst FloatType       _  a      = FloatConst a
+literalConst DoubleType      _  a      = DoubleConst a
+literalConst (ArrayType t)   _  a      = ArrayConst $ map (literalConst t (defaultSize t)) a
 literalConst (ComplexType t) _  (r:+i) = ComplexConst re ie
   where re = literalConst t (defaultSize t) r
         ie = literalConst t (defaultSize t) i

@@ -31,25 +31,10 @@
 
 module Feldspar.Compiler.Imperative.Frontend where
 
-import Data.Monoid (Monoid(..))
-
 import Feldspar.Compiler.Imperative.Representation
 
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
-
-instance Monoid (Program t)
-  where
-    mempty                              = Empty
-    mappend Empty     p                 = p
-    mappend p        Empty              = p
-    mappend (Sequence pa) (Sequence pb) = Sequence (mappend pa pb)
-    mappend pa pb                       = Sequence [mappend pa pb]
-
-instance Monoid (Block t)
-  where
-    mempty                              = Block [] Empty
-    mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
 toBlock :: Program () -> Block ()
 toBlock (BlockProgram b) = b
@@ -78,7 +63,7 @@ mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) name [arr, sz, 
     t = SizeOf (Left t')
     t' = go $ typeof arr
     go (ArrayType _ e) = e
-    go (Pointer t) = go t
+    go (Pointer typ)   = go typ
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 initArray :: Maybe (Expression ()) -> Expression () -> Program ()
@@ -101,14 +86,14 @@ arrayLength arr
   | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
-chaseArray e = go e []  -- TODO: Extend to handle x.member1.member2
-  where go :: Expression t -> [String] -> Maybe (Range Length)
-        go (ConstExpr (ArrayConst l)) [] = Just (singletonRange $ fromIntegral $ length l)
-        go (VarExpr (Variable (ArrayType r _) _)) [] | isSingleton r = Just r
-        go (VarExpr (Variable (NativeArray (Just r) _) _)) [] = Just (singletonRange r)
-        go (StructField e s) ss = go e (s:ss)
-        go (AddrOf e) ss = go e ss
-        go (VarExpr (Variable (StructType _ fields) _)) (s:_)
+chaseArray = go []  -- TODO: Extend to handle x.member1.member2
+  where go :: [String] -> Expression t -> Maybe (Range Length)
+        go []    (ConstExpr (ArrayConst l)) = Just (singletonRange $ fromIntegral $ length l)
+        go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just r
+        go []    (VarExpr (Variable (NativeArray (Just r) _) _)) = Just (singletonRange r)
+        go ss    (StructField e s) = go (s:ss) e
+        go ss    (AddrOf e) = go ss e
+        go (s:_) (VarExpr (Variable (StructType _ fields) _))
           | Just (ArrayType r _) <- lookup s fields
           , isSingleton r = Just r
           | Just (NativeArray (Just r) _) <- lookup s fields
@@ -172,8 +157,11 @@ intSigned (NumType Unsigned _) = Just False
 intSigned (NumType Signed _)   = Just True
 intSigned _                    = Nothing
 
-litF :: Double -> Expression t
+litF :: Float -> Expression t
 litF n = ConstExpr (FloatConst n)
+
+litD :: Double -> Expression t
+litD n = ConstExpr (DoubleConst n)
 
 litB :: Bool -> Expression ()
 litB b = ConstExpr (BoolConst b)

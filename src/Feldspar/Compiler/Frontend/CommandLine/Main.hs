@@ -47,17 +47,10 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Error
 -- ====================================== System imports ==================================
 import System.IO
-import System.Exit
-import System.Info
-import System.Process
-import System.IO.Error
 import System.FilePath
 import System.Directory
-import System.Environment
 import System.Console.ANSI
-import System.Console.GetOpt
 -- ====================================== Control imports ==================================
-import Control.Monad
 import Control.Exception
 import Control.Monad.Error
 import Control.Monad.CatchIO
@@ -66,7 +59,6 @@ import Data.List
 import Data.Maybe (fromMaybe)
 import Data.Either (lefts, rights)
 import Data.Typeable (Typeable(..))
-import Debug.Trace
 import Language.Haskell.Interpreter
 
 data SomeCompilable = forall a . SyntacticFeld a => SomeCompilable a
@@ -78,7 +70,7 @@ data CompilationError =
 
 compileFunction :: String -> String -> Options -> String
                 -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
-compileFunction inFileName outFileName coreOptions functionName = do
+compileFunction _ _ coreOptions functionName = do
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
     let splitModuleDescriptor = moduleSplitter $ executePluginChain functionName coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
@@ -95,14 +87,13 @@ compileFunction inFileName outFileName coreOptions functionName = do
 
 compileAllFunctions :: String -> String -> Options -> [String]
                     -> Interpreter [Either (String, SplitModuleDescriptor) (String, CompilationError)]
-compileAllFunctions inFileName outFileName options []     = return []
-compileAllFunctions inFileName outFileName options (functionName:xs) = do
-    resultCurrent <- catchError (compileFunction inFileName outFileName options functionName)
-                              (\(e::InterpreterError) -> return $ Right (functionName, InterpreterError e))
-                          `Control.Monad.CatchIO.catch`
-                          (\msg -> return $ Right (functionName, InternalErrorCall (errorPrefix ++ show (msg::Control.Exception.ErrorCall))))
-    resultRest <- compileAllFunctions inFileName outFileName options xs
-    return $ resultCurrent : resultRest
+compileAllFunctions inFileName outFileName options = mapM go
+  where
+    go functionName = do
+        catchError (compileFunction inFileName outFileName options functionName)
+                 (\(e::InterpreterError) -> return $ Right (functionName, InterpreterError e))
+             `Control.Monad.CatchIO.catch`
+             (\msg -> return $ Right (functionName, InternalErrorCall (errorPrefix ++ show (msg::Control.Exception.ErrorCall))))
 
 -- | Interpreter body for single-function compilation
 singleFunctionCompilationBody :: String -> String -> Options -> String
@@ -117,7 +108,7 @@ singleFunctionCompilationBody inFileName outFileName coreOptions functionName = 
 mergeModules :: [Module ()] -> Module ()
 mergeModules [] = handleError "Standalone" InvariantViolation "Called mergeModules with an empty list"
 mergeModules [x] = x
-mergeModules l@(x:xs) = Module {
+mergeModules (x:xs) = Module {
     entities = nub $ entities x ++ entities (mergeModules xs) -- nub is in fact a "global plugin" here
 }
 
@@ -133,10 +124,10 @@ writeError (functionName, InternalErrorCall ec) = do
     withColor Red $ putStrLn ec
 
 writeSummary :: Either (String, a) (String, CompilationError) -> IO ()
-writeSummary (Left (functionName, x)) = do
+writeSummary (Left (functionName, _)) = do
     withColor Cyan $ putStr $ padFunctionName functionName
     withColor Green $ putStrLn "[OK]"
-writeSummary (Right (functionName, msg)) = do
+writeSummary (Right (functionName, _)) = do
     withColor Cyan $ putStr $ padFunctionName functionName
     withColor Red $ putStrLn "[FAILED]"
 
@@ -175,6 +166,7 @@ convertOutputFileName inputFileName = fromMaybe (takeFileName $ dropExtension in
 makeBackup :: String -> IO ()
 makeBackup filename = renameFile filename (filename ++ ".bak") `Control.Exception.catch` (\(_ :: IOException) -> return ())
 
+main :: IO ()
 main = do
     (opts, inputFileName) <- handleOptions optionDescriptors startOptions helpHeader
     let outputFileName = convertOutputFileName inputFileName (optOutputFileName opts)
@@ -203,13 +195,13 @@ main = do
           | null declarationList -> putStrLn "No functions to compile."
           | otherwise -> do
                 fancyWrite $ "Number of functions to compile: " ++ show (length declarationList)
-                highLevelInterpreterWithModuleInfo
+                _ <- highLevelInterpreterWithModuleInfo
                     (multiFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) declarationList)
                 return ()
-        SingleFunction funName -> do
+        SingleFunction functionName -> do
             let originalFunctionSignatureNeeded
-                  | funName `elem` declarationList = funName
-                  | otherwise = error $ "Function " ++ funName ++ " not found"
-            highLevelInterpreterWithModuleInfo
+                  | functionName `elem` declarationList = functionName
+                  | otherwise = error $ "Function " ++ functionName ++ " not found"
+            _ <- highLevelInterpreterWithModuleInfo
                 (singleFunctionCompilationBody inputFileName outputFileName (optCompilerMode opts) originalFunctionSignatureNeeded)
             return ()

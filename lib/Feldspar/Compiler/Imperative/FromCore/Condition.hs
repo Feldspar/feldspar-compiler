@@ -40,8 +40,6 @@ import Language.Syntactic
 import Feldspar.Core.Types as Core
 import Feldspar.Core.Constructs.Condition
 
-import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Program(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

@@ -39,6 +39,7 @@ module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
 import Control.Arrow
 import Control.Monad.RWS
+import Control.Applicative
 
 import Data.Char (toLower)
 import Data.List (intercalate)
@@ -81,7 +82,7 @@ initReader = Readers [] ""
 data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
                        , def      :: [Entity ()]      -- ^ collects top level definitions
                        , decl     :: [Declaration ()] -- ^ collects top level variable declarations
-                       , args     :: [Variable ()]    -- ^ collects top level arguments
+                       , params   :: [Variable ()]    -- ^ collects top level parameters
                        , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
                        }
 
@@ -90,13 +91,13 @@ instance Monoid Writers
     mempty      = Writers { block    = mempty
                           , def      = mempty
                           , decl     = mempty
-                          , args     = mempty
+                          , params   = mempty
                           , epilogue = mempty
                           }
     mappend a b = Writers { block    = mappend (block    a) (block    b)
                           , def      = mappend (def      a) (def      b)
                           , decl     = mappend (decl     a) (decl     b)
-                          , args     = mappend (args     a) (args     b)
+                          , params   = mappend (params   a) (params   b)
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
@@ -222,9 +223,9 @@ compileNumType U NNative = NumType Unsigned S32  -- TODO
 compileNumType S NNative = NumType Signed S32    -- TODO
 
 mkStructType :: [(String, Type)] -> Type
-mkStructType trs = StructType name trs
+mkStructType trs = StructType n trs
   where
-    name = intercalate "_" $ "s" : map (encodeType . snd) trs
+    n = intercalate "_" $ "s" : map (encodeType . snd) trs
 
 compileTypeRep :: TypeRep a -> Core.Size a -> Type
 compileTypeRep UnitType _                = VoidType
@@ -312,11 +313,10 @@ freshId = do
   return v
 
 freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter (Expression ()) -- TODO take just info instead of TypeRep and Size?
-freshVar base t size = do
-  v <- freshId
-  let var = varToExpr $ mkNamedVar base (compileTypeRep t size) v
-  declare var
-  return var
+freshVar base t sz = do
+  v <- varToExpr . mkNamedVar base (compileTypeRep t sz) <$> freshId
+  declare v
+  return v
 
 declare :: Expression () -> CodeWriter ()
 declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
@@ -364,23 +364,23 @@ encodeType = go
     go (Alias _ s)       = s
     go (IVarType t)      = go t
     go (NativeArray _ t) = go t
-    go (StructType n ts) = n
+    go (StructType n _)  = n
     go (ArrayType l t)   = intercalate "_" ["arr", go t, if isSingleton l
                                                          then show (upperBound l)
                                                          else "UD"
                                            ]
 
 getTypes :: Options -> [Declaration ()] -> [Entity ()]
-getTypes opts defs = concatMap mkDef comps
+getTypes _ defs = concatMap mkDef comps
   where
-    comps = filter isComposite $ map (typeof . dVar) defs
+    comps = filter isComposite' $ map (typeof . dVar) defs
     -- There are other composite types that are not flagged as such by this
     -- version of isComposite, so keep it private.
-    isComposite :: Type -> Bool
-    isComposite (StructType {}) = True
-    isComposite (Pointer t)     = isComposite t
-    isComposite e               = isArray e
-    mkDef s@(StructType n members)
+    isComposite' :: Type -> Bool
+    isComposite' (StructType {}) = True
+    isComposite' (Pointer t)     = isComposite t
+    isComposite' e               = isArray e
+    mkDef (StructType n members)
       =  concatMap (mkDef . snd) members
       ++ [StructDef n (map (uncurry StructMember) members)]
     mkDef (ArrayType _ typ) = mkDef typ
@@ -388,7 +388,7 @@ getTypes opts defs = concatMap mkDef comps
     mkDef _                 = []
 
 assign :: Location -> Expression () -> CodeWriter ()
-assign (Just lhs) rhs = tellProg [if lhs == rhs then Empty else copyProg (Just lhs) [rhs]]
+assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just tgt) [src]]
 assign _          _   = return ()
 
 -- | Like 'listen', but also prevents the program from being written in the

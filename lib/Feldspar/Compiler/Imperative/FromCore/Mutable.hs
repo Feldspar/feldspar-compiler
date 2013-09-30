@@ -52,11 +52,9 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Size(..),
-                                                                     Signedness(..),
-                                                                     Variable(..))
+                                                                     Signedness(..))
 import Feldspar.Compiler.Imperative.Representation (Expression(..),
-                                                    Program(..),
-                                                    Block(..))
+                                                    Program(..))
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -81,9 +79,9 @@ instance ( Compile dom dom
         | otherwise                         = compileProg loc a
 
     compileProgSym When _ loc (c :* action :* Nil) = do
-        c' <- compileExpr c
+        ce <- compileExpr c
         (_, b) <- confiscateBlock $ compileProg loc action
-        tellProg [Branch c' b (toBlock Empty)]
+        tellProg [Branch ce b (toBlock Empty)]
 
 instance (Compile dom dom, Project (CLambda Type) dom) => Compile Mutable dom
   where
@@ -98,7 +96,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableReferen
     compileProgSym SetRef _ _   (r :* a :* Nil) = do
         var  <- compileExpr r
         compileProg (Just var) a
-    compileProgSym ModRef _ loc (r :* (lam :$ body) :* Nil)
+    compileProgSym ModRef _ _ (r :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         = do
             var <- compileExpr r
@@ -136,7 +134,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
 
     compileProgSym a info loc args = compileExprLoc a info loc args
 
-    compileExprSym ArrLength info (arr :* Nil) = do
+    compileExprSym ArrLength _ (arr :* Nil) = do
         a' <- compileExpr arr
         return $ arrayLength a'
 

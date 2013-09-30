@@ -60,6 +60,7 @@ data CompilationResult
     | CompilationFailure
   deriving (Show, Typeable)
 
+releaseMode :: Bool
 #ifdef RELEASE
 releaseMode = True
 #else
@@ -100,7 +101,7 @@ highLevelInterpreter moduleName inputFileName importList interpreterBody = do
       printInterpreterError err
       return CompilationFailure
     Right action -> do
-      action
+      _ <- action
       return CompilationSuccess
   -- either printInterpreterError id actionToExecute
 
@@ -138,7 +139,7 @@ handleOptions descriptors startOptions helpHeader = do
     return (opts, inputFileName)
 
 removeFileIfPossible :: String -> IO ()
-removeFileIfPossible filename = removeFile filename `Control.Exception.catch` (\(e :: IOException) -> return ())
+removeFileIfPossible filename = removeFile filename `Control.Exception.catch` (\(_ :: IOException) -> return ())
 
 prepareInputFile :: String -> IO ()
 prepareInputFile inputFileName = do
@@ -147,7 +148,7 @@ prepareInputFile inputFileName = do
 
 standaloneCompile :: (SyntacticFeld t) =>
     FilePath -> FilePath -> String -> Options -> t -> IO ()
-standaloneCompile inputFileName outputFileName sig opts prg = do
+standaloneCompile _ outputFileName sig opts prg = do
     appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
     appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult
   where

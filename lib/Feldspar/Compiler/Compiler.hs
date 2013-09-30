@@ -35,7 +35,6 @@ module Feldspar.Compiler.Compiler where
 
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
-import Control.Arrow
 import Control.Applicative
 
 import Feldspar.Transformation

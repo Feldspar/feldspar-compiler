@@ -34,8 +34,8 @@ module Feldspar.Transformation
     ) where
 
 import Feldspar.Transformation.Framework as X
-import Feldspar.Compiler.Imperative.TransformationInstance as X
 import Feldspar.Compiler.Imperative.Representation as X
+import Feldspar.Compiler.Imperative.TransformationInstance ()
 
 -- ================================================================================================
 --  == Plugin class

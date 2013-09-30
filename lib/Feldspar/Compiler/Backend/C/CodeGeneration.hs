@@ -87,19 +87,19 @@ instance CodeGen (Block ())
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) init <> semi
+    cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) initial <> semi
       where
-        init = case (initVal, varType declVar) of
-                 (Just i, _)           -> equals <+> cgen env i
-                 (_     , Pointer{})   -> equals <+> text "NULL"
-                 (_     , ArrayType{}) -> equals <+> text "NULL"
-                 _                     -> empty
+        initial = case (initVal, varType declVar) of
+                    (Just i, _)           -> equals <+> cgen env i
+                    (_     , Pointer{})   -> equals <+> text "NULL"
+                    (_     , ArrayType{}) -> equals <+> text "NULL"
+                    _                     -> empty
     cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Program ())
   where
-    cgen env Empty = empty
-    cgen env Comment{..}
+    cgen _   Empty = empty
+    cgen _   Comment{..}
       | isBlockComment = blockComment $ map text $ lines commentValue
       | otherwise      = text "//" <+> text commentValue
     cgen env Assign{..} = cgen env lhs <+> equals <+> nest (nestSize $ options env) (cgen env rhs) <> semi
@@ -119,11 +119,11 @@ instance CodeGen (Program ())
      = text "#pragma omp parallel for" $$ forL
      | otherwise = forL
       where
-        forL  = text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [init, guard, next])
+        forL  = text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [ini, guard, next])
               $$ block env (cgen env pLoopBlock)
         ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
-        init  = ixd <+> equals    <+> int 0
+        ini   = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> int pLoopStep
 
@@ -133,7 +133,7 @@ instance CodeGen (Program ())
 
 instance CodeGen (Pattern ())
   where
-    cgen env PatDefault = text "default" <> colon
+    cgen _   PatDefault = text "default" <> colon
     cgen env (Pat c)    = cgen env c <> colon
 
     cgenList env = vcat . map (cgen env)
@@ -142,12 +142,12 @@ instance CodeGen (ActualParameter ())
   where
     cgen env ValueParameter{..}      = cgen env valueParam
     cgen env TypeParameter{..}       = cgen env typeParam
-    cgen env FunParameter{..}        = text funParamName
+    cgen _   FunParameter{..}        = text funParamName
     cgenList env = hsep . punctuate comma . map (cgen env)
 
 instance CodeGen (Expression ())
   where
-    cgen env VarExpr{..} = cgen env var
+    cgen env VarExpr{..} = cgen env varExpr
     cgen env e@ArrayElem{..}
      | c@ConstExpr{} <- array
      , (NativeArray _ t) <- typeof c
@@ -158,16 +158,18 @@ instance CodeGen (Expression ())
                                                                , cgen env array
                                                                , cgen env arrayIndex
                                                                ])
-    cgen env e@StructField{..} = parens (cgen env struct) <> char '.' <> text fieldName
-    cgen env ConstExpr{..} = cgen env constExpr
-    cgen env FunctionCall{..} | funName function == "!"   = call (text "at") $ map (cgen env) funCallParams
-                             | funMode function == Infix
-                             , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
-                             | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
+    cgen env StructField{..}  = parens (cgen env struct) <> char '.' <> text fieldName
+    cgen env ConstExpr{..}    = cgen env constExpr
+    cgen env FunctionCall{..}
+        | funName function == "!"   = call (text "at") $ map (cgen env) funCallParams
+        | funMode function == Infix
+        , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
+        | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
-    cgen env AddrOf{..} | VarExpr v@(Variable{..}) <- addrExpr
-                        , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
-                        | otherwise                      = prefix <> cgen env addrExpr
+    cgen env AddrOf{..}
+        | VarExpr v@(Variable{..}) <- addrExpr
+        , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
+        | otherwise                      = prefix <> cgen env addrExpr
      where
        prefix = case (addrExpr, typeof addrExpr) of
                  (e, Pointer{}) | specialConstruct e -> empty -- Skip single level AddrOf
@@ -182,7 +184,7 @@ instance CodeGen (Expression ())
 
 instance CodeGen (Variable t)
   where
-    cgen env v = go v
+    cgen _ = go
       where
         go v@Variable{..} = case varType of
                    Pointer t -> text "*" <> go (v {varType = t})-- char '*'
@@ -193,10 +195,11 @@ instance CodeGen (Variable t)
 instance CodeGen (Constant ())
   where
     cgen env cnst@(IntConst c _)    = maybe (integer c) text $ transformConst env cnst
-    cgen env cnst@(FloatConst c)    = maybe (double c)  text $ transformConst env cnst
+    cgen env cnst@(DoubleConst c)   = maybe (double c)  text $ transformConst env cnst
+    cgen env cnst@(FloatConst c)    = maybe (float c)   text $ transformConst env cnst
     cgen env cnst@(BoolConst False) = maybe (int 0)     text $ transformConst env cnst
     cgen env cnst@(BoolConst True)  = maybe (int 1)     text $ transformConst env cnst
-    cgen env cnst@(ArrayConst cs)   = braces (cgenList env cs)
+    cgen env      (ArrayConst cs)   = braces (cgenList env cs)
     cgen env cnst@ComplexConst{..}  = maybe cmplxCnst   text $ transformConst env cnst
       where
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])

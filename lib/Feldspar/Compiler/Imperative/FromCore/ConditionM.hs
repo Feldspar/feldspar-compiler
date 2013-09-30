@@ -39,8 +39,6 @@ import Language.Syntactic
 
 import Feldspar.Core.Constructs.ConditionM
 
-import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Program(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 

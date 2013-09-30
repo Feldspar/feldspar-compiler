@@ -39,8 +39,9 @@
 module Feldspar.Compiler.Imperative.Representation where
 
 import Data.Typeable
-import Data.Maybe (fromMaybe)
 import Data.List (nub)
+import Data.Maybe (fromMaybe)
+import Data.Monoid
 
 import Feldspar.Compiler.Error
 
@@ -164,7 +165,7 @@ data Declaration t = Declaration
 
 data Expression t
     = VarExpr
-        { var                       :: Variable t
+        { varExpr                   :: Variable t
         }
     | ArrayElem
         { array                     :: Expression t
@@ -206,8 +207,11 @@ data Constant t
         { intValue                  :: Integer
         , intType                   :: Type
         }
+    | DoubleConst
+        { doubleValue               :: Double
+        }
     | FloatConst
-        { floatValue                :: Double
+        { floatValue                :: Float
         }
     | BoolConst
         { boolValue                 :: Bool
@@ -227,6 +231,20 @@ data Variable t
         , varName                   :: String
         }
     deriving (Typeable, Show, Eq)
+
+instance Monoid (Program t)
+  where
+    mempty                              = Empty
+    mappend Empty     p                 = p
+    mappend p        Empty              = p
+    mappend (Sequence pa) (Sequence pb) = Sequence (mappend pa pb)
+    mappend pa pb                       = Sequence [mappend pa pb]
+
+instance Monoid (Block t)
+  where
+    mempty                              = Block [] Empty
+    mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
+
 
 -- ======================
 -- == Basic structures ==
@@ -273,6 +291,7 @@ instance HasType (Variable t) where
 instance HasType (Constant t) where
     type TypeOf (Constant t) = Type
     typeof IntConst{..}      = intType
+    typeof DoubleConst{}     = DoubleType
     typeof FloatConst{}      = FloatType
     typeof BoolConst{}       = BoolType
     typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) t
@@ -281,7 +300,7 @@ instance HasType (Constant t) where
 
 instance HasType (Expression t) where
     type TypeOf (Expression t) = Type
-    typeof VarExpr{..}   = typeof var
+    typeof VarExpr{..}   = typeof varExpr
     typeof ArrayElem{..} = decrArrayDepth $ typeof array
       where
         decrArrayDepth :: Type -> Type

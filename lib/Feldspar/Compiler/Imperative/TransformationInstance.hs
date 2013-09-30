@@ -100,8 +100,8 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
             tr1 = transform t s d e
             tr2 = transform t (state tr1) d p1
             tr3 = transform t (state tr2) d p2
-        defaultTransform t s d (Switch scrut alts) = error "TODO: defaultTransform for switch" where -- Result (Switch (result tr1) (result def':map result alts') (convert inf1) $ convert inf2) (state (last alts')) (foldl combine (up tr1) (up def':map up alts')) where
-            tr1 = transform t s d scrut
+        defaultTransform _ _ _ (Switch _ _) = error "TODO: defaultTransform for switch" where -- Result (Switch (result tr1) (result def':map result alts') (convert inf1) $ convert inf2) (state (last alts')) (foldl combine (up tr1) (up def':map up alts')) where
+            -- tr1 = transform t s d scrut
 {-            def' = transform t (state tr1) d (head alts)
             alts' = go def' [] (tail alts)
             go prev acc [] = reverse (prev:acc)
@@ -157,6 +157,7 @@ instance (Transformable t Expression, Transformable t Variable, Transformable t 
 instance (Transformable t Constant, Transformable1 t [] Constant, Combine (Up t), Default (Up t))
     => DefaultTransformable t Constant where
         defaultTransform _ s _ (IntConst c typ) = Result (IntConst c typ) s def
+        defaultTransform _ s _ (DoubleConst c) = Result (DoubleConst c) s def
         defaultTransform _ s _ (FloatConst c) = Result (FloatConst c) s def
         defaultTransform _ s _ (BoolConst c) = Result (BoolConst c) s def
         defaultTransform t s d (ArrayConst c) = Result (ArrayConst (result1 tr)) (state1 tr) (up1 tr) where

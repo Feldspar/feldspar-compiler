@@ -36,7 +36,6 @@
 module Feldspar.Compiler.Imperative.FromCore.Array where
 
 
-import Data.List (init)
 import Data.Typeable
 
 import Control.Applicative
@@ -116,7 +115,7 @@ instance ( Compile dom dom
                      , initArray loc len']
             tellProg [toProg $ Block (concat dss ++ ds) $
                       for False (lName ix) len' 1 $
-                                    toBlock $ Sequence (concat lets ++ body ++ maybe [] (\l -> [Assign st (ArrayElem l ix)]) loc)]
+                                    toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st (ArrayElem arr ix)]) loc)]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1
@@ -189,7 +188,7 @@ instance ( Compile dom dom
 
     compileProgSym a info loc args = compileExprLoc a info loc args
 
-    compileExprSym (C' GetLength) info (a :* Nil) = do
+    compileExprSym (C' GetLength) _ (a :* Nil) = do
         aExpr <- compileExpr a
         return $ arrayLength aExpr
 

@@ -106,7 +106,7 @@ compileProgTop opt funname bs (lam :$ body)
              typ = compileTypeRep ta sa
              arg | Rep.StructType{} <- typ = mkPointer typ v
                  | otherwise               = mkVariable typ v
-         tell $ mempty {args=[arg]}
+         tell $ mempty {params=[arg]}
          withAlias v (varToExpr arg) $
            compileProgTop opt funname bs body
 compileProgTop opt funname bs (lt :$ e :$ (lam :$ body))
@@ -131,7 +131,7 @@ compileProgTop opt funname bs e@(lt :$ _ :$ _)
   | Just Let <- prj lt
   , (bs', body) <- collectLetBinders e
   = compileProgTop opt funname (reverse bs' ++ bs) body
-compileProgTop opt funname bs a = do
+compileProgTop _ _ bs a = do
     let
         info       = getInfo a
         outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
@@ -147,7 +147,7 @@ fromCore opt funname prog = Module defs
     (outParam,results) = evalRWS (compileProgTop opt funname [] ast) (initReader opt) initState
     ast        = reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
-    ins        = args results
+    ins        = params results
     post       = epilogue results
     Block ds p = block results
     paramTypes = getTypes opt $ Declaration outParam Nothing:map (`Declaration` Nothing) ins

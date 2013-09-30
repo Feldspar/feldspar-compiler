@@ -35,8 +35,6 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Binding where
 
-import Data.Typeable
-
 import Control.Monad.RWS
 
 import Language.Syntactic
@@ -68,13 +66,13 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile Let dom
   where
     compileProgSym Let _ loc (a :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
-        = do var <- compileLet a (getInfo lam) v
-             withAlias v var $ compileProg loc body
+        = do e <- compileLet a (getInfo lam) v
+             withAlias v e $ compileProg loc body
 
     compileExprSym Let _ (a :* (lam :$ body) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
-        = do var <- compileLet a (getInfo lam) v
-             withAlias v var $ compileExpr body
+        = do e <- compileLet a (getInfo lam) v
+             withAlias v e $ compileExpr body
 
 compileLet :: Compile dom dom
            => ASTF (Decor Info dom) a -> Info (a -> b) -> VarId -> CodeWriter (Expression ())

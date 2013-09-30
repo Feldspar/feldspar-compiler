@@ -28,9 +28,13 @@
 
 module Feldspar.Compiler.Frontend.CommandLine.API.Constants where
 
+globalImportList :: [String]
 globalImportList = ["Feldspar.Compiler.Compiler"]
 
+warningPrefix :: String
 warningPrefix = "[WARNING]: "
+
+errorPrefix :: String
 errorPrefix   = "[ERROR  ]: "
 
 

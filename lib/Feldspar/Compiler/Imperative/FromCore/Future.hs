@@ -40,7 +40,7 @@ import Feldspar.Core.Types (Type,defaultSize)
 import Feldspar.Core.Constructs.Future
 import Feldspar.Core.Interpretation
 
-import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..), Program(..))
+import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..))
 import Feldspar.Compiler.Imperative.Representation (Entity(..), Block(..),Expression(..), fv)
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
