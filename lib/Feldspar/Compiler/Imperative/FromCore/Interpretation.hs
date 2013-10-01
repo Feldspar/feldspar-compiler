@@ -378,7 +378,7 @@ getTypes _ defs = concatMap mkDef comps
     -- version of isComposite, so keep it private.
     isComposite' :: Type -> Bool
     isComposite' (StructType {}) = True
-    isComposite' (Pointer t)     = isComposite t
+    isComposite' (Pointer t)     = isComposite' t
     isComposite' e               = isArray e
     mkDef (StructType n members)
       =  concatMap (mkDef . snd) members
