@@ -85,7 +85,7 @@ instance (Transformable1 t [] Declaration, Transformable t Program, Combine (Up 
             tr1 = transform1 t s d l
             tr2 = transform t (state1 tr1) d b
 
-instance (Transformable1 t [] Program, Transformable t Expression, Transformable1 t [] ActualParameter, Transformable t Block, Transformable t Variable, Combine (Up t), Default (Up t))
+instance (Transformable1 t [] Program, Transformable t Expression, Transformable1 t [] ActualParameter, Transformable t Block, Transformable t Variable, Combine (Up t), Default (Up t), Transformation t)
     => DefaultTransformable t Program where
         defaultTransform _ s _ Empty = Result Empty s def
         defaultTransform _ s _ (Comment b c) = Result (Comment b c) s def
@@ -100,13 +100,16 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
             tr1 = transform t s d e
             tr2 = transform t (state tr1) d p1
             tr3 = transform t (state tr2) d p2
-        defaultTransform _ _ _ (Switch _ _) = error "TODO: defaultTransform for switch" where -- Result (Switch (result tr1) (result def':map result alts') (convert inf1) $ convert inf2) (state (last alts')) (foldl combine (up tr1) (up def':map up alts')) where
-            -- tr1 = transform t s d scrut
-{-            def' = transform t (state tr1) d (head alts)
-            alts' = go def' [] (tail alts)
-            go prev acc [] = reverse (prev:acc)
-            go prev acc (h:t) = go (transform t (state prev) d h) (prev:acc) t
--}
+        defaultTransform t s d (Switch scrut (alt:alts)) = Result (Switch (result tr1) ralts) lstate (foldl combine (up tr1) (map (up . snd) alts')) where
+            tr1    = transform t s d scrut
+            alts'  = go (transformPattern (state tr1) alt) [] alts
+            lstate = state . snd . last $ alts'
+            ralts  = map (\(a, b) -> (result a, result b)) alts'
+            go prevAlt acc [] = reverse (prevAlt:acc)
+            go (p2, prev) acc (h:t') = go (transformPattern (state prev) h) ((p2,prev):acc) t'
+            transformPattern st (p, e) = (pat', transform t (state pat') d e)
+              where pat' = transform t st d p
+
         defaultTransform t s d (SeqLoop v c p) = Result (SeqLoop (result tr1) (result tr2) (result tr3)) (state tr3) (foldl combine (up tr1) [up tr2, up tr3]) where
             tr1 = transform t s d v
             tr2 = transform t (state tr1) d c
@@ -117,6 +120,12 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
             tr3 = transform t (state tr2) d p
         defaultTransform t s d (BlockProgram b) = Result (BlockProgram (result tr)) (state tr) (up tr) where
             tr = transform t s d b
+
+instance (Transformable t Constant, Transformable t Expression, Transformable1 t [] ActualParameter, Transformable t Block, Transformable t Variable, Combine (Up t), Default (Up t))
+    => DefaultTransformable t Pattern where
+        defaultTransform _ s _ PatDefault = Result PatDefault s def
+        defaultTransform t s d (Pat p) = Result (Pat (result tr1)) (state tr1) (up tr1) where
+          tr1 = transform t s d p
 
 instance (Transformable t Expression, Default (Up t))
     => DefaultTransformable t ActualParameter where
