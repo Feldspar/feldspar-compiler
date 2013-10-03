@@ -28,6 +28,7 @@
 
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -84,12 +85,33 @@ instance ( Compile dom dom
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam
         , Just Bind    <- prjMonad monadProxy bnd
         , Just NewArr_ <- prj na
+        , (ret :$ rv)  <- chaseBind body
+        , Just Return  <- prjMonad monadProxy ret
+        , Just (C' (Variable r)) <- prjF rv
+        , v == r
         = do
             len <- compileExpr l
             tellProg [setLength (Just loc) len]
             withAlias v loc $ compileProg (Just loc) body
 
     compileProgSym RunMutableArray _ loc (marr :* Nil) = compileProg loc marr
+
+-- | Chase down the right-spine of `Bind` and `Then` constructs and return
+-- the last term
+chaseBind :: ( Project (MONAD Mut) dom
+             , Project (CLambda Type) dom
+             )
+          => AST dom a -> AST dom a
+chaseBind (bnd :$ _ :$ (lam :$ body))
+    | Just Bind <- prjMonad monadProxy bnd
+    , Just (SubConstr2 (Lambda _)) <- prjLambda lam
+    = chaseBind body
+
+chaseBind (thn :$ _ :$ body)
+    | Just Then <- prjMonad monadProxy thn
+    = chaseBind body
+
+chaseBind a = a
 
 {- NOTES:
 
