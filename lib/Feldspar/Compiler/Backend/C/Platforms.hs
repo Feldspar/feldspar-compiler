@@ -138,19 +138,30 @@ arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
     copy (ProcedureCall "copy" [ValueParameter arg1, ValueParameter arg2])
-        | arg1 == arg2 = [replaceWith Empty]
-        | ConstExpr ArrayConst{..} <- arg2 = [replaceWith $ Sequence $ initArray (Just arg1) (litI32 $ toInteger $ length arrayValues):zipWith (\i c -> Assign (ArrayElem arg1 (litI32 i)) (ConstExpr c)) [0..] arrayValues]
+        | arg1 == arg2
+        = [replaceWith Empty]
+
+        | ConstExpr ArrayConst{..} <- arg2
+        = [replaceWith $ Sequence $ initArray (Just arg1) (litI32 $ toInteger $ length arrayValues):zipWith (\i c -> Assign (ArrayElem arg1 (litI32 i)) (ConstExpr c)) [0..] arrayValues]
+
         | NativeArray{} <- typeof arg2
-        , l@(ConstExpr (IntConst n _)) <- arrayLength arg2 = [replaceWith $ Sequence $ initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]]
-        | not (isArray (typeof arg1)) = [replaceWith $ Assign arg1 arg2]
-    copy (ProcedureCall "copy" (dst@(ValueParameter arg1):ins'@(ValueParameter in1:ins))) | isArray (typeof arg1)
+        , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
+        = [replaceWith $ Sequence $ initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]]
+
+        | not (isArray (typeof arg1))
+        = [replaceWith $ Assign arg1 arg2]
+
+    copy (ProcedureCall "copy" (dst@(ValueParameter arg1):ins'@(ValueParameter in1:ins)))
+        | isArray (typeof arg1)
         = [replaceWith $ Sequence ([
                initArray (Just arg1) (foldr ePlus (litI32 0) aLens)
              , if arg1 == in1 then Empty else call "copyArray" [dst, ValueParameter in1]
              ] ++ flattenCopy dst ins argnLens arg1len)]
            where
              aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
+
     copy (ProcedureCall "copy" _) = error "Multiple scalar arguments to copy"
+
     copy _ = []
 
 nativeArrayRules :: [Rule]
