@@ -53,6 +53,7 @@ library
     Feldspar.Compiler.Imperative.FromCore.Tuple
     Feldspar.Compiler.Imperative.FromCore.FFI
     Feldspar.Compiler.Imperative.FromCore.Save
+    Feldspar.Compiler.Imperative.FromCore.Switch
     Feldspar.Compiler.Imperative.Frontend
     Feldspar.Compiler.Imperative.TransformationInstance
     Feldspar.Compiler.Imperative.Plugin.IVars
