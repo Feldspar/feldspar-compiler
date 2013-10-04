@@ -6,7 +6,7 @@ before_install:
   # branch in feldspar-compiler. This is to support CI of new features
   # depending on features in feldspar-language.
   - git clone -v https://github.com/Feldspar/feldspar-language
-  - git checkout ${TRAVIS_BRANCH) || git checkout master
+  - git checkout $TRAVIS_BRANCH || git checkout master
   - echo "Using feldspar-language from "
   - (cd feldspar-language && git rev-parse HEAD)
 
