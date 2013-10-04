@@ -8,22 +8,18 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Switch where
 
-import Control.Monad (forM)
-
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
 
-import Feldspar.Core.Types (Type,TypeRep(..))
+import Feldspar.Core.Types (Type)
 import Feldspar.Core.Interpretation
 import Feldspar.Core.Constructs.Eq
 import Feldspar.Core.Constructs.Condition
 import Feldspar.Core.Constructs.Switch
 
-import Feldspar.Compiler.Imperative.Frontend
 import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
-import Debug.Trace
 
 instance ( Compile dom dom
          , Project (EQ :|| Type) dom
