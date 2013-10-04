@@ -2,7 +2,11 @@ language: haskell
 
 before_install:
   # Fetch the latest feldspar-language from github
-  - git clone -v -b master https://github.com/Feldspar/feldspar-language
+  # Note that we will fetch a branch with the same name as the current
+  # branch in feldspar-compiler. This is to support CI of new features
+  # depending on features in feldspar-language.
+  - git clone -v https://github.com/Feldspar/feldspar-language
+  - git checkout ${TRAVIS_BRANCH) || git checkout master
   - echo "Using feldspar-language from "
   - (cd feldspar-language && git rev-parse HEAD)
 
