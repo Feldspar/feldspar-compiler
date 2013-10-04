@@ -7,8 +7,9 @@ before_install:
   # depending on features in feldspar-language.
   - git clone -v https://github.com/Feldspar/feldspar-language
   - cd feldspar-language && git checkout $TRAVIS_BRANCH || git checkout master
-  - echo "Using feldspar-language from " && cd feldspar-language && git rev-parse HEAD
-
+  - echo "Using feldspar-language from " && git rev-parse HEAD
+  - cd $TRAVIS_BUILD_DIR
+  
   # Try installing some of the build-deps with apt-get for speed
   # - ./tools/travis-cabal-apt-install $mode feldspar-language/ ./
   - cabal install tasty feldspar-language/ ./ --constraint="stm > 2.3"
