@@ -86,6 +86,11 @@ bindToThen y = runMutable $ do
     _ <- getRef ref
     getRef ref
 
+switcher :: Data Index -> Data Index -> Data Index
+switcher s i = switch s (value 0) [ (0,1)
+                                  , (1,2)
+                                  ]
+
 tests :: TestTree
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
@@ -109,6 +114,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
     , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
+    , mkGoldTest switcher "switcher" defaultOptions
     ]
 
 main :: IO ()

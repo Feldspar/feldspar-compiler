@@ -142,7 +142,7 @@ data Program t
 
 data Pattern t
    = PatDefault
-   | Pat (Constant t)
+   | Pat (Expression t)
      deriving (Typeable, Show, Eq)
 
 data ActualParameter t

@@ -8,45 +8,53 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Switch where
 
-import Language.Syntactic
+import Control.Monad (forM)
 
-import Feldspar.Core.Types (Type)
+import Language.Syntactic
+import Language.Syntactic.Constructs.Binding
+
+import Feldspar.Core.Types (Type,TypeRep(..))
 import Feldspar.Core.Interpretation
-import Feldspar.Core.Constructs.Array
+import Feldspar.Core.Constructs.Eq
+import Feldspar.Core.Constructs.Condition
 import Feldspar.Core.Constructs.Switch
-import Feldspar.Core.Constructs.Tuple
 
 import Feldspar.Compiler.Imperative.Frontend
 import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
+import Debug.Trace
+
 instance ( Compile dom dom
-         , Project (Array :|| Type) dom
-         , Project (Tuple :|| Type) dom
+         , Project (EQ :|| Type) dom
+         , Project (Condition :|| Type) dom
          )
       => Compile (Switch :|| Type) dom
   where
-    compileProgSym (C' Switch) _ loc (s :* def :* cs :* Nil) = do
-        scrutinee   <- compileExpr s
-        (ds,defaultProg) <- confiscateBlock $ compileProg loc def
-        cases <- compileCases loc cs
-        let alts = (R.PatDefault, defaultProg) : cases
-        tellProg [R.Switch{..}]
+    compileProgSym (C' Switch) _ loc (tree@(cond :$ (op :$ _ :$ s) :$ _ :$ _) :* Nil)
+        | Just (C' Condition) <- prjF cond
+        , Just (C' Equal)     <- prjF op
+        = do
+             scrutinee <- compileExpr s
+             alts      <- chaseTree loc s tree
+             tellProg [R.Switch{..}]
 
-compileCases :: ( Compile dom dom
-                , Project (Array :|| Type) dom
-                , Project (Tuple :|| Type) dom
-                )
-             => Location -> AST (Decor Info dom) a -> CodeWriter [(R.Pattern (), R.Block ())]
-compileCases loc (append :$ c :$ cs) = do x  <- compileCase loc c
-                                          xs <- compileCases loc cs
-                                          return (x:xs)
-compileCases _   _                   = return []
-
-compileCase loc (arr :$ _ :$ (lam :$ (tup :$ a :$ b)))
-    | Just (C' Parallel) <- prjF arr
-    , Just (C' Tup2)     <- prjF tup
+chaseTree :: ( Compile dom dom
+             , Project (Condition :|| Type) dom
+             , Project (EQ        :|| Type) dom
+             )
+          => Location -> ASTF (Decor Info dom) a -> ASTF (Decor Info dom) b -> CodeWriter [(R.Pattern (), R.Block ())]
+chaseTree loc s (cond :$ (op :$ c :$ a) :$ t :$ f)
+    | Just (C' Condition) <- prjF cond
+    , Just (C' Equal)     <- prjF op
+    -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
-         e      <- compileExpr a
-         (_,p) <- confiscateBlock $ compileProg loc b
-         return (R.Pat (R.BoolConst False),p)
+         e <- compileExpr c
+         (_,body) <- confiscateBlock $ compileProg loc t
+         cases <- chaseTree loc s f
+         return $ (R.Pat e, body) : cases
+
+chaseTree loc s a = do
+    (_,body) <- confiscateBlock $ compileProg loc a
+    return [(R.PatDefault, body)]
+
