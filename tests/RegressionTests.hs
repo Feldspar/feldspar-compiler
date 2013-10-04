@@ -86,10 +86,8 @@ bindToThen y = runMutable $ do
     _ <- getRef ref
     getRef ref
 
-switcher :: Data Index -> Data Index -> Data Index
-switcher s i = switch s (value 0) [ (0,1)
-                                  , (1,2)
-                                  ]
+switcher :: Data Word8 -> Data Bool -> Data Word8
+switcher i = switch (value 0) [(true,1), (false,2)]
 
 tests :: TestTree
 tests = testGroup "RegressionTests"

@@ -11,14 +11,14 @@
 #include <complex.h>
 
 
-void switcher(uint32_t v0, uint32_t v1, uint32_t * out)
+void switcher(uint8_t v0, uint32_t v1, uint8_t * out)
 {
-  switch (v0)
+  switch (v1)
   {
-    0:
+    true:
       *out = 1;
       break;
-    1:
+    false:
       *out = 2;
       break;
     default:

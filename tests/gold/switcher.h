@@ -13,6 +13,6 @@
 #include <complex.h>
 
 
-void switcher(uint32_t v0, uint32_t v1, uint32_t * out);
+void switcher(uint8_t v0, uint32_t v1, uint8_t * out);
 
 #endif // TESTS_SWITCHER_H
