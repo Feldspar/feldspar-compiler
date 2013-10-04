@@ -86,6 +86,9 @@ bindToThen y = runMutable $ do
     _ <- getRef ref
     getRef ref
 
+switcher :: Data Word8 -> Data Bool -> Data Word8
+switcher i = switch (value 0) [(true,i), (false,2)]
+
 tests :: TestTree
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
@@ -109,6 +112,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
     , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
+    , mkGoldTest switcher "switcher" defaultOptions
     ]
 
 main :: IO ()

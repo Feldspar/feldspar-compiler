@@ -56,7 +56,15 @@ import Feldspar.Core.Frontend
 import Feldspar.Range (upperBound)
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..))
-import Feldspar.Compiler.Imperative.Representation (ActualParameter(..), Expression(..), Program(..), Block(..), Module(..), Entity(..), Declaration(..))
+import Feldspar.Compiler.Imperative.Representation
+         ( ActualParameter(..)
+         , Block(..)
+         , Declaration(..)
+         , Entity(..)
+         , Expression(..)
+         , Module(..)
+         , Program(..)
+         )
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Array ()
@@ -75,6 +83,7 @@ import Feldspar.Compiler.Imperative.FromCore.Par ()
 import Feldspar.Compiler.Imperative.FromCore.Primitive ()
 import Feldspar.Compiler.Imperative.FromCore.Save ()
 import Feldspar.Compiler.Imperative.FromCore.SizeProp ()
+import Feldspar.Compiler.Imperative.FromCore.Switch ()
 import Feldspar.Compiler.Imperative.FromCore.SourceInfo ()
 import Feldspar.Compiler.Imperative.FromCore.Tuple ()
 
