@@ -16,7 +16,7 @@ void switcher(uint8_t v0, uint32_t v1, uint8_t * out)
   switch (v1)
   {
     true:
-      *out = 1;
+      *out = v0;
       break;
     false:
       *out = 2;

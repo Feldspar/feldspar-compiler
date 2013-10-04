@@ -87,7 +87,7 @@ bindToThen y = runMutable $ do
     getRef ref
 
 switcher :: Data Word8 -> Data Bool -> Data Word8
-switcher i = switch (value 0) [(true,1), (false,2)]
+switcher i = switch (value 0) [(true,i), (false,2)]
 
 tests :: TestTree
 tests = testGroup "RegressionTests"
