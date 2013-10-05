@@ -66,20 +66,15 @@ data Entity t
         { actualType                :: Type
         , typeName                  :: String
         }
-    | ProcDef
+    | Proc
         { procName                  :: String
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
-        , procBody                  :: Block t
+        , procBody                  :: Maybe (Block t)
         }
     | ValueDef
         { valVar                    :: Variable t
         , valValue                  :: Constant t
-        }
-    | ProcDecl
-        { procName                  :: String
-        , inParams                  :: [Variable t]
-        , outParams                 :: [Variable t]
         }
     deriving (Typeable, Show, Eq)
 

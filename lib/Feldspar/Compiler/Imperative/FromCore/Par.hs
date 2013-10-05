@@ -116,11 +116,11 @@ instance ( Compile dom dom
         ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg (Just loc) p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDef coreName args [] (Block (decl ws ++ ds) b)]
+        tellDef [Proc coreName args [] $ Just (Block (decl ws ++ ds) b)]
         -- Task:
         let taskName = "task" ++ show funId
-        let runTask = run coreName args
-        tellDef [ProcDef taskName [] [mkNamedRef "params" AIR.VoidType (-1)] $ toBlock runTask]
+        let runTask = Just $ toBlock $ run coreName args
+        tellDef [Proc taskName [] [mkNamedRef "params" AIR.VoidType (-1)] runTask]
         -- Spawn:
         tellProg [spawn taskName args]
 

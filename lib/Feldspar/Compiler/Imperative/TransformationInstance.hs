@@ -52,24 +52,19 @@ instance (Transformable1 t [] Entity)
         defaultTransform t s d (Module m) = Result (Module (result1 tr)) (state1 tr) (up1 tr) where
             tr = transform1 t s d m
 
-instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transformable t Block, Transformable t Declaration, Transformable t Constant, Combine (Up t), Default (Up t))
+instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transformable t Block, Transformable t Declaration, Transformable t Constant, Combine (Up t), Default (Up t), Transformation t)
     => DefaultTransformable t Entity where
         defaultTransform t s d (StructDef n m) =
             Result (StructDef n (result1 tr)) (state1 tr) (up1 tr) where
                 tr = transform1 t s d m
         defaultTransform _ s _ (TypeDef typ n) =
             Result (TypeDef typ n) s def
-        defaultTransform t s d (ProcDef n i o p) =
-            Result (ProcDef n (result1 tr1) (result1 tr2) (result tr3))
-                   (state tr3) (foldl combine (up1 tr1) [up1 tr2, up tr3]) where
+        defaultTransform t s d (Proc n i o p) =
+            Result (Proc n (result1 tr1) (result1 tr2) (result1 tr3))
+                   (state1 tr3) (foldl combine (up1 tr1) [up1 tr2, up1 tr3]) where
                         tr1 = transform1 t s d i
                         tr2 = transform1 t (state1 tr1) d o
-                        tr3 = transform t (state1 tr2) d p
-        defaultTransform t s d (ProcDecl name inp outp) =
-            Result (ProcDecl name (result1 tr1) (result1 tr2))
-                   (state1 tr2) (foldl1 combine [up1 tr1, up1 tr2]) where
-                tr1 = transform1 t s d inp
-                tr2 = transform1 t (state1 tr1) d outp
+                        tr3 = transform1 t (state1 tr2) d p
         defaultTransform t s d (ValueDef var val) =
             Result (ValueDef (result tr1) (result tr2)) (state tr2) (combine (up tr1) (up tr2)) where
                 tr1 = transform t s d var
