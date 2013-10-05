@@ -183,7 +183,7 @@ instance CodeGen (Expression ())
                          specialConstruct _             = False
 
                  _                          -> text "&"
-    cgen env SizeOf{..} = call (text "sizeof") [either (cgen env) (cgen env) sizeOf]
+    cgen env SizeOf{..} = call (text "sizeof") [cgen env sizeOf]
 
     cgenList env = sep . punctuate comma . map (cgen env)
 

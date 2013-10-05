@@ -180,7 +180,7 @@ data Expression t
         { addrExpr                  :: Expression t
         }
     | SizeOf
-        { sizeOf                    :: Either Type (Expression t)
+        { sizeOf                    :: Type
         }
     deriving (Typeable, Show, Eq)
 
@@ -334,6 +334,5 @@ fv' (StructField e _)   = fv' e
 fv' (FunctionCall _ ps) = concatMap fv' ps
 fv' (Cast _ e)          = fv' e
 fv' (AddrOf e)          = fv' e
-fv' (SizeOf (Right e))  = fv' e
 fv' _                   = []
 
