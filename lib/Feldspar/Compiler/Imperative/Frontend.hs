@@ -52,7 +52,7 @@ copyProg Nothing _ = Empty
 copyProg (Just outExp) inExp
     | outExp == head inExp
       && null (tail inExp) = Empty
-    | otherwise            = call "copy" (ValueParameter outExp:map ValueParameter inExp)
+    | otherwise            = call "copy" (map ValueParameter (outExp:inExp))
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
