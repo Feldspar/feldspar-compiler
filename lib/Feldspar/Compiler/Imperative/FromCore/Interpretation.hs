@@ -335,7 +335,7 @@ tellDef :: [Entity ()] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
 tellProg :: [Program ()] -> CodeWriter ()
-tellProg [BlockProgram (Block [] ps)] = tell $ mempty {block = toBlock $ Sequence [ps]}
+tellProg [BlockProgram b@(Block [] _)] = tell $ mempty {block = b}
 tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
 tellDeclWith :: Bool -> [Declaration ()] -> CodeWriter ()
@@ -346,7 +346,7 @@ tellDeclWith free ds = do
         opts = backendOpts rs
         defs = getTypes opts ds
         code | varFloating $ platform opts = mempty {decl=ds, epilogue = frees, def = defs}
-             | otherwise = mempty {block = Block ds $ Sequence [],
+             | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
     tell code
 
