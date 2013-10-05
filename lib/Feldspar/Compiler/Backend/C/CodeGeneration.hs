@@ -62,7 +62,7 @@ instance CodeGen (Entity ())
   where
     cgen env StructDef{..} = text "struct"   <+> text structName     $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}
+    cgen env Proc{..}
       | Just body <- procBody = start $$ block env (cgen env body)
       | otherwise = start <> semi
         where

@@ -59,8 +59,8 @@ instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transf
                 tr = transform1 t s d m
         defaultTransform _ s _ (TypeDef typ n) =
             Result (TypeDef typ n) s def
-        defaultTransform t s d (ProcDef n i o p) =
-            Result (ProcDef n (result1 tr1) (result1 tr2) (result1 tr3))
+        defaultTransform t s d (Proc n i o p) =
+            Result (Proc n (result1 tr1) (result1 tr2) (result1 tr3))
                    (state1 tr3) (foldl combine (up1 tr1) [up1 tr2, up1 tr3]) where
                         tr1 = transform1 t s d i
                         tr2 = transform1 t (state1 tr1) d o

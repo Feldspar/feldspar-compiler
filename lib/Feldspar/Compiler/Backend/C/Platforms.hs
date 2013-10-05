@@ -351,7 +351,7 @@ traceRules = [rule trace]
             trc :: Program () -> [Action (Program ())]
             trc instr = [replaceWith $ Sequence [Assign trcVar val,trcCall,instr]]
             trcCall = call (extend' "trace" t) [ValueParameter trcVar, ValueParameter lab]
-            frame (ProcDef pname ins outs (Just prg)) = [replaceWith $ ProcDef pname ins outs prg']
+            frame (Proc pname ins outs (Just prg)) = [replaceWith $ Proc pname ins outs prg']
               where
                 prg' = Just $ case prg of
                     Block _ (Sequence (ProcedureCall "traceStart" [] : _)) -> prg

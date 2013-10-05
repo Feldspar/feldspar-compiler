@@ -71,15 +71,15 @@ moduleSplitter m = SplitModuleDescriptor {
 } where
     (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
-    belongsToHeader StructDef{}                        = True
-    belongsToHeader ProcDef{..} | Nothing <- procBody  = True
-    belongsToHeader _                                  = False
+    belongsToHeader StructDef{}                     = True
+    belongsToHeader Proc{..} | Nothing <- procBody  = True
+    belongsToHeader _                               = False
     -- TODO These only belongs in the header iff the types are used in a
     -- function interface
     createProcDecls :: [Entity ()] -> [Entity ()]
     createProcDecls = concatMap defToDecl
     defToDecl :: Entity () -> [Entity ()]
-    defToDecl (ProcDef n inp outp _) = [ProcDef n inp outp Nothing]
+    defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
     defToDecl _ = []
 
 moduleToCCore :: Options -> Module () -> CompToCCoreResult ()

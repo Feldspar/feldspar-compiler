@@ -66,7 +66,7 @@ data Entity t
         { actualType                :: Type
         , typeName                  :: String
         }
-    | ProcDef
+    | Proc
         { procName                  :: String
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]

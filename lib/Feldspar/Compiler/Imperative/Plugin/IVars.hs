@@ -52,7 +52,7 @@ instance Plugin IVarPlugin
     executePlugin _ _ = result . transform IVarPlugin () False
 
 instance Transformable IVarPlugin Entity where
-    transform t _ _ p@ProcDef{} = defaultTransform t () (isTask p) p
+    transform t _ _ p@Proc{} = defaultTransform t () (isTask p) p
       where
         isTask _ = False -- KTask == procKind proc
     transform t _ d p = defaultTransform t () d p
