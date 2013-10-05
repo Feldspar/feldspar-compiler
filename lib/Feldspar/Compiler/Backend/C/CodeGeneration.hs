@@ -109,6 +109,12 @@ instance CodeGen (Program ())
                        $$ block env (cgen env thenBlock)
                        $$ text "else"
                        $$ block env (cgen env elseBlock)
+    cgen env (Switch scrut [(Pat (ConstExpr (BoolConst True)), thenBlock),
+                            (Pat (ConstExpr (BoolConst False)), elseBlock)])
+                        = text "if" <+> parens (cgen env scrut)
+                       $$ block env (cgen env thenBlock)
+                       $$ text "else"
+                       $$ block env (cgen env elseBlock)
     cgen env Switch{..} =  text "switch" <+> parens (cgen env scrutinee)
                        $$ block env (vcat [ cgen env p $$ nest (nestSize $ options env) ((cgen env b) $$ text "break" <> semi) | (p, b) <- alts])
     cgen env SeqLoop{..} =  cgen env sLoopCondCalc

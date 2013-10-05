@@ -63,7 +63,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Size(..), Variable(..),
                                                     Expression(..),
                                                     Declaration(..),
-                                                    Program(..),
+                                                    Program(..), Pattern(..),
                                                     Entity(..), StructMember(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
@@ -436,7 +436,7 @@ mkBranch loc c th el = do
     ce <- compileExpr c
     (_, tb) <- confiscateBlock $ compileProg loc th
     (_, eb) <- confiscateBlock $ compileProg loc el
-    tellProg [Branch ce tb eb]
+    tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
 
 
 isComposite :: Type -> Bool
