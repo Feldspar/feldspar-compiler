@@ -60,7 +60,7 @@ mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) name [arr, sz, 
   where
     sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
        | otherwise  = t
-    t = SizeOf (Left t')
+    t = SizeOf t'
     t' = go $ typeof arr
     go (ArrayType _ e) = e
     go (Pointer typ)   = go typ

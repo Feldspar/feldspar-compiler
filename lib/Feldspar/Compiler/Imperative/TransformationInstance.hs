@@ -149,10 +149,7 @@ instance (Transformable t Expression, Transformable t Variable, Transformable t 
             tr = transform t s d ex
         defaultTransform t s d (AddrOf ex) = Result (AddrOf (result tr)) (state tr) (up tr) where
             tr = transform t s d ex
-        defaultTransform t s d (SizeOf par) = case par of
-            Left typ -> Result (SizeOf (Left typ)) s def
-            Right ex -> Result (SizeOf (Right $ result tr)) (state tr) (up tr) where
-                tr = transform t s d ex
+        defaultTransform t s d (SizeOf typ) =  Result (SizeOf typ) s def
 
 instance (Transformable t Constant, Transformable1 t [] Constant, Combine (Up t), Default (Up t))
     => DefaultTransformable t Constant where
