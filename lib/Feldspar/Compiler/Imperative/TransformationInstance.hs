@@ -96,10 +96,6 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
             tr = transform1 t s d par
         defaultTransform t s d (Sequence p) = Result (Sequence (result1 tr)) (state1 tr) (up1 tr) where
             tr = transform1 t s d p
-        defaultTransform t s d (Branch e p1 p2) = Result (Branch (result tr1) (result tr2) (result tr3)) (state tr3) (foldl combine (up tr1) [up tr2, up tr3]) where
-            tr1 = transform t s d e
-            tr2 = transform t (state tr1) d p1
-            tr3 = transform t (state tr2) d p2
         defaultTransform t s d (Switch scrut (alt:alts)) = Result (Switch (result tr1) ralts) lstate (foldl combine (up tr1) (map (up . snd) alts')) where
             tr1    = transform t s d scrut
             alts'  = go (transformPattern (state tr1) alt) [] alts
