@@ -62,7 +62,7 @@ instance CodeGen (Entity ())
   where
     cgen env StructDef{..} = text "struct"   <+> text structName     $+$ block env (cgenList env structMembers) <> semi
     cgen env TypeDef{..}   = text "typedef"  <+> cgen env actualType <+> text typeName <> semi
-    cgen env ProcDef{..}   = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) $$ block env (cgen env procBody)
+    cgen env ProcDef{..} | Just body <- procBody  = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) $$ block env (cgen env body)
     cgen env ProcDecl{..}  = text "void"     <+> text procName       <>  parens (pvars env $ inParams ++ outParams) <> semi
     cgen env ValueDef{..}
       | isNativeArray $ typeof valVar

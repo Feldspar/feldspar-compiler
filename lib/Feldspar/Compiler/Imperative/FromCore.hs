@@ -161,7 +161,7 @@ fromCore opt funname prog = Module defs
     Block ds p = block results
     paramTypes = getTypes opt $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
     defs       =  nub (def results ++ paramTypes)
-               ++ [ProcDef funname ins [outParam] (Block (ds ++ decls) (Sequence (p:post)))]
+               ++ [ProcDef funname ins [outParam] $ Just (Block (ds ++ decls) (Sequence (p:post)))]
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()

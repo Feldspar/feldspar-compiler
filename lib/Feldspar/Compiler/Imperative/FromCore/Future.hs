@@ -61,11 +61,11 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
             tellProg [iVarPut loc p']
         funId  <- freshId
         let coreName = "task_core" ++ show funId
-        tellDef [ProcDef coreName args [] (Block (decl ws ++ ds) bl)]
+        tellDef [ProcDef coreName args [] $ Just (Block (decl ws ++ ds) bl)]
         -- Task:
         let taskName = "task" ++ show funId
-        let runTask = run coreName args
-        tellDef [ProcDef taskName [] [mkNamedRef "params" Rep.VoidType (-1)] $ toBlock runTask]
+        let runTask = Just $ toBlock $ run coreName args
+        tellDef [ProcDef taskName [] [mkNamedRef "params" Rep.VoidType (-1)] $ runTask]
         -- Spawn:
         tellProg [iVarInit (AddrOf loc)]
         tellProg [spawn taskName args]

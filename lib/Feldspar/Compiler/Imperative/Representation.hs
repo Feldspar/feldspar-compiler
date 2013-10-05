@@ -70,7 +70,7 @@ data Entity t
         { procName                  :: String
         , inParams                  :: [Variable t]
         , outParams                 :: [Variable t]
-        , procBody                  :: Block t
+        , procBody                  :: Maybe (Block t)
         }
     | ValueDef
         { valVar                    :: Variable t
