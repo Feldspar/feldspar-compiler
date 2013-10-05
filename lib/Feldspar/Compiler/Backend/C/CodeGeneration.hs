@@ -136,7 +136,7 @@ instance CodeGen (Program ())
 instance CodeGen (Pattern ())
   where
     cgen _   PatDefault = text "default" <> colon
-    cgen env (Pat c)    = cgen env c <> colon
+    cgen env (Pat c)    = text "case" <+> cgen env c <> colon
 
     cgenList env = vcat . map (cgen env)
 
