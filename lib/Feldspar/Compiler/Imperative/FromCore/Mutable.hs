@@ -79,9 +79,7 @@ instance ( Compile dom dom
         | otherwise                         = compileProg loc a
 
     compileProgSym When _ loc (c :* action :* Nil) = do
-        ce <- compileExpr c
-        (_, b) <- confiscateBlock $ compileProg loc action
-        tellProg [Branch ce b (toBlock Empty)]
+        mkBranch loc c action Nothing
 
 instance (Compile dom dom, Project (CLambda Type) dom) => Compile Mutable dom
   where

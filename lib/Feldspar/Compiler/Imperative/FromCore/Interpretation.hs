@@ -43,6 +43,7 @@ import Control.Applicative
 
 import Data.Char (toLower)
 import Data.List (intercalate)
+import Data.Maybe (isJust, fromJust)
 
 import Language.Syntactic.Syntax hiding (result)
 import Language.Syntactic.Traversal
@@ -431,11 +432,11 @@ mkLength a t sz
       return lenvar
 
 mkBranch :: (Compile dom dom)
-         => Location -> ASTF (Decor Info dom) Bool -> ASTF (Decor Info dom) a -> ASTF (Decor Info dom) a -> CodeWriter ()
+         => Location -> ASTF (Decor Info dom) Bool -> ASTF (Decor Info dom) a -> Maybe (ASTF (Decor Info dom) a) -> CodeWriter ()
 mkBranch loc c th el = do
     ce <- compileExpr c
     (_, tb) <- confiscateBlock $ compileProg loc th
-    (_, eb) <- confiscateBlock $ compileProg loc el
+    (_, eb) <- if isJust el then confiscateBlock $ compileProg loc (fromJust el) else return (undefined, toBlock Empty)
     tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
 
 
