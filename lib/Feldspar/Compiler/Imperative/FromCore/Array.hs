@@ -177,7 +177,7 @@ instance ( Compile dom dom
         i' <- compileExpr i
         let el = ArrayElem a' i'
         tellProg $ if isArray $ typeof el
-                     then [Sequence [Assign loc el]]
+                     then [Assign loc el]
                      else [copyProg (Just loc) [el]]
 
     compileProgSym (C' SetLength) _ loc (len :* arr :* Nil) = do
