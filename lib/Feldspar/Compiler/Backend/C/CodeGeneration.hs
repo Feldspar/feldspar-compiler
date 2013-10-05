@@ -105,7 +105,9 @@ instance CodeGen (Program ())
     cgen env Assign{..} = cgen env lhs <+> equals <+> nest (nestSize $ options env) (cgen env rhs) <> semi
     cgen env ProcedureCall{..} = stmt $ call (text procCallName) (map (cgen env) procCallParams)
     cgen env Sequence{..} = cgenList env sequenceProgs
-    cgen env Branch{..} =  text "if" <+> parens (cgen env branchCond)
+    cgen env (Switch scrut [(Pat (ConstExpr (BoolConst True)), thenBlock),
+                            (Pat (ConstExpr (BoolConst False)), elseBlock)])
+                        = text "if" <+> parens (cgen env scrut)
                        $$ block env (cgen env thenBlock)
                        $$ text "else"
                        $$ block env (cgen env elseBlock)
@@ -134,7 +136,7 @@ instance CodeGen (Program ())
 instance CodeGen (Pattern ())
   where
     cgen _   PatDefault = text "default" <> colon
-    cgen env (Pat c)    = cgen env c <> colon
+    cgen env (Pat c)    = text "case" <+> cgen env c <> colon
 
     cgenList env = vcat . map (cgen env)
 

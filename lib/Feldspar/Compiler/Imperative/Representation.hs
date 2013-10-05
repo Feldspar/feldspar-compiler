@@ -114,11 +114,6 @@ data Program t
     | Sequence
         { sequenceProgs             :: [Program t]
         }
-    | Branch
-        { branchCond                :: Expression t
-        , thenBlock                 :: Block t
-        , elseBlock                 :: Block t
-        }
     | Switch
         { scrutinee                 :: Expression t
         , alts                      :: [(Pattern t, Block t)]

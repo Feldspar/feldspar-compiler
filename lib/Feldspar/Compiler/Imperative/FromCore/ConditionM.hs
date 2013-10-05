@@ -46,5 +46,5 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 instance Compile dom dom => Compile (ConditionM m) dom
   where
     compileProgSym ConditionM _ loc (cond :* tHEN :* eLSE :* Nil) =
-        mkBranch loc cond tHEN eLSE
+        mkBranch loc cond tHEN $ Just eLSE
 
