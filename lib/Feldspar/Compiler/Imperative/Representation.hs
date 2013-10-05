@@ -76,11 +76,6 @@ data Entity t
         { valVar                    :: Variable t
         , valValue                  :: Constant t
         }
-    | ProcDecl
-        { procName                  :: String
-        , inParams                  :: [Variable t]
-        , outParams                 :: [Variable t]
-        }
     deriving (Typeable, Show, Eq)
 
 data StructMember t = StructMember

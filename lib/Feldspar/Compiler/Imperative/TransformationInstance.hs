@@ -65,11 +65,6 @@ instance (Transformable1 t [] StructMember, Transformable1 t [] Variable, Transf
                         tr1 = transform1 t s d i
                         tr2 = transform1 t (state1 tr1) d o
                         tr3 = transform1 t (state1 tr2) d p
-        defaultTransform t s d (ProcDecl name inp outp) =
-            Result (ProcDecl name (result1 tr1) (result1 tr2))
-                   (state1 tr2) (foldl1 combine [up1 tr1, up1 tr2]) where
-                tr1 = transform1 t s d inp
-                tr2 = transform1 t (state1 tr1) d outp
         defaultTransform t s d (ValueDef var val) =
             Result (ValueDef (result tr1) (result tr2)) (state tr2) (combine (up tr1) (up tr2)) where
                 tr1 = transform t s d var
