@@ -93,6 +93,9 @@ library
 
   cc-options: -std=c99 -Wall
 
+  if os(linux)
+    extra-libraries: gcc_s
+
   install-includes:
     feldspar_array.h
     feldspar_c99.h
