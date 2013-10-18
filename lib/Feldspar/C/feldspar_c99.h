@@ -33,6 +33,7 @@
 #include <complex.h>
 
 
+int feldspar_c99_hook(void);
 
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
 #define max(X, Y)  ((X) > (Y) ? (X) : (Y))

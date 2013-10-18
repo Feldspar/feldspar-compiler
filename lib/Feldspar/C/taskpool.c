@@ -32,7 +32,10 @@
 //#define LOG
 #include "log.h"
 
-unsigned int taskpool_linker_hook = 0xDECAFBAD;
+int feldspar_taskpool_hook(void)
+{
+  return 0;
+}
 
 /* Definition of the Feldspar application's global taskpool. */
 struct taskpool *feldspar_taskpool = 0;

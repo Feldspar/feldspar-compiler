@@ -32,7 +32,10 @@
 //#define LOG
 #include "log.h"
 
-unsigned int ivar_linker_hook = 0xDECAFBAD;
+int feldspar_ivar_hook(void)
+{
+  return 0;
+}
 
 void *worker( void *p );
 

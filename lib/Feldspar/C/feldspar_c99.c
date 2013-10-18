@@ -41,6 +41,10 @@
   #include <time.h>
 #endif /* WIN32 */
 
+int feldspar_c99_hook(void)
+{
+  return 0;
+}
 
 /*--------------------------------------------------------------------------*
  *                 pow(), abs(), signum(), logBase()                        *
