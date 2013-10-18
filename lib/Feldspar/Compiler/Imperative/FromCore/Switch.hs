@@ -35,6 +35,9 @@ instance ( Compile dom dom
              alts      <- chaseTree loc s tree
              tellProg [R.Switch{..}]
 
+    compileProgSym (C' Switch) _ loc (tree :* Nil)
+        = compileProg loc tree
+
 chaseTree :: ( Compile dom dom
              , Project (Condition :|| Type) dom
              , Project (EQ        :|| Type) dom
