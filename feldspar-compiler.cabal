@@ -162,8 +162,8 @@ test-suite regression
     base,
     process,
     bytestring       >= 0.9 && < 0.11,
-    tasty            >= 0.2 && < 0.3,
+    tasty            >= 0.3 && < 0.4,
     tasty-golden     >= 2.0 && < 2.1,
-    tasty-quickcheck >= 0.2 && < 0.3,
+    tasty-quickcheck >= 0.3 && < 0.4,
     QuickCheck       >= 2.5 && < 3.0
 
