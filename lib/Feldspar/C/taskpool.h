@@ -31,6 +31,8 @@
 
 #include <pthread.h>
 
+int feldspar_taskpool_hook(void);
+
 struct taskpool
 {
     int capacity;
