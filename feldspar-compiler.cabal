@@ -73,7 +73,7 @@ library
   default-language: Haskell2010
 
   build-depends:
-    base              >= 4.0   && < 4.7,
+    base              == 4.*,
     syntactic         >= 1.6   && < 1.8,
     feldspar-language >= 0.6.1 && < 0.7,
     mtl,
