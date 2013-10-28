@@ -138,7 +138,7 @@ executable feldspar
     directory,
     ansi-terminal,
     MonadCatchIO-mtl,
-    haskell-src-exts >= 1.12
+    haskell-src-exts >= 1.14
 
   default-extensions:
 
