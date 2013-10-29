@@ -106,14 +106,14 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 iVarGet :: Expression () -> Expression () -> Program ()
 iVarGet loc ivar 
     | isArray typ   = call "ivar_get_array" [ValueParameter loc, ValueParameter ivar]
-    | otherwise     = call "ivar_get" [TypeParameter typ, ValueParameter loc, ValueParameter ivar]
+    | otherwise     = call "ivar_get" [TypeParameter typ, ValueParameter (AddrOf loc), ValueParameter ivar]
       where
         typ = typeof loc
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
     | isArray typ   = call "ivar_put_array" [ValueParameter ivar, ValueParameter  msg]
-    | otherwise     = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter msg]
+    | otherwise     = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter (AddrOf msg)]
       where
         typ = typeof msg
 
@@ -130,10 +130,10 @@ spawn taskName vs = call spawnName allParams
   where
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName
-    typeParams = map (TypeParameter . fixArray . typeof) vs
-      where fixArray (Pointer t@ArrayType{}) = t
-            fixArray t                       = t
-    varParams = map (\v -> ValueParameter $ VarExpr (Variable (typeof v) (vName v))) vs
+    typeParams = map (TypeParameter . typeof) vs
+    varParams = map (ValueParameter . mkv) vs
+      where mkv v = let v' = VarExpr $ Variable (typeof v) (vName v)
+                    in if isPointer $ typeof v then AddrOf v' else v'
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
@@ -188,6 +188,10 @@ isNativeArray _             = False
 isIVar :: Type -> Bool
 isIVar IVarType{} = True
 isIVar _              = False
+
+isPointer :: Type -> Bool
+isPointer Pointer{} = True
+isPointer _         = False
 
 dVar :: Declaration () -> Variable ()
 dVar (Declaration v _)    = v

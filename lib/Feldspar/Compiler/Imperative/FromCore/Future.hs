@@ -36,6 +36,8 @@ module Feldspar.Compiler.Imperative.FromCore.Future where
 
 import Language.Syntactic
 
+import Control.Monad.RWS (ask)
+
 import Feldspar.Core.Types (Type,defaultSize)
 import Feldspar.Core.Constructs.Future
 import Feldspar.Core.Interpretation
@@ -52,7 +54,10 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
     compileExprSym = compileProgFresh
 
     compileProgSym (C' MkFuture) info (Just loc) (p :* Nil) = do
-        let args = [mkVariable (compileTypeRep t (defaultSize t)) v
+        env <- ask
+        let args = [case lookup v (alias env) of
+                         Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
+                         Just (VarExpr e) -> e
                    | (v,SomeType t) <- assocs $ infoVars info
                    ] ++ fv loc
         -- Task core:

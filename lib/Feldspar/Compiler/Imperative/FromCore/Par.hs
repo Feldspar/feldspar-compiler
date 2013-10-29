@@ -34,6 +34,8 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Par where
 
+import Control.Monad.RWS (ask)
+
 import Language.Syntactic
 import Language.Syntactic.Constructs.Monad
 import Language.Syntactic.Constructs.Binding hiding (Variable)
@@ -109,7 +111,10 @@ instance ( Compile dom dom
             tellProg [iVarPut iv var]
 
     compileProgSym ParFork info (Just loc) (p :* Nil) = do
-        let args = [mkVariable (compileTypeRep t (defaultSize t)) v
+        env <- ask
+        let args = [case lookup v (alias env) of
+                         Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
+                         Just (VarExpr e) -> e
                    | (v,SomeType t) <- assocs $ infoVars info
                    ] ++ fv loc
         -- Task core:
