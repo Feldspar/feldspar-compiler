@@ -89,6 +89,12 @@ bindToThen y = runMutable $ do
 switcher :: Data Word8 -> Data Bool -> Data Word8
 switcher i = switch (value 0) [(true,i), (false,2)]
 
+ivartest :: Data Index -> Data Index
+ivartest a = share (future (a+1)) $ \a' -> await a' * 2
+
+ivartest2 :: (Data Index, Data Index) -> (Data Index, Data Index)
+ivartest2 a = share (future a) $ \a' -> await a'
+
 tests :: TestTree
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
@@ -102,6 +108,8 @@ tests = testGroup "RegressionTests"
     , mkGoldTest metrics "metrics" defaultOptions
     , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkGoldTest divConq3 "divConq3" defaultOptions
+    , mkGoldTest ivartest "ivartest" defaultOptions
+    , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -113,6 +121,8 @@ tests = testGroup "RegressionTests"
     , mkBuildTest divConq3 "divConq3" defaultOptions
     , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
     , mkGoldTest switcher "switcher" defaultOptions
+    , mkBuildTest ivartest "ivartest" defaultOptions
+    , mkBuildTest ivartest2 "ivartest2" defaultOptions
     ]
 
 main :: IO ()
@@ -156,4 +166,3 @@ mkBuildTest fun n opts = do
         cmp _ _ = return Nothing
         upd _ = return ()
     goldenTest n (return "") (liftIO act >> return "") cmp upd
-
