@@ -38,7 +38,8 @@ struct taskpool
     int head, tail;
     void **closures;
     int shutdown;
-    pthread_mutex_t mutex;
+    pthread_mutex_t lock;
+    pthread_cond_t  wakeup;
 };
 
 void taskpool_init( int c, int num, int min );

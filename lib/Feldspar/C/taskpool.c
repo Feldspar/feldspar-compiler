@@ -55,7 +55,8 @@ void taskpool_init( int c, int n, int m )
     feldspar_taskpool->min_threads = m;
     feldspar_taskpool->max_threads = n;
     if( n > 0 )
-        pthread_mutex_init( &(feldspar_taskpool->mutex), NULL );
+        pthread_mutex_init( &(feldspar_taskpool->lock), NULL );
+    pthread_cond_init( &(feldspar_taskpool->wakeup), NULL );
     log_1("taskpool_init - starting %d threads\n",n);
     for( ; n > 0; --n )
     {
@@ -69,14 +70,17 @@ void taskpool_init( int c, int n, int m )
 void taskpool_shutdown()
 {
     log_0("taskpool_shutdown - enter\n");
+    pthread_mutex_lock( &(feldspar_taskpool->lock) );
     feldspar_taskpool->shutdown = 1;
+    pthread_cond_broadcast( &(feldspar_taskpool->wakeup) );
+    pthread_mutex_unlock( &(feldspar_taskpool->lock) );
     log_0("taskpool_shutdown - leave\n");
 }
 
 void spawn( void *closure )
 {
     log_1("spawn %p - enter\n", closure);
-    pthread_mutex_lock( &(feldspar_taskpool->mutex) );
+    pthread_mutex_lock( &(feldspar_taskpool->lock) );
     feldspar_taskpool->closures[feldspar_taskpool->tail] = closure;
     log_3("spawn %p - saved as task %d at %p\n"
          , closure, feldspar_taskpool->tail
@@ -84,7 +88,8 @@ void spawn( void *closure )
     ++feldspar_taskpool->tail;
     if( feldspar_taskpool->tail == feldspar_taskpool->capacity )
         feldspar_taskpool->tail = 0;
-    pthread_mutex_unlock( &(feldspar_taskpool->mutex) );
+    pthread_cond_broadcast( &(feldspar_taskpool->wakeup) );
+    pthread_mutex_unlock( &(feldspar_taskpool->lock) );
     log_1("spawn %p - leave\n", closure);
 }
 
@@ -96,67 +101,62 @@ void *worker()
     struct taskpool *pool = feldspar_taskpool;
     void (*fun)();
     char *closure;
-    int awake = 1;
     log_1("worker %d - entering the loop\n", self);
-    while(1)
+    int quit = 0;
+    while( ! quit )
     {
-        if( pool->shutdown && pool->head == pool->tail )
+        pthread_mutex_lock( &(pool->lock) );
+
+        while( ! (pool->head != pool->tail) )
         {
-            log_1("worker %d - shutdown detected, going to terminate\n", self);
-            break;
+          if( pool->shutdown && pool->head == pool->tail )
+          {
+              log_1("worker %d - shutdown detected, going to terminate\n", self);
+              quit = 1;
+              pthread_cond_broadcast( &(pool->wakeup) );
+              pthread_mutex_unlock( &(pool->lock) );
+              break;
+          }
+          if( pool->act_threads > pool->max_threads )
+          {
+              log_1("worker %d - too many active threads, going to terminate\n", self);
+              quit = 1;
+              pthread_cond_broadcast( &(pool->wakeup) );
+              pthread_mutex_unlock( &(pool->lock) );
+              break;
+          }
+          log_1("worker %d - sleep\n", self);
+          pthread_cond_wait( &(pool->wakeup), &(pool->lock) );
         }
-        if( pool->act_threads > pool->max_threads )
-        {
-            log_1("worker %d - too many active threads, going to terminate\n", self);
-            break;
-        }
-        fun = NULL;
-        closure = NULL;
-        pthread_mutex_lock( &(pool->mutex) );
-        if( pool->head != pool->tail )
-        {
-            log_2("worker %d - pop task %d\n", self, pool->head);
-            closure = pool->closures[pool->head];
-            ++pool->head;
-            if( pool->head == pool->capacity )
-                pool->head = 0;
-        }
-        else {
-        }
-        pthread_mutex_unlock( &(pool->mutex) );
-        if( closure == NULL )
-        {
-            if (1 == awake)
-            {
-                log_1("worker %d - sleep\n", self);
-                awake = 0;
-            }
-        }
-        else
-        {
-            awake = 1;
-            fun = *((void(**)())closure);
-            log_2("worker %d - closure %p enter\n", self, fun);
-            fun( closure + sizeof(void(*)()) ); /* TODO: sizeof(void*) == sizeof(void(**)()) is assumed here */
-            log_2("worker %d - closure %p leave\n", self, fun);
-        }
+        if ( quit ) break;
+
+        log_2("worker %d - pop task %d\n", self, pool->head);
+        closure = pool->closures[pool->head];
+        ++pool->head;
+        if( pool->head == pool->capacity )
+            pool->head = 0;
+
+        pthread_mutex_unlock( &(pool->lock) );
+        fun = *((void(**)())closure);
+        log_2("worker %d - closure %p enter\n", self, fun);
+        fun( closure + sizeof(void(*)()) ); /* TODO: sizeof(void*) == sizeof(void(**)()) is assumed here */
+        log_2("worker %d - closure %p leave\n", self, fun);
     }
     /* Cleanup before exit: */
+    int last = 0;
+    log_1("worker %d - cleanup\n", self);
+    pthread_mutex_lock( &(pool->lock) );
+    --pool->num_threads;
+    --pool->act_threads;
+    log_3("worker %d - cleanup done; active: %d, all: %d\n"
+         , self, pool->act_threads, pool->num_threads);
+    last = (pool->num_threads == 0);
+    pthread_mutex_unlock( &(pool->lock) );
+    if( last )
     {
-        int last = 0;
-        log_1("worker %d - cleanup\n", self);
-        pthread_mutex_lock( &(pool->mutex) );
-        --pool->num_threads;
-        --pool->act_threads;
-        log_3("worker %d - cleanup done; active: %d, all: %d\n"
-             , self, pool->act_threads, pool->num_threads);
-        last = (pool->num_threads == 0);
-        pthread_mutex_unlock( &(pool->mutex) );
-        if( last )
-        {
-            log_1("worker %d - last one does extra cleanup\n", self);
-            pthread_mutex_destroy( &(pool->mutex) );
-        }
+        log_1("worker %d - last one does extra cleanup\n", self);
+        pthread_mutex_destroy( &(pool->lock) );
+        pthread_cond_destroy( &(pool->wakeup) );
     }
     log_1("worker %d - leave\n", self);
     pthread_exit(NULL);

@@ -101,7 +101,7 @@ void ivar_get_helper( struct ivar_internals *iv )
     {
         log_1("ivar_get_helper %p - ivar is empty\n", iv);
         int create = 0;
-        pthread_mutex_lock( &(feldspar_taskpool.mutex) );
+        pthread_mutex_lock( &(feldspar_taskpool.lock) );
         if( !feldspar_taskpool.shutdown && (feldspar_taskpool.num_threads <= feldspar_taskpool.min_threads) )
         {
             create = 1;
@@ -117,7 +117,7 @@ void ivar_get_helper( struct ivar_internals *iv )
                   "active: %d, all: %d\n"
                  , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
         }
-        pthread_mutex_unlock( &(feldspar_taskpool.mutex) );
+        pthread_mutex_unlock( &(feldspar_taskpool.lock) );
         if( create )
         {
             pthread_t th;
@@ -125,11 +125,11 @@ void ivar_get_helper( struct ivar_internals *iv )
         }
         log_1("ivar_get_helper %p - blocking while waiting for data\n", iv);
         pthread_cond_wait( &(iv->cond), &(iv->mutex) );
-        pthread_mutex_lock( &(feldspar_taskpool.mutex) );
+        pthread_mutex_lock( &(feldspar_taskpool.lock) );
         ++feldspar_taskpool.act_threads;
         log_3("ivar_get_helper %p - data arrived; active: %d, all: %d\n"
              , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        pthread_mutex_unlock( &(feldspar_taskpool.mutex) );        
+        pthread_mutex_unlock( &(feldspar_taskpool.lock) );
     }
     pthread_mutex_unlock( &(iv->mutex) );
     log_1("ivar_get_helper %p - leave\n", iv);
