@@ -38,6 +38,8 @@ struct taskpool
     int head, tail;
     void **closures;
     int shutdown;
+    int wm_depth; // maximum number of pending tasks
+    int wm_spawns;
     pthread_mutex_t lock;
     pthread_cond_t  wakeup;
 };
@@ -244,6 +246,47 @@ void spawn( void *closure );
         spawn( buffer );    \
     }   \
 
+#define spawn8( task, t1, p1, t2, p2, t3, p3, t4, p4, t5, p5, t6, p6 , t7, p7, t8, p8)  \
+    {   \
+        void *buffer = malloc( sizeof(void(*)()) + sizeof(t1) + sizeof(t2) + sizeof(t3) + sizeof(t4) + sizeof(t5) + sizeof(t6) + sizeof(t7) + sizeof(t7) );   \
+        char *p = buffer;   \
+        void *t0 = task;    \
+        t1 temp1 = (p1);    \
+        t2 temp2 = (p2);    \
+        t3 temp3 = (p3);    \
+        t4 temp4 = (p4);    \
+        t5 temp5 = (p5);    \
+        t6 temp6 = (p6);    \
+        t7 temp7 = (p7);    \
+        t8 temp8 = (p8);    \
+        memcpy( p, &t0, sizeof(void(*)()) );   \
+        p += sizeof(void(*)()); \
+        check_array( t1, temp1 );   \
+        memcpy( p, &temp1, sizeof(t1) );    \
+        p += sizeof(t1);    \
+        check_array( t2, temp2 );   \
+        memcpy( p, &temp2, sizeof(t2) );    \
+        p += sizeof(t2);    \
+        check_array( t3, temp3 );   \
+        memcpy( p, &temp3, sizeof(t3) );    \
+        p += sizeof(t3);    \
+        check_array( t4, temp4 );   \
+        memcpy( p, &temp4, sizeof(t4) );    \
+        p += sizeof(t4);    \
+        check_array( t5, temp5 );   \
+        memcpy( p, &temp5, sizeof(t5) );    \
+        p += sizeof(t5);    \
+        check_array( t6, temp6 );   \
+        memcpy( p, &temp6, sizeof(t6) );    \
+        p += sizeof(t6);    \
+        check_array( t7, temp7 );   \
+        memcpy( p, &temp7, sizeof(t7) );    \
+        p += sizeof(t7);    \
+        check_array( t8, temp8 );   \
+        memcpy( p, &temp8, sizeof(t8) );    \
+        spawn( buffer );    \
+    }   \
+
 /* Wrappers for task cores with different number of arguments: */
 
 #define run0( task_core )   \
@@ -368,6 +411,35 @@ void spawn( void *closure );
         p += sizeof(t6);    \
         memcpy( &p7, p, sizeof(t7) );  \
         (task_core)(p1,p2,p3,p4,p5,p6,p7);   \
+    }   \
+
+#define run8( task_core, t1, t2, t3, t4, t5, t6, t7, t8 )   \
+    {   \
+        t1 p1;  \
+        t2 p2;  \
+        t3 p3;  \
+        t4 p4;  \
+        t5 p5;  \
+        t6 p6;  \
+        t7 p7;  \
+        t8 p8;  \
+        char *p = params;   \
+        memcpy( &p1, p, sizeof(t1) );  \
+        p += sizeof(t1);    \
+        memcpy( &p2, p, sizeof(t2) );  \
+        p += sizeof(t2);    \
+        memcpy( &p3, p, sizeof(t3) );  \
+        p += sizeof(t3);    \
+        memcpy( &p4, p, sizeof(t4) );  \
+        p += sizeof(t4);    \
+        memcpy( &p5, p, sizeof(t5) );  \
+        p += sizeof(t5);    \
+        memcpy( &p6, p, sizeof(t6) );  \
+        p += sizeof(t6);    \
+        memcpy( &p7, p, sizeof(t7) );  \
+        p += sizeof(t7);    \
+        memcpy( &p8, p, sizeof(t8) );  \
+        (task_core)(p1,p2,p3,p4,p5,p6,p7,p8);   \
     }   \
 
 #endif /* TASKPOOL_H */

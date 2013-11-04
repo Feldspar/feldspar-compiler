@@ -54,11 +54,13 @@ void taskpool_init( int c, int n, int m )
     feldspar_taskpool->act_threads = n;
     feldspar_taskpool->min_threads = m;
     feldspar_taskpool->max_threads = n;
+    feldspar_taskpool->wm_depth = 0;
+    feldspar_taskpool->wm_spawns = 0;
     if( n > 0 )
         pthread_mutex_init( &(feldspar_taskpool->lock), NULL );
     pthread_cond_init( &(feldspar_taskpool->wakeup), NULL );
-    log_1("taskpool_init - starting %d threads\n",n);
-    for( ; n > 0; --n )
+    log_1("taskpool_init - starting %d threads\n",m);
+    for( ; m > 0; --m )
     {
         pthread_t th;
         pthread_create( &th, NULL, &worker, NULL );
@@ -67,6 +69,8 @@ void taskpool_init( int c, int n, int m )
     log_0("taskpool_init - leave\n");
 }
 
+#define max(x,y) ((x>y)?x:y)
+
 void taskpool_shutdown()
 {
     log_0("taskpool_shutdown - enter\n");
@@ -74,6 +78,8 @@ void taskpool_shutdown()
     feldspar_taskpool->shutdown = 1;
     pthread_cond_broadcast( &(feldspar_taskpool->wakeup) );
     pthread_mutex_unlock( &(feldspar_taskpool->lock) );
+    printf("taskpool_shutdown - depth %d\n", feldspar_taskpool->wm_depth);
+    printf("taskpool_shutdown - spawns %d\n", feldspar_taskpool->wm_spawns);
     log_0("taskpool_shutdown - leave\n");
 }
 
@@ -86,9 +92,11 @@ void spawn( void *closure )
          , closure, feldspar_taskpool->tail
          , &feldspar_taskpool->closures[feldspar_taskpool->tail]);
     ++feldspar_taskpool->tail;
+    ++feldspar_taskpool->wm_spawns;
+    feldspar_taskpool->wm_depth = max(feldspar_taskpool->wm_depth, feldspar_taskpool->tail - feldspar_taskpool->head);
     if( feldspar_taskpool->tail == feldspar_taskpool->capacity )
         feldspar_taskpool->tail = 0;
-    pthread_cond_broadcast( &(feldspar_taskpool->wakeup) );
+    pthread_cond_signal( &(feldspar_taskpool->wakeup) );
     pthread_mutex_unlock( &(feldspar_taskpool->lock) );
     log_1("spawn %p - leave\n", closure);
 }
@@ -97,7 +105,7 @@ void *worker()
 {
     unsigned int self;
     self = (unsigned long)pthread_self();
-    log_1("worker %d - enter\n", self);
+    log_1("worker %d - initialize\n", self);
     struct taskpool *pool = feldspar_taskpool;
     void (*fun)();
     char *closure;
@@ -113,7 +121,7 @@ void *worker()
           {
               log_1("worker %d - shutdown detected, going to terminate\n", self);
               quit = 1;
-              pthread_cond_broadcast( &(pool->wakeup) );
+              pthread_cond_signal( &(pool->wakeup) );
               pthread_mutex_unlock( &(pool->lock) );
               break;
           }
@@ -121,7 +129,7 @@ void *worker()
           {
               log_1("worker %d - too many active threads, going to terminate\n", self);
               quit = 1;
-              pthread_cond_broadcast( &(pool->wakeup) );
+              pthread_cond_signal( &(pool->wakeup) );
               pthread_mutex_unlock( &(pool->lock) );
               break;
           }
