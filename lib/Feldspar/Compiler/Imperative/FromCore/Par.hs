@@ -110,15 +110,15 @@ instance ( Compile dom dom
             assign (Just var) val
             tellProg [iVarPut iv var]
 
-    compileProgSym ParFork info (Just loc) (p :* Nil) = do
+    compileProgSym ParFork info loc (p :* Nil) = do
         env <- ask
         let args = [case lookup v (alias env) of
                          Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
                          Just (VarExpr e) -> e
                    | (v,SomeType t) <- assocs $ infoVars info
-                   ] ++ fv loc
+                   ] ++ maybe [] fv loc
         -- Task core:
-        ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg (Just loc) p
+        ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg loc p
         funId  <- freshId
         let coreName = "task_core" ++ show funId
         tellDef [Proc coreName args [] $ Just (Block (decl ws ++ ds) b)]
@@ -133,4 +133,4 @@ instance ( Compile dom dom
 
     compileProgSym ParNew _ _ Nil = return ()
 
-
+    compileProgSym a info loc args = compileExprLoc a info loc args
