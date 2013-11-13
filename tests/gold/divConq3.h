@@ -13,7 +13,7 @@
 #include <complex.h>
 
 
-void task_core3(struct array * v0, uint32_t v22, uint32_t v23, struct array * v24, uint32_t v12);
+void task_core3(struct array * v0, uint32_t v12, uint32_t v22, struct array * v24, uint32_t v12);
 
 void task3(void * params);
 

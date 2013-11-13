@@ -11,11 +11,13 @@
 #include <complex.h>
 
 
-void task_core3(struct array * v0, uint32_t v22, uint32_t v23, struct array * v24, uint32_t v12)
+void task_core3(struct array * v0, uint32_t v12, uint32_t v22, struct array * v24, uint32_t v12)
 {
+  uint32_t v23;
   struct array * e1 = NULL;
   uint32_t len2;
   
+  v23 = (v12 << 10);
   len2 = min((v22 - min(v22, v23)), 1024);
   e1 = initArray(e1, sizeof(int32_t), len2);
   for (uint32_t v13 = 0; v13 < len2; v13 += 1)
@@ -35,7 +37,6 @@ void divConq3(struct array * v0, struct array * * out)
   struct array * v24 = NULL;
   uint32_t v22;
   uint32_t len0;
-  uint32_t v23;
   uint32_t len4;
   struct array * e5 = NULL;
   struct ivar e6;
@@ -46,9 +47,8 @@ void divConq3(struct array * v0, struct array * * out)
   v24 = initArray(v24, sizeof(struct ivar), len0);
   for (uint32_t v12 = 0; v12 < len0; v12 += 1)
   {
-    v23 = (v12 << 10);
     ivar_init(&at(struct ivar,v24,v12));
-    spawn5(task3, struct array *, v0, uint32_t, v22, uint32_t, v23, struct array *, v24, uint32_t, v12);
+    spawn5(task3, struct array *, v0, uint32_t, v12, uint32_t, v22, struct array *, v24, uint32_t, v12);
   }
   len4 = getLength(v24);
   *out = initArray(*out, sizeof(int32_t), 0);

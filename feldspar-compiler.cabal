@@ -74,7 +74,7 @@ library
 
   build-depends:
     base              == 4.*,
-    syntactic         >= 1.6   && < 1.8,
+    syntactic         >= 1.6   && < 1.9,
     feldspar-language >= 0.6.1 && < 0.7,
     mtl,
     pretty,
