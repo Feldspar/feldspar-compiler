@@ -69,6 +69,7 @@ library
     Feldspar.Compiler
     Feldspar.Transformation
     Feldspar.Transformation.Framework
+    Feldspar.Runtime
 
   default-language: Haskell2010
 
