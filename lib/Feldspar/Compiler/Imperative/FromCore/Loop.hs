@@ -80,7 +80,7 @@ instance ( Compile dom dom
             compileProg (Just loc) init
             (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg (Just stvar) ixf >> assign (Just loc) stvar
             declare stvar
-            tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' 1 (toBlock $ Sequence $ concat lets ++ [body]))]
+            tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
 
     compileProgSym (C' WhileLoop) _ (Just loc) (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
@@ -112,7 +112,7 @@ instance ( Compile dom dom
             let ix = mkVar (compileTypeRep ta sa) v
             len' <- mkLength len (infoType $ getInfo len) sa
             (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
-            tellProg [toProg $ Block ds (for False (lName ix) len' 1 (toBlock body))]
+            tellProg [toProg $ Block ds (for False (lName ix) len' (litI32 1) (toBlock body))]
 
 -- TODO Missing While
     compileProgSym Core.While _ loc (cond :* step :* Nil)

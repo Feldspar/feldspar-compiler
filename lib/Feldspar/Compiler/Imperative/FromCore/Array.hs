@@ -82,7 +82,7 @@ instance ( Compile dom dom
             len' <- mkLength len (infoType $ getInfo len) sa
             (_, b) <- confiscateBlock $ compileProg (ArrayElem <$> loc <*> pure ix) ixf
             tellProg [initArray loc len']
-            tellProg [for True (lName ix) len' 1 b]
+            tellProg [for True (lName ix) len' (litI32 1) b]
 
 
     compileProgSym (C' Sequential) _ loc (len :* init' :* (lam1 :$ lt1) :* Nil)
@@ -114,7 +114,7 @@ instance ( Compile dom dom
             tellProg [ Assign st st1
                      , initArray loc len']
             tellProg [toProg $ Block (concat dss ++ ds) $
-                      for False (lName ix) len' 1 $
+                      for False (lName ix) len' (litI32 1) $
                                     toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st (ArrayElem arr ix)]) loc)]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ lt1) :* Nil)
@@ -135,7 +135,7 @@ instance ( Compile dom dom
             tellProg [initArray loc len']
             compileProg (Just $ StructField tmp "member2") st
             tellProg [toProg $ Block (concat dss ++ ds) $
-                      for False (lName ix) len' 1 $
+                      for False (lName ix) len' (litI32 1) $
                                     toBlock $ Sequence (concat lets ++ body ++
                                          [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                                          ])]
@@ -157,7 +157,7 @@ instance ( Compile dom dom
             (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem <$> loc <*> pure ix2) body2
             tellProg [initArray loc len]
             assign (Just ix2) len
-            tellProg [for True (lName ix1) len 1 (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg (Just ix2) [binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1)]]))]
+            tellProg [for True (lName ix1) len (litI32 1) (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg (Just ix2) [binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1)]]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a

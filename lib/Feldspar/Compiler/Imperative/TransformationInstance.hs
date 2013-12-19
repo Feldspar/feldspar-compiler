@@ -105,10 +105,11 @@ instance (Transformable1 t [] Program, Transformable t Expression, Transformable
             tr1 = transform t s d v
             tr2 = transform t (state tr1) d c
             tr3 = transform t (state tr2) d p
-        defaultTransform t s d (ParLoop pp v b i p) = Result (ParLoop pp (result tr1) (result tr2) i (result tr3)) (state tr3) (foldl combine (up tr1) [up tr2, up tr3]) where
+        defaultTransform t s d (ParLoop pp v b i p) = Result (ParLoop pp (result tr1) (result tr2) (result tr3) (result tr4)) (state tr4) (foldl combine (up tr1) [up tr2, up tr3, up tr4]) where
             tr1 = transform t s d v
             tr2 = transform t (state tr1) d b
-            tr3 = transform t (state tr2) d p
+            tr3 = transform t (state tr2) d i
+            tr4 = transform t (state tr3) d p
         defaultTransform t s d (BlockProgram b) = Result (BlockProgram (result tr)) (state tr) (up tr) where
             tr = transform t s d b
 

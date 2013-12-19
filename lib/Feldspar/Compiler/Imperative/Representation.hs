@@ -122,7 +122,7 @@ data Program t
         { pParallel                 :: Bool
         , pLoopCounter              :: Variable t
         , pLoopBound                :: Expression t
-        , pLoopStep                 :: Int
+        , pLoopStep                 :: Expression t
         , pLoopBlock                :: Block t
         }
     | BlockProgram
