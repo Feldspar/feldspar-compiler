@@ -221,7 +221,7 @@ fun' m t n = FunctionCall (Function n t m)
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
-for :: Bool -> String -> Expression () -> Int -> Block () -> Program ()
+for :: Bool -> String -> Expression () -> Expression () -> Block () -> Program ()
 for _ _ _ _ (Block [] (Sequence [Empty])) = Empty
 for p s e i b = ParLoop p (Variable (NumType Unsigned S32) s) e i b
 

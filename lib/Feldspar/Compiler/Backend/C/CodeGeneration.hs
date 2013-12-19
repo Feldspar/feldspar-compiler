@@ -130,7 +130,7 @@ instance CodeGen (Program ())
         ixv   = cgen env  pLoopCounter
         ini   = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
-        next  = ixv <+> text "+=" <+> int pLoopStep
+        next  = ixv <+> text "+=" <+> cgen env pLoopStep
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
