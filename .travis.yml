@@ -1,5 +1,9 @@
 language: haskell
 
+ghc:
+  - 7.4.2
+  - 7.6.3
+    
 before_install:
   # Fetch the latest feldspar-language from github
   # Note that we will fetch a branch with the same name as the current
@@ -12,5 +16,5 @@ before_install:
   
   # Try installing some of the build-deps with apt-get for speed
   # - ./tools/travis-cabal-apt-install $mode feldspar-language/ ./
-  - cabal install tasty feldspar-language/ ./ --constraint="stm > 2.3"
+  - cabal install tasty feldspar-language/ ./
 
