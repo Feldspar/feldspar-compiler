@@ -50,6 +50,7 @@ import Feldspar.Core.Constructs.Integral
 import Feldspar.Core.Constructs.Logic
 import Feldspar.Core.Constructs.Num
 import Feldspar.Core.Constructs.Ord
+import Feldspar.Core.Constructs.RealFloat
 import Feldspar.Core.Constructs.Trace
 
 import Feldspar.Compiler.Imperative.Frontend
@@ -83,5 +84,6 @@ instance Compile dom dom => Compile (INTEGRAL   :|| Type) dom where compileExprS
 instance Compile dom dom => Compile (Logic      :|| Type) dom where compileExprSym = compilePrim
 instance Compile dom dom => Compile (NUM        :|| Type) dom where compileExprSym = compilePrim
 instance Compile dom dom => Compile (ORD        :|| Type) dom where compileExprSym = compilePrim
+instance Compile dom dom => Compile (REALFLOAT  :|| Type) dom where compileExprSym = compilePrim
 instance Compile dom dom => Compile (Trace      :|| Type) dom where compileExprSym = compilePrim
 
