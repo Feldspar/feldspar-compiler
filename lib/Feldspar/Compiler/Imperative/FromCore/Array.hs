@@ -140,24 +140,35 @@ instance ( Compile dom dom
                                          [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                                          ])]
 
-    -- loc = parallel l f ++ parallel l g ==> for l (\i -> loc[i] = f i; loc[i+l] = g i)
-    compileProgSym (C' Append) _ loc ((arr1 :$ l1 :$ (lam1 :$ body1)) :* (arr2 :$ l2 :$ (lam2 :$ body2)) :* Nil)
-        | Just (C' Parallel) <- prjF arr1
-        , Just (C' Parallel) <- prjF arr2
-        , Just (SubConstr2 (Lambda v1)) <- prjLambda lam1
-        , Just (SubConstr2 (Lambda v2)) <- prjLambda lam2
-        , alphaEq l1 l2
-        = do
-            let t   = argType $ infoType $ getInfo lam1
-                sz  = fst $ infoSize $ getInfo lam1
-                ix1 = mkVar (compileTypeRep t sz) v1
-                ix2 = mkVar (compileTypeRep t sz) v2
-            len <- mkLength l1 (infoType $ getInfo l1) sz
-            (_, Block ds1 (Sequence b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem <$> loc <*> pure ix1) body1
-            (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem <$> loc <*> pure ix2) body2
-            tellProg [initArray loc len]
-            assign (Just ix2) len
-            tellProg [for True (lName ix1) len (litI32 1) (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg (Just ix2) [binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1)]]))]
+    -- TODO: This optimization contains a bug
+    -- The result array is initialized to length l, when it should be 2*l
+    -- It is easy enough to fix by multiplying the length with 2 like this:
+    --
+    -- > tellprog [initArray loc $ binop (Rep.NumType Unsigned S32) "*" len (litI32 2)]
+    --
+    -- However, in many cases the resulting length expression could be
+    -- optimized further if the calculation had been performed in the core
+    -- language instead of the imperative langauge.
+    --
+    --
+    -- -- loc = parallel l f ++ parallel l g ==> for l (\i -> loc[i] = f i; loc[i+l] = g i)
+    -- compileProgSym (C' Append) _ loc ((arr1 :$ l1 :$ (lam1 :$ body1)) :* (arr2 :$ l2 :$ (lam2 :$ body2)) :* Nil)
+    --     | Just (C' Parallel) <- prjF arr1
+    --     , Just (C' Parallel) <- prjF arr2
+    --     , Just (SubConstr2 (Lambda v1)) <- prjLambda lam1
+    --     , Just (SubConstr2 (Lambda v2)) <- prjLambda lam2
+    --     , alphaEq l1 l2
+    --     = do
+    --         let t   = argType $ infoType $ getInfo lam1
+    --             sz  = fst $ infoSize $ getInfo lam1
+    --             ix1 = mkVar (compileTypeRep t sz) v1
+    --             ix2 = mkVar (compileTypeRep t sz) v2
+    --         len <- mkLength l1 (infoType $ getInfo l1) sz
+    --         (_, Block ds1 (Sequence b1)) <- confiscateBlock $ withAlias v1 ix1 $ compileProg (ArrayElem <$> loc <*> pure ix1) body1
+    --         (_, Block ds2 (Sequence b2)) <- confiscateBlock $ withAlias v2 ix1 $ compileProg (ArrayElem <$> loc <*> pure ix2) body2
+    --         tellProg [initArray loc len]
+    --         assign (Just ix2) len
+    --         tellProg [for True (lName ix1) len (litI32 1) (Block (ds1++ds2) (Sequence $ b1 ++ b2 ++ [copyProg (Just ix2) [binop (Rep.NumType Unsigned S32) "+" ix2 (litI32 1)]]))]
 
     compileProgSym (C' Append) _ loc (a :* b :* Nil) = do
         a' <- compileExpr a
