@@ -1,11 +1,11 @@
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
---     * Redistributions of source code must retain the above copyright notice, 
+--
+--     * Redistributions of source code must retain the above copyright notice,
 --       this list of conditions and the following disclaimer.
 --     * Redistributions in binary form must reproduce the above copyright
 --       notice, this list of conditions and the following disclaimer in the
@@ -13,10 +13,10 @@
 --     * Neither the name of the ERICSSON AB nor the names of its contributors
 --       may be used to endorse or promote products derived from this software
 --       without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
--- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 -- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 -- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -115,7 +115,7 @@ instance CodeGen (Program ())
                        $$ text "else"
                        $$ block env (cgen env elseBlock)
     cgen env Switch{..} =  text "switch" <+> parens (cgen env scrutinee)
-                       $$ block env (vcat [ cgen env p $$ nest (nestSize $ options env) ((cgen env b) $$ text "break" <> semi) | (p, b) <- alts])
+                       $$ block env (vcat [ cgen env p $$ nest (nestSize $ options env) (cgen env b $$ text "break" <> semi) | (p, b) <- alts])
     cgen env SeqLoop{..} =  cgen env sLoopCondCalc
                         $$ text "while" <+> parens (cgen env sLoopCond)
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
@@ -210,7 +210,7 @@ instance CodeGen (Constant ())
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])
     cgenList env = sep . punctuate comma . map (cgen env)
 
-transformConst :: PrintEnv -> Constant () -> Maybe String 
+transformConst :: PrintEnv -> Constant () -> Maybe String
 transformConst PEnv{..} cnst = do
     f <- lookup (typeof cnst) $ values $ platform options
     return $ f cnst

@@ -78,7 +78,7 @@ instance ( Compile dom dom
         | MutType UnitType <- infoType info = return ()
         | otherwise                         = compileProg loc a
 
-    compileProgSym When _ loc (c :* action :* Nil) = do
+    compileProgSym When _ loc (c :* action :* Nil) =
         mkBranch loc c action Nothing
 
 instance (Compile dom dom, Project (CLambda Type) dom) => Compile Mutable dom
