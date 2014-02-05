@@ -26,6 +26,7 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -56,7 +57,13 @@ instance Plugin RulePlugin
     type ExternalInfo RulePlugin = Options
     executePlugin _ externalInfo = result . transform RulePlugin 0 externalInfo
 
-instance (DefaultTransformable RulePlugin t, Typeable1 t) => Transformable RulePlugin t where
+instance ( DefaultTransformable RulePlugin t
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 708
+         , Typeable t
+#else
+         , Typeable1 t
+#endif
+         ) => Transformable RulePlugin t where
     transform t s d orig = recurse { result = x'', up = pr1 ++ pr2 ++ pr3, state = newID2 }
       where
         recurse = defaultTransform t s d orig
