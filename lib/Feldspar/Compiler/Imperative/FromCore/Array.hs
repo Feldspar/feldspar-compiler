@@ -108,14 +108,15 @@ instance ( Compile dom dom
             len' <- mkLength len (infoType $ getInfo len) six
             st1 <- freshVar "st" tst sst
             let st = mkRef (compileTypeRep tst sst) s
+                st_val = Deref st
             declareAlias st
-            (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st $ compileProg (ArrayElem <$> loc <*> pure ix) step
-            withAlias s st $ compileProg (Just st1) init'
-            tellProg [ Assign st st1
+            (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg (ArrayElem <$> loc <*> pure ix) step
+            withAlias s st_val $ compileProg (Just st1) init'
+            tellProg [ Assign st (AddrOf st1)
                      , initArray loc len']
             tellProg [toProg $ Block (concat dss ++ ds) $
                       for False (lName ix) len' (litI32 1) $
-                                    toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st (ArrayElem arr ix)]) loc)]
+                                    toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st $ AddrOf (ArrayElem arr ix)]) loc)]
 
     compileProgSym (C' Sequential) _ loc (len :* st :* (lam1 :$ lt1) :* Nil)
         | Just (SubConstr2 (Lambda v)) <- prjLambda lam1

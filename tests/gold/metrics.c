@@ -31,7 +31,7 @@ void metrics(struct array * v0, struct array * v1, struct array * v2, struct arr
   at(int32_t,st1,5) = -32678;
   at(int32_t,st1,6) = -32678;
   at(int32_t,st1,7) = -32678;
-  *v17 = st1;
+  v17 = &st1;
   *out = initArray(*out, (0 - sizeof(struct array *)), len0);
   for (uint32_t v16 = 0; v16 < len0; v16 += 1)
   {
@@ -42,7 +42,7 @@ void metrics(struct array * v0, struct array * v1, struct array * v2, struct arr
     {
       at(int32_t,at(struct array *,*out,v16),v18) = at(int32_t,*v17,(at(struct s_unsignedS32_unsignedS32,v21,v18)).member1);
     }
-    *v17 = at(struct array *,*out,v16);
+    v17 = &at(struct array *,*out,v16);
   }
   freeArray(st1);
   freeArray(v21);

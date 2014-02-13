@@ -182,6 +182,9 @@ data Expression t
     | SizeOf
         { sizeOf                    :: Type
         }
+    | Deref
+        { ptrExpr                   :: Expression t
+        }
     deriving (Typeable, Show, Eq)
 
 data Function
@@ -312,6 +315,9 @@ instance HasType (Expression t) where
     typeof Cast{..}         = castType
     typeof AddrOf{..}       = Pointer $ typeof addrExpr
     typeof SizeOf{..}       = NumType Signed S32
+    typeof Deref{..}        = case typeof ptrExpr of
+                                Pointer btype -> btype
+                                wtype         -> reprError InternalError $ "Type of dereferenced expression " ++ show ptrExpr ++ " has type " ++ show wtype
 
 instance HasType (ActualParameter t) where
     type TypeOf (ActualParameter t) = Type
@@ -334,5 +340,6 @@ fv' (StructField e _)   = fv' e
 fv' (FunctionCall _ ps) = concatMap fv' ps
 fv' (Cast _ e)          = fv' e
 fv' (AddrOf e)          = fv' e
+fv' (Deref e)           = fv' e
 fv' _                   = []
 
