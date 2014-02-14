@@ -95,11 +95,14 @@ moduleToCCore opts mdl = CompToCCoreResult { sourceCode  = incls ++ res
 -- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
 compileToCCore
   :: SyntacticFeld c => String -> Options -> c -> SplitCompToCCoreResult
-compileToCCore funSig coreOptions prg =
-    createSplit $ moduleToCCore coreOptions <$> separatedModules
+compileToCCore name opts prg = compileToCCore' opts mod
       where
-        separatedModules = moduleSeparator
-                         $ executePluginChain funSig coreOptions prg
+        mod = fromCore opts (encodeFunctionName name) prg
+
+compileToCCore' :: Options -> Module () -> SplitCompToCCoreResult
+compileToCCore' opts m = createSplit $ moduleToCCore opts <$> separatedModules
+      where
+        separatedModules = moduleSeparator $ executePluginChain opts m
 
         moduleSeparator modules = [header, source]
           where (SplitModuleDescriptor header source) = moduleSplitter modules
@@ -160,11 +163,10 @@ data ExternalInfoCollection = ExternalInfoCollection
     , ruleExternalInfo       :: ExternalInfo RulePlugin
     }
 
-executePluginChain :: SyntacticFeld c
-                   => String -> Options -> c -> Module ()
-executePluginChain originalFunctionName opt prg =
+executePluginChain :: Options -> Module () -> Module ()
+executePluginChain opt prg =
   pluginChain ExternalInfoCollection
     { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
     , ruleExternalInfo       = opt
-    } $ fromCore opt (encodeFunctionName originalFunctionName) prg
+    } $ prg
 
