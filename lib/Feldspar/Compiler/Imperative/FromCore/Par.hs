@@ -115,6 +115,7 @@ instance ( Compile dom dom
         let args = [case lookup v (alias env) of
                          Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
                          Just (VarExpr e) -> e
+                         Just (Deref (VarExpr e)) -> e
                    | (v,SomeType t) <- assocs $ infoVars info
                    ] ++ maybe [] fv loc
         -- Task core:

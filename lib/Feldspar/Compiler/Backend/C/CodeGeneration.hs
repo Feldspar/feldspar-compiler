@@ -171,30 +171,15 @@ instance CodeGen (Expression ())
         , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
         | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
-    cgen env AddrOf{..}
-        | VarExpr v@(Variable{..}) <- addrExpr
-        , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
-        | otherwise                      = prefix <> cgen env addrExpr
-     where
-       prefix = case (addrExpr, typeof addrExpr) of
-                 (e, Pointer{}) | specialConstruct e -> empty -- Skip single level AddrOf
-                   where specialConstruct ArrayElem{}   = True
-                         specialConstruct StructField{} = True
-                         specialConstruct _             = False
-
-                 _                          -> text "&"
+    cgen env AddrOf{..} = text "&" <> cgen env addrExpr
     cgen env SizeOf{..} = call (text "sizeof") [cgen env sizeOf]
+    cgen env Deref{..} = text "*" <> cgen env ptrExpr
 
     cgenList env = sep . punctuate comma . map (cgen env)
 
 instance CodeGen (Variable t)
   where
-    cgen _ = go
-      where
-        go v@Variable{..} = case varType of
-                   Pointer t -> text "*" <> go (v {varType = t})-- char '*'
-                   _         -> text varName
-
+    cgen _ v = text $ varName v
     cgenList env = hsep . punctuate comma . map (cgen env)
 
 instance CodeGen (Constant ())

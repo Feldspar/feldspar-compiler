@@ -63,7 +63,6 @@ mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) name [arr, sz, 
     t = SizeOf t'
     t' = go $ typeof arr
     go (ArrayType _ e) = e
-    go (Pointer typ)   = go typ
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
 initArray :: Maybe (Expression ()) -> Expression () -> Program ()
@@ -91,6 +90,7 @@ chaseArray = go []  -- TODO: Extend to handle x.member1.member2
         go []    (ConstExpr (ArrayConst l)) = Just (singletonRange $ fromIntegral $ length l)
         go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just r
         go []    (VarExpr (Variable (NativeArray (Just r) _) _)) = Just (singletonRange r)
+        go []    (Deref e) = go [] e -- TODO: this is questionable; we now look at an expression for the address of the array
         go ss    (StructField e s) = go (s:ss) e
         go ss    (AddrOf e) = go ss e
         go (s:_) (VarExpr (Variable (StructType _ fields) _))
@@ -132,8 +132,7 @@ spawn taskName vs = call spawnName allParams
     taskParam = FunParameter taskName
     typeParams = map (TypeParameter . typeof) vs
     varParams = map (ValueParameter . mkv) vs
-      where mkv v = let v' = VarExpr $ Variable (typeof v) (vName v)
-                    in if isPointer $ typeof v then AddrOf v' else v'
+      where mkv v = VarExpr $ Variable (typeof v) (vName v)
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
@@ -204,6 +203,7 @@ lName (VarExpr v@Variable{}) = vName v
 lName (ArrayElem e _)        = lName e
 lName (StructField e _)      = lName e
 lName (AddrOf e)             = lName e
+lName (Deref e)              = lName e
 lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
 
 varToExpr :: Variable t -> Expression t
