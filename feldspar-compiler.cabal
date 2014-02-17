@@ -40,6 +40,7 @@ library
     Feldspar.Compiler.Imperative.FromCore.Binding
     Feldspar.Compiler.Imperative.FromCore.Condition
     Feldspar.Compiler.Imperative.FromCore.ConditionM
+    Feldspar.Compiler.Imperative.FromCore.Elements
     Feldspar.Compiler.Imperative.FromCore.Error
     Feldspar.Compiler.Imperative.FromCore.Future
     Feldspar.Compiler.Imperative.FromCore.Interpretation
