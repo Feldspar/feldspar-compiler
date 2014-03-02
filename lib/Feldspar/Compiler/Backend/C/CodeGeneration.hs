@@ -43,10 +43,14 @@ codeGenerationError = handleError "CodeGeneration"
 
 data PrintEnv = PEnv
     { options :: Options
+    , parNestLevel :: Int
     }
 
 compToCWithInfos :: Options -> Module () -> String
-compToCWithInfos opts procedure = render $ cgen (PEnv opts) procedure
+compToCWithInfos opts procedure = render $ cgen (penv0 opts) procedure
+
+penv0 :: Options -> PrintEnv
+penv0 opts = PEnv opts 0
 
 class CodeGen a
   where
@@ -121,16 +125,20 @@ instance CodeGen (Program ())
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
     cgen env ParLoop{..}
      | pParallel && (name . platform . options $ env) == "c99OpenMp"
+     , 1 <= (parNestLevel env) -- OpenMP 4 has nested data parallelism,
+                               -- but it does not work well in practice.
      = text "#pragma omp parallel for" $$ forL
      | otherwise = forL
       where
         forL  = text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [ini, guard, next])
-              $$ block env (cgen env pLoopBlock)
+              $$ block env1 (cgen env1 pLoopBlock)
         ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
         ini   = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> cgen env pLoopStep
+        env1 | pParallel = env { parNestLevel = parNestLevel env + 1}
+             | otherwise = env
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
