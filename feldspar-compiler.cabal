@@ -24,7 +24,7 @@ description:    Feldspar (**F**unctional **E**mbedded **L**anguage for **DSP**
                 language both according to ANSI C and also targeted to a real
                 DSP HW.
 category:       Compiler
-tested-with:    GHC==7.6.1, GHC==7.4.2
+tested-with:    GHC==7.8, GHC==7.6, GHC==7.4
 
 source-repository head
   type:     git
@@ -65,6 +65,9 @@ library
     Feldspar.Compiler.Backend.C.Options
     Feldspar.Compiler.Backend.C.Platforms
     Feldspar.Compiler.Frontend.Interactive.Interface
+    Feldspar.Compiler.Plugin
+    Feldspar.Compiler.Marshal
+    Feldspar.Compiler.CallConv
     Feldspar.Compiler.Compiler
     Feldspar.Compiler.Error
     Feldspar.Compiler.Internal
@@ -78,11 +81,18 @@ library
   build-depends:
     base              == 4.*,
     syntactic,
+    plugins-multistage >= 0.3,
     feldspar-language >= 0.6.1 && < 0.7,
     mtl,
     pretty,
     filepath,
-    containers
+    containers,
+    process,
+    directory >= 1.2,
+    template-haskell,
+    plugins >= 1.5.4,
+    storable-tuple  >= 0.0.2,
+    storable-record >= 0.0.2.5
 
   default-extensions:
 
@@ -91,8 +101,8 @@ library
 
   c-sources:
    lib/Feldspar/C/feldspar_c99.c
-   lib/Feldspar/C/ivar.c
    lib/Feldspar/C/taskpool.c
+   lib/Feldspar/C/ivar.c
 
   cc-options: -std=c99 -Wall
 
