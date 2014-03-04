@@ -96,11 +96,8 @@ instance CodeGen (Declaration ())
   where
     cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) initial <> semi
       where
-        initial = case (initVal, varType declVar) of
-                    (Just i, _)           -> equals <+> cgen env i
-                    (_     , Pointer{})   -> equals <+> text "NULL"
-                    (_     , ArrayType{}) -> equals <+> text "NULL"
-                    _                     -> empty
+        initial | Just i <- initVal = equals <+> cgen env i
+                | otherwise         = initialize False (varType declVar)
     cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Program ())
@@ -229,6 +226,28 @@ instance CodeGen Type
 
 call :: Doc -> [Doc] -> Doc
 call fn args = fn <> parens (hsep $ punctuate comma args)
+
+-- Initializes local variables so that initArray/setLength/.. will get defined
+-- inputs.
+--
+-- First parameter is whether the initialization context is somewhere
+-- inside a compound type.
+initialize :: Bool -> Type -> Doc
+-- Compound/Special types.
+initialize _     Pointer{}         = equals <+> text "NULL"
+initialize _     ArrayType{}       = equals <+> text "NULL"
+initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
+  where inits = hsep $ punctuate comma $ map initField fs
+        initField (n, t) = char '.' <> text n <+> initialize True t
+-- Simple types.
+initialize False _                 = empty
+-- Simple types inside compound types.
+initialize _     BoolType{}        = equals <+> text "false"
+initialize _     BitType{}         = equals <+> text "0"
+initialize _     NumType{}         = equals <+> text "0"
+initialize _     FloatType{}       = equals <+> text "0.0f"
+initialize _     DoubleType{}      = equals <+> text "0.0"
+initialize b     (ComplexType t)   = initialize b t
 
 blockComment :: [Doc] -> Doc
 blockComment ds = vcat (zipWith (<+>) (text "/*" : repeat (text " *")) ds)

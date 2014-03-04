@@ -14,7 +14,7 @@
 void complexWhileCond(int32_t v0, struct s_signedS32_signedS32 * out)
 {
   int32_t v5;
-  struct s_signedS32_signedS32 v2;
+  struct s_signedS32_signedS32 v2 = { .member1 = 0, .member2 = 0 };
   uint32_t v1;
   
   (*out).member1 = 0;
