@@ -38,11 +38,10 @@ pairParam2 :: (Data Int16, Data Int16) ->
               ((Data Int16, Data Int16), (Data Int16, Data Int16))
 pairParam2 c = (c, c)
 
--- TOOD: Re-enable scan.
 -- One test starting.
--- metrics :: Pull1 IntN -> Pull1 IntN
---            -> Vector (Vector (Data Index, Data Index)) -> Vector (Pull1 IntN)
--- metrics s _ = scan (columnMetrics s) initialMetrics
+metrics :: Pull1 IntN -> Pull1 IntN
+            -> Pull DIM1 (Pull DIM1 (Data Index, Data Index)) -> Pull DIM1 (Pull1 IntN)
+metrics s _ = scan (columnMetrics s) initialMetrics
 
 initialMetrics :: Pull1 IntN
 initialMetrics = replicate1 8 (-32678)
@@ -106,7 +105,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
---    , mkGoldTest metrics "metrics" defaultOptions
+    , mkGoldTest metrics "metrics" defaultOptions
 --    , mkGoldTest scanlPush "scanlPush" defaultOptions
 --    , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
@@ -116,7 +115,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOpts
---    , mkBuildTest metrics "metrics" defaultOptions
+    , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions
 --    , mkBuildTest divConq3 "divConq3" defaultOptions
