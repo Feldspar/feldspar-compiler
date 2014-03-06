@@ -93,6 +93,12 @@ ivartest a = share (future (a+1)) $ \a' -> await a' * 2
 ivartest2 :: (Data Index, Data Index) -> (Data Index, Data Index)
 ivartest2 a = share (future a) $ \a' -> await a'
 
+arrayInStruct :: Data [Length] -> Data [Length]
+arrayInStruct a = snd $ whileLoop (getLength a, a) (\(n,_) -> (n>0)) (\(n,a) -> (n-1, parallel (getLength a) (\ i -> a!i + 5)))
+
+arrayInStructInStruct :: Data (Length, (Length, [Length])) -> Data (Length, (Length, [Length]))
+arrayInStructInStruct x = x
+
 tests :: TestTree
 tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
@@ -108,6 +114,8 @@ tests = testGroup "RegressionTests"
 --    , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
+    , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
+    , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -121,6 +129,8 @@ tests = testGroup "RegressionTests"
     , mkGoldTest switcher "switcher" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
+    , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
+    , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     ]
 
 main :: IO ()

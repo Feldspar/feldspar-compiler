@@ -137,32 +137,38 @@ showConstant c               = show c
 arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
-    copy (ProcedureCall "copy" [ValueParameter arg1, ValueParameter arg2])
-        | arg1 == arg2
-        = [replaceWith Empty]
-
-        | ConstExpr ArrayConst{..} <- arg2
-        = [replaceWith $ Sequence $ initArray (Just arg1) (litI32 $ toInteger $ length arrayValues):zipWith (\i c -> Assign (ArrayElem arg1 (litI32 i)) (ConstExpr c)) [0..] arrayValues]
-
-        | NativeArray{} <- typeof arg2
-        , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
-        = [replaceWith $ Sequence $ initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]]
-
-        | not (isArray (typeof arg1))
-        = [replaceWith $ Assign arg1 arg2]
-
-    copy (ProcedureCall "copy" (dst@(ValueParameter arg1):ins'@(ValueParameter in1:ins)))
-        | isArray (typeof arg1)
-        = [replaceWith $ Sequence ([
-               initArray (Just arg1) (foldr ePlus (litI32 0) aLens)
-             , if arg1 == in1 then Empty else call "copyArray" [dst, ValueParameter in1]
-             ] ++ flattenCopy dst ins argnLens arg1len)]
-           where
-             aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
-
-    copy (ProcedureCall "copy" _) = error "Multiple scalar arguments to copy"
-
+    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy [e | ValueParameter e <- ps]]
     copy _ = []
+    toProgram ss = if null ss then Empty else Sequence ss
+
+deepCopy :: [Expression ()] -> [Program ()]
+deepCopy [arg1, arg2]
+  | arg1 == arg2 
+  = []
+
+  | ConstExpr ArrayConst{..} <- arg2 
+  = initArray (Just arg1) (litI32 $ toInteger $ length arrayValues)
+    : zipWith (\i c -> Assign (ArrayElem arg1 (litI32 i)) (ConstExpr c)) [0..] arrayValues
+
+  | NativeArray{} <- typeof arg2
+  , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
+  = initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
+
+  | StructType name fts <- typeof arg2
+  = concatMap (\ (fieldName,_) -> deepCopy [StructField arg1 fieldName, StructField arg2 fieldName]) fts
+
+  | not (isArray (typeof arg1))
+  = [Assign arg1 arg2]
+
+deepCopy (arg1 : ins'@(in1:ins))
+  | isArray (typeof arg1)
+  = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++ flattenCopy (ValueParameter arg1) ins argnLens arg1len
+    where expDstLen = foldr ePlus (litI32 0) aLens
+          copyFirstSegment = if arg1 == in1 then Empty else call "copyArray" [ValueParameter arg1, ValueParameter in1]
+          aLens@(arg1len:argnLens) = map arrayLength ins'
+
+deepCopy _ = error "Multiple scalar arguments to copy"
+
 
 nativeArrayRules :: [Rule]
 nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
@@ -195,9 +201,9 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                         then Just $ upperBound r
                         else Nothing
 
-flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
+flattenCopy :: ActualParameter () -> [Expression ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (ValueParameter t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, ValueParameter t]
+flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, ValueParameter t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
