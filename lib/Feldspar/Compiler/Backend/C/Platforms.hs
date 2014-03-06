@@ -1,11 +1,11 @@
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
---     * Redistributions of source code must retain the above copyright notice, 
+--
+--     * Redistributions of source code must retain the above copyright notice,
 --       this list of conditions and the following disclaimer.
 --     * Redistributions in binary form must reproduce the above copyright
 --       notice, this list of conditions and the following disclaimer in the
@@ -13,10 +13,10 @@
 --     * Neither the name of the ERICSSON AB nor the names of its contributors
 --       may be used to endorse or promote products derived from this software
 --       without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
--- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 -- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 -- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -114,7 +114,7 @@ tic64x = Platform {
         , (ComplexType FloatType, "complexOf_float")
         , (ComplexType DoubleType,"complexOf_double")
         ] ,
-    values = 
+    values =
         [ (ComplexType FloatType, \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
         , (ComplexType DoubleType, \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
         , (BoolType, \b -> if boolValue b then "1" else "0")
@@ -137,16 +137,16 @@ showConstant c               = show c
 arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
-    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy [e | ValueParameter e <- ps]]
+    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy ps]
     copy _ = []
     toProgram ss = if null ss then Empty else Sequence ss
 
-deepCopy :: [Expression ()] -> [Program ()]
-deepCopy [arg1, arg2]
-  | arg1 == arg2 
+deepCopy :: [ActualParameter ()] -> [Program ()]
+deepCopy [ValueParameter arg1, ValueParameter arg2]
+  | arg1 == arg2
   = []
 
-  | ConstExpr ArrayConst{..} <- arg2 
+  | ConstExpr ArrayConst{..} <- arg2
   = initArray (Just arg1) (litI32 $ toInteger $ length arrayValues)
     : zipWith (\i c -> Assign (ArrayElem arg1 (litI32 i)) (ConstExpr c)) [0..] arrayValues
 
@@ -155,17 +155,17 @@ deepCopy [arg1, arg2]
   = initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
 
   | StructType name fts <- typeof arg2
-  = concatMap (\ (fieldName,_) -> deepCopy [StructField arg1 fieldName, StructField arg2 fieldName]) fts
+  = concatMap (\ (fieldName,_) -> deepCopy [ValueParameter $ StructField arg1 fieldName, ValueParameter $ StructField arg2 fieldName]) fts
 
   | not (isArray (typeof arg1))
   = [Assign arg1 arg2]
 
-deepCopy (arg1 : ins'@(in1:ins))
+deepCopy (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
   | isArray (typeof arg1)
   = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++ flattenCopy (ValueParameter arg1) ins argnLens arg1len
     where expDstLen = foldr ePlus (litI32 0) aLens
           copyFirstSegment = if arg1 == in1 then Empty else call "copyArray" [ValueParameter arg1, ValueParameter in1]
-          aLens@(arg1len:argnLens) = map arrayLength ins'
+          aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
 
 deepCopy _ = error "Multiple scalar arguments to copy"
 
@@ -188,7 +188,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
       = [replaceWith $ v { varType = nativeArray varType }]
     toNativeVariable _ = []
 
-    nativeArray (Pointer (ArrayType sz t)) = NativeArray (fromSingleton sz) (nativeArray t)    
+    nativeArray (Pointer (ArrayType sz t)) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray (Pointer t)      = Pointer (nativeArray t)
     nativeArray t = t
@@ -201,9 +201,9 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                         then Just $ upperBound r
                         else Nothing
 
-flattenCopy :: ActualParameter () -> [Expression ()] -> [Expression ()] -> Expression () -> [Program ()]
+flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, ValueParameter t]
+flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
