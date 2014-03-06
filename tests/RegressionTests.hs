@@ -65,13 +65,13 @@ complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
 
 -- One test starting
--- divConq3 :: Pull1 IntN -> DPush DIM1 IntN
--- divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
+divConq3 :: Pull DIM1 (Data IntN) -> DPush DIM1 IntN
+divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
 
 pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull DIM1 a -> Pull DIM1 b
 pmap f = map await . force . map (future . f)
 
-segment :: Syntax a => Data Length -> Pull1 a -> Pull DIM1 (Pull1 a)
+segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
 segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
 -- End one test.
@@ -111,7 +111,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
     , mkGoldTest metrics "metrics" defaultOptions
 --    , mkGoldTest scanlPush "scanlPush" defaultOptions
---    , mkGoldTest divConq3 "divConq3" defaultOptions
+    , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
@@ -124,7 +124,7 @@ tests = testGroup "RegressionTests"
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions
---    , mkBuildTest divConq3 "divConq3" defaultOptions
+    , mkBuildTest divConq3 "divConq3" defaultOptions
     , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
     , mkGoldTest switcher "switcher" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
