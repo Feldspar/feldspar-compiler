@@ -47,7 +47,10 @@ void metrics(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, struct s_arr_uns
   for (uint32_t v14 = 0; v14 < len1; v14 += 1)
   {
     v68 = min(at(uint32_t,(at(struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD,(*v2).member2,v14)).member1,0), v67);
-    v69 = at(struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD,(*v2).member2,v14);
+    (v69).member1 = initArray((v69).member1, sizeof(uint32_t), getLength((at(struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD,(*v2).member2,v14)).member1));
+    copyArray((v69).member1, (at(struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD,(*v2).member2,v14)).member1);
+    (v69).member2 = initArray((v69).member2, sizeof(struct s_unsignedS32_unsignedS32), getLength((at(struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD,(*v2).member2,v14)).member2));
+    copyArray((v69).member2, (at(struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD,(*v2).member2,v14)).member2);
     (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v14)).member1 = setLength((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v14)).member1, sizeof(uint32_t), 1);
     at(uint32_t,(at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v14)).member1,0) = v68;
     (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v14)).member2 = initArray((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v14)).member2, sizeof(int32_t), v68);
