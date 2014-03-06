@@ -12,8 +12,6 @@ import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
 import Feldspar.Vector
--- TODO: No scan in the new vector.
--- import Feldspar.Vector.Internal (scan)
 
 import Control.Monad
 import Control.Monad.Error (liftIO)
@@ -38,11 +36,10 @@ pairParam2 :: (Data Int16, Data Int16) ->
               ((Data Int16, Data Int16), (Data Int16, Data Int16))
 pairParam2 c = (c, c)
 
--- TOOD: Re-enable scan.
 -- One test starting.
--- metrics :: Pull1 IntN -> Pull1 IntN
---            -> Vector (Vector (Data Index, Data Index)) -> Vector (Pull1 IntN)
--- metrics s _ = scan (columnMetrics s) initialMetrics
+metrics :: Pull1 IntN -> Pull1 IntN
+            -> Pull DIM1 (Pull DIM1 (Data Index, Data Index)) -> Pull DIM1 (Pull1 IntN)
+metrics s _ = scan (columnMetrics s) initialMetrics
 
 initialMetrics :: Pull1 IntN
 initialMetrics = replicate1 8 (-32678)
@@ -61,8 +58,8 @@ copyPush v = let pv = toPush v in pv ++ pv
 -- scanlPush :: DPush sh WordN -> Pull1 WordN -> Push (DPush WordN)
 -- scanlPush = scanl const
 
--- concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
--- concatV = fold (++) Empty
+concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
+concatV xs = fromZero $ fold (++) empty xs
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
@@ -71,12 +68,12 @@ complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a
 -- divConq3 :: Pull1 IntN -> DPush DIM1 IntN
 -- divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
 
--- pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull1 a -> Pull1 b
--- pmap f = map await . force . map (future . f)
+pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull DIM1 a -> Pull DIM1 b
+pmap f = map await . force . map (future . f)
 
--- segment :: Syntax a => Data Length -> Pull1 a -> Pull DIM1 (Pull1 a)
--- segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
---  where clen = length xs `div` l
+segment :: Syntax a => Data Length -> Pull1 a -> Pull DIM1 (Pull1 a)
+segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
+  where clen = length xs `div` l
 -- End one test.
 
 -- | We rewrite `return x >>= \_ -> return y` into `return x >> return y`
@@ -107,12 +104,12 @@ tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
---    , mkGoldTest concatV "concatV" defaultOptions
+    , mkGoldTest concatV "concatV" defaultOptions
     , mkGoldTest complexWhileCond "complexWhileCond" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
---    , mkGoldTest metrics "metrics" defaultOptions
+    , mkGoldTest metrics "metrics" defaultOptions
 --    , mkGoldTest scanlPush "scanlPush" defaultOptions
 --    , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
@@ -120,11 +117,11 @@ tests = testGroup "RegressionTests"
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
---    , mkBuildTest concatV "concatV" defaultOptions
+    , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOpts
---    , mkBuildTest metrics "metrics" defaultOptions
+    , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions
 --    , mkBuildTest divConq3 "divConq3" defaultOptions
