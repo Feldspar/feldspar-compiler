@@ -12,8 +12,6 @@ import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
 import Feldspar.Vector
--- TODO: No scan in the new vector.
--- import Feldspar.Vector.Internal (scan)
 
 import Control.Monad
 import Control.Monad.Error (liftIO)
@@ -60,8 +58,8 @@ copyPush v = let pv = toPush v in pv ++ pv
 -- scanlPush :: DPush sh WordN -> Pull1 WordN -> Push (DPush WordN)
 -- scanlPush = scanl const
 
--- concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
--- concatV = fold (++) Empty
+concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
+concatV xs = fromZero $ fold (++) empty xs
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
@@ -70,12 +68,12 @@ complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a
 -- divConq3 :: Pull1 IntN -> DPush DIM1 IntN
 -- divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
 
--- pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull1 a -> Pull1 b
--- pmap f = map await . force . map (future . f)
+pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull DIM1 a -> Pull DIM1 b
+pmap f = map await . force . map (future . f)
 
--- segment :: Syntax a => Data Length -> Pull1 a -> Pull DIM1 (Pull1 a)
--- segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
---  where clen = length xs `div` l
+segment :: Syntax a => Data Length -> Pull1 a -> Pull DIM1 (Pull1 a)
+segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
+  where clen = length xs `div` l
 -- End one test.
 
 -- | We rewrite `return x >>= \_ -> return y` into `return x >> return y`
@@ -100,7 +98,7 @@ tests = testGroup "RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
---    , mkGoldTest concatV "concatV" defaultOptions
+    , mkGoldTest concatV "concatV" defaultOptions
     , mkGoldTest complexWhileCond "complexWhileCond" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
@@ -111,7 +109,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
---    , mkBuildTest concatV "concatV" defaultOptions
+    , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOpts
