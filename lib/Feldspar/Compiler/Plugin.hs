@@ -14,6 +14,7 @@ module Feldspar.Compiler.Plugin
   )
   where
 
+import GHC.Paths (ghc)
 import System.Plugins (initLinker, loadRawObject, resolveObjs)
 import System.Plugins.MultiStage
 
@@ -125,7 +126,7 @@ compileC srcfile objfile opts = do
                , "-w"
                , "-c"
                ]
-    (_,stdout,stderr) <- readProcessWithExitCode "ghc" (args ++ opts ++ ["-o",objfile,srcfile]) ""
+    (_,stdout,stderr) <- readProcessWithExitCode ghc (args ++ opts ++ ["-o",objfile,srcfile]) ""
     let output = stdout ++ stderr
     unless (null output) $ putStrLn output
 

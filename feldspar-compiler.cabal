@@ -80,6 +80,7 @@ library
 
   build-depends:
     base              == 4.*,
+    ghc-paths,
     syntactic,
     plugins-multistage >= 0.3,
     feldspar-language >= 0.6.1 && < 0.7,
