@@ -17,6 +17,12 @@ module Feldspar.Compiler.Plugin
 import GHC.Paths (ghc)
 import System.Plugins (initLinker, loadRawObject, resolveObjs)
 import System.Plugins.MultiStage
+import Data.List (isPrefixOf)
+import Distribution.Verbosity (silent,verbose)
+import Distribution.Simple.Utils (defaultPackageDesc)
+import Distribution.PackageDescription
+import Distribution.PackageDescription.Parse (readPackageDescription)
+import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 
 import Feldspar.Compiler.CallConv (rewriteType, buildCType, buildHaskellType)
 
@@ -34,6 +40,7 @@ import Language.Haskell.TH
 
 import System.Directory (doesFileExist, removeFile, createDirectoryIfMissing)
 import System.Process (readProcessWithExitCode)
+import System.Exit (ExitCode(..))
 import System.Info (os)
 
 
@@ -92,13 +99,15 @@ calloca f = alloca $ \ptr -> do
               f ptr
 
 feldsparBuilder :: Config -> Name -> Q Body
-feldsparBuilder Config{..} fun = normalB
-    [|unsafeLocalState $ do
-        createDirectoryIfMissing True wdir
-        $(varE 'compile) $(varE fun) basename base defaultOptions
-        compileAndLoad basename opts
-        lookupSymbol symbol
-    |]
+feldsparBuilder Config{..} fun = do
+    db <- runIO getDB
+    let opts' = opts ++ map ("-I"++) db
+    normalB [|unsafeLocalState $ do
+                createDirectoryIfMissing True wdir
+                $(varE 'compile) $(varE fun) basename base defaultOptions
+                compileAndLoad basename opts'
+                lookupSymbol symbol
+            |]
   where
     base     = nameBase fun
     basename = wdir ++ "/" ++ base
@@ -106,6 +115,34 @@ feldsparBuilder Config{..} fun = normalB
     ldprefix = case os of
                  "darwin" -> "_"
                  _        -> ""
+
+getDB :: IO [String]
+getDB = do
+    dirs <- sequence [ sandbox, user, local ]
+    print $ concat dirs
+    return $ concat dirs
+
+  where
+    sandbox = do
+      (c,d,_) <- readProcessWithExitCode "cabal" ["sandbox", "hc-pkg","field","feldspar-compiler","include-dirs"] ""
+      case c of
+        ExitSuccess -> return $ drop 1 $ words d
+        _           -> return []
+    user = do
+      (c,d,_) <- readProcessWithExitCode "ghc-pkg" ["field","feldspar-compiler","include-dirs"] ""
+      case c of
+        ExitSuccess -> return $ drop 1 $ words d
+        _           -> return []
+    local   = do
+      pd <- readPackageDescription verbose =<< defaultPackageDesc verbose
+      let f a = return $ includeDirs $ libBuildInfo a
+      maybe (return []) f (maybeHasLibs $ flattenPackageDescription pd)
+
+maybeHasLibs :: PackageDescription -> Maybe Library
+maybeHasLibs p =
+   library p >>= \lib -> if buildable (libBuildInfo lib)
+                           then Just lib
+                           else Nothing
 
 compileAndLoad :: String -> [String] -> IO ()
 compileAndLoad name opts = do
@@ -120,8 +157,7 @@ compileAndLoad name opts = do
 
 compileC :: String -> String -> [String] -> IO ()
 compileC srcfile objfile opts = do
-    let args = [ "-package feldspar-compiler"
-               , "-optc -std=c99"
+    let args = [ "-optc -std=c99"
                , "-optc -Wall"
                , "-w"
                , "-c"
