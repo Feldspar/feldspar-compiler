@@ -22,6 +22,7 @@ import Control.Applicative
 import Foreign.Ptr (Ptr)
 import Foreign.Marshal (new, newArray, peekArray)
 import Foreign.Storable (Storable(..))
+import Foreign.Storable.Tuple ()
 import qualified Foreign.Storable.Record as Store
 
 instance Reference IntN        where type Ref IntN        = IntN
@@ -34,14 +35,15 @@ instance Marshal (Complex a) where type Rep (Complex a) = Complex a
 
 instance (Storable (Rep a), Marshal a) => Marshal [a]
   where
-    type Rep [a] = SA (Rep a)
+    type Rep [a] = Ptr (SA (Rep a))
     to xs = do
         let len  = fromIntegral $ length xs
         let size = fromIntegral $ sizeOf (undefined :: Rep a)
         ys <- mapM to xs
         buffer <- newArray ys
-        return $ SA buffer len size (fromIntegral (len * size))
-    from SA{..} = mapM from =<< peekArray (fromIntegral elems) buf
+        new $ SA buffer len size (fromIntegral (len * size))
+    from p = peek p >>= go
+      where go SA{..} = mapM from =<< peekArray (fromIntegral elems) buf
 
 
 -- | Buffer descriptor for Feldspar arrays
@@ -66,11 +68,15 @@ instance Storable a => Storable (SA a)
     peek      = Store.peek      storeSA
     poke      = Store.poke      storeSA
 
+instance (Reference a) => Reference (Ptr a)
+  where
+    type Ref (Ptr a) = Ptr a
+    ref   = return
+    deref = return
+
 instance (Storable a) => Reference (SA a)
   where
-    type Ref (SA a) = Ptr (SA a)
-    ref   = new
-    deref = peek
+    type Ref (SA a) = SA a
 
 storeComplex :: (RealFloat a, Storable a)
              => Store.Dictionary (Complex a)
@@ -84,4 +90,111 @@ instance (RealFloat a, Storable a) => Storable (Complex a)
     alignment = Store.alignment storeComplex
     peek      = Store.peek      storeComplex
     poke      = Store.poke      storeComplex
+
+instance (Storable (a,b)) => Reference (a,b)
+  where
+    type Ref (a,b) = Ptr (a,b)
+    ref   = new
+    deref = peek
+
+instance (Storable (a,b,c)) => Reference (a,b,c)
+  where
+    type Ref (a,b,c) = Ptr (a,b,c)
+    ref   = new
+    deref = peek
+
+instance (Storable (a,b,c,d)) => Reference (a,b,c,d)
+  where
+    type Ref (a,b,c,d) = Ptr (a,b,c,d)
+    ref   = new
+    deref = peek
+
+instance (Storable (a,b,c,d,e)) => Reference (a,b,c,d,e)
+  where
+    type Ref (a,b,c,d,e) = Ptr (a,b,c,d,e)
+    ref   = new
+    deref = peek
+
+instance (Storable (a,b,c,d,e,f)) => Reference (a,b,c,d,e,f)
+  where
+    type Ref (a,b,c,d,e,f) = Ptr (a,b,c,d,e,f)
+    ref   = new
+    deref = peek
+
+instance (Storable (a,b,c,d,e,f,g)) => Reference (a,b,c,d,e,f,g)
+  where
+    type Ref (a,b,c,d,e,f,g) = Ptr (a,b,c,d,e,f,g)
+    ref   = new
+    deref = peek
+
+instance ( Marshal a
+         , Marshal b
+         ) => Marshal (a,b)
+  where
+    type Rep (a,b) = (Rep a,Rep b)
+    to (a,b)   = (,) <$> to a <*> to b
+    from (a,b) = (,) <$> from a <*> from b
+
+instance ( Marshal a
+         , Marshal b
+         , Marshal c
+         ) => Marshal (a,b,c)
+  where
+    type Rep (a,b,c) = (Rep a,Rep b,Rep c)
+    to (a,b,c)   = (,,) <$> to a <*> to b <*> to c
+    from (a,b,c) = (,,) <$> from a <*> from b <*> from c
+
+instance ( Marshal a
+         , Marshal b
+         , Marshal c
+         , Marshal d
+         ) => Marshal (a,b,c,d)
+  where
+    type Rep (a,b,c,d) = (Rep a,Rep b,Rep c,Rep d)
+    to (a,b,c,d) =
+      (,,,) <$> to a <*> to b <*> to c <*> to d
+    from (a,b,c,d) =
+      (,,,) <$> from a <*> from b <*> from c <*> from d
+
+instance ( Marshal a
+         , Marshal b
+         , Marshal c
+         , Marshal d
+         , Marshal e
+         ) => Marshal (a,b,c,d,e)
+  where
+    type Rep (a,b,c,d,e) = (Rep a,Rep b,Rep c,Rep d,Rep e)
+    to (a,b,c,d,e) =
+      (,,,,) <$> to a <*> to b <*> to c <*> to d <*> to e
+    from (a,b,c,d,e) =
+      (,,,,) <$> from a <*> from b <*> from c <*> from d <*> from e
+
+instance ( Marshal a
+         , Marshal b
+         , Marshal c
+         , Marshal d
+         , Marshal e
+         , Marshal f
+         ) => Marshal (a,b,c,d,e,f)
+  where
+    type Rep (a,b,c,d,e,f) = (Rep a,Rep b,Rep c,Rep d,Rep e,Rep f)
+    to (a,b,c,d,e,f) =
+      (,,,,,) <$> to a <*> to b <*> to c <*> to d <*> to e <*> to f
+    from (a,b,c,d,e,f) =
+      (,,,,,) <$> from a <*> from b <*> from c <*> from d <*> from e <*> from f
+
+instance ( Marshal a
+         , Marshal b
+         , Marshal c
+         , Marshal d
+         , Marshal e
+         , Marshal f
+         , Marshal g
+         ) => Marshal (a,b,c,d,e,f,g)
+  where
+    type Rep (a,b,c,d,e,f,g) = (Rep a,Rep b,Rep c,Rep d,Rep e,Rep f,Rep g)
+    to (a,b,c,d,e,f,g) =
+      (,,,,,,) <$> to a <*> to b <*> to c <*> to d <*> to e <*> to f <*> to g
+    from (a,b,c,d,e,f,g) =
+      (,,,,,,) <$> from a <*> from b <*> from c <*> from d <*> from e <*> from f <*> from g
 
