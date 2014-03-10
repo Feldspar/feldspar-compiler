@@ -119,7 +119,6 @@ feldsparBuilder Config{..} fun = do
 getDB :: IO [String]
 getDB = do
     dirs <- sequence [ sandbox, user, local ]
-    print $ concat dirs
     return $ concat dirs
 
   where
