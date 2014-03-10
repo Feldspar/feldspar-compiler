@@ -4,6 +4,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+-- | Marshaling between Feldspar and C99 types
+--
 module Feldspar.Compiler.Marshal
   ( SA(..)
   )
