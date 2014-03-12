@@ -35,6 +35,7 @@ library
 
   exposed-modules:
     Feldspar.Compiler.Imperative.Representation
+    Feldspar.Compiler.Imperative.ExternalProgram
     Feldspar.Compiler.Imperative.FromCore
     Feldspar.Compiler.Imperative.FromCore.Array
     Feldspar.Compiler.Imperative.FromCore.Binding
@@ -80,6 +81,9 @@ library
     base              == 4.*,
     syntactic,
     feldspar-language >= 0.6.1 && < 0.7,
+    language-c-quote >= 0.7 && < 1.0,
+    bytestring       >= 0.9 && < 0.11,
+    srcloc,
     mtl,
     pretty,
     filepath,
@@ -166,6 +170,7 @@ test-suite regression
     base,
     process,
     bytestring       >= 0.9 && < 0.11,
+    stringsearch     >= 0.3,
     tasty            >= 0.3,
     tasty-golden     >= 2.0,
     tasty-quickcheck >= 0.3,

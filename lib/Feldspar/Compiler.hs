@@ -1,9 +1,11 @@
 
 module Feldspar.Compiler
     ( compile
+    , compileFile
     , icompile
     , icompileWith
     , icompile'
+    , icompileFile
     , getCore
     , printCore
     , Options (..)
