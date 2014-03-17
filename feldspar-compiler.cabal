@@ -83,7 +83,7 @@ library
     Cabal,
     ghc-paths,
     syntactic,
-    plugins-multistage >= 0.3,
+    plugins-multistage >= 0.4,
     feldspar-language >= 0.6.1 && < 0.7,
     mtl,
     pretty,
