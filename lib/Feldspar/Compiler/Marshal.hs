@@ -20,8 +20,8 @@ import Data.Complex (Complex(..),realPart,imagPart)
 import Data.Default
 import Control.Applicative
 
-import Foreign.Marshal (new, newArray, peekArray)
 import Foreign.Ptr
+import Foreign.Marshal (free, new, newArray, peekArray)
 import Foreign.Storable (Storable(..))
 import Foreign.Storable.Tuple ()
 import qualified Foreign.Storable.Record as Store
@@ -46,7 +46,11 @@ instance (Storable (Rep a), Marshal a) => Marshal [a]
         buffer <- newArray ys
         new $ SA buffer len size (fromIntegral (len * size))
     from p = peek p >>= go
-      where go SA{..} = mapM from =<< peekArray (fromIntegral elems) buf
+      where
+        go SA{..} = do
+          res <- mapM from =<< peekArray (fromIntegral elems) buf
+          free buf
+          return res
 
 
 -- | Buffer descriptor for Feldspar arrays
@@ -74,7 +78,7 @@ instance Storable a => Storable (SA a)
     peek      = Store.peek      storeSA
     poke      = Store.poke      storeSA
 
-instance (Reference a) => Reference (Ptr a)
+instance Reference (Ptr a)
   where
     type Ref (Ptr a) = Ptr a
     ref   = return
@@ -82,7 +86,9 @@ instance (Reference a) => Reference (Ptr a)
 
 instance (Storable a) => Reference (SA a)
   where
-    type Ref (SA a) = SA a
+    type Ref (SA a) = Ptr (SA a)
+    ref   = new
+    deref = peek
 
 storeComplex :: (RealFloat a, Storable a)
              => Store.Dictionary (Complex a)

@@ -30,11 +30,12 @@ haskellCC = CallConv { arg  = return
                      }
 
 feldsparCC :: CallConv
-feldsparCC = CallConv { arg = conv
-                      , res = toIO . appT (conT ''Ptr) . conv
+feldsparCC = CallConv { arg = ref . rep . return
+                      , res = toIO . appT (conT ''Ptr) . rep . return
                       }
   where
-    conv   = appT (conT ''Ref) . appT (conT ''Rep) . return
+    ref    = appT (conT ''Ref)
+    rep    = appT (conT ''Rep)
     toIO t = appT (appT arrowT t) (appT (conT ''IO) (tupleT 0))
 
 -- | Construct the corresponding Haskell type of a foreign Feldspar

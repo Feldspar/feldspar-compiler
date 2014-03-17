@@ -26,9 +26,9 @@ import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 
 import Feldspar.Compiler.CallConv (rewriteType, buildCType, buildHaskellType)
 
-import Data.Word (Word8)
+import Data.Default
 import Foreign.Ptr
-import Foreign.Marshal (alloca,pokeArray)
+import Foreign.Marshal (with)
 import Foreign.Marshal.Unsafe (unsafeLocalState)
 import Foreign.Storable (Storable(..))
 import Foreign.C.String (CString, withCString)
@@ -42,6 +42,7 @@ import System.Directory (doesFileExist, removeFile, createDirectoryIfMissing)
 import System.Process (readProcessWithExitCode)
 import System.Exit (ExitCode(..))
 import System.Info (os)
+import System.IO.Unsafe (unsafePerformIO)
 
 
 -- Feldspar specific
@@ -81,9 +82,9 @@ loadFunOpts o = loadFunWithConfig feldsparPluginConfig{opts = o}
 
 feldsparWorker :: Name -> [Name] -> Q Body
 feldsparWorker fun as = normalB
-    [|calloca $ \outPtr -> do
+    [|with def $ \outPtr -> do
         join $(infixApp (apply ([|pure $(varE fun)|] : map toRef as)) [|(<*>)|] [|pure outPtr|])
-        peek outPtr >>= unpack
+        peek outPtr >>= from
     |]
   where
     toRef name = [| pack $(varE name) |]
@@ -93,14 +94,9 @@ feldsparWorker fun as = normalB
     apply [x] = x
     apply (x:y:zs) = apply (infixApp x [|(<*>)|] y : zs)
 
-calloca :: forall a b. Storable a => (Ptr a -> IO b) -> IO b
-calloca f = alloca $ \ptr -> do
-              pokeArray (castPtr ptr) $ replicate (sizeOf ptr) (0::Word8)
-              f ptr
-
 feldsparBuilder :: Config -> Name -> Q Body
 feldsparBuilder Config{..} fun = do
-    db <- runIO getDB
+    let db    = getDB
     let opts' = opts ++ map ("-I"++) db
     normalB [|unsafeLocalState $ do
                 createDirectoryIfMissing True wdir
@@ -116,9 +112,10 @@ feldsparBuilder Config{..} fun = do
                  "darwin" -> "_"
                  _        -> ""
 
-getDB :: IO [String]
-getDB = do
+getDB :: [String]
+getDB = unsafePerformIO $ do
     dirs <- sequence [ sandbox, user, local ]
+    putStrLn $ unwords $ "Using feldspar runtime in" : concat dirs
     return $ concat dirs
 
   where
