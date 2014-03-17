@@ -57,13 +57,18 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
 {
     int newBytes;
 
-    if ( !arr )
-      arr = calloc(1, sizeof(struct array));
-
     log_3("initArray %p %d %d - enter\n", arr, size, len);
+    if ( !arr )
+    {
+      struct array * ptr;
+      ptr = calloc(1, sizeof(struct array));
+      log_4("initArray %p %d %d - alloc fresh struct array %p\n", arr, size, len, ptr);
+      arr = ptr;
+    }
+
     assert(arr);
     arr->elemSize = size;
-    arr->length = len;
+    arr->length   = len;
     if( size < 0 )
         size = sizeof(struct array);
     newBytes = size * len;
@@ -90,7 +95,7 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
     {
         // First initialization
         arr->bytes = newBytes;
-        arr->buffer = (void*)malloc( newBytes );        
+        arr->buffer = (void*)calloc(len,size);
         log_5("initArray %p - alloc %d * %d = %d bytes at %p\n"
              , arr, arr->length, arr->elemSize, newBytes, arr->buffer);
     }
