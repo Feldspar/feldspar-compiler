@@ -93,6 +93,7 @@ library
     directory >= 1.2,
     template-haskell,
     plugins >= 1.5.4,
+    data-default >= 0.5,
     storable-tuple  >= 0.0.2,
     storable-record >= 0.0.2.5
 

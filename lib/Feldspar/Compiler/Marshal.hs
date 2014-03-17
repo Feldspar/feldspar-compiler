@@ -17,10 +17,11 @@ import Feldspar.Core.Types (IntN(..), WordN(..))
 import Data.Int (Int32)
 import Data.Word (Word32)
 import Data.Complex (Complex(..),realPart,imagPart)
+import Data.Default
 import Control.Applicative
 
-import Foreign.Ptr (Ptr)
 import Foreign.Marshal (new, newArray, peekArray)
+import Foreign.Ptr
 import Foreign.Storable (Storable(..))
 import Foreign.Storable.Tuple ()
 import qualified Foreign.Storable.Record as Store
@@ -32,6 +33,8 @@ instance Reference (Complex a) where type Ref (Complex a) = Complex a
 instance Marshal IntN        where type Rep IntN        = IntN
 instance Marshal WordN       where type Rep WordN       = WordN
 instance Marshal (Complex a) where type Rep (Complex a) = Complex a
+
+instance Default (Ptr a) where def = nullPtr
 
 instance (Storable (Rep a), Marshal a) => Marshal [a]
   where
@@ -53,6 +56,9 @@ data SA a = SA { buf   :: Ptr a
                , bytes :: Word32
                }
   deriving (Eq, Show)
+
+instance Default (SA a) where
+    def = SA nullPtr def def def
 
 storeSA :: Storable a => Store.Dictionary (SA a)
 storeSA = Store.run $ SA
