@@ -109,22 +109,20 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
 static inline void freeArray(struct array *arr)
 {
     log_1("freeArray %p - enter\n", arr);
-    assert(arr);
-    if( !arr->buffer )
+    if( arr && arr->buffer )
     {
-      return;
+      if( arr->elemSize < 0 )
+      {
+        for(int i=0; i<arr->length; ++i )
+          freeArray( &at(struct array,arr,i) );
+      }
+      free(arr->buffer);
+      // For the sake of extra safety:
+      arr->buffer = 0;
+      arr->length = 0;
+      arr->bytes = 0;
+      free(arr);
     }
-    if( arr->elemSize < 0 )
-    {
-      for(int i=0; i<arr->length; ++i )
-        freeArray( &at(struct array,arr,i) );
-    }
-    free(arr->buffer);
-    // For the sake of extra safety:
-    arr->buffer = 0;
-    arr->length = 0;
-    arr->bytes = 0;
-    free(arr);
     log_1("freeArray %p - leave\n", arr);
 }
 
