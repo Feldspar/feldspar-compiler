@@ -58,6 +58,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
         let args = [case lookup v (alias env) of
                          Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
                          Just (VarExpr e) -> e
+                         Just (Deref (VarExpr e)) -> e -- These are variables that got a Pointer wrapped around their type in FromCore
                    | (v,SomeType t) <- assocs $ infoVars info
                    ] ++ fv loc
         -- Task core:

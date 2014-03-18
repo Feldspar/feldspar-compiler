@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -42,7 +43,7 @@ import Control.Monad.RWS
 import Control.Applicative
 
 import Data.Char (toLower)
-import Data.List (intercalate)
+import Data.List (intercalate, stripPrefix)
 import Data.Maybe (isJust, fromJust)
 
 import Language.Syntactic.Syntax hiding (result)
@@ -50,7 +51,8 @@ import Language.Syntactic.Traversal
 import Language.Syntactic.Constraint
 import Language.Syntactic.Constructs.Binding (VarId)
 
-import Feldspar.Range (upperBound, isSingleton)
+import Feldspar.Lattice (universal)
+import Feldspar.Range (upperBound, isSingleton, singletonRange)
 import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType, DoubleType,
                                    ComplexType, IVarType, Signedness, Size)
 import Feldspar.Core.Interpretation
@@ -199,13 +201,17 @@ compileExprVar :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter (Expr
 compileExprVar e = do
     e' <- compileExpr e
     case e' of
-        VarExpr{} -> return e'
+        _ | isNearlyVar e' -> return e'
         _         -> do
             varId <- freshId
             let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
             declare loc
             assign (Just loc) e'
             return loc
+  where isNearlyVar VarExpr{}  = True
+        isNearlyVar (Deref e)  = isNearlyVar e
+        isNearlyVar (AddrOf e) = isNearlyVar e
+        isNearlyVar _          = False
 
 --------------------------------------------------------------------------------
 -- * Utility functions
@@ -279,6 +285,7 @@ compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
 compileTypeRep (Core.ArrayType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
 compileTypeRep (MArrType a) (rs :> es)  = ArrayType rs $ compileTypeRep a es
 compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
+compileTypeRep (ElementsType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
 compileTypeRep (Core.IVarType a) _      = IVarType $ compileTypeRep a $ defaultSize a
 compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
 compileTypeRep (FValType a) sz          = IVarType $ compileTypeRep a sz
@@ -370,6 +377,69 @@ encodeType = go
                                                          then show (upperBound l)
                                                          else "UD"
                                            ]
+
+-- Almost the inverse of encodeType. Some type encodings are lossy so
+-- they are impossible to recover.
+decodeType :: String -> [Type]
+decodeType s = goL s []
+  where
+    goL [] acc = reverse acc
+    goL s acc = goL rest' (out:acc)
+       where (out, rest) = go s
+             rest' = case rest of
+                      '_':t -> t
+                      _     -> rest
+
+    go (stripPrefix "void"     -> Just t) = (VoidType, t)
+    go (stripPrefix "bool"     -> Just t) = (BoolType, t)
+    go (stripPrefix "bit"      -> Just t) = (BitType, t)
+    go (stripPrefix "float"    -> Just t) = (FloatType, t)
+    go (stripPrefix "double"   -> Just t) = (DoubleType, t)
+    go (stripPrefix "unsigned" -> Just t) = (NumType Unsigned w, t')
+     where (w, t') = decodeSize t
+    go (stripPrefix "signed"   -> Just t) = (NumType Signed w, t')
+     where (w, t') = decodeSize t
+    go (stripPrefix "complex"  -> Just t) = (ComplexType tn, t')
+     where (tn, t') = go t
+    go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
+     where (tt, t') = go t
+-- Lossy encodings left out:
+--    go (UserType t)      = t
+--    go (Alias _ s)       = s
+--    go (IVarType t)      = go t
+--    go (NativeArray _ t) = go t
+    go h@('s':'_':t) = (StructType h' $ zipWith mkMember [1..] ts, t'')
+       where mkMember n t = ("member" ++ show n, t)
+             (ts, t'') = structGo t []
+             structGo [] acc = (reverse acc, [])
+             structGo s  acc = if "_" == take 1 s' && not (likelyDim s')
+                                 then structGo (drop 1 s') (ts:acc)
+                                 else (reverse (ts:acc), s')
+                      where (ts, s') = go s
+             -- There might be dangling size encodings at the end of h
+             -- because of a struct of arrays inside an array. The right
+             -- h for this nest level is the part of h that is not
+             -- intersecting with t''.
+             h' = take (length h - length t'') h
+    go (stripPrefix "arr_"     -> Just t) = (ArrayType d tt, t'')
+      where (tt, ('_':t')) = go t
+            (d, t'') = decodeDim t'
+    go s = error ("decodeType: " ++ s)
+
+    decodeSize (stripPrefix "S32" -> Just t) = (S32, t)
+    decodeSize (stripPrefix "S8"  -> Just t) = (S8, t)
+    decodeSize (stripPrefix "S16" -> Just t) = (S16, t)
+    decodeSize (stripPrefix "S40" -> Just t) = (S40, t)
+    decodeSize (stripPrefix "S64" -> Just t) = (S64, t)
+
+    decodeDim ('_':t)     = (universal, t)
+    decodeDim ('U':'D':t) = (universal, t)
+    decodeDim ('1':t)     = (singletonRange 1, t)
+    decodeDim e           = error ("decodeDim: " ++ e)
+
+    likelyDim (stripPrefix "_UD" -> Just _)                          = True
+    likelyDim ('_':n:_) | [(_,_)] <- reads [n] :: [(Integer,String)] = True
+    likelyDim _                                                      = False
 
 getTypes :: Options -> [Declaration ()] -> [Entity ()]
 getTypes _ defs = concatMap mkDef comps

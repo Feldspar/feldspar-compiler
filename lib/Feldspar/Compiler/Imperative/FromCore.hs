@@ -71,6 +71,7 @@ import Feldspar.Compiler.Imperative.FromCore.Array ()
 import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)
 import Feldspar.Compiler.Imperative.FromCore.Condition ()
 import Feldspar.Compiler.Imperative.FromCore.ConditionM ()
+import Feldspar.Compiler.Imperative.FromCore.Elements ()
 import Feldspar.Compiler.Imperative.FromCore.Error ()
 import Feldspar.Compiler.Imperative.FromCore.FFI ()
 import Feldspar.Compiler.Imperative.FromCore.Future ()
@@ -113,10 +114,10 @@ compileProgTop opt funname bs (lam :$ body)
          let ta  = argType $ infoType $ getInfo lam
              sa  = fst $ infoSize $ getInfo lam
              typ = compileTypeRep ta sa
-             arg | Rep.StructType{} <- typ = mkPointer typ v
-                 | otherwise               = mkVariable typ v
+             (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
+                        | otherwise               = (mkVariable typ v, varToExpr arg)
          tell $ mempty {params=[arg]}
-         withAlias v (varToExpr arg) $
+         withAlias v arge $
            compileProgTop opt funname bs body
 compileProgTop opt funname bs (lt :$ e :$ (lam :$ body))
   | Just (SubConstr2 (Lambda v)) <- prjLambda lam
@@ -145,7 +146,7 @@ compileProgTop _ _ bs a = do
         info       = getInfo a
         outType    = Rep.Pointer $ compileTypeRep (infoType info) (infoSize info)
         outParam   = Rep.Variable outType "out"
-        outLoc     = varToExpr outParam
+        outLoc     = Deref $ varToExpr outParam
     mapM_ compileBind (reverse bs)
     compileProg (Just outLoc) a
     return outParam

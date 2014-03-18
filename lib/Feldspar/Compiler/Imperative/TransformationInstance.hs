@@ -151,6 +151,8 @@ instance (Transformable t Expression, Transformable t Variable, Transformable t 
         defaultTransform t s d (AddrOf ex) = Result (AddrOf (result tr)) (state tr) (up tr) where
             tr = transform t s d ex
         defaultTransform t s d (SizeOf typ) =  Result (SizeOf typ) s def
+        defaultTransform t s d (Deref ex) = Result (Deref (result tr)) (state tr) (up tr) where
+            tr = transform t s d ex
 
 instance (Transformable t Constant, Transformable1 t [] Constant, Combine (Up t), Default (Up t))
     => DefaultTransformable t Constant where

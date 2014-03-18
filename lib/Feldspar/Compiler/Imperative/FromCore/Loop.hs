@@ -51,7 +51,8 @@ import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..))
+import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..),
+                                                    typeof)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)
 
@@ -77,10 +78,18 @@ instance ( Compile dom dom
             let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
-            compileProg (Just loc) init
-            (_, Block ds body) <- withAlias st loc $ confiscateBlock $ compileProg (Just stvar) ixf >> assign (Just loc) stvar
+            -- Large results, such as arrays, should be used in-place to avoid
+            -- copying. Small results that fit in a register should be copied.
+            --
+            -- Makes a noticeable difference for the innermost loop in matrix
+            -- multiplication in MultiDim.
+            let (st', alias) | isArray $ typeof stvar = (loc, withAlias st loc)
+                             | otherwise = (stvar, id)
+            compileProg (Just st') init
+            (_, Block ds body) <- alias $ confiscateBlock $ compileProg (Just stvar) ixf >> assign (Just st') stvar
             declare stvar
             tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
+            tellProg [copyProg (Just loc) [st']]
 
     compileProgSym (C' WhileLoop) _ (Just loc) (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1

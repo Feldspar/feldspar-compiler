@@ -43,10 +43,14 @@ codeGenerationError = handleError "CodeGeneration"
 
 data PrintEnv = PEnv
     { options :: Options
+    , parNestLevel :: Int
     }
 
 compToCWithInfos :: Options -> Module () -> String
-compToCWithInfos opts procedure = render $ cgen (PEnv opts) procedure
+compToCWithInfos opts procedure = render $ cgen (penv0 opts) procedure
+
+penv0 :: Options -> PrintEnv
+penv0 opts = PEnv opts 0
 
 class CodeGen a
   where
@@ -92,11 +96,8 @@ instance CodeGen (Declaration ())
   where
     cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) initial <> semi
       where
-        initial = case (initVal, varType declVar) of
-                    (Just i, _)           -> equals <+> cgen env i
-                    (_     , Pointer{})   -> equals <+> text "NULL"
-                    (_     , ArrayType{}) -> equals <+> text "NULL"
-                    _                     -> empty
+        initial | Just i <- initVal = equals <+> cgen env i
+                | otherwise         = initialize False (varType declVar)
     cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Program ())
@@ -121,16 +122,20 @@ instance CodeGen (Program ())
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
     cgen env ParLoop{..}
      | pParallel && (name . platform . options $ env) == "c99OpenMp"
+     , 1 <= (parNestLevel env) -- OpenMP 4 has nested data parallelism,
+                               -- but it does not work well in practice.
      = text "#pragma omp parallel for" $$ forL
      | otherwise = forL
       where
         forL  = text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [ini, guard, next])
-              $$ block env (cgen env pLoopBlock)
+              $$ block env1 (cgen env1 pLoopBlock)
         ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
         ini   = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> cgen env pLoopStep
+        env1 | pParallel = env { parNestLevel = parNestLevel env + 1}
+             | otherwise = env
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
 
@@ -171,30 +176,15 @@ instance CodeGen (Expression ())
         , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
         | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
-    cgen env AddrOf{..}
-        | VarExpr v@(Variable{..}) <- addrExpr
-        , Pointer t <- typeof addrExpr = cgen env (v{varType = t})
-        | otherwise                      = prefix <> cgen env addrExpr
-     where
-       prefix = case (addrExpr, typeof addrExpr) of
-                 (e, Pointer{}) | specialConstruct e -> empty -- Skip single level AddrOf
-                   where specialConstruct ArrayElem{}   = True
-                         specialConstruct StructField{} = True
-                         specialConstruct _             = False
-
-                 _                          -> text "&"
+    cgen env AddrOf{..} = text "&" <> cgen env addrExpr
     cgen env SizeOf{..} = call (text "sizeof") [cgen env sizeOf]
+    cgen env Deref{..} = text "*" <> cgen env ptrExpr
 
     cgenList env = sep . punctuate comma . map (cgen env)
 
 instance CodeGen (Variable t)
   where
-    cgen _ = go
-      where
-        go v@Variable{..} = case varType of
-                   Pointer t -> text "*" <> go (v {varType = t})-- char '*'
-                   _         -> text varName
-
+    cgen _ v = text $ varName v
     cgenList env = hsep . punctuate comma . map (cgen env)
 
 instance CodeGen (Constant ())
@@ -236,6 +226,28 @@ instance CodeGen Type
 
 call :: Doc -> [Doc] -> Doc
 call fn args = fn <> parens (hsep $ punctuate comma args)
+
+-- Initializes local variables so that initArray/setLength/.. will get defined
+-- inputs.
+--
+-- First parameter is whether the initialization context is somewhere
+-- inside a compound type.
+initialize :: Bool -> Type -> Doc
+-- Compound/Special types.
+initialize _     Pointer{}         = equals <+> text "NULL"
+initialize _     ArrayType{}       = equals <+> text "NULL"
+initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
+  where inits = hsep $ punctuate comma $ map initField fs
+        initField (n, t) = char '.' <> text n <+> initialize True t
+-- Simple types.
+initialize False _                 = empty
+-- Simple types inside compound types.
+initialize _     BoolType{}        = equals <+> text "false"
+initialize _     BitType{}         = equals <+> text "0"
+initialize _     NumType{}         = equals <+> text "0"
+initialize _     FloatType{}       = equals <+> text "0.0f"
+initialize _     DoubleType{}      = equals <+> text "0.0"
+initialize b     (ComplexType t)   = initialize b t
 
 blockComment :: [Doc] -> Doc
 blockComment ds = vcat (zipWith (<+>) (text "/*" : repeat (text " *")) ds)

@@ -15,8 +15,6 @@ import Feldspar
 import Feldspar.Compiler
 import Feldspar.Compiler.Plugin
 import Feldspar.Vector
-import Feldspar.Vector.Internal (scan)
-import qualified Feldspar.Vector.Push as PV
 
 import Control.Monad
 import Control.Monad.Error (liftIO)
@@ -45,42 +43,42 @@ pairParam2 :: (Data Int16, Data Int16) ->
 pairParam2 c = (c, c)
 
 -- One test starting.
-metrics :: Vector1 IntN -> Vector1 IntN
-           -> Vector (Vector (Data Index, Data Index)) -> Vector (Vector1 IntN)
+metrics :: Pull1 IntN -> Pull1 IntN
+            -> Pull DIM1 (Pull DIM1 (Data Index, Data Index)) -> Pull DIM1 (Pull1 IntN)
 metrics s _ = scan (columnMetrics s) initialMetrics
 
-initialMetrics :: Vector1 IntN
-initialMetrics = replicate 8 (-32678)
+initialMetrics :: Pull1 IntN
+initialMetrics = replicate1 8 (-32678)
 
-columnMetrics :: Vector1 IntN -> Vector1 IntN -> Vector (Data Index, Data Index)
-                  -> Vector1 IntN
+columnMetrics :: Pull1 IntN -> Pull1 IntN -> Pull DIM1 (Data Index, Data Index)
+                  -> Pull1 IntN
 columnMetrics s prev zf  = zipWith (metricFast prev) zf s
 
-metricFast :: Vector1 IntN -> (Data Index, Data Index) -> Data IntN -> Data IntN
-metricFast prev (z, _) _ = prev ! z
+metricFast :: Pull1 IntN -> (Data Index, Data Index) -> Data IntN -> Data IntN
+metricFast prev (z, _) _ = prev !! z
 -- End one test.
 
-copyPush :: Vector1 Index -> PV.PushVector1 Index
-copyPush v = let pv = PV.toPush v in pv PV.++ pv
+copyPush :: Pull1 Index -> DPush DIM1 Index
+copyPush v = let pv = toPush v in pv ++ pv
 
-scanlPush :: PV.PushVector1 WordN -> Vector1 WordN -> PV.PushVector (PV.PushVector1 WordN)
-scanlPush = PV.scanl const
+-- scanlPush :: DPush sh WordN -> Pull1 WordN -> Push (DPush WordN)
+-- scanlPush = scanl const
 
-concatV :: Vector (Vector1 IntN) -> Vector1 IntN
-concatV = fold (++) Empty
+concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
+concatV xs = fromZero $ fold (++) empty xs
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
 
 -- One test starting
-divConq3 :: Vector1 IntN -> Vector1 IntN
+divConq3 :: Pull DIM1 (Data IntN) -> DPush DIM1 IntN
 divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
 
-pmap :: (Syntax a, Syntax b) => (a -> b) -> Vector a -> Vector b
+pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull DIM1 a -> Pull DIM1 b
 pmap f = map await . force . map (future . f)
 
-segment :: Syntax a => Data Length -> Vector a -> Vector (Vector a)
-segment l xs = indexed clen (\ix -> take l $ drop (ix*l) xs)
+segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
+segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
 -- End one test.
 
@@ -101,6 +99,12 @@ ivartest a = share (future (a+1)) $ \a' -> await a' * 2
 ivartest2 :: (Data Index, Data Index) -> (Data Index, Data Index)
 ivartest2 a = share (future a) $ \a' -> await a'
 
+arrayInStruct :: Data [Length] -> Data [Length]
+arrayInStruct a = snd $ whileLoop (getLength a, a) (\(n,_) -> (n>0)) (\(n,a) -> (n-1, parallel (getLength a) (\ i -> a!i + 5)))
+
+arrayInStructInStruct :: Data (Length, (Length, [Length])) -> Data (Length, (Length, [Length]))
+arrayInStructInStruct x = x
+
 tests :: TestTree
 tests = testGroup "RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 === c_example9
@@ -113,10 +117,12 @@ tests = testGroup "RegressionTests"
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
     , mkGoldTest metrics "metrics" defaultOptions
-    , mkGoldTest scanlPush "scanlPush" defaultOptions
+--    , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
+    , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
+    , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -124,12 +130,14 @@ tests = testGroup "RegressionTests"
     , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOpts
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
-    , mkBuildTest scanlPush "scanlPush" defaultOptions
+--    , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
     , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
     , mkGoldTest switcher "switcher" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
+    , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
+    , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     ]
 
 main :: IO ()
