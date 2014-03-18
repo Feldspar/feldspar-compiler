@@ -5,8 +5,8 @@ import Feldspar.Vector
 import Feldspar.Compiler.Plugin
 import Feldspar.Algorithm.CRC
 
-import Foreign.Marshal (alloca)
-
+import Foreign.Marshal (with)
+import Data.Default
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 
@@ -30,7 +30,7 @@ h_normal = eval normal
 loadFun 'normal
 
 main :: IO ()
-main = alloca $ \out -> do
+main = with def $ \out -> do
     d  <- evaluate $ force testdata
     pd <- pack d >>= evaluate
     _  <- evaluate c_naive_builder
@@ -38,16 +38,16 @@ main = alloca $ \out -> do
     defaultMain
       [
         bgroup "evaluated"
-          [ bench "h_naive" $ nf h_naive (Prelude.take 1024 d)
+          [ bench "h_naive"  $ nf h_naive  (Prelude.take 1024 d)
           , bench "h_normal" $ nf h_normal (Prelude.take 1024 d)
           ]
       , bgroup "compiled"
           [ bgroup "marshal"
-              [ bench "c_naive" $ c_naive_worker d
+              [ bench "c_naive"  $ c_naive_worker d
               , bench "c_normal" $ c_normal_worker d
               ]
           , bgroup "raw"
-              [ bench "c_naive" $ c_naive_raw pd out
+              [ bench "c_naive"  $ c_naive_raw pd out
               , bench "c_normal" $ c_normal_raw pd out
               ]
           ]

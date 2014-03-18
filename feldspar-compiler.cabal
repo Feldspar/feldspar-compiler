@@ -215,6 +215,7 @@ benchmark crc
   build-depends:
     feldspar-language,
     feldspar-compiler,
+    data-default       >= 0.5.3 && < 0.6,
     base,
     deepseq,
     criterion
