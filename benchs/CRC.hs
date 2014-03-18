@@ -18,10 +18,10 @@ len = 16 * 1024
 testdata :: [Word8]
 testdata = Prelude.take (fromIntegral len) $ cycle [1,2,3,4]
 
-naive :: Vector1 Word8 -> Data Word16
+naive :: Pull1 Word8 -> Data Word16
 naive = crcNaive 0x8005 0
 
-normal :: Vector1 Word8 -> Data Word16
+normal :: Pull1 Word8 -> Data Word16
 normal v = share (makeCrcTable 0x8005) $ \t -> crcNormal t 0 v
 
 h_naive :: ([Length],[Word8]) -> Word16
