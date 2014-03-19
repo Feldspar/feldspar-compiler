@@ -69,6 +69,7 @@ library
     Feldspar.Compiler.Frontend.Interactive.Interface
     Feldspar.Compiler.Compiler
     Feldspar.Compiler.Error
+    Feldspar.Compiler.ExternalProgram
     Feldspar.Compiler.Internal
     Feldspar.Compiler
     Feldspar.Transformation

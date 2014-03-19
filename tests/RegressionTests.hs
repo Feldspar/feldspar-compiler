@@ -11,6 +11,7 @@ import Test.Tasty.QuickCheck
 import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
+import Feldspar.Compiler.ExternalProgram (compileFile)
 import Feldspar.Vector
 
 import Control.Monad
