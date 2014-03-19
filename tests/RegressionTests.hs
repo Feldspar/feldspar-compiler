@@ -103,7 +103,10 @@ arrayInStructInStruct :: Data (Length, (Length, [Length])) -> Data (Length, (Len
 arrayInStructInStruct x = x
 
 tests :: TestTree
-tests = testGroup "RegressionTests"
+tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
+
+compilerTests :: TestTree
+compilerTests = testGroup "Compiler-RegressionTests"
     [ mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
@@ -119,24 +122,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
-    -- External Program tests.
-    , mkParseTest "example9" defaultOptions
-    , mkParseTest "pairParam" defaultOptions
-    , mkParseTest "pairParam2" defaultOptions
-    , mkParseTest "concatV" defaultOptions
-    , mkParseTest "complexWhileCond" defaultOptions
-    , mkParseTest "topLevelConsts" defaultOptions
-    , mkParseTest "topLevelConsts_native" nativeOpts
-    , mkParseTest "topLevelConsts_sics" sicsOpts
-    , mkParseTest "metrics" defaultOptions
---    , mkParseTest "scanlPush" defaultOptions
-    -- Still incomplete reconstruction of futures.
---    , mkParseTest "divConq3" defaultOptions
-    , mkParseTest "ivartest" defaultOptions
-    , mkParseTest "ivartest2" defaultOptions
-    , mkParseTest "arrayInStruct" defaultOptions
-    , mkParseTest "arrayInStructInStruct" defaultOptions
-    -- Build tests.
+   -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -152,6 +138,26 @@ tests = testGroup "RegressionTests"
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+    ]
+
+externalProgramTests :: TestTree
+externalProgramTests = testGroup "ExternalProgram-RegressionTests"
+    [ mkParseTest "example9" defaultOptions
+    , mkParseTest "pairParam" defaultOptions
+    , mkParseTest "pairParam2" defaultOptions
+    , mkParseTest "concatV" defaultOptions
+    , mkParseTest "complexWhileCond" defaultOptions
+    , mkParseTest "topLevelConsts" defaultOptions
+    , mkParseTest "topLevelConsts_native" nativeOpts
+    , mkParseTest "topLevelConsts_sics" sicsOpts
+    , mkParseTest "metrics" defaultOptions
+--    , mkParseTest "scanlPush" defaultOptions
+    -- Still incomplete reconstruction of futures.
+--    , mkParseTest "divConq3" defaultOptions
+    , mkParseTest "ivartest" defaultOptions
+    , mkParseTest "ivartest2" defaultOptions
+    , mkParseTest "arrayInStruct" defaultOptions
+    , mkParseTest "arrayInStructInStruct" defaultOptions
     ]
 
 main :: IO ()
