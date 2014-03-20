@@ -19,15 +19,6 @@ import Feldspar.Compiler.Plugin
 
 import Control.Applicative
 
--- TODO: remove Tiny and replace with Small once the QuickCheck bug has
--- been fixed
-newtype Tiny a = Tiny { getTiny :: a }
-  deriving (Prelude.Eq,Show,Num)
-
-instance Integral a => Arbitrary (Tiny a) where
-    arbitrary = sized $ \s -> let s' = Prelude.toInteger s in fmap Prelude.fromInteger (choose (0,s'))
-    shrink (Tiny x) = fmap Tiny (shrinkIntegral x)
-
 vector1D :: Length -> Gen a -> Gen ([WordN],[a])
 vector1D l ga = (,) <$> pure [l] <*> vectorOf (Prelude.fromIntegral l) ga
 
@@ -58,16 +49,16 @@ loadFun 'vectorInPairInVector
 
 prop_pairArg = eval pairArg ==== c_pairArg
 prop_pairRes = eval pairRes ==== c_pairRes
-prop_vecId (Tiny l) =
+prop_vecId (Small l) =
     forAll (vector1D l arbitrary) $ \xs ->
       eval vecId xs ==== c_vecId xs
-prop_vectorInPair (Tiny l) =
+prop_vectorInPair (Small l) =
     forAll ((,) <$> vector1D l arbitrary <*> arbitrary) $ \p ->
       eval vectorInPair p ==== c_vectorInPair p
-prop_vectorInVector (Tiny l1) (Tiny l2) =
+prop_vectorInVector (Small l1) (Small l2) =
     forAll (vector1D l1 (vector1D l2 arbitrary)) $ \v ->
       eval vectorInVector v ==== c_vectorInVector v
-prop_vectorInPairInVector (Tiny l) = eval vectorInPairInVector l ==== c_vectorInPairInVector l
+prop_vectorInPairInVector (Small l) = eval vectorInPairInVector l ==== c_vectorInPairInVector l
 
 tests :: TestTree
 tests = testGroup "CallingConvention"
