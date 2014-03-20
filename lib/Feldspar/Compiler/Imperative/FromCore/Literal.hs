@@ -43,7 +43,7 @@ import Data.Complex
 import Language.Syntactic
 
 import Feldspar.Core.Types as Core
-import Feldspar.Core.Interpretation
+import Feldspar.Core.Interpretation (Info(..))
 import Feldspar.Core.Constructs.Literal
 
 import Feldspar.Compiler.Imperative.Frontend
