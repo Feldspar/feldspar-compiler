@@ -14,12 +14,15 @@ import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
 import Feldspar.Compiler.Plugin
+import Feldspar.Compiler.ExternalProgram (compileFile)
 import Feldspar.Vector
 
 import Control.Monad
 import Control.Monad.Error (liftIO)
 import Data.Monoid ((<>))
+import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy.Search as LB
 import System.Process
 import Text.Printf
 
@@ -106,7 +109,10 @@ arrayInStructInStruct :: Data (Length, (Length, [Length])) -> Data (Length, (Len
 arrayInStructInStruct x = x
 
 tests :: TestTree
-tests = testGroup "RegressionTests"
+tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
+
+compilerTests :: TestTree
+compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
@@ -123,6 +129,7 @@ tests = testGroup "RegressionTests"
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+   -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -138,6 +145,26 @@ tests = testGroup "RegressionTests"
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+    ]
+
+externalProgramTests :: TestTree
+externalProgramTests = testGroup "ExternalProgram-RegressionTests"
+    [ mkParseTest "example9" defaultOptions
+    , mkParseTest "pairParam" defaultOptions
+    , mkParseTest "pairParam2" defaultOptions
+    , mkParseTest "concatV" defaultOptions
+    , mkParseTest "complexWhileCond" defaultOptions
+    , mkParseTest "topLevelConsts" defaultOptions
+    , mkParseTest "topLevelConsts_native" nativeOpts
+    , mkParseTest "topLevelConsts_sics" sicsOpts
+    , mkParseTest "metrics" defaultOptions
+--    , mkParseTest "scanlPush" defaultOptions
+    -- Still incomplete reconstruction of futures.
+--    , mkParseTest "divConq3" defaultOptions
+    , mkParseTest "ivartest" defaultOptions
+    , mkParseTest "ivartest2" defaultOptions
+    , mkParseTest "arrayInStruct" defaultOptions
+    , mkParseTest "arrayInStructInStruct" defaultOptions
     ]
 
 main :: IO ()
@@ -168,6 +195,23 @@ mkGoldTest fun n opts = do
 simpleCmp :: Prelude.Eq a => String -> a -> a -> IO (Maybe String)
 simpleCmp e x y =
   return $ if x Prelude.== y then Nothing else Just e
+
+mkParseTest n opts = do
+    let ref = goldDir <> n
+        new = testDir <> "ep-" <> n
+        act = compileFile ref new n opts
+        cmp = fuzzyCmp $ printf "Files '%s' and '%s' differ" ref new
+        upd = LB.writeFile ref
+    goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
+
+fuzzyCmp :: String -> LB.ByteString -> LB.ByteString -> IO (Maybe String)
+fuzzyCmp e x y =
+  return $ if x Prelude.== (filterEp y) then Nothing else Just e
+
+-- Removes "EP-"-related prefixes from the generated output.
+filterEp :: LB.ByteString -> LB.ByteString
+filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
+  where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
 
 vgReadFiles :: String -> ValueGetter r LB.ByteString
 vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]

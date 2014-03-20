@@ -37,7 +37,7 @@ import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
-import Feldspar.Compiler.Imperative.Representation (Module)
+import Feldspar.Compiler.Imperative.Representation (Module(..))
 
 import Data.Char
 import Control.Monad (when)
@@ -48,15 +48,18 @@ import System.FilePath (takeFileName)
 -- ================================================================================================
 
 compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
-compile prg fileName functionName opts = do
+compile prg fileName funName opts = writeFiles compRes fileName funName opts
+  where compRes = compileToCCore funName opts prg
+
+writeFiles :: SplitCompToCCoreResult -> FilePath -> String -> Options -> IO ()
+writeFiles prg fileName functionName opts = do
     writeFile cfile $ unlines [ "#include \"" ++ takeFileName hfile ++ "\""
-                              , sourceCode $ sctccrSource compilationResult
+                              , sourceCode $ sctccrSource prg
                               ]
-    writeFile hfile $ withIncludeGuard $ sourceCode $ sctccrHeader compilationResult
+    writeFile hfile $ withIncludeGuard $ sourceCode $ sctccrHeader prg
   where
     hfile = makeHFileName fileName
     cfile = makeCFileName fileName
-    compilationResult = compileToCCore functionName opts prg
 
     withIncludeGuard code = unlines [ "#ifndef " ++ guardName
                                     , "#define " ++ guardName
@@ -69,7 +72,6 @@ compile prg fileName functionName opts = do
     guardName = map ((\c -> if c `elem` toBeChanged then '_' else c) . toUpper) hfile
       where
         toBeChanged = "./\\"
-
 
 icompile :: (SyntacticFeld t) => t -> IO ()
 icompile = icompileWith defaultOptions
