@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Test that the compiler respects the calling conventions of Feldspar
 
@@ -18,10 +19,8 @@ import Feldspar.Compiler.Plugin
 
 import Control.Applicative
 
-withVector1D :: Int -> Gen a -> Gen ([WordN],[a])
-withVector1D l ga = do
-    xs <- vectorOf l ga
-    return ([Prelude.fromIntegral l],xs)
+vector1D :: Length -> Gen a -> Gen ([WordN],[a])
+vector1D l ga = (,) <$> pure [l] <*> vectorOf (Prelude.fromIntegral l) ga
 
 pairArg :: (Data Word8,Data IntN) -> Data IntN
 pairArg (a,b) = i2n a + b
@@ -48,20 +47,18 @@ loadFun 'vectorInPair
 loadFun 'vectorInVector
 loadFun 'vectorInPairInVector
 
-prop_pairArg      = eval pairArg === c_pairArg
-prop_pairRes      = eval pairRes === c_pairRes
-prop_vecId        = sized $ \l -> do
-                       xs <- withVector1D l arbitrary
-                       eval vecId xs === c_vecId xs
-prop_vectorInPair = sized $ \l -> do
-                      p <- (,) <$> withVector1D l arbitrary <*> arbitrary
-                      eval vectorInPair p === c_vectorInPair p
-prop_vectorInVector = sized $ \l1 -> do
-                        sized $ \l2 -> do
-                          v <- withVector1D l1 (withVector1D l2 arbitrary)
-                          eval vectorInVector v === c_vectorInVector v
-prop_vectorInPairInVector = forAll (choose (0,63)) $ \l ->
-                              eval vectorInPairInVector l === c_vectorInPairInVector l
+prop_pairArg = eval pairArg ==== c_pairArg
+prop_pairRes = eval pairRes ==== c_pairRes
+prop_vecId (Small l) =
+    forAll (vector1D l arbitrary) $ \xs ->
+      eval vecId xs ==== c_vecId xs
+prop_vectorInPair (Small l) =
+    forAll ((,) <$> vector1D l arbitrary <*> arbitrary) $ \p ->
+      eval vectorInPair p ==== c_vectorInPair p
+prop_vectorInVector (Small l1) (Small l2) =
+    forAll (vector1D l1 (vector1D l2 arbitrary)) $ \v ->
+      eval vectorInVector v ==== c_vectorInVector v
+prop_vectorInPairInVector (Small l) = eval vectorInPairInVector l ==== c_vectorInPairInVector l
 
 tests :: TestTree
 tests = testGroup "CallingConvention"

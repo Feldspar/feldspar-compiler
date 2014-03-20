@@ -197,7 +197,7 @@ static inline struct array *setLength(struct array *arr, int32_t size, int32_t l
     arr->elemSize = size;
     if( size < 0 )
         size = sizeof(struct array);
-    int newBytes = arr->elemSize * len;
+    int newBytes = size * len;
     arr->length = len;
     if( arr->bytes < newBytes )
     {

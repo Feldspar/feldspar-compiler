@@ -113,7 +113,7 @@ tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
 compilerTests :: TestTree
 compilerTests = testGroup "Compiler-RegressionTests"
-    [ testProperty "example9 (plugin)" $ eval example9 === c_example9
+    [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
@@ -139,7 +139,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
-    , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
+    , testProperty "bindToThen" (\y -> eval bindToThen y === y)
     , mkGoldTest switcher "switcher" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
