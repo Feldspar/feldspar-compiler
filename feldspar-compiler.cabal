@@ -183,7 +183,7 @@ test-suite regression
     tasty            >= 0.3,
     tasty-golden     >= 2.0,
     tasty-quickcheck >= 0.3,
-    QuickCheck       >= 2.5 && < 3.0
+    QuickCheck       >= 2.7 && < 3.0
 
 test-suite callconv
   type: exitcode-stdio-1.0
@@ -200,7 +200,7 @@ test-suite callconv
     base,
     tasty            >= 0.3,
     tasty-quickcheck >= 0.3,
-    QuickCheck       >= 2.5 && < 3.0
+    QuickCheck       >= 2.7 && < 3.0
 
 benchmark crc
   type: exitcode-stdio-1.0
