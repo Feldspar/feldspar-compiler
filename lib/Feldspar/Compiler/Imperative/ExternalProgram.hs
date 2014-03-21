@@ -112,15 +112,25 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_put" _) _) 
    where (FunctionCall (Function s _ _) es) = expToExpression env e
          tp = TypeParameter (typeof (R.Deref (last es)))
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run2" _) _) es _)) _))
-  = (env, ProcedureCall s [FunParameter e1,tp1,tp2])
+  = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
-         tp2 = TypeParameter (IVarType fakeType)
-         tp1 = TypeParameter $ lookup3 e1 (headerDefs env)
+         tp = map TypeParameter $ lookup3 e1 (headerDefs env)
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) es _)) _))
+  = (env, ProcedureCall s ((FunParameter e1):tp))
+   where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
+         tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) es _)) _))
   = (env, ProcedureCall s es)
    where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
-              , TypeParameter (IVarType fakeType), ValueParameter e3]
+              , TypeParameter (typeof e3), ValueParameter e3]
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) es _)) _))
+  = (env, ProcedureCall s es)
+   where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5]) = expToExpression env e
+         es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
+              , TypeParameter (typeof e3), ValueParameter e3
+              , TypeParameter (typeof e4), ValueParameter e4
+              , TypeParameter (typeof e5), ValueParameter e5]
 -- Probably copyArray.
 blockItemToProgram env (BlockStm (Exp (Just e@FnCall{}) _))
   = (env, ProcedureCall s (map ValueParameter es))
@@ -498,8 +508,8 @@ mkDef (StructType n fields)
 -- Only interested in struct definitions so discard everything else.
 mkDef _ = []
 
-lookup3 :: String -> [(String, [R.Type], Entity ())] -> R.Type
-lookup3 s xs = head ts
+lookup3 :: String -> [(String, [R.Type], Entity ())] -> [R.Type]
+lookup3 s xs = ts
   where (_, ts, _) = head $ filter (\(s1,_,_) -> s1 == s) xs
 
 -- Input helpers.
@@ -513,8 +523,14 @@ massageInput xs = foldr (\w xs -> dropBitMask xs w) tmp otherWords'
  where -- Drop first parameter for these functions.
        prefixWords = map B.pack ["at(", "ivar_put(","ivar_get_nontask("]
        -- Drop some parameters according to mask for these.
-       otherWords = [ ("spawn2(", [True,False,True,False, True])
-                    , ("run2(", [True, False, False])]
+       otherWords = [ ("spawn2(", [True, False, True, False, True])
+                    , ("run2(", [True, False, False])
+                    , ("spawn3(", [True, False, True, False, True
+                                       , False, True])
+                    , ("run3(", [True, False, False, False])
+                    , ("spawn4(", [True, False, True, False, True
+                                       , False, True, False, True])
+                    , ("run4(", [True, False, False, False, False])]
        otherWords' = map (\(p1, b) -> (B.pack p1, b)) otherWords
        tmp = foldr (\w xs -> dropFirstArg xs w) xs prefixWords
 
