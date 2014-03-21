@@ -83,15 +83,16 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl _ = []
 
 moduleToCCore :: Options -> (Module (), Module())
-              -> (CompToCCoreResult (), CompToCCoreResult ())
+              -> SplitCompToCCoreResult
 moduleToCCore opts (hmdl, cmdl)
-  = ( CompToCCoreResult { sourceCode  = incls ++ hres
-                        , debugModule = hmdl
-                        }
-    , CompToCCoreResult { sourceCode  = cres
-                        , debugModule = cmdl
-                        }
-    )
+  = SplitCompToCCoreResult
+    { sctccrHeader = CompToCCoreResult { sourceCode  = incls ++ hres
+                                       , debugModule = hmdl
+                                       }
+    , sctccrSource = CompToCCoreResult { sourceCode  = cres
+                                       , debugModule = cmdl
+                                       }
+    }
   where
     hres = compToCWithInfos opts hmdl
     cres = compToCWithInfos opts cmdl
@@ -107,14 +108,12 @@ compileToCCore name opts prg = compileToCCore' opts mod
         mod = fromCore opts (encodeFunctionName name) prg
 
 compileToCCore' :: Options -> Module () -> SplitCompToCCoreResult
-compileToCCore' opts m = createSplit $ moduleToCCore opts separatedModules
+compileToCCore' opts m = moduleToCCore opts separatedModules
       where
         separatedModules = moduleSeparator $ executePluginChain opts m
 
         moduleSeparator modules = (header, source)
           where (SplitModuleDescriptor source header) = moduleSplitter modules
-
-        createSplit (header, source) = SplitCompToCCoreResult source header
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
