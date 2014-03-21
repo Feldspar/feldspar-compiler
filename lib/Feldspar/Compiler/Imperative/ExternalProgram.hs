@@ -198,16 +198,16 @@ stmToProgram _ e = error ("stmToProgram: Unhandled construct: " ++ show e)
 
 impureExpToProgram :: TPEnv -> Exp -> (TPEnv, Program ())
 -- Hook for padding incomplete struct array * type info.
-impureExpToProgram env (Assign e@(Var (Id s _) _) JustAssign
+impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "initArray" _) _)
                                          [e1', (SizeofType e2' _), e3'] _) _)
   = (env', R.Assign (expToExpression env' e) (expToExpression env' f))
-   where env' = fixupEnv env s $ typToType env e2'
-impureExpToProgram env (Assign e@(Var (Id s _) _) JustAssign
+   where env' = fixupEnv env e $ typToType env e2'
+impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "setLength" _) _)
                                          [e1', (SizeofType e2' _), e3'] _) _)
   = (env', R.Assign (expToExpression env' e) (expToExpression env' f))
-   where env' = fixupEnv env s $ typToType env e2'
+   where env' = fixupEnv env e $ typToType env e2'
 impureExpToProgram env (Assign e1 JustAssign e2 _)
   = (env, R.Assign (expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
@@ -483,12 +483,35 @@ plusEnv (TPEnv vs1 tdefs1 hdefs) (TPEnv vs2 tdefs2 _ )
   = TPEnv (vs1 ++ vs2) (tdefs1 ++ tdefs2) hdefs
 
 -- Patch the type information in the environment when we learn more.
-fixupEnv :: TPEnv -> String -> R.Type -> TPEnv
-fixupEnv env s tp = env { vars = go (vars env) }
-  where go [] = []
-        go (p@(n,(Variable (ArrayType r _)  n')):t)
-         | s == n = (n, (Variable (ArrayType r tp) n')):go t
-        go (p:t) = p:go t
+fixupEnv :: TPEnv -> Exp -> R.Type -> TPEnv
+fixupEnv env (Var (Id s _) _) tp = env { vars = goVar (vars env) }
+  where goVar [] = []
+        goVar (p@(n,(Variable (ArrayType r _) n')):t)
+         | s == n = (n, (Variable (ArrayType r tp) n')):goVar t
+        goVar (p:t) = p:goVar t
+fixupEnv env (Member (Var (Id s _) _) (Id name _) _) tp = env { vars = goStruct (vars env) }
+  where goStruct [] = []
+        goStruct (p@(n,(Variable (StructType s' ns) n')):t)
+         | s == n
+         , Just v <- lookup name ns
+         = (n, (Variable (StructType s' ns') n')):goStruct t
+           where ns' = map structFixup ns
+                 structFixup e@(mem, ArrayType r _)
+                  | mem == name = (mem, ArrayType r tp)
+                 structFixup e = e
+        goStruct (p:t) = p:goStruct t
+fixupEnv env (Member (FnCall (Var (Id "at" _) _) [Var (Id s _) _, _] _) (Id name _) _) tp = env { vars = goStructAt (vars env) }
+  where goStructAt [] = []
+        goStructAt (p@(n,(Variable (StructType s' ns) n')):t)
+         | s == n
+         , Just v <- lookup name ns
+         = (n, (Variable (StructType s' ns') n')):goStructAt t
+           where ns' = map structFixup ns
+                 structFixup e@(mem, ArrayType r _)
+                  | mem == name = (mem, ArrayType r tp)
+                 structFixup e = e
+        goStructAt (p:t) = p:goStructAt t
+fixupEnv env e tp = env
 
 -- Misc helpers
 
