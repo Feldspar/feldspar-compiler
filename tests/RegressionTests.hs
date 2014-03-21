@@ -160,7 +160,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "metrics" defaultOptions
 --    , mkParseTest "scanlPush" defaultOptions
     -- Still incomplete reconstruction of futures.
---    , mkParseTest "divConq3" defaultOptions
+    , mkParseTest "divConq3" defaultOptions
     , mkParseTest "switcher" defaultOptions
     , mkParseTest "ivartest" defaultOptions
     , mkParseTest "ivartest2" defaultOptions
