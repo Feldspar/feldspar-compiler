@@ -48,10 +48,16 @@ builtin_types = [ "uint32_t", "uint16_t", "uint8_t"
                 , "int32_t", "int16_t", "int8_t"]
 
 toProgram :: [Entity ()] -> [Definition] -> [Entity ()]
-toProgram hDefs defs = defsToProgram (emptyEnv (patchHdefs hDefs)) defs
+toProgram [] defs = snd $ defsToProgram (emptyEnv []) defs
+toProgram hDefs defs = rest' ++ reverse funcs'
+  where funcs' = snd $ defsToProgram env' $ reverse funcs
+        (env', rest') = defsToProgram (emptyEnv (patchHdefs hDefs)) rest
+        (funcs, rest) = span isFunc defs
+        isFunc FuncDef{} = True
+        isFunc _         = False
 
-defsToProgram :: TPEnv -> [Definition] -> [Entity ()]
-defsToProgram env defs = snd $ mapAccumL defToProgram env defs
+defsToProgram :: TPEnv -> [Definition] -> (TPEnv, [Entity ()])
+defsToProgram env defs = mapAccumL defToProgram env defs
 
 defToProgram :: TPEnv -> Definition -> (TPEnv, Entity ())
 defToProgram env (FuncDef func _) = funcToProgram env func
@@ -64,9 +70,9 @@ defToProgram _ e = error ("defToProgram: Unhandled construct: " ++ show e)
 
 funcToProgram :: TPEnv -> Func -> (TPEnv, Entity ())
 funcToProgram env (Func ds name decl (Params parms _ _) bis _)
-  = (env', Proc (unId name) (init vs) [last vs] (Just bs))
+  = (env'', Proc (unId name) (init vs) [last vs] (Just bs))
    where (env', vs) = mapAccumL paramToVariable env parms
-         bs = blockToBlock env' bis
+         (env'', bs) = blockToBlock env' bis
 funcToProgram _ e = error ("funcToProgram: Unhandled construct: " ++ show e)
 
 valueToProgram :: TPEnv -> DeclSpec -> [Init] -> Id -> [Initializer]
@@ -77,26 +83,28 @@ valueToProgram env ds is n ins = (env', ValueDef (nameToVariable env' n) cs')
         cs' = ArrayConst $ map (castConstant (declSpecToType env ds)) cs
 
 paramToVariable :: TPEnv -> Param -> (TPEnv, R.Variable ())
-paramToVariable env (Param (Just id) t p _) = (updateEnv env [v], v)
+paramToVariable env (Param (Just id) t p _)
+ | Just v <- lookup (unId id) (vars env) = (env, v) -- We have recovered types.
+ | otherwise = (updateEnv env [v], v)
   where v = Variable (declToType (declSpecToType env t) p) (unId id)
 paramToVariable _ e = error ("paramToVariable: Unhandled construct: " ++ show e)
 
-blockToBlock :: TPEnv -> [BlockItem] -> R.Block ()
-blockToBlock env bis = R.Block (concat ds) body
+blockToBlock :: TPEnv -> [BlockItem] -> (TPEnv, R.Block ())
+blockToBlock env bis = (env'', R.Block (concat ds) (Sequence bs))
   where (env', ds) = mapAccumL blockDeclToDecl env decls
-        body = Sequence $ blockItemsToProgram env' rest
+        (env'', bs) = blockItemsToProgram env' rest
         (decls, rest) = span isBlockDecl bis
         isBlockDecl BlockDecl{} = True
         isBlockDecl _           = False
 
 blockDeclToDecl :: TPEnv -> BlockItem -> (TPEnv, [Declaration ()])
 blockDeclToDecl env (BlockDecl ig) = (env', dv)
-  where igv = vars $ initGroupToProgram (emptyEnv (headerDefs env)) ig
-        env' = env { vars = (igv ++ vars env) } -- complete env
+  where env' = initGroupToProgram env ig
+        igv = take (length (vars env') - length (vars env)) (vars env')
         dv = map (\(_, v) -> Declaration v Nothing) igv -- Program decl
 
-blockItemsToProgram :: TPEnv -> [BlockItem] -> [Program ()]
-blockItemsToProgram env is = snd $ mapAccumL blockItemToProgram env is
+blockItemsToProgram :: TPEnv -> [BlockItem] -> (TPEnv, [Program ()])
+blockItemsToProgram env is = mapAccumL blockItemToProgram env is
 
 blockItemToProgram :: TPEnv -> BlockItem -> (TPEnv, Program ())
 blockItemToProgram _ b@BlockDecl{}
@@ -171,7 +179,7 @@ stmToProgram :: TPEnv -> Stm -> Program ()
 stmToProgram _ l@Label{} = error ("stmToProgram: Unexpected label: " ++ show l)
 stmToProgram _ (Exp Nothing _) = error "Exp: Nothing?"
 stmToProgram env (Exp (Just e) _) = snd $ impureExpToProgram env e
-stmToProgram env (Block bis _) = Sequence (blockItemsToProgram env bis)
+stmToProgram env (Block bis _) = Sequence (snd $ blockItemsToProgram env bis)
 stmToProgram env (If e b1@(Block alt _) (Just b2@(Block alt' _)) _)
   = R.Switch cond [ (Pat $ litB True, toBlock $ stmToProgram env b1)
                   , (Pat $ litB False, toBlock $ stmToProgram env b2)]
@@ -498,6 +506,8 @@ fixupEnv env (Member (Var (Id s _) _) (Id name _) _) tp = env { vars = goStruct 
            where ns' = map structFixup ns
                  structFixup e@(mem, ArrayType r _)
                   | mem == name = (mem, ArrayType r tp)
+                 structFixup e@(mem, othertype)
+                  | mem == name = (mem, tp)
                  structFixup e = e
         goStruct (p:t) = p:goStruct t
 fixupEnv env (Member (FnCall (Var (Id "at" _) _) [Var (Id s _) _, _] _) (Id name _) _) tp = env { vars = goStructAt (vars env) }
