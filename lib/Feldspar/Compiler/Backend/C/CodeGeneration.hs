@@ -212,7 +212,6 @@ instance CodeGen Type
         toC VoidType                   = text "void"
         toC ArrayType{}                = text "struct array *"
         toC IVarType{}                 = text "struct ivar"
-        toC (UserType u)               = text u
         toC (StructType n _)           = text "struct" <+> text n
         toC (NativeArray _ t)          = toC t
         toC (Pointer t)                = toC t <+> text "*"

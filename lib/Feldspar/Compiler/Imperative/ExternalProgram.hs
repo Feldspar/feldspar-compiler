@@ -300,7 +300,7 @@ expToFunction :: TPEnv -> Exp -> R.Function
 expToFunction env (Var name _)
   | Just v <- lookup (unId name) builtins
   = Function (varName v) (varType v) Prefix
-  | otherwise = Function (unId name) (UserType "Unknown") Prefix
+  | otherwise = Function (unId name) fakeType Prefix
 
 -- Signed integers are the default for literals, but that is not always
 -- convenient. Fix things up afterwards instead.
