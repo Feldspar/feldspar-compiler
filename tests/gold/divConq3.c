@@ -1,14 +1,4 @@
 #include "divConq3.h"
-#include "feldspar_c99.h"
-#include "feldspar_array.h"
-#include "feldspar_future.h"
-#include "ivar.h"
-#include "taskpool.h"
-#include <stdint.h>
-#include <string.h>
-#include <math.h>
-#include <stdbool.h>
-#include <complex.h>
 
 
 void task_core1(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, uint32_t v4, struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD v634, uint32_t v4)

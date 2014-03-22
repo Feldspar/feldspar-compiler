@@ -54,6 +54,7 @@ compile prg fileName funName opts = writeFiles compRes fileName funName opts
 writeFiles :: SplitCompToCCoreResult -> FilePath -> String -> Options -> IO ()
 writeFiles prg fileName functionName opts = do
     writeFile cfile $ unlines [ "#include \"" ++ takeFileName hfile ++ "\""
+                              , "\n"
                               , sourceCode $ sctccrSource prg
                               ]
     writeFile hfile $ withIncludeGuard $ sourceCode $ sctccrHeader prg
