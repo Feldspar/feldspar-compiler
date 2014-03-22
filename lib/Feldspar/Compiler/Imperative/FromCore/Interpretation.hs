@@ -369,7 +369,7 @@ encodeType = go
     go (ComplexType t)   = "complex" ++ go t
     go (Pointer t)       = "ptr_" ++ go t
     go (UserType t)      = t
-    go (Alias _ s)       = s
+    go (AliasType _ s)   = s
     go (IVarType t)      = go t
     go (NativeArray _ t) = go t
     go (StructType n _)  = n
@@ -405,7 +405,7 @@ decodeType s = goL s []
      where (tt, t') = go t
 -- Lossy encodings left out:
 --    go (UserType t)      = t
---    go (Alias _ s)       = s
+--    go (AliasType _ s)   = s
 --    go (IVarType t)      = go t
 --    go (NativeArray _ t) = go t
     go h@('s':'_':t) = (StructType h' $ zipWith mkMember [1..] ts, t'')
