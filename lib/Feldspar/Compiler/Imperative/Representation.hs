@@ -257,7 +257,6 @@ data Type =
     | DoubleType
     | NumType Signedness Size
     | ComplexType Type
-    | UserType String
     | AliasType Type String
     | ArrayType (Range Length) Type
     | NativeArray (Maybe Length) Type

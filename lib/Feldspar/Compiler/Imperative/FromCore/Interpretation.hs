@@ -368,7 +368,6 @@ encodeType = go
     go (NumType s w)     = map toLower (show s) ++ show w
     go (ComplexType t)   = "complex" ++ go t
     go (Pointer t)       = "ptr_" ++ go t
-    go (UserType t)      = t
     go (AliasType _ s)   = s
     go (IVarType t)      = go t
     go (NativeArray _ t) = go t
@@ -404,7 +403,6 @@ decodeType s = goL s []
     go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
      where (tt, t') = go t
 -- Lossy encodings left out:
---    go (UserType t)      = t
 --    go (AliasType _ s)   = s
 --    go (IVarType t)      = go t
 --    go (NativeArray _ t) = go t
