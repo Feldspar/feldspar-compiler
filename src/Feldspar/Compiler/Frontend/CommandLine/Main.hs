@@ -72,7 +72,7 @@ compileFunction :: String -> String -> Options -> String
                 -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
 compileFunction _ _ coreOptions functionName = do
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
-    let splitModuleDescriptor = moduleSplitter $ executePluginChain functionName coreOptions prg
+    let splitModuleDescriptor = moduleSplitter $ executePluginChain coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do
@@ -149,9 +149,11 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
-        let compToCResult = moduleToCCore coreOptions (mergedHModules, mergedCModules)
-        let cCompToCResult = smdSource compToCResult
-            hCompToCResult = smdHeader compToCResult
+        let smd = SplitModuleDescriptor { smdHeader = mergedHModules
+                                        , smdSource = mergedCModules }
+        let compToCResult = moduleToCCore coreOptions smd
+        let cCompToCResult = sctccrSource compToCResult
+            hCompToCResult = sctccrHeader compToCResult
         appendFile cOutFileName (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
         appendFile hOutFileName (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
         writeFile cdbgOutFileName (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
