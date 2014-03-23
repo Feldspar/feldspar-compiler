@@ -41,12 +41,12 @@ loadFun 'vectorInPair
 loadFun 'vectorInVector
 loadFun 'vectorInPairInVector
 
-prop_pairArg      = eval pairArg === c_pairArg
-prop_pairRes      = eval pairRes === c_pairRes
-prop_vecId        = eval vecId   === c_vecId
-prop_vectorInPair = eval vectorInPair === c_vectorInPair
-prop_vectorInVector = eval vectorInVector === c_vectorInVector
-prop_vectorInPairInVector = forAll (choose (0,63)) $ \l -> eval vectorInPairInVector l === c_vectorInPairInVector l
+prop_pairArg      = eval pairArg ==== c_pairArg
+prop_pairRes      = eval pairRes ==== c_pairRes
+prop_vecId        = eval vecId   ==== c_vecId
+prop_vectorInPair = eval vectorInPair ==== c_vectorInPair
+prop_vectorInVector = eval vectorInVector ==== c_vectorInVector
+prop_vectorInPairInVector = forAll (choose (0,63)) $ \l -> eval vectorInPairInVector l ==== c_vectorInPairInVector l
 
 tests :: TestTree
 tests = testGroup "CodeGeneration"

@@ -103,7 +103,7 @@ ivartest2 a = share (future a) $ \a' -> await a'
 
 tests :: TestTree
 tests = testGroup "RegressionTests"
-    [ testProperty "example9 (plugin)" $ eval example9 === c_example9
+    [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
