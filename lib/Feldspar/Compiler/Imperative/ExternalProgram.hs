@@ -123,6 +123,10 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run2" _) _) es _
   = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run3" _) _) es _)) _))
+  = (env, ProcedureCall s ((FunParameter e1):tp))
+   where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
+         tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) es _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
@@ -132,6 +136,12 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) es
    where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3]
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn3" _) _) es _)) _))
+  = (env, ProcedureCall s es)
+   where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3,e4]) = expToExpression env e
+         es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
+              , TypeParameter (typeof e3), ValueParameter e3
+              , TypeParameter (typeof e4), ValueParameter e4]
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) es _)) _))
   = (env, ProcedureCall s es)
    where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5]) = expToExpression env e
