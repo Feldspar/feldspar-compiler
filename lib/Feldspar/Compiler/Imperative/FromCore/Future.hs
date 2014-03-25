@@ -48,6 +48,7 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 import Data.Map (assocs)
+import Data.List (nub)
 
 instance Compile dom dom => Compile (FUTURE :|| Type) dom
   where
@@ -55,7 +56,7 @@ instance Compile dom dom => Compile (FUTURE :|| Type) dom
 
     compileProgSym (C' MkFuture) info (Just loc) (p :* Nil) = do
         env <- ask
-        let args = [case lookup v (alias env) of
+        let args = nub $ [case lookup v (alias env) of
                          Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
                          Just (VarExpr e) -> e
                          Just (Deref (VarExpr e)) -> e -- These are variables that got a Pointer wrapped around their type in FromCore

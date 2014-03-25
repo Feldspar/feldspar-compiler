@@ -54,6 +54,7 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as AIR
 
 import Data.Map (assocs)
+import Data.List (nub)
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
@@ -112,7 +113,7 @@ instance ( Compile dom dom
 
     compileProgSym ParFork info loc (p :* Nil) = do
         env <- ask
-        let args = [case lookup v (alias env) of
+        let args = nub $ [case lookup v (alias env) of
                          Nothing -> mkVariable (compileTypeRep t (defaultSize t)) v
                          Just (VarExpr e) -> e
                          Just (Deref (VarExpr e)) -> e

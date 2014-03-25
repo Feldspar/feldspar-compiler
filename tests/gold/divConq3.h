@@ -37,11 +37,11 @@ struct s_arr_unsignedS32_UD_arr_signedS32_UD
   struct array * member2;
 };
 
-void task_core1(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, uint32_t v4, struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD v634, uint32_t v4);
+void task_core1(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, uint32_t v4, struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD v634);
 
 void task1(void * params);
 
-void task_core10(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, uint32_t v423, struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD v643, uint32_t v423);
+void task_core10(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, uint32_t v423, struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD v643);
 
 void task10(void * params);
 

@@ -108,6 +108,9 @@ arrayInStruct a = snd $ whileLoop (getLength a, a) (\(n,_) -> (n>0)) (\(n,a) -> 
 arrayInStructInStruct :: Data (Length, (Length, [Length])) -> Data (Length, (Length, [Length]))
 arrayInStructInStruct x = x
 
+fut1 :: Future (Data IntN) -> Future (Data IntN)
+fut1 x  = forLoop 20 x (\_ e -> future $ force $ await e)
+
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
@@ -129,6 +132,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+    , mkGoldTest fut1 "fut1" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
@@ -145,6 +149,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+    , mkBuildTest fut1 "fut1" defaultOptions
     ]
 
 externalProgramTests :: TestTree
