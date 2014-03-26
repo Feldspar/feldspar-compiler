@@ -64,7 +64,7 @@ instance Compile dom dom => Compile Semantics dom
   where
     compileExprSym (Sem name _) info args = do
         argExprs <- sequence $ listArgs compileExpr args
-        return $ fun (compileTypeRep (infoType info) (infoSize info)) name argExprs
+        return $ fun (compileTypeRep (infoType info) (infoSize info)) True name argExprs
 
 -- | Convenient implementation of 'compileExprSym' for primitive functions
 compilePrim :: (Semantic expr, Compile dom dom)

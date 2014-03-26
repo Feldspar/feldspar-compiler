@@ -56,7 +56,7 @@ copyProg (Just outExp) inExp
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
-mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) name [arr, sz, len]
+mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) False name [arr, sz, len]
   where
     sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
        | otherwise  = t
@@ -210,13 +210,13 @@ varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
-binop t n e1 e2 = fun' Infix t n [e1, e2]
+binop t n e1 e2 = fun' Infix t True n [e1, e2]
 
-fun :: Type -> String -> [Expression ()] -> Expression ()
+fun :: Type -> Bool -> String -> [Expression ()] -> Expression ()
 fun = fun' Prefix
 
-fun' :: FunctionMode -> Type -> String -> [Expression ()] -> Expression ()
-fun' m t n = FunctionCall (Function n t m)
+fun' :: FunctionMode -> Type -> Bool -> String -> [Expression ()] -> Expression ()
+fun' m t p n = FunctionCall (Function n t m)
 
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
