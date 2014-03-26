@@ -50,7 +50,8 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (Expression(..),Constant(..))
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Signedness(..),
-                                                                     Size(..))
+                                                                     Size(..),
+                                                                     ScalarType(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 instance Compile (Literal :|| Core.Type) dom
@@ -76,7 +77,8 @@ literal t s a = do loc <- freshVar "x" t s
 literalConst :: TypeRep a -> Size a -> a -> Constant ()
 literalConst UnitType        _  ()     = IntConst 0 (Rep.NumType Rep.Unsigned Rep.S32)
 literalConst BoolType        _  a      = BoolConst a
-literalConst trep@IntType{}  sz a      = IntConst (toInteger a) (compileTypeRep trep sz)
+literalConst trep@IntType{}  sz a      = IntConst (toInteger a) t
+ where (Rep.MachineVector _ t) = compileTypeRep trep sz
 literalConst FloatType       _  a      = FloatConst a
 literalConst DoubleType      _  a      = DoubleConst a
 literalConst (ArrayType t)   _  a      = ArrayConst $ map (literalConst t (defaultSize t)) a

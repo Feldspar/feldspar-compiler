@@ -58,7 +58,7 @@ mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
 mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) False name [arr, sz, len]
   where
-    sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
+    sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
        | otherwise  = t
     t = SizeOf t'
     t' = go $ typeof arr
@@ -82,7 +82,7 @@ freeArrays defs = map freeArray arrays
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
-  | otherwise = fun (NumType Unsigned S32) False "getLength" [arr]
+  | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) False "getLength" [arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray = go []  -- TODO: Extend to handle x.member1.member2
@@ -144,17 +144,17 @@ run taskName vs = call runName allParams
     allParams = taskParam : typeParams
 
 intWidth :: Type -> Maybe Integer
-intWidth (NumType _ S8)  = Just 8
-intWidth (NumType _ S16) = Just 16
-intWidth (NumType _ S32) = Just 32
-intWidth (NumType _ S40) = Just 40
-intWidth (NumType _ S64) = Just 64
-intWidth _               = Nothing
+intWidth (MachineVector 1 (NumType _ S8))  = Just 8
+intWidth (MachineVector 1 (NumType _ S16)) = Just 16
+intWidth (MachineVector 1 (NumType _ S32)) = Just 32
+intWidth (MachineVector 1 (NumType _ S40)) = Just 40
+intWidth (MachineVector 1 (NumType _ S64)) = Just 64
+intWidth _                                 = Nothing
 
 intSigned :: Type -> Maybe Bool
-intSigned (NumType Unsigned _) = Just False
-intSigned (NumType Signed _)   = Just True
-intSigned _                    = Nothing
+intSigned (MachineVector 1 (NumType Unsigned _)) = Just False
+intSigned (MachineVector 1 (NumType Signed _))   = Just True
+intSigned _                                      = Nothing
 
 litF :: Float -> Expression t
 litF n = ConstExpr (FloatConst n)
@@ -169,10 +169,10 @@ litC :: Constant () -> Constant () -> Expression ()
 litC r i = ConstExpr (ComplexConst r i)
 
 litI :: Type -> Integer -> Expression ()
-litI t n = ConstExpr (IntConst n t)
+litI (MachineVector _ t) n = ConstExpr (IntConst n t)
 
 litI32 :: Integer -> Expression ()
-litI32 = litI (NumType Unsigned S32)
+litI32 = litI (MachineVector 1 (NumType Unsigned S32))
 
 isArray :: Type -> Bool
 isArray ArrayType{} = True
@@ -223,7 +223,7 @@ call = ProcedureCall
 
 for :: Bool -> String -> Expression () -> Expression () -> Block () -> Program ()
 for _ _ _ _ (Block [] (Sequence [Empty])) = Empty
-for p s e i b = ParLoop p (Variable (NumType Unsigned S32) s) e i b
+for p s e i b = ParLoop p (Variable (MachineVector 1 $ NumType Unsigned S32) s) e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e = SeqLoop e p
