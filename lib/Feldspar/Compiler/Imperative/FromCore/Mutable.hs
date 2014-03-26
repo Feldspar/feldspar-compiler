@@ -52,7 +52,8 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Type(..),
                                                                      Size(..),
-                                                                     Signedness(..))
+                                                                     Signedness(..),
+                                                                     ScalarType(..))
 import Feldspar.Compiler.Imperative.Representation (Expression(..),
                                                     Program(..))
 
@@ -113,7 +114,7 @@ instance (Compile dom dom, Project (CLambda Type) dom) => Compile MutableArray d
 
     compileProgSym NewArr _ loc (len :* a :* Nil) = do
         nId <- freshId
-        let ix = varToExpr $ mkNamedVar "i" (Rep.NumType Rep.Unsigned Rep.S32) nId
+        let ix = varToExpr $ mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Rep.Unsigned Rep.S32)) nId
         a' <- compileExpr a
         l  <- compileExpr len
         tellProg [initArray loc l]

@@ -6,7 +6,7 @@ import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
   Deref, AddrOf, Unsigned, Signed)
-import Feldspar.Compiler.Imperative.Frontend (litB, toBlock)
+import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun')
 
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
@@ -247,7 +247,7 @@ expToExpression _ (Var n _)
   | unId n == "false" = litB False
 expToExpression env v@Var{} = VarExpr $ varToVariable env v
 expToExpression _ (Const c _) = ConstExpr (constToConstant c)
-expToExpression env (BinOp op e1 e2 _) = opToFunction parms op
+expToExpression env (BinOp op e1 e2 _) = opToFunctionCall parms op
   where parms = map (expToExpression env) [e1, e2]
 expToExpression env (UnOp op e _) = unOpToExp (expToExpression env e) op
 expToExpression _ (Assign e1 JustAssign e2 _) = error "Assign unimplemented"
@@ -269,7 +269,7 @@ expToExpression env (Index e1 e2 _)
 expToExpression env (FnCall (Var (Id "at" _) _) [e1, e2] _)
   = ArrayElem (expToExpression env e1) (expToExpression env e2)
 expToExpression env (FnCall e es _)
-  = FunctionCall (expToFunction env e) (map (expToExpression env) es)
+  = expToFunctionCall env (map (expToExpression env) es) e
 expToExpression _ CudaCall{} = error "expToExpression: No support for CUDA."
 expToExpression _ Seq{} = error "expToExpression: No support for seq."
 expToExpression env (CompoundLit t ls _) = ConstExpr $ ArrayConst cs'
@@ -280,10 +280,10 @@ expToExpression _ BuiltinVaArg{} = error "expToExpression: varargs not supported
 expToExpression _ BlockLit{} = error "expToExpression: No support for blocklit."
 expToExpression _ e = error ("expToExpression: Unhandled construct: " ++ show e)
 
-opToFunction :: [Expression ()] -> BinOp -> Expression ()
-opToFunction es op = FunctionCall (case opToString op of
-                      Right s -> Function s t Infix
-                      Left s -> Function s BoolType Infix) es
+opToFunctionCall :: [Expression ()] -> BinOp -> Expression ()
+opToFunctionCall es op = case opToString op of
+                      Right s -> fun' Infix t True s es
+                      Left s -> fun' Infix (MachineVector 1 BoolType) True s es
   where t = typeof (head es)
 
 opToString :: BinOp -> Either String String
@@ -306,23 +306,25 @@ opToString Xor = Right "^"
 opToString Lsh = Right "<<"
 opToString Rsh = Right ">>"
 
-expToFunction :: TPEnv -> Exp -> R.Function
-expToFunction env (Var name _)
+expToFunctionCall :: TPEnv -> [Expression ()] -> Exp -> Expression ()
+expToFunctionCall env es (Var name _)
   | Just v <- lookup (unId name) builtins
-  = Function (varName v) (varType v) Prefix
-  | otherwise = Function (unId name) fakeType Prefix
+  = fun (varType v) False (varName v) es
+  | otherwise = fun fakeType False (unId name) es
 
 -- Signed integers are the default for literals, but that is not always
 -- convenient. Fix things up afterwards instead.
 castConstant :: R.Type -> R.Constant () -> R.Constant ()
-castConstant t (R.IntConst i _) = R.IntConst i t
+castConstant (MachineVector 1 t) (R.IntConst i _) = R.IntConst i t
 castConstant _ c = error ("castConstant: Unexpected argument: " ++ show c)
 
 constToConstant :: Const -> Constant ()
 constToConstant (IntConst s sgn i _)
   = R.IntConst i (NumType (signToSign sgn) S32)
-constToConstant (LongIntConst s sgn i _) = R.IntConst i fakeType
-constToConstant (LongLongIntConst s sgn i _) = R.IntConst i fakeType
+constToConstant (LongIntConst s sgn i _)
+  = R.IntConst i (NumType (signToSign sgn) S64)
+constToConstant (LongLongIntConst s sgn i _)
+  = R.IntConst i (NumType (signToSign sgn) S64)
 constToConstant (FloatConst s r _) = R.FloatConst (fromRational r)
 constToConstant (DoubleConst s r _) = R.DoubleConst (fromRational r)
 constToConstant (LongDoubleConst s r _) = R.DoubleConst (fromRational r)
@@ -358,7 +360,7 @@ unOpToExp (ConstExpr (R.FloatConst  n)) Negate
   = ConstExpr (R.FloatConst (-1*n))
 unOpToExp (ConstExpr (R.DoubleConst n)) Negate
   = ConstExpr (R.DoubleConst (-1*n))
-unOpToExp e Negate = FunctionCall (Function "-" (typeof e) Infix) [e]
+unOpToExp e Negate = fun' Infix (typeof e) True "-" [e]
 unOpToExp e Positive = e
 unOpToExp e Not = error "Not"
 unOpToExp e Lnot = error "Lnot"
@@ -371,12 +373,12 @@ typSpecToType :: TPEnv -> TypeSpec -> R.Type
 typSpecToType _ Tvoid{} = VoidType
 typSpecToType _ Tchar{} = error "Tchar"
 typSpecToType _ Tshort{} = error "TShort"
-typSpecToType _ (Tint Nothing _) = NumType R.Unsigned S32
-typSpecToType _ (Tint _ _) = NumType R.Signed S32
+typSpecToType _ (Tint Nothing _) = MachineVector 1 (NumType R.Unsigned S32)
+typSpecToType _ (Tint _ _) = MachineVector 1 (NumType R.Signed S32)
 typSpecToType _ Tlong{} = error "Tlong"
 typSpecToType _ Tlong_long{} = error "longlong"
-typSpecToType _ Tfloat{} = FloatType
-typSpecToType _ Tdouble{} = DoubleType
+typSpecToType _ Tfloat{} = MachineVector 1 FloatType
+typSpecToType _ Tdouble{} = MachineVector 1 DoubleType
 typSpecToType _ Tlong_double{} = error "long double"
 -- Array types are incomplete so fake one. We recover the type elsewhere.
 typSpecToType _ (Tstruct (Just (Id "array" _)) mfg attrs _)
@@ -400,16 +402,16 @@ typSpecToType _ TtypeofType{} = error "typSpecToType: No support for typeofType"
 typSpecToType _ Tva_list{} = error "typSpecToType: No support for valist."
 
 namedToType :: String -> R.Type
-namedToType "uint64_t" = NumType R.Unsigned S64
-namedToType "uint40_t" = NumType R.Unsigned S40
-namedToType "uint32_t" = NumType R.Unsigned S32
-namedToType "uint16_t" = NumType R.Unsigned S16
-namedToType "uint8_t"  = NumType R.Unsigned S8
-namedToType "int64_t"  = NumType R.Signed S64
-namedToType "int40_t"  = NumType R.Signed S40
-namedToType "int32_t"  = NumType R.Signed S32
-namedToType "int16_t"  = NumType R.Signed S16
-namedToType "int8_t"   = NumType R.Signed S8
+namedToType "uint64_t" = MachineVector 1 (NumType R.Unsigned S64)
+namedToType "uint40_t" = MachineVector 1 (NumType R.Unsigned S40)
+namedToType "uint32_t" = MachineVector 1 (NumType R.Unsigned S32)
+namedToType "uint16_t" = MachineVector 1 (NumType R.Unsigned S16)
+namedToType "uint8_t"  = MachineVector 1 (NumType R.Unsigned S8)
+namedToType "int64_t"  = MachineVector 1 (NumType R.Signed S64)
+namedToType "int40_t"  = MachineVector 1 (NumType R.Signed S40)
+namedToType "int32_t"  = MachineVector 1 (NumType R.Signed S32)
+namedToType "int16_t"  = MachineVector 1 (NumType R.Signed S16)
+namedToType "int8_t"   = MachineVector 1 (NumType R.Signed S8)
 namedToType s          = error ("namedToType: Unrecognized type: " ++ s)
 
 declToType :: R.Type -> Decl -> R.Type
@@ -457,7 +459,7 @@ fakeType = VoidType
 -- Feldspar "builtins".
 builtins :: [(String, R.Variable ())]
 builtins =
-  [ ("getLength", Variable (NumType R.Unsigned S32) "getLength")
+  [ ("getLength", Variable (MachineVector 1 (NumType R.Unsigned S32)) "getLength")
   ]
 
 findBuiltinDeclaration :: TPEnv -> String -> Maybe R.Type

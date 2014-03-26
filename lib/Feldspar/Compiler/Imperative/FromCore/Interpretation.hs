@@ -64,7 +64,7 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
-                                                    Expression(..),
+                                                    Expression(..), ScalarType(..),
                                                     Declaration(..),
                                                     Program(..), Pattern(..),
                                                     Entity(..), StructMember(..))
@@ -217,7 +217,7 @@ compileExprVar e = do
 -- * Utility functions
 --------------------------------------------------------------------------------
 
-compileNumType :: Core.Signedness a -> BitWidth n -> Type
+compileNumType :: Core.Signedness a -> BitWidth n -> ScalarType
 compileNumType U N8      = NumType Unsigned S8
 compileNumType S N8      = NumType Signed S8
 compileNumType U N16     = NumType Unsigned S16
@@ -236,11 +236,11 @@ mkStructType trs = StructType n trs
 
 compileTypeRep :: TypeRep a -> Core.Size a -> Type
 compileTypeRep UnitType _                = VoidType
-compileTypeRep Core.BoolType _           = BoolType
-compileTypeRep (IntType s n) _           = compileNumType s n
-compileTypeRep Core.FloatType _          = FloatType
-compileTypeRep Core.DoubleType _         = DoubleType
-compileTypeRep (Core.ComplexType t) _    = ComplexType (compileTypeRep t (defaultSize t))
+compileTypeRep Core.BoolType _           = MachineVector 1 BoolType
+compileTypeRep (IntType s n) _           = MachineVector 1 $ compileNumType s n
+compileTypeRep Core.FloatType _          = MachineVector 1 FloatType
+compileTypeRep Core.DoubleType _         = MachineVector 1 DoubleType
+compileTypeRep (Core.ComplexType t) _    = MachineVector 1 $ ComplexType (compileTypeRep t (defaultSize t))
 compileTypeRep (Tup2Type a b) (sa,sb)          = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
@@ -360,22 +360,23 @@ tellDeclWith free ds = do
 encodeType :: Type -> String
 encodeType = go
   where
-    go VoidType          = "void"
-    go BoolType          = "bool"
-    go BitType           = "bit"
-    go FloatType         = "float"
-    go DoubleType        = "double"
-    go (NumType s w)     = map toLower (show s) ++ show w
-    go (ComplexType t)   = "complex" ++ go t
-    go (Pointer t)       = "ptr_" ++ go t
-    go (AliasType _ s)   = s
-    go (IVarType t)      = go t
-    go (NativeArray _ t) = go t
-    go (StructType n _)  = n
-    go (ArrayType l t)   = intercalate "_" ["arr", go t, if isSingleton l
-                                                         then show (upperBound l)
-                                                         else "UD"
-                                           ]
+    go VoidType            = "void"
+    go (MachineVector 1 t) = goScalar t
+    go (Pointer t)         = "ptr_" ++ go t
+    go (AliasType _ s)     = s
+    go (IVarType t)        = go t
+    go (NativeArray _ t)   = go t
+    go (StructType n _)    = n
+    go (ArrayType l t)     = intercalate "_" ["arr", go t, if isSingleton l
+                                                            then show (upperBound l)
+                                                            else "UD"
+                                             ]
+    goScalar BoolType          = "bool"
+    goScalar BitType           = "bit"
+    goScalar FloatType         = "float"
+    goScalar DoubleType        = "double"
+    goScalar (NumType s w)     = map toLower (show s) ++ show w
+    goScalar (ComplexType t)   = "complex" ++ go t
 
 -- Almost the inverse of encodeType. Some type encodings are lossy so
 -- they are impossible to recover.
@@ -390,15 +391,15 @@ decodeType s = goL s []
                       _     -> rest
 
     go (stripPrefix "void"     -> Just t) = (VoidType, t)
-    go (stripPrefix "bool"     -> Just t) = (BoolType, t)
-    go (stripPrefix "bit"      -> Just t) = (BitType, t)
-    go (stripPrefix "float"    -> Just t) = (FloatType, t)
-    go (stripPrefix "double"   -> Just t) = (DoubleType, t)
-    go (stripPrefix "unsigned" -> Just t) = (NumType Unsigned w, t')
+    go (stripPrefix "bool"     -> Just t) = (MachineVector 1 BoolType, t)
+    go (stripPrefix "bit"      -> Just t) = (MachineVector 1 BitType, t)
+    go (stripPrefix "float"    -> Just t) = (MachineVector 1 FloatType, t)
+    go (stripPrefix "double"   -> Just t) = (MachineVector 1 DoubleType, t)
+    go (stripPrefix "unsigned" -> Just t) = (MachineVector 1 (NumType Unsigned w), t')
      where (w, t') = decodeSize t
-    go (stripPrefix "signed"   -> Just t) = (NumType Signed w, t')
+    go (stripPrefix "signed"   -> Just t) = (MachineVector 1 (NumType Signed w), t')
      where (w, t') = decodeSize t
-    go (stripPrefix "complex"  -> Just t) = (ComplexType tn, t')
+    go (stripPrefix "complex"  -> Just t) = (MachineVector 1 (ComplexType tn), t')
      where (tn, t') = go t
     go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
      where (tt, t') = go t

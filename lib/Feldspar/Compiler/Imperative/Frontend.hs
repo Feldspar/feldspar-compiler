@@ -1,11 +1,11 @@
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
---     * Redistributions of source code must retain the above copyright notice, 
+--
+--     * Redistributions of source code must retain the above copyright notice,
 --       this list of conditions and the following disclaimer.
 --     * Redistributions in binary form must reproduce the above copyright
 --       notice, this list of conditions and the following disclaimer in the
@@ -13,10 +13,10 @@
 --     * Neither the name of the ERICSSON AB nor the names of its contributors
 --       may be used to endorse or promote products derived from this software
 --       without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
--- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 -- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 -- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -56,9 +56,9 @@ copyProg (Just outExp) inExp
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
-mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) name [arr, sz, len]
+mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) False name [arr, sz, len]
   where
-    sz | isArray t' = binop (NumType Unsigned S32) "-" (litI32 0) t
+    sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
        | otherwise  = t
     t = SizeOf t'
     t' = go $ typeof arr
@@ -82,7 +82,7 @@ freeArrays defs = map freeArray arrays
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
-  | otherwise = FunctionCall (Function "getLength" (NumType Unsigned S32) Prefix) [arr]
+  | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) False "getLength" [arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray = go []  -- TODO: Extend to handle x.member1.member2
@@ -104,7 +104,7 @@ iVarInit :: Expression () -> Program ()
 iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Expression () -> Expression () -> Program ()
-iVarGet loc ivar 
+iVarGet loc ivar
     | isArray typ   = call "ivar_get_array" [ValueParameter loc, ValueParameter ivar]
     | otherwise     = call "ivar_get" [TypeParameter typ, ValueParameter (AddrOf loc), ValueParameter ivar]
       where
@@ -144,17 +144,17 @@ run taskName vs = call runName allParams
     allParams = taskParam : typeParams
 
 intWidth :: Type -> Maybe Integer
-intWidth (NumType _ S8)  = Just 8
-intWidth (NumType _ S16) = Just 16
-intWidth (NumType _ S32) = Just 32
-intWidth (NumType _ S40) = Just 40
-intWidth (NumType _ S64) = Just 64
-intWidth _               = Nothing
+intWidth (MachineVector 1 (NumType _ S8))  = Just 8
+intWidth (MachineVector 1 (NumType _ S16)) = Just 16
+intWidth (MachineVector 1 (NumType _ S32)) = Just 32
+intWidth (MachineVector 1 (NumType _ S40)) = Just 40
+intWidth (MachineVector 1 (NumType _ S64)) = Just 64
+intWidth _                                 = Nothing
 
 intSigned :: Type -> Maybe Bool
-intSigned (NumType Unsigned _) = Just False
-intSigned (NumType Signed _)   = Just True
-intSigned _                    = Nothing
+intSigned (MachineVector 1 (NumType Unsigned _)) = Just False
+intSigned (MachineVector 1 (NumType Signed _))   = Just True
+intSigned _                                      = Nothing
 
 litF :: Float -> Expression t
 litF n = ConstExpr (FloatConst n)
@@ -169,10 +169,10 @@ litC :: Constant () -> Constant () -> Expression ()
 litC r i = ConstExpr (ComplexConst r i)
 
 litI :: Type -> Integer -> Expression ()
-litI t n = ConstExpr (IntConst n t)
+litI (MachineVector _ t) n = ConstExpr (IntConst n t)
 
 litI32 :: Integer -> Expression ()
-litI32 = litI (NumType Unsigned S32)
+litI32 = litI (MachineVector 1 (NumType Unsigned S32))
 
 isArray :: Type -> Bool
 isArray ArrayType{} = True
@@ -210,20 +210,20 @@ varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
-binop t n e1 e2 = fun' Infix t n [e1, e2]
+binop t n e1 e2 = fun' Infix t True n [e1, e2]
 
-fun :: Type -> String -> [Expression ()] -> Expression ()
+fun :: Type -> Bool -> String -> [Expression ()] -> Expression ()
 fun = fun' Prefix
 
-fun' :: FunctionMode -> Type -> String -> [Expression ()] -> Expression ()
-fun' m t n = FunctionCall (Function n t m)
+fun' :: FunctionMode -> Type -> Bool -> String -> [Expression ()] -> Expression ()
+fun' m t p n = FunctionCall (Function n t m)
 
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
 for :: Bool -> String -> Expression () -> Expression () -> Block () -> Program ()
 for _ _ _ _ (Block [] (Sequence [Empty])) = Empty
-for p s e i b = ParLoop p (Variable (NumType Unsigned S32) s) e i b
+for p s e i b = ParLoop p (Variable (MachineVector 1 $ NumType Unsigned S32) s) e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e = SeqLoop e p
