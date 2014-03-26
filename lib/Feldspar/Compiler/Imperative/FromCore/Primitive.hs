@@ -54,7 +54,8 @@ import Feldspar.Core.Constructs.RealFloat
 import Feldspar.Core.Constructs.Trace
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Expression(..))
+import Feldspar.Compiler.Imperative.Representation ( Expression(..)
+                                                   , FunctionMode(..))
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 
 
@@ -64,7 +65,12 @@ instance Compile dom dom => Compile Semantics dom
   where
     compileExprSym (Sem name _) info args = do
         argExprs <- sequence $ listArgs compileExpr args
-        return $ fun (compileTypeRep (infoType info) (infoSize info)) True name argExprs
+        let t = compileTypeRep (infoType info) (infoSize info)
+        return $ fun' pf t True n argExprs
+         where
+          (pf, n) | elem '(' name = (Infix, filter notParen name)
+                  | otherwise = (Prefix, name)
+          notParen c = c /= '(' && c /= ')'
 
 -- | Convenient implementation of 'compileExprSym' for primitive functions
 compilePrim :: (Semantic expr, Compile dom dom)
