@@ -36,8 +36,8 @@
 module Feldspar.Compiler.Imperative.FromCore.Loop where
 
 import Data.Typeable (Typeable(..))
+
 import Prelude hiding (init)
-import Control.Monad(when)
 
 import Language.Syntactic
 import Language.Syntactic.Constructs.Binding
@@ -51,7 +51,7 @@ import Feldspar.Core.Constructs.Literal
 import qualified Feldspar.Core.Constructs.Loop as Core
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..), Expression(..),
+import Feldspar.Compiler.Imperative.Representation (Program(..), Block(..),
                                                     typeof)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Imperative.FromCore.Binding (compileBind)

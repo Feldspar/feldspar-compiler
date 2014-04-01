@@ -493,7 +493,7 @@ mkDoubleBufferState loc stvar
                              let v = mkNamedVar "e" (typeof loc) i -- Is tis ok? Surely the type of loc must be useable
                                  vexp = varToExpr v
                              tellDeclWith False [Declaration v Nothing]
-                             shallowCopyReferences vexp loc -- TODO: Maybe copy IVars too?
+                             shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc 
                      then do let vexp2 = mkVar (typeof loc) stvar 
