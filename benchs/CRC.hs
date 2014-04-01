@@ -10,6 +10,7 @@ import Data.Default
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 
+import BenchmarkUtils
 import Criterion.Main
 
 len :: Length
@@ -38,7 +39,7 @@ main = with def $ \out -> do
     pd <- pack ([len],d) >>= evaluate
     _  <- evaluate c_naive_builder
     _  <- evaluate c_normal_builder
-    defaultMain
+    defaultMainWith (mkConfig "report_crc.html") (return ())
       [
         bgroup "evaluated"
           [ bench "h_naive"  $ nf h_naive  ([1024],Prelude.take 1024 d)
