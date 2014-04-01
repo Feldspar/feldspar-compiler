@@ -397,6 +397,48 @@ assign :: Location -> Expression () -> CodeWriter ()
 assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just tgt) [src]]
 assign _          _   = return ()
 
+shallowAssign :: Location -> Expression () -> CodeWriter ()
+shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
+shallowAssign loc src = return ()
+
+initializeFresh :: Expression () -> CodeWriter (Expression ())
+initializeFresh e = do i <- freshId
+                       let v = mkNamedVar "e" (typeof e) i
+                       tellDeclWith False [Declaration v Nothing] -- TODO: Change back to init when floating correctly
+                       tellProg [Assign (varToExpr v) e]
+                       return $ varToExpr v
+
+shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
+shallowCopyWithRefSwap dst src 
+  | dst /= src
+  = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
+      [] -> tellProg [Assign dst src]
+      arrs -> do temps <- sequence [initializeFresh $ accF dst | (accF,t) <- arrs]
+                 tellProg [Assign dst src]
+                 tellProg [Assign (accF src) tmp | (tmp, (accF,t)) <- zip temps arrs]
+  | True = return ()
+
+shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
+shallowCopyReferences dst src = tellProg [Assign (accF dst) (accF src) | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
+
+mkDoubleBufferState :: Expression () -> VarId -> CodeWriter (Expression (), Expression ())
+mkDoubleBufferState loc stvar
+   = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc) 
+                     then return loc
+                     else do i <- freshId
+                             let v = mkNamedVar "e" (typeof loc) i -- Is tis ok? Surely the type of loc must be useable
+                                 vexp = varToExpr v
+                             tellDeclWith False [Declaration v Nothing]
+                             shallowCopyReferences vexp loc -- TODO: Maybe copy IVars too?
+                             return vexp
+        stvar2 <- if isComposite $ typeof loc 
+                     then do let vexp2 = mkVar (typeof loc) stvar 
+                             declare vexp2
+                             return vexp2
+                     else return stvar1
+        return (stvar1,stvar2)
+
+
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
 confiscateBlock :: CodeWriter a -> CodeWriter (a, Block ())
