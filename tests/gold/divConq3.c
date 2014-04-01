@@ -40,7 +40,6 @@ void divConq3(struct array * v0, struct array * * out)
   uint32_t len4;
   struct array * e5 = NULL;
   struct ivar e6;
-  struct array * v15 = NULL;
   
   v22 = getLength(v0);
   len0 = (v22 >> 10);
@@ -56,14 +55,10 @@ void divConq3(struct array * v0, struct array * * out)
   {
     e6 = at(struct ivar,v24,v14);
     ivar_get_array_nontask(e5, e6);
-    v15 = initArray(v15, sizeof(int32_t), (getLength(*out) + getLength(e5)));
-    copyArray(v15, *out);
-    copyArrayPos(v15, getLength(*out), e5);
-    *out = initArray(*out, sizeof(int32_t), getLength(v15));
-    copyArray(*out, v15);
+    *out = initArray(*out, sizeof(int32_t), (getLength(*out) + getLength(e5)));
+    copyArrayPos(*out, getLength(*out), e5);
   }
   freeArray(v24);
   freeArray(e5);
   ivar_destroy(&e6);
-  freeArray(v15);
 }

@@ -193,6 +193,24 @@ isPointer :: Type -> Bool
 isPointer Pointer{} = True
 isPointer _         = False
 
+isVarExpr :: Expression () -> Bool
+isVarExpr VarExpr{} = True
+isVarExpr _         = False
+
+containsNativeArray :: Type -> Bool
+containsNativeArray t = any (isNativeArray . snd) $ flattenStructs t
+
+-- | Returns a list of access functions and types for the leaves of the struct tree of the type
+flattenStructs :: Type -> [(Expression () -> Expression (), Type)]
+flattenStructs (StructType _ fts) = [(\ e -> af $ StructField e fname , t') | (fname,t) <- fts, (af, t') <- flattenStructs t]
+flattenStructs t = [(id, t)]
+
+hasReference ArrayType{}   = True
+hasReference NativeArray{} = True -- Maybe...
+hasReference Pointer{}     = True
+hasReference IVarType{}    = True
+hasReference t             = False
+
 dVar :: Declaration () -> Variable ()
 dVar (Declaration v _)    = v
 
