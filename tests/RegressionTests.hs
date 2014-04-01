@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Main where
 
 -- To generate the golden files use a script similiar to this one
@@ -11,17 +13,24 @@ import Test.Tasty.QuickCheck
 import qualified Prelude
 import Feldspar
 import Feldspar.Compiler
+import Feldspar.Compiler.Plugin
+import Feldspar.Compiler.ExternalProgram (compileFile)
 import Feldspar.Vector
 
 import Control.Monad
 import Control.Monad.Error (liftIO)
 import Data.Monoid ((<>))
+import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as LB
+import qualified Data.ByteString.Lazy.Search as LB
 import System.Process
 import Text.Printf
 
 example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
+
+-- Compile and load example9 as c_example9 (using plugins)
+loadFun 'example9
 
 topLevelConsts :: Data Index -> Data Index -> Data Index
 topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
@@ -65,13 +74,13 @@ complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
 
 -- One test starting
--- divConq3 :: Pull1 IntN -> DPush DIM1 IntN
--- divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
+divConq3 :: Pull DIM1 (Data IntN) -> DPush DIM1 IntN
+divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
 
 pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull DIM1 a -> Pull DIM1 b
 pmap f = map await . force . map (future . f)
 
-segment :: Syntax a => Data Length -> Pull1 a -> Pull DIM1 (Pull1 a)
+segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
 segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
 -- End one test.
@@ -99,9 +108,16 @@ arrayInStruct a = snd $ whileLoop (getLength a, a) (\(n,_) -> (n>0)) (\(n,a) -> 
 arrayInStructInStruct :: Data (Length, (Length, [Length])) -> Data (Length, (Length, [Length]))
 arrayInStructInStruct x = x
 
+fut1 :: Future (Data IntN) -> Future (Data IntN)
+fut1 x  = forLoop 20 x (\_ e -> future $ force $ await e)
+
 tests :: TestTree
-tests = testGroup "RegressionTests"
-    [ mkGoldTest example9 "example9" defaultOptions
+tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
+
+compilerTests :: TestTree
+compilerTests = testGroup "Compiler-RegressionTests"
+    [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
+    , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
     , mkGoldTest concatV "concatV" defaultOptions
@@ -111,11 +127,13 @@ tests = testGroup "RegressionTests"
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOpts
     , mkGoldTest metrics "metrics" defaultOptions
 --    , mkGoldTest scanlPush "scanlPush" defaultOptions
---    , mkGoldTest divConq3 "divConq3" defaultOptions
+    , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+    , mkGoldTest fut1 "fut1" defaultOptions
+   -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
@@ -124,13 +142,35 @@ tests = testGroup "RegressionTests"
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions
---    , mkBuildTest divConq3 "divConq3" defaultOptions
-    , testProperty "bindToThen" (\y -> eval bindToThen y Prelude.== y)
+    , mkBuildTest divConq3 "divConq3" defaultOptions
+    , testProperty "bindToThen" (\y -> eval bindToThen y === y)
     , mkGoldTest switcher "switcher" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
+    , mkBuildTest fut1 "fut1" defaultOptions
+    ]
+
+externalProgramTests :: TestTree
+externalProgramTests = testGroup "ExternalProgram-RegressionTests"
+    [ mkParseTest "example9" defaultOptions
+    , mkParseTest "pairParam" defaultOptions
+    , mkParseTest "pairParam2" defaultOptions
+    , mkParseTest "concatV" defaultOptions
+    , mkParseTest "complexWhileCond" defaultOptions
+    , mkParseTest "topLevelConsts" defaultOptions
+    , mkParseTest "topLevelConsts_native" nativeOpts
+    , mkParseTest "topLevelConsts_sics" sicsOpts
+    , mkParseTest "metrics" defaultOptions
+--    , mkParseTest "scanlPush" defaultOptions
+    -- Still incomplete reconstruction of futures.
+    , mkParseTest "divConq3" defaultOptions
+    , mkParseTest "switcher" defaultOptions
+    , mkParseTest "ivartest" defaultOptions
+    , mkParseTest "ivartest2" defaultOptions
+    , mkParseTest "arrayInStruct" defaultOptions
+    , mkParseTest "arrayInStructInStruct" defaultOptions
     ]
 
 main :: IO ()
@@ -161,6 +201,23 @@ mkGoldTest fun n opts = do
 simpleCmp :: Prelude.Eq a => String -> a -> a -> IO (Maybe String)
 simpleCmp e x y =
   return $ if x Prelude.== y then Nothing else Just e
+
+mkParseTest n opts = do
+    let ref = goldDir <> n
+        new = testDir <> "ep-" <> n
+        act = compileFile ref new n opts
+        cmp = fuzzyCmp $ printf "Files '%s' and '%s' differ" ref new
+        upd = LB.writeFile ref
+    goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
+
+fuzzyCmp :: String -> LB.ByteString -> LB.ByteString -> IO (Maybe String)
+fuzzyCmp e x y =
+  return $ if x Prelude.== (filterEp y) then Nothing else Just e
+
+-- Removes "EP-"-related prefixes from the generated output.
+filterEp :: LB.ByteString -> LB.ByteString
+filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
+  where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
 
 vgReadFiles :: String -> ValueGetter r LB.ByteString
 vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]

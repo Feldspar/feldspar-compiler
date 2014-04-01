@@ -57,13 +57,18 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
 {
     int newBytes;
 
-    if ( !arr )
-      arr = calloc(1, sizeof(struct array));
-
     log_3("initArray %p %d %d - enter\n", arr, size, len);
+    if ( !arr )
+    {
+      struct array * ptr;
+      ptr = calloc(1, sizeof(struct array));
+      log_4("initArray %p %d %d - alloc fresh struct array %p\n", arr, size, len, ptr);
+      arr = ptr;
+    }
+
     assert(arr);
     arr->elemSize = size;
-    arr->length = len;
+    arr->length   = len;
     if( size < 0 )
         size = sizeof(struct array);
     newBytes = size * len;
@@ -90,7 +95,7 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
     {
         // First initialization
         arr->bytes = newBytes;
-        arr->buffer = (void*)malloc( newBytes );
+        arr->buffer = (void*)malloc(newBytes);
         log_5("initArray %p - alloc %d * %d = %d bytes at %p\n"
              , arr, arr->length, arr->elemSize, newBytes, arr->buffer);
     }
@@ -104,22 +109,20 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
 static inline void freeArray(struct array *arr)
 {
     log_1("freeArray %p - enter\n", arr);
-    assert(arr);
-    if( !arr->buffer )
+    if( arr && arr->buffer )
     {
-      return;
+      if( arr->elemSize < 0 )
+      {
+        for(int i=0; i<arr->length; ++i )
+          freeArray( &at(struct array,arr,i) );
+      }
+      free(arr->buffer);
+      // For the sake of extra safety:
+      arr->buffer = 0;
+      arr->length = 0;
+      arr->bytes = 0;
+      free(arr);
     }
-    if( arr->elemSize < 0 )
-    {
-      for(int i=0; i<arr->length; ++i )
-        freeArray( &at(struct array,arr,i) );
-    }
-    free(arr->buffer);
-    // For the sake of extra safety:
-    arr->buffer = 0;
-    arr->length = 0;
-    arr->bytes = 0;
-    free(arr);
     log_1("freeArray %p - leave\n", arr);
 }
 
@@ -194,7 +197,7 @@ static inline struct array *setLength(struct array *arr, int32_t size, int32_t l
     arr->elemSize = size;
     if( size < 0 )
         size = sizeof(struct array);
-    int newBytes = arr->elemSize * len;
+    int newBytes = size * len;
     arr->length = len;
     if( arr->bytes < newBytes )
     {

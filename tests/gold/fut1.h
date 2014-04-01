@@ -1,4 +1,6 @@
-#include "pairParam_build_test.h"
+#ifndef TESTS_FUT1_H
+#define TESTS_FUT1_H
+
 #include "feldspar_c99.h"
 #include "feldspar_array.h"
 #include "feldspar_future.h"
@@ -11,7 +13,10 @@
 #include <complex.h>
 
 
-void pairParam(struct s_unsignedS32_unsignedS32 * v0, uint32_t * out)
-{
-  *out = (*v0).member1;
-}
+void task_core1(struct ivar v2);
+
+void task1(void * params);
+
+void fut1(struct ivar v0, struct ivar * out);
+
+#endif // TESTS_FUT1_H

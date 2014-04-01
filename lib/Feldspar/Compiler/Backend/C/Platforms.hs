@@ -1,11 +1,11 @@
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
--- 
+--
 -- Redistribution and use in source and binary forms, with or without
 -- modification, are permitted provided that the following conditions are met:
--- 
---     * Redistributions of source code must retain the above copyright notice, 
+--
+--     * Redistributions of source code must retain the above copyright notice,
 --       this list of conditions and the following disclaimer.
 --     * Redistributions in binary form must reproduce the above copyright
 --       notice, this list of conditions and the following disclaimer in the
@@ -13,10 +13,10 @@
 --     * Neither the name of the ERICSSON AB nor the names of its contributors
 --       may be used to endorse or promote products derived from this software
 --       without specific prior written permission.
--- 
+--
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 -- AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
--- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 -- DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
 -- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 -- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
@@ -54,24 +54,24 @@ c99 :: Platform
 c99 = Platform {
     name = "c99",
     types =
-        [ (NumType Signed S8,     "int8_t")
-        , (NumType Signed S16,    "int16_t")
-        , (NumType Signed S32,    "int32_t")
-        , (NumType Signed S64,    "int64_t")
-        , (NumType Unsigned S8,   "uint8_t")
-        , (NumType Unsigned S16,  "uint16_t")
-        , (NumType Unsigned S32,  "uint32_t")
-        , (NumType Unsigned S64,  "uint64_t")
-        , (BoolType,              "uint32_t")
-        , (FloatType,             "float")
-        , (DoubleType,            "double")
-        , (ComplexType FloatType, "float complex")
-        , (ComplexType DoubleType,"double complex")
+        [ (MachineVector 1 (NumType Signed S8),     "int8_t")
+        , (MachineVector 1 (NumType Signed S16),    "int16_t")
+        , (MachineVector 1 (NumType Signed S32),    "int32_t")
+        , (MachineVector 1 (NumType Signed S64),    "int64_t")
+        , (MachineVector 1 (NumType Unsigned S8),   "uint8_t")
+        , (MachineVector 1 (NumType Unsigned S16),  "uint16_t")
+        , (MachineVector 1 (NumType Unsigned S32),  "uint32_t")
+        , (MachineVector 1 (NumType Unsigned S64),  "uint64_t")
+        , (MachineVector 1 BoolType,                "uint32_t")
+        , (MachineVector 1 FloatType,               "float")
+        , (MachineVector 1 DoubleType,              "double")
+        , (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), "float complex")
+        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)),"double complex")
         ] ,
     values =
-        [ (ComplexType FloatType, \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
-        , (ComplexType DoubleType, \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
-        , (BoolType, \b -> if boolValue b then "true" else "false")
+        [ (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
+        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)), \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
+        , (MachineVector 1 BoolType, \b -> if boolValue b then "true" else "false")
         ] ,
     includes =
         [ "feldspar_c99.h"
@@ -98,26 +98,26 @@ tic64x :: Platform
 tic64x = Platform {
     name = "tic64x",
     types =
-        [ (NumType Signed S8,     "char")
-        , (NumType Signed S16,    "short")
-        , (NumType Signed S32,    "int")
-        , (NumType Signed S40,    "long")
-        , (NumType Signed S64,    "long long")
-        , (NumType Unsigned S8,   "unsigned char")
-        , (NumType Unsigned S16,  "unsigned short")
-        , (NumType Unsigned S32,  "unsigned")
-        , (NumType Unsigned S40,  "unsigned long")
-        , (NumType Unsigned S64,  "unsigned long long")
-        , (BoolType,              "int")
-        , (FloatType,             "float")
-        , (DoubleType,            "double")
-        , (ComplexType FloatType, "complexOf_float")
-        , (ComplexType DoubleType,"complexOf_double")
+        [ (MachineVector 1 (NumType Signed S8),     "char")
+        , (MachineVector 1 (NumType Signed S16),    "short")
+        , (MachineVector 1 (NumType Signed S32),    "int")
+        , (MachineVector 1 (NumType Signed S40),    "long")
+        , (MachineVector 1 (NumType Signed S64),    "long long")
+        , (MachineVector 1 (NumType Unsigned S8),   "unsigned char")
+        , (MachineVector 1 (NumType Unsigned S16),  "unsigned short")
+        , (MachineVector 1 (NumType Unsigned S32),  "unsigned")
+        , (MachineVector 1 (NumType Unsigned S40),  "unsigned long")
+        , (MachineVector 1 (NumType Unsigned S64),  "unsigned long long")
+        , (MachineVector 1 BoolType,                "int")
+        , (MachineVector 1 FloatType,               "float")
+        , (MachineVector 1 DoubleType,              "double")
+        , (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), "complexOf_float")
+        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)),"complexOf_double")
         ] ,
-    values = 
-        [ (ComplexType FloatType, \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
-        , (ComplexType DoubleType, \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
-        , (BoolType, \b -> if boolValue b then "1" else "0")
+    values =
+        [ (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
+        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)), \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
+        , (MachineVector 1 BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
     includes = ["feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>", "<math.h>"],
     platformRules = tic64xRules ++ c99Rules ++ traceRules,
@@ -137,16 +137,16 @@ showConstant c               = show c
 arrayRules :: [Rule]
 arrayRules = [rule copy]
   where
-    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy [e | ValueParameter e <- ps]]
+    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy ps]
     copy _ = []
     toProgram ss = if null ss then Empty else Sequence ss
 
-deepCopy :: [Expression ()] -> [Program ()]
-deepCopy [arg1, arg2]
-  | arg1 == arg2 
+deepCopy :: [ActualParameter ()] -> [Program ()]
+deepCopy [ValueParameter arg1, ValueParameter arg2]
+  | arg1 == arg2
   = []
 
-  | ConstExpr ArrayConst{..} <- arg2 
+  | ConstExpr ArrayConst{..} <- arg2
   = initArray (Just arg1) (litI32 $ toInteger $ length arrayValues)
     : zipWith (\i c -> Assign (ArrayElem arg1 (litI32 i)) (ConstExpr c)) [0..] arrayValues
 
@@ -155,17 +155,17 @@ deepCopy [arg1, arg2]
   = initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
 
   | StructType name fts <- typeof arg2
-  = concatMap (\ (fieldName,_) -> deepCopy [StructField arg1 fieldName, StructField arg2 fieldName]) fts
+  = concatMap (\ (fieldName,_) -> deepCopy [ValueParameter $ StructField arg1 fieldName, ValueParameter $ StructField arg2 fieldName]) fts
 
   | not (isArray (typeof arg1))
   = [Assign arg1 arg2]
 
-deepCopy (arg1 : ins'@(in1:ins))
+deepCopy (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
   | isArray (typeof arg1)
   = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++ flattenCopy (ValueParameter arg1) ins argnLens arg1len
     where expDstLen = foldr ePlus (litI32 0) aLens
           copyFirstSegment = if arg1 == in1 then Empty else call "copyArray" [ValueParameter arg1, ValueParameter in1]
-          aLens@(arg1len:argnLens) = map arrayLength ins'
+          aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
 
 deepCopy _ = error "Multiple scalar arguments to copy"
 
@@ -188,7 +188,7 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
       = [replaceWith $ v { varType = nativeArray varType }]
     toNativeVariable _ = []
 
-    nativeArray (Pointer (ArrayType sz t)) = NativeArray (fromSingleton sz) (nativeArray t)    
+    nativeArray (Pointer (ArrayType sz t)) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
     nativeArray (Pointer t)      = Pointer (nativeArray t)
     nativeArray t = t
@@ -201,15 +201,15 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                         then Just $ upperBound r
                         else Nothing
 
-flattenCopy :: ActualParameter () -> [Expression ()] -> [Expression ()] -> Expression () -> [Program ()]
+flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, ValueParameter t]
+flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
 ePlus (ConstExpr (IntConst 0 _)) e = e
 ePlus e (ConstExpr (IntConst 0 _)) = e
-ePlus e1 e2 = binop (NumType Signed S32) "+" e1 e2
+ePlus e1 e2 = binop (MachineVector 1 (NumType Signed S32)) "+" e1 e2
 
 c99Rules :: [Rule]
 c99Rules = [rule go]
@@ -218,130 +218,119 @@ c99Rules = [rule go]
     go (FunctionCall (Function "(!)" _ _) [arg1,arg2])    = [replaceWith $ ArrayElem arg1 arg2]
     go (FunctionCall (Function "getFst" _ _) [arg]) = [replaceWith $ StructField arg first]
     go (FunctionCall (Function "getSnd" _ _) [arg]) = [replaceWith $ StructField arg second]
-    go (FunctionCall (Function "(==)" t _) [arg1, arg2])  = [replaceWith $ binop t "==" arg1 arg2]
-    go (FunctionCall (Function "(/=)" t _) [arg1, arg2])  = [replaceWith $ binop t "!=" arg1 arg2]
-    go (FunctionCall (Function "(<)" t _) [arg1, arg2])   = [replaceWith $ binop t "<" arg1 arg2]
-    go (FunctionCall (Function "(>)" t _) [arg1, arg2])   = [replaceWith $ binop t ">" arg1 arg2]
-    go (FunctionCall (Function "(<=)" t _) [arg1, arg2])  = [replaceWith $ binop t "<=" arg1 arg2]
-    go (FunctionCall (Function "(>=)" t _) [arg1, arg2])  = [replaceWith $ binop t ">=" arg1 arg2]
-    go (FunctionCall (Function "not" t _) [arg])  = [replaceWith $ fun t "!" [arg]]
-    go (FunctionCall (Function "(&&)" t _) [arg1, arg2])  = [replaceWith $ binop t "&&" arg1 arg2]
-    go (FunctionCall (Function "(||)" t _) [arg1, arg2])  = [replaceWith $ binop t "||" arg1 arg2]
+    go (FunctionCall (Function "/=" t _) [arg1, arg2])  = [replaceWith $ binop t "!=" arg1 arg2]
+    go (FunctionCall (Function "not" t _) [arg])  = [replaceWith $ fun t False "!" [arg]]
     go (FunctionCall (Function "quot" t _) [arg1, arg2])  = [replaceWith $ binop t "/" arg1 arg2]
     go (FunctionCall (Function "rem" t _) [arg1, arg2])   = [replaceWith $ binop t "%" arg1 arg2]
-    go (FunctionCall (Function "(^)" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "pow" t) [arg1, arg2]]
-    go (FunctionCall (Function "abs" t _) [arg])  = [replaceWith $ fun t (extend c99 "abs" t) [arg]]
-    go (FunctionCall (Function "signum" t _) [arg])   = [replaceWith $ fun t (extend c99 "signum" t) [arg]]
-    go (FunctionCall (Function "(+)" t _) [arg1, arg2])   = [replaceWith $ binop t "+" arg1 arg2]
-    go (FunctionCall (Function "(-)" t _) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t "-" [arg2]]
-    go (FunctionCall (Function "(-)" t _) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t "-" [arg2]]
-    go (FunctionCall (Function "(-)" t _) [arg1, arg2])   = [replaceWith $ binop t "-" arg1 arg2]
-    go (FunctionCall (Function "(*)" t _) [ConstExpr (IntConst (log2 -> Just n) _), arg2])    = [replaceWith $ binop t "<<" arg2 (litI32 n)]
-    go (FunctionCall (Function "(*)" t _) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
-    go (FunctionCall (Function "(*)" t _) [arg1, arg2])   = [replaceWith $ binop t "*" arg1 arg2]
-    go (FunctionCall (Function "(/)" t _) [arg1, arg2])   = [replaceWith $ binop t "/" arg1 arg2]
-    go (FunctionCall (Function "div" t _) [arg1, arg2]) = [replaceWith $ StructField (fun div_t (div_f t) [arg1, arg2]) "quot"]
-      where div_t = Alias (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
-            div_f (NumType Signed S8)  = "div"
-            div_f (NumType Signed S16) = "div"
-            div_f (NumType Signed S32) = "div"
-            div_f (NumType Signed S40) = "ldiv"
-            div_f (NumType Signed S64) = "lldiv"
+    go (FunctionCall (Function "^" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "pow" t) [arg1, arg2]]
+    go (FunctionCall (Function "abs" t _) [arg])  = [replaceWith $ fun t False (extend c99 "abs" t) [arg]]
+    go (FunctionCall (Function "signum" t _) [arg])   = [replaceWith $ fun t False (extend c99 "signum" t) [arg]]
+    go (FunctionCall (Function "-" t _) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t True "-" [arg2]]
+    go (FunctionCall (Function "-" t _) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t True "-" [arg2]]
+    go (FunctionCall (Function "*" t _) [ConstExpr (IntConst (log2 -> Just n) _), arg2])    = [replaceWith $ binop t "<<" arg2 (litI32 n)]
+    go (FunctionCall (Function "*" t _) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
+    go (FunctionCall (Function "div" t _) [arg1, arg2]) = [replaceWith $ StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"]
+      where div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
+            div_f (MachineVector 1 (NumType Signed S8))  = "div"
+            div_f (MachineVector 1 (NumType Signed S16)) = "div"
+            div_f (MachineVector 1 (NumType Signed S32)) = "div"
+            div_f (MachineVector 1 (NumType Signed S40)) = "ldiv"
+            div_f (MachineVector 1 (NumType Signed S64)) = "lldiv"
             div_f typ = error $ "div not defined for " ++ show typ
-    go (FunctionCall (Function "exp" t@(ComplexType _) _) [arg])  = [replaceWith $ fun t "cexpf" [arg]]
-    go (FunctionCall (Function "exp" t _) [arg])  = [replaceWith $ fun t "expf" [arg]]
-    go (FunctionCall (Function "sqrt" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "csqrtf" [arg]]
-    go (FunctionCall (Function "sqrt" t _) [arg]) = [replaceWith $ fun t "sqrtf" [arg]]
-    go (FunctionCall (Function "log" t@(ComplexType _) _) [arg])  = [replaceWith $ fun t "clogf" [arg]]
-    go (FunctionCall (Function "log" t _) [arg])  = [replaceWith $ fun t "logf" [arg]]
-    go (FunctionCall (Function "(**)" t@(ComplexType _) _) [arg1, arg2])  = [replaceWith $ fun t "cpowf" [arg1,arg2]]
-    go (FunctionCall (Function "(**)" t _) [arg1, arg2])  = [replaceWith $ fun t "powf" [arg1,arg2]]
-    go (FunctionCall (Function "logBase" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "logBase" t) [arg1,arg2]]
-    go (FunctionCall (Function "sin" t@(ComplexType _) _) [arg])  = [replaceWith $ fun t "csinf" [arg]]
-    go (FunctionCall (Function "sin" t _) [arg])  = [replaceWith $ fun t "sinf" [arg]]
-    go (FunctionCall (Function "tan" t@(ComplexType _) _) [arg])  = [replaceWith $ fun t "ctanf" [arg]]
-    go (FunctionCall (Function "tan" t _) [arg])  = [replaceWith $ fun t "tanf" [arg]]
-    go (FunctionCall (Function "cos" t@(ComplexType _)  _) [arg])  = [replaceWith $ fun t "ccosf" [arg]]
-    go (FunctionCall (Function "cos" t _) [arg])  = [replaceWith $ fun t "cosf" [arg]]
-    go (FunctionCall (Function "asin" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "casinf" [arg]]
-    go (FunctionCall (Function "asin" t _) [arg]) = [replaceWith $ fun t "asinf" [arg]]
-    go (FunctionCall (Function "atan" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "catanf" [arg]]
-    go (FunctionCall (Function "atan" t _) [arg]) = [replaceWith $ fun t "atanf" [arg]]
-    go (FunctionCall (Function "acos" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "cacosf" [arg]]
-    go (FunctionCall (Function "acos" t _) [arg]) = [replaceWith $ fun t "acosf" [arg]]
-    go (FunctionCall (Function "sinh" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "csinhf" [arg]]
-    go (FunctionCall (Function "sinh" t _) [arg]) = [replaceWith $ fun t "sinhf" [arg]]
-    go (FunctionCall (Function "tanh" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "ctanhf" [arg]]
-    go (FunctionCall (Function "tanh" t _) [arg]) = [replaceWith $ fun t "tanhf" [arg]]
-    go (FunctionCall (Function "cosh" t@(ComplexType _) _) [arg]) = [replaceWith $ fun t "ccoshf" [arg]]
-    go (FunctionCall (Function "cosh" t _) [arg]) = [replaceWith $ fun t "coshf" [arg]]
-    go (FunctionCall (Function "asinh" t@(ComplexType _) _) [arg])    = [replaceWith $ fun t "casinhf" [arg]]
-    go (FunctionCall (Function "asinh" t _) [arg])    = [replaceWith $ fun t "asinhf" [arg]]
-    go (FunctionCall (Function "atanh" t@(ComplexType _) _) [arg])    = [replaceWith $ fun t "catanhf" [arg]]
-    go (FunctionCall (Function "atanh" t _) [arg])    = [replaceWith $ fun t "atanhf" [arg]]
-    go (FunctionCall (Function "acosh" t@(ComplexType _) _) [arg])    = [replaceWith $ fun t "cacoshf" [arg]]
-    go (FunctionCall (Function "acosh" t _) [arg])    = [replaceWith $ fun t "acoshf" [arg]]
-    go (FunctionCall (Function "atan2" t@FloatType _) [arg1, arg2]) = [replaceWith $ fun t "atan2f" [arg1, arg2]]
-    go (FunctionCall (Function "(.&.)" t _) [arg1, arg2]) = [replaceWith $ binop t "&" arg1 arg2]
-    go (FunctionCall (Function "(.|.)" t _) [arg1, arg2]) = [replaceWith $ binop t "|" arg1 arg2]
+    go (FunctionCall (Function "exp" t@(MachineVector 1 ComplexType{}) _) [arg])  = [replaceWith $ fun t False "cexpf" [arg]]
+    go (FunctionCall (Function "exp" t _) [arg])  = [replaceWith $ fun t False "expf" [arg]]
+    go (FunctionCall (Function "sqrt" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "csqrtf" [arg]]
+    go (FunctionCall (Function "sqrt" t _) [arg]) = [replaceWith $ fun t False "sqrtf" [arg]]
+    go (FunctionCall (Function "log" t@(MachineVector 1 ComplexType{}) _) [arg])  = [replaceWith $ fun t False "clogf" [arg]]
+    go (FunctionCall (Function "log" t _) [arg])  = [replaceWith $ fun t False "logf" [arg]]
+    go (FunctionCall (Function "**" t@(MachineVector 1 ComplexType{}) _) [arg1, arg2])  = [replaceWith $ fun t False "cpowf" [arg1,arg2]]
+    go (FunctionCall (Function "**" t _) [arg1, arg2])  = [replaceWith $ fun t False "powf" [arg1,arg2]]
+    go (FunctionCall (Function "logBase" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "logBase" t) [arg1,arg2]]
+    go (FunctionCall (Function "sin" t@(MachineVector 1 ComplexType{}) _) [arg])  = [replaceWith $ fun t False "csinf" [arg]]
+    go (FunctionCall (Function "sin" t _) [arg])  = [replaceWith $ fun t False "sinf" [arg]]
+    go (FunctionCall (Function "tan" t@(MachineVector 1 ComplexType{}) _) [arg])  = [replaceWith $ fun t False "ctanf" [arg]]
+    go (FunctionCall (Function "tan" t _) [arg])  = [replaceWith $ fun t False "tanf" [arg]]
+    go (FunctionCall (Function "cos" t@(MachineVector 1 ComplexType{})  _) [arg])  = [replaceWith $ fun t False "ccosf" [arg]]
+    go (FunctionCall (Function "cos" t _) [arg])  = [replaceWith $ fun t False "cosf" [arg]]
+    go (FunctionCall (Function "asin" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "casinf" [arg]]
+    go (FunctionCall (Function "asin" t _) [arg]) = [replaceWith $ fun t False "asinf" [arg]]
+    go (FunctionCall (Function "atan" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "catanf" [arg]]
+    go (FunctionCall (Function "atan" t _) [arg]) = [replaceWith $ fun t False "atanf" [arg]]
+    go (FunctionCall (Function "acos" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "cacosf" [arg]]
+    go (FunctionCall (Function "acos" t _) [arg]) = [replaceWith $ fun t False "acosf" [arg]]
+    go (FunctionCall (Function "sinh" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "csinhf" [arg]]
+    go (FunctionCall (Function "sinh" t _) [arg]) = [replaceWith $ fun t False "sinhf" [arg]]
+    go (FunctionCall (Function "tanh" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "ctanhf" [arg]]
+    go (FunctionCall (Function "tanh" t _) [arg]) = [replaceWith $ fun t False "tanhf" [arg]]
+    go (FunctionCall (Function "cosh" t@(MachineVector 1 ComplexType{}) _) [arg]) = [replaceWith $ fun t False "ccoshf" [arg]]
+    go (FunctionCall (Function "cosh" t _) [arg]) = [replaceWith $ fun t False "coshf" [arg]]
+    go (FunctionCall (Function "asinh" t@(MachineVector 1 ComplexType{}) _) [arg])    = [replaceWith $ fun t False "casinhf" [arg]]
+    go (FunctionCall (Function "asinh" t _) [arg])    = [replaceWith $ fun t False "asinhf" [arg]]
+    go (FunctionCall (Function "atanh" t@(MachineVector 1 ComplexType{}) _) [arg])    = [replaceWith $ fun t False "catanhf" [arg]]
+    go (FunctionCall (Function "atanh" t _) [arg])    = [replaceWith $ fun t False "atanhf" [arg]]
+    go (FunctionCall (Function "acosh" t@(MachineVector 1 ComplexType{}) _) [arg])    = [replaceWith $ fun t False "cacoshf" [arg]]
+    go (FunctionCall (Function "acosh" t _) [arg])    = [replaceWith $ fun t False "acoshf" [arg]]
+    go (FunctionCall (Function "atan2" t@(MachineVector 1 FloatType) _) [arg1, arg2]) = [replaceWith $ fun t False "atan2f" [arg1, arg2]]
+    go (FunctionCall (Function ".&." t _) [arg1, arg2]) = [replaceWith $ binop t "&" arg1 arg2]
+    go (FunctionCall (Function ".|." t _) [arg1, arg2]) = [replaceWith $ binop t "|" arg1 arg2]
     go (FunctionCall (Function "xor" t _) [arg1, arg2])   = [replaceWith $ binop t "^" arg1 arg2]
-    go (FunctionCall (Function "complement" t _) [arg])   = [replaceWith $ fun t "~" [arg]]
+    go (FunctionCall (Function "complement" t _) [arg])   = [replaceWith $ fun t False "~" [arg]]
     go (FunctionCall (Function "bit" t _) [arg])  = [replaceWith $ binop t "<<" (litI t 1) arg]
-    go (FunctionCall (Function "setBit" t _) [arg1, arg2])    = [replaceWith $ fun t (extend c99 "setBit" t) [arg1, arg2]]
-    go (FunctionCall (Function "clearBit" t _) [arg1, arg2])  = [replaceWith $ fun t (extend c99 "clearBit" t) [arg1, arg2]]
-    go (FunctionCall (Function "complementBit" t _) [arg1, arg2]) = [replaceWith $ fun t (extend c99 "complementBit" t) [arg1, arg2]]
-    go (FunctionCall (Function "testBit" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "testBit" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "setBit" t _) [arg1, arg2])    = [replaceWith $ fun t False (extend c99 "setBit" t) [arg1, arg2]]
+    go (FunctionCall (Function "clearBit" t _) [arg1, arg2])  = [replaceWith $ fun t False (extend c99 "clearBit" t) [arg1, arg2]]
+    go (FunctionCall (Function "complementBit" t _) [arg1, arg2]) = [replaceWith $ fun t False (extend c99 "complementBit" t) [arg1, arg2]]
+    go (FunctionCall (Function "testBit" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "testBit" $ typeof arg1) [arg1, arg2]]
     go (FunctionCall (Function "shiftL" t _) [arg1, arg2])    = [replaceWith $ binop t "<<" arg1 arg2]
     go (FunctionCall (Function "shiftLU" t _) [arg1, arg2])    = [replaceWith $ binop t "<<" arg1 arg2]
     go (FunctionCall (Function "shiftR" t _) [arg1, arg2])    = [replaceWith $ binop t ">>" arg1 arg2]
     go (FunctionCall (Function "shiftRU" t _) [arg1, arg2])    = [replaceWith $ binop t ">>" arg1 arg2]
-    go (FunctionCall (Function "rotateL" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "rotateL" t) [arg1, arg2]]
-    go (FunctionCall (Function "rotateR" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "rotateR" t) [arg1, arg2]]
-    go (FunctionCall (Function "reverseBits" t _) [arg])  = [replaceWith $ fun t (extend c99 "reverseBits" t) [arg]]
-    go (FunctionCall (Function "bitScan" t _) [arg])  = [replaceWith $ fun t (extend c99 "bitScan" $ typeof arg) [arg]]
-    go (FunctionCall (Function "bitCount" t _) [arg]) = [replaceWith $ fun t (extend c99 "bitCount" $ typeof arg) [arg]]
-    go (FunctionCall (Function "bitSize" _ _) [intWidth . typeof -> Just n])  = [replaceWith $ litI (NumType Unsigned S32) n]
+    go (FunctionCall (Function "rotateL" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "rotateL" t) [arg1, arg2]]
+    go (FunctionCall (Function "rotateR" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "rotateR" t) [arg1, arg2]]
+    go (FunctionCall (Function "reverseBits" t _) [arg])  = [replaceWith $ fun t False (extend c99 "reverseBits" t) [arg]]
+    go (FunctionCall (Function "bitScan" t _) [arg])  = [replaceWith $ fun t False (extend c99 "bitScan" $ typeof arg) [arg]]
+    go (FunctionCall (Function "bitCount" t _) [arg]) = [replaceWith $ fun t False (extend c99 "bitCount" $ typeof arg) [arg]]
+    go (FunctionCall (Function "bitSize" _ _) [intWidth . typeof -> Just n])  = [replaceWith $ litI (MachineVector 1 (NumType Unsigned S32)) n]
     go (FunctionCall (Function "isSigned" _ _) [intSigned . typeof -> Just b])    = [replaceWith $ litB b]
-    go (FunctionCall (Function "complex" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "complex" $ typeof arg1) [arg1,arg2]]
-    go (FunctionCall (Function "creal" t _) [arg])    = [replaceWith $ fun t "crealf" [arg]]
-    go (FunctionCall (Function "cimag" t _) [arg])    = [replaceWith $ fun t "cimagf" [arg]]
-    go (FunctionCall (Function "conjugate" t _) [arg])    = [replaceWith $ fun t "conjf" [arg]]
-    go (FunctionCall (Function "magnitude" t _) [arg])    = [replaceWith $ fun t "cabsf" [arg]]
-    go (FunctionCall (Function "phase" t _) [arg])    = [replaceWith $ fun t "cargf" [arg]]
-    go (FunctionCall (Function "mkPolar" t _) [arg1, arg2])   = [replaceWith $ fun t (extend c99 "mkPolar" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "cis" t _) [arg])  = [replaceWith $ fun t (extend c99 "cis" $ typeof arg) [arg]]
-    go (FunctionCall (Function "f2i" t _) [arg])  = [replaceWith $ Cast t $ fun FloatType "truncf" [arg]]
-    go (FunctionCall (Function "i2n" (ComplexType t) _) [arg])    = [replaceWith $ fun (ComplexType t) (extend c99 "complex" t) [Cast t arg, litF 0]]
+    go (FunctionCall (Function "complex" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "complex" $ typeof arg1) [arg1,arg2]]
+    go (FunctionCall (Function "creal" t _) [arg])    = [replaceWith $ fun t False "crealf" [arg]]
+    go (FunctionCall (Function "cimag" t _) [arg])    = [replaceWith $ fun t False "cimagf" [arg]]
+    go (FunctionCall (Function "conjugate" t _) [arg])    = [replaceWith $ fun t False "conjf" [arg]]
+    go (FunctionCall (Function "magnitude" t _) [arg])    = [replaceWith $ fun t False "cabsf" [arg]]
+    go (FunctionCall (Function "phase" t _) [arg])    = [replaceWith $ fun t False "cargf" [arg]]
+    go (FunctionCall (Function "mkPolar" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "mkPolar" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "cis" t _) [arg])  = [replaceWith $ fun t False (extend c99 "cis" $ typeof arg) [arg]]
+    go (FunctionCall (Function "f2i" t _) [arg])  = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "truncf" [arg]]
+    go (FunctionCall (Function "i2n" (MachineVector 1 (ComplexType t)) _) [arg])    = [replaceWith $ fun (MachineVector 1 (ComplexType t)) False (extend c99 "complex" t) [Cast t arg, litF 0]]
     go (FunctionCall (Function "i2n" t _) [arg])  = [replaceWith $ Cast t arg]
     go (FunctionCall (Function "b2i" t _) [arg])  = [replaceWith $ Cast t arg]
-    go (FunctionCall (Function "round" t _) [arg])    = [replaceWith $ Cast t $ fun FloatType "roundf" [arg]]
-    go (FunctionCall (Function "ceiling" t _) [arg])  = [replaceWith $ Cast t $ fun FloatType "ceilf" [arg]]
-    go (FunctionCall (Function "floor" t _) [arg])    = [replaceWith $ Cast t $ fun FloatType "floorf" [arg]]
+    go (FunctionCall (Function "round" t _) [arg])    = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "roundf" [arg]]
+    go (FunctionCall (Function "ceiling" t _) [arg])  = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "ceilf" [arg]]
+    go (FunctionCall (Function "floor" t _) [arg])    = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "floorf" [arg]]
     go _ = []
 
 tic64xRules :: [Rule]
 tic64xRules = [rule go]
   where
-    go (FunctionCall (Function "(==)" t _) [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ fun t (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "(/=)" t _) [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ fun t "!" [fun t (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]]
-    go (FunctionCall (Function "abs" t _) [arg@(typeof -> FloatType)]) = [replaceWith $ fun t "_fabs" [arg]]
-    go (FunctionCall (Function "abs" t _) [arg@(typeof -> (NumType Signed S32))])  = [replaceWith $ fun t "_abs" [arg]]
-    go (FunctionCall (Function "(+)" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "add" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "(-)" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "sub" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "(*)" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "mult" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "(/)" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "div" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "exp" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "exp" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "sqrt" t _ ) [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ fun t (extend tic64x "sqrt" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "log" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "log" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "(**)" t _) [arg1@(typeof -> ComplexType _), arg2])    = [replaceWith $ fun t (extend tic64x "cpow" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function "logBase" t _) [arg1@(typeof -> ComplexType _), arg2]) = [replaceWith $ fun t (extend tic64x "logBase" $ typeof arg1) [arg1, arg2]]
-    go (FunctionCall (Function fn t _) [arg@(typeof -> ComplexType _)])
+    go (FunctionCall (Function "==" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "/=" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t True "!" [fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]]
+    go (FunctionCall (Function "abs" t _) [arg@(typeof -> MachineVector 1 FloatType)]) = [replaceWith $ fun t False "_fabs" [arg]]
+    go (FunctionCall (Function "abs" t _) [arg@(typeof -> MachineVector 1 (NumType Signed S32))])  = [replaceWith $ fun t False "_abs" [arg]]
+    go (FunctionCall (Function "+" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t True (extend tic64x "add" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "-" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t True (extend tic64x "sub" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "*" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t True (extend tic64x "mult" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "/" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t True (extend tic64x "div" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "exp" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t True (extend tic64x "exp" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "sqrt" t _ ) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t False (extend tic64x "sqrt" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "log" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t False (extend tic64x "log" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "**" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t False (extend tic64x "cpow" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function "logBase" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2]) = [replaceWith $ fun t False (extend tic64x "logBase" $ typeof arg1) [arg1, arg2]]
+    go (FunctionCall (Function fn t _) [arg@(typeof -> MachineVector 1 ComplexType{})])
        | fn `elem` ["sin","tan","cos","asin","atan","acos","sinh","tanh","cosh","asinh","atanh","acosh","creal","cimag","conjugate","magnitude","phase"]
-       = [replaceWith $ fun t (extend tic64x fn $ typeof arg) [arg]]
-    go (FunctionCall (Function "rotateL" t _) [arg1@(typeof -> (NumType Unsigned S32)), arg2])   = [replaceWith $ fun t "_rotl" [arg1, arg2]]
-    go (FunctionCall (Function "reverseBits" t _) [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ fun t "_bitr" [arg]]
-    go (FunctionCall (Function "bitCount" t _) [arg@(typeof -> (NumType Unsigned S32))])  = [replaceWith $ fun t "_dotpu4" [fun t "_bitc4" [arg], litI32 0x01010101]]
-    go (FunctionCall (Function _ t _) [arg@(typeof -> ComplexType _)]) = [replaceWith $ fun t (extend tic64x "creal" $ typeof arg) [arg]]
+       = [replaceWith $ fun t False (extend tic64x fn $ typeof arg) [arg]]
+    go (FunctionCall (Function "rotateL" t _) [arg1@(typeof -> MachineVector 1 (NumType Unsigned S32)), arg2])   = [replaceWith $ fun t False "_rotl" [arg1, arg2]]
+    go (FunctionCall (Function "reverseBits" t _) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_bitr" [arg]]
+    go (FunctionCall (Function "bitCount" t _) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]]
+    go (FunctionCall (Function _ t _) [arg@(typeof -> MachineVector 1 ComplexType{})]) = [replaceWith $ fun t False (extend tic64x "creal" $ typeof arg) [arg]]
     go _ = []
 
 traceRules :: [Rule]

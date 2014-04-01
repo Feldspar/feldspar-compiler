@@ -212,7 +212,6 @@ instance CodeGen Type
         toC VoidType                   = text "void"
         toC ArrayType{}                = text "struct array *"
         toC IVarType{}                 = text "struct ivar"
-        toC (UserType u)               = text u
         toC (StructType n _)           = text "struct" <+> text n
         toC (NativeArray _ t)          = toC t
         toC (Pointer t)                = toC t <+> text "*"
@@ -242,12 +241,12 @@ initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
 -- Simple types.
 initialize False _                 = empty
 -- Simple types inside compound types.
-initialize _     BoolType{}        = equals <+> text "false"
-initialize _     BitType{}         = equals <+> text "0"
-initialize _     NumType{}         = equals <+> text "0"
-initialize _     FloatType{}       = equals <+> text "0.0f"
-initialize _     DoubleType{}      = equals <+> text "0.0"
-initialize b     (ComplexType t)   = initialize b t
+initialize _     (MachineVector 1 BoolType{})        = equals <+> text "false"
+initialize _     (MachineVector 1 BitType{})         = equals <+> text "0"
+initialize _     (MachineVector 1 NumType{})         = equals <+> text "0"
+initialize _     (MachineVector 1 FloatType{})       = equals <+> text "0.0f"
+initialize _     (MachineVector 1 DoubleType{})      = equals <+> text "0.0"
+initialize b     (MachineVector 1 (ComplexType t))   = initialize b t
 
 blockComment :: [Doc] -> Doc
 blockComment ds = vcat (zipWith (<+>) (text "/*" : repeat (text " *")) ds)

@@ -82,12 +82,21 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
     defToDecl _ = []
 
-moduleToCCore :: Options -> Module () -> CompToCCoreResult ()
-moduleToCCore opts mdl = CompToCCoreResult { sourceCode  = incls ++ res
-                                           , debugModule = mdl
-                                           }
+moduleToCCore :: Options -> SplitModuleDescriptor -> SplitCompToCCoreResult
+moduleToCCore opts smd
+  = SplitCompToCCoreResult
+    { sctccrHeader = CompToCCoreResult { sourceCode  = incls ++ hres
+                                       , debugModule = hmdl
+                                       }
+    , sctccrSource = CompToCCoreResult { sourceCode  = cres
+                                       , debugModule = cmdl
+                                       }
+    }
   where
-    res = compToCWithInfos opts mdl
+    hmdl = smdHeader smd
+    cmdl = smdSource smd
+    hres = compToCWithInfos opts hmdl
+    cres = compToCWithInfos opts cmdl
     incls = genIncludeLines opts Nothing
 
 
@@ -100,14 +109,9 @@ compileToCCore name opts prg = compileToCCore' opts mod
         mod = fromCore opts (encodeFunctionName name) prg
 
 compileToCCore' :: Options -> Module () -> SplitCompToCCoreResult
-compileToCCore' opts m = createSplit $ moduleToCCore opts <$> separatedModules
+compileToCCore' opts m = moduleToCCore opts separatedModules
       where
-        separatedModules = moduleSeparator $ executePluginChain opts m
-
-        moduleSeparator modules = [header, source]
-          where (SplitModuleDescriptor header source) = moduleSplitter modules
-
-        createSplit [header, source] = SplitCompToCCoreResult header source
+        separatedModules = moduleSplitter $ executePluginChain opts m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"

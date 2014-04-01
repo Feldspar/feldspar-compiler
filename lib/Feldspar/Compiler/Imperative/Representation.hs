@@ -198,7 +198,7 @@ data Function
 data Constant t
     = IntConst
         { intValue                  :: Integer
-        , intType                   :: Type
+        , intType                   :: ScalarType
         }
     | DoubleConst
         { doubleValue               :: Double
@@ -249,16 +249,19 @@ data Size = S8 | S16 | S32 | S40 | S64
 data Signedness = Signed | Unsigned
     deriving (Eq,Show)
 
-data Type =
-      VoidType
-    | BoolType
+data ScalarType =
+      BoolType
     | BitType
     | FloatType
     | DoubleType
     | NumType Signedness Size
     | ComplexType Type
-    | UserType String
-    | Alias Type String
+    deriving (Eq,Show)
+
+data Type =
+      VoidType
+    | MachineVector Length ScalarType
+    | AliasType Type String
     | ArrayType (Range Length) Type
     | NativeArray (Maybe Length) Type
     | StructType String [(String, Type)]
@@ -283,13 +286,13 @@ instance HasType (Variable t) where
 
 instance HasType (Constant t) where
     type TypeOf (Constant t) = Type
-    typeof IntConst{..}      = intType
-    typeof DoubleConst{}     = DoubleType
-    typeof FloatConst{}      = FloatType
-    typeof BoolConst{}       = BoolType
+    typeof IntConst{..}      = MachineVector 1 intType
+    typeof DoubleConst{}     = MachineVector 1 DoubleType
+    typeof FloatConst{}      = MachineVector 1 FloatType
+    typeof BoolConst{}       = MachineVector 1 BoolType
     typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) t
       where t = typeof $ head arrayValues
-    typeof ComplexConst{..}  = ComplexType $ typeof realPartComplexValue
+    typeof ComplexConst{..}  = MachineVector 1 (ComplexType $ typeof realPartComplexValue)
 
 instance HasType (Expression t) where
     type TypeOf (Expression t) = Type
@@ -305,16 +308,16 @@ instance HasType (Expression t) where
       where
         getStructFieldType :: String -> Type -> Type
         getStructFieldType f (StructType _ l) = fromMaybe (structFieldNotFound f) $ lookup f l
-        getStructFieldType f (Alias t _) = getStructFieldType f t
-        getStructFieldType f (Pointer t) = getStructFieldType f t
-        getStructFieldType f t = reprError InternalError $
+        getStructFieldType f (AliasType t _)  = getStructFieldType f t
+        getStructFieldType f (Pointer t)      = getStructFieldType f t
+        getStructFieldType f t                = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
         structFieldNotFound f = reprError InternalError $ "Not found struct field with this name: " ++ f
     typeof ConstExpr{..}    = typeof constExpr
     typeof FunctionCall{..} = returnType function
     typeof Cast{..}         = castType
     typeof AddrOf{..}       = Pointer $ typeof addrExpr
-    typeof SizeOf{..}       = NumType Signed S32
+    typeof SizeOf{..}       = MachineVector 1 $ NumType Signed S32
     typeof Deref{..}        = case typeof ptrExpr of
                                 Pointer btype -> btype
                                 wtype         -> reprError InternalError $ "Type of dereferenced expression " ++ show ptrExpr ++ " has type " ++ show wtype

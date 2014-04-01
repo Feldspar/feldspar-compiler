@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -42,7 +43,7 @@ import Control.Monad.RWS
 import Control.Applicative
 
 import Data.Char (toLower)
-import Data.List (intercalate)
+import Data.List (intercalate, stripPrefix)
 import Data.Maybe (isJust, fromJust)
 
 import Language.Syntactic.Syntax hiding (result)
@@ -50,7 +51,8 @@ import Language.Syntactic.Traversal
 import Language.Syntactic.Constraint
 import Language.Syntactic.Constructs.Binding (VarId)
 
-import Feldspar.Range (upperBound, isSingleton)
+import Feldspar.Lattice (universal)
+import Feldspar.Range (upperBound, isSingleton, singletonRange)
 import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType, DoubleType,
                                    ComplexType, IVarType, Signedness, Size)
 import Feldspar.Core.Interpretation
@@ -62,7 +64,7 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Type(..), Signedness(..),
                                                     Size(..), Variable(..),
-                                                    Expression(..),
+                                                    Expression(..), ScalarType(..),
                                                     Declaration(..),
                                                     Program(..), Pattern(..),
                                                     Entity(..), StructMember(..))
@@ -215,7 +217,7 @@ compileExprVar e = do
 -- * Utility functions
 --------------------------------------------------------------------------------
 
-compileNumType :: Core.Signedness a -> BitWidth n -> Type
+compileNumType :: Core.Signedness a -> BitWidth n -> ScalarType
 compileNumType U N8      = NumType Unsigned S8
 compileNumType S N8      = NumType Signed S8
 compileNumType U N16     = NumType Unsigned S16
@@ -234,11 +236,11 @@ mkStructType trs = StructType n trs
 
 compileTypeRep :: TypeRep a -> Core.Size a -> Type
 compileTypeRep UnitType _                = VoidType
-compileTypeRep Core.BoolType _           = BoolType
-compileTypeRep (IntType s n) _           = compileNumType s n
-compileTypeRep Core.FloatType _          = FloatType
-compileTypeRep Core.DoubleType _         = DoubleType
-compileTypeRep (Core.ComplexType t) _    = ComplexType (compileTypeRep t (defaultSize t))
+compileTypeRep Core.BoolType _           = MachineVector 1 BoolType
+compileTypeRep (IntType s n) _           = MachineVector 1 $ compileNumType s n
+compileTypeRep Core.FloatType _          = MachineVector 1 FloatType
+compileTypeRep Core.DoubleType _         = MachineVector 1 DoubleType
+compileTypeRep (Core.ComplexType t) _    = MachineVector 1 $ ComplexType (compileTypeRep t (defaultSize t))
 compileTypeRep (Tup2Type a b) (sa,sb)          = mkStructType
         [ ("member1", compileTypeRep a sa)
         , ("member2", compileTypeRep b sb)
@@ -358,23 +360,85 @@ tellDeclWith free ds = do
 encodeType :: Type -> String
 encodeType = go
   where
-    go VoidType          = "void"
-    go BoolType          = "bool"
-    go BitType           = "bit"
-    go FloatType         = "float"
-    go DoubleType        = "double"
-    go (NumType s w)     = map toLower (show s) ++ show w
-    go (ComplexType t)   = "complex" ++ go t
-    go (Pointer t)       = "ptr_" ++ go t
-    go (UserType t)      = t
-    go (Alias _ s)       = s
-    go (IVarType t)      = go t
-    go (NativeArray _ t) = go t
-    go (StructType n _)  = n
-    go (ArrayType l t)   = intercalate "_" ["arr", go t, if isSingleton l
-                                                         then show (upperBound l)
-                                                         else "UD"
-                                           ]
+    go VoidType            = "void"
+    go (MachineVector 1 t) = goScalar t
+    go (Pointer t)         = "ptr_" ++ go t
+    go (AliasType _ s)     = s
+    go (IVarType t)        = go t
+    go (NativeArray _ t)   = go t
+    go (StructType n _)    = n
+    go (ArrayType l t)     = intercalate "_" ["arr", go t, if isSingleton l
+                                                            then show (upperBound l)
+                                                            else "UD"
+                                             ]
+    goScalar BoolType          = "bool"
+    goScalar BitType           = "bit"
+    goScalar FloatType         = "float"
+    goScalar DoubleType        = "double"
+    goScalar (NumType s w)     = map toLower (show s) ++ show w
+    goScalar (ComplexType t)   = "complex" ++ go t
+
+-- Almost the inverse of encodeType. Some type encodings are lossy so
+-- they are impossible to recover.
+decodeType :: String -> [Type]
+decodeType s = goL s []
+  where
+    goL [] acc = reverse acc
+    goL s acc = goL rest' (out:acc)
+       where (out, rest) = go s
+             rest' = case rest of
+                      '_':t -> t
+                      _     -> rest
+
+    go (stripPrefix "void"     -> Just t) = (VoidType, t)
+    go (stripPrefix "bool"     -> Just t) = (MachineVector 1 BoolType, t)
+    go (stripPrefix "bit"      -> Just t) = (MachineVector 1 BitType, t)
+    go (stripPrefix "float"    -> Just t) = (MachineVector 1 FloatType, t)
+    go (stripPrefix "double"   -> Just t) = (MachineVector 1 DoubleType, t)
+    go (stripPrefix "unsigned" -> Just t) = (MachineVector 1 (NumType Unsigned w), t')
+     where (w, t') = decodeSize t
+    go (stripPrefix "signed"   -> Just t) = (MachineVector 1 (NumType Signed w), t')
+     where (w, t') = decodeSize t
+    go (stripPrefix "complex"  -> Just t) = (MachineVector 1 (ComplexType tn), t')
+     where (tn, t') = go t
+    go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
+     where (tt, t') = go t
+-- Lossy encodings left out:
+--    go (AliasType _ s)   = s
+--    go (IVarType t)      = go t
+--    go (NativeArray _ t) = go t
+    go h@('s':'_':t) = (StructType h' $ zipWith mkMember [1..] ts, t'')
+       where mkMember n t = ("member" ++ show n, t)
+             (ts, t'') = structGo t []
+             structGo [] acc = (reverse acc, [])
+             structGo s  acc = if "_" == take 1 s' && not (likelyDim s')
+                                 then structGo (drop 1 s') (ts:acc)
+                                 else (reverse (ts:acc), s')
+                      where (ts, s') = go s
+             -- There might be dangling size encodings at the end of h
+             -- because of a struct of arrays inside an array. The right
+             -- h for this nest level is the part of h that is not
+             -- intersecting with t''.
+             h' = take (length h - length t'') h
+    go (stripPrefix "arr_"     -> Just t) = (ArrayType d tt, t'')
+      where (tt, ('_':t')) = go t
+            (d, t'') = decodeDim t'
+    go s = error ("decodeType: " ++ s)
+
+    decodeSize (stripPrefix "S32" -> Just t) = (S32, t)
+    decodeSize (stripPrefix "S8"  -> Just t) = (S8, t)
+    decodeSize (stripPrefix "S16" -> Just t) = (S16, t)
+    decodeSize (stripPrefix "S40" -> Just t) = (S40, t)
+    decodeSize (stripPrefix "S64" -> Just t) = (S64, t)
+
+    decodeDim ('_':t)     = (universal, t)
+    decodeDim ('U':'D':t) = (universal, t)
+    decodeDim ('1':t)     = (singletonRange 1, t)
+    decodeDim e           = error ("decodeDim: " ++ e)
+
+    likelyDim (stripPrefix "_UD" -> Just _)                          = True
+    likelyDim ('_':n:_) | [(_,_)] <- reads [n] :: [(Integer,String)] = True
+    likelyDim _                                                      = False
 
 getTypes :: Options -> [Declaration ()] -> [Entity ()]
 getTypes _ defs = concatMap mkDef comps
