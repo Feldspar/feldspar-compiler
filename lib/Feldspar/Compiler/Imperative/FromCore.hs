@@ -306,27 +306,22 @@ compileProg (Just loc) (In (Ut.ForLoop len init (In (Ut.Lambda (Ut.Var ix ta) lt
       let ix' = mkVar (compileTypeRep ta) ix
           stvar = mkVar (compileTypeRep (typeof ixf)) st
       len' <- mkLength len ta
-      -- Large results, such as arrays, should be used in-place to avoid
-      -- copying. Small results that fit in a register should be copied.
-      --
-      -- Makes a noticeable difference for the innermost loop in matrix
-      -- multiplication in MultiDim.
-      let (st', alias) | isArray $ typeof stvar = (loc, withAlias st loc)
-                       | otherwise = (stvar, id)
-      compileProg (Just st') init
-      (_, Block ds body) <- alias $ confiscateBlock $ compileProg (Just stvar) ixf >> assign (Just st') stvar
-      declare stvar
+      (lstate, stvar) <- mkDoubleBufferState loc st
+      compileProg (Just lstate) init
+      (_, Block ds body) <- withAlias st lstate $ confiscateBlock
+                          $ compileProg (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
       tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
-      tellProg [copyProg (Just loc) [st']]
+      shallowAssign (Just loc) lstate
 compileProg (Just loc) (In (Ut.WhileLoop init (In (Ut.Lambda (Ut.Var cv ct) cond)) (In (Ut.Lambda (Ut.Var bv bt) body)))) = do
     let stvar = mkVar (compileTypeRep bt) bv
         condv = mkVar (compileTypeRep (typeof cond)) cv
-    compileProg (Just loc) init >> assign (Just stvar) loc
-    (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg (Just condv) cond
-    (_, body') <- withAlias bv loc $ confiscateBlock $ compileProg (Just stvar) body >> assign (Just loc) stvar
-    declare stvar
+    (lstate,stvar) <- mkDoubleBufferState loc bv
+    compileProg (Just lstate) init
+    (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg (Just condv) cond
+    (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
     declare condv
     tellProg [while cond' condv body']
+    shallowAssign (Just loc) lstate
 -- LoopM
 compileProg loc (In (Ut.While (In (Ut.Lambda v cond)) step)) = do
    condv <- freshVar "cond" (typeof cond)
