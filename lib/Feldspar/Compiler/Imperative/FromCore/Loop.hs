@@ -72,24 +72,16 @@ instance ( Compile dom dom
         = do
             blocks <- mapM (confiscateBlock . compileBind) bs1
             let info1 = getInfo lam1
-                info2 = getInfo lam2
                 sz = fst $ infoSize info1
                 (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
             let ix' = mkVar (compileTypeRep (infoType info1) (infoSize info1)) ix
-            let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) st
             len' <- mkLength len (infoType $ getInfo len) sz
-            -- Large results, such as arrays, should be used in-place to avoid
-            -- copying. Small results that fit in a register should be copied.
-            --
-            -- Makes a noticeable difference for the innermost loop in matrix
-            -- multiplication in MultiDim.
-            let (st', alias) | isArray $ typeof stvar = (loc, withAlias st loc)
-                             | otherwise = (stvar, id)
-            compileProg (Just st') init
-            (_, Block ds body) <- alias $ confiscateBlock $ compileProg (Just stvar) ixf >> assign (Just st') stvar
-            declare stvar
+            (lstate, stvar) <- mkDoubleBufferState loc st
+            compileProg (Just lstate) init
+            (_, Block ds body) <- withAlias st lstate $ confiscateBlock 
+                                $ compileProg (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
             tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
-            tellProg [copyProg (Just loc) [st']]
+            shallowAssign (Just loc) lstate 
 
     compileProgSym (C' WhileLoop) _ (Just loc) (init :* (lam1 :$ cond) :* (lam2 :$ body) :* Nil)
         | Just (SubConstr2 (Lambda cv)) <- prjLambda lam1
@@ -99,12 +91,13 @@ instance ( Compile dom dom
                 info1 = getInfo lam1
             let stvar = mkVar (compileTypeRep (infoType info2) (infoSize info2)) cb
                 condv = mkVar (compileTypeRep (infoType info1) (infoSize info1)) cv
-            compileProg (Just loc) init >> assign (Just stvar) loc
-            (_, cond') <- confiscateBlock $ withAlias cv loc $ compileProg (Just condv) cond
-            (_, body') <- withAlias cb loc $ confiscateBlock $ compileProg (Just stvar) body >> assign (Just loc) stvar
-            declare stvar
+            (lstate,stvar) <- mkDoubleBufferState loc cb
+            compileProg (Just lstate) init
+            (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg (Just condv) cond
+            (_, body') <- withAlias cb lstate $ confiscateBlock $ compileProg (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
             declare condv
             tellProg [while cond' condv body']
+            shallowAssign (Just loc) lstate
 
 instance ( Compile dom dom
          , Project (CLambda Type) dom
