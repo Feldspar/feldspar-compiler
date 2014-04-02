@@ -439,7 +439,9 @@ decodeType s = goL s []
 
     decodeDim ('_':t)     = (universal, t)
     decodeDim ('U':'D':t) = (universal, t)
-    decodeDim ('1':t)     = (singletonRange 1, t)
+    decodeDim e
+      | [(n,t)] <- reads e :: [(Integer,String)]
+      = (singletonRange $ fromInteger n, t)
     decodeDim e           = error ("decodeDim: " ++ e)
 
     likelyDim (stripPrefix "_UD" -> Just _)                          = True
