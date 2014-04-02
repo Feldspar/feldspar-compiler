@@ -13,7 +13,7 @@
 #include <complex.h>
 
 
-struct s_arr_unsignedS32_1_arr_signedS32_UD
+struct s_arr_unsignedS32_UD_arr_signedS32_UD
 {
   struct array * member1;
   struct array * member2;
@@ -31,13 +31,13 @@ struct s_arr_unsignedS32_UD_arr_s_unsignedS32_unsignedS32_UD
   struct array * member2;
 };
 
-struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD
+struct s_arr_unsignedS32_1_arr_signedS32_UD
 {
   struct array * member1;
   struct array * member2;
 };
 
-struct s_arr_unsignedS32_UD_arr_signedS32_UD
+struct s_arr_unsignedS32_1_arr_s_arr_unsignedS32_1_arr_signedS32_UD_UD
 {
   struct array * member1;
   struct array * member2;

@@ -13,13 +13,19 @@
 #include <complex.h>
 
 
-struct s_arr_unsignedS32_1_arr_signedS32_UD
+struct s_arr_unsignedS32_1_arr_signedS32_0
 {
   struct array * member1;
   struct array * member2;
 };
 
 struct s_arr_unsignedS32_UD_arr_signedS32_UD
+{
+  struct array * member1;
+  struct array * member2;
+};
+
+struct s_arr_unsignedS32_1_arr_signedS32_UD
 {
   struct array * member1;
   struct array * member2;
