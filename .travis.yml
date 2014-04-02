@@ -16,5 +16,5 @@ before_install:
   
   # Try installing some of the build-deps with apt-get for speed
   # - ./tools/travis-cabal-apt-install $mode feldspar-language/ ./
-  - cabal install tasty feldspar-language/ ./
+  - cabal install --only-dep --enable-tests feldspar-language/ ./
 
