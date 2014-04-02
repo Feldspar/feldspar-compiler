@@ -326,6 +326,12 @@ freshVar base t sz = do
   declare v
   return v
 
+freshAlias :: Expression () -> CodeWriter (Expression ())
+freshAlias e = do i <- freshId
+                  let vexp = varToExpr $ mkNamedVar "e" (typeof e) i
+                  declareAlias vexp
+                  return vexp
+
 declare :: Expression () -> CodeWriter ()
 declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
@@ -465,34 +471,51 @@ shallowAssign :: Location -> Expression () -> CodeWriter ()
 shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
 shallowAssign loc src = return ()
 
-initializeFresh :: Expression () -> CodeWriter (Expression ())
-initializeFresh e = do i <- freshId
-                       let v = mkNamedVar "e" (typeof e) i
-                       tellDeclWith False [Declaration v Nothing] -- TODO: Change back to init when floating correctly
-                       tellProg [Assign (varToExpr v) e]
-                       return $ varToExpr v
+freshAliasInit :: Expression () -> CodeWriter (Expression ())
+freshAliasInit e = do vexp <- freshAlias e
+                      tellProg [Assign vexp e]
+                      return vexp
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyWithRefSwap dst src 
   | dst /= src
   = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
       [] -> tellProg [Assign dst src]
-      arrs -> do temps <- sequence [initializeFresh $ accF dst | (accF,t) <- arrs]
+      arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF,t) <- arrs]
                  tellProg [Assign dst src]
                  tellProg [Assign (accF src) tmp | (tmp, (accF,t)) <- zip temps arrs]
-  | True = return ()
+  | otherwise = return ()
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyReferences dst src = tellProg [Assign (accF dst) (accF src) | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
+
+{- 
+    This function implements double buffering of state for nonmutable seqential loops (forLoop and whileLoop).
+    The intention is to generate the minimal amount of copying (especially deep array copies) while also avoiding
+    frequent references to data that can not be allocated in registers.
+
+    The state of the loop is implemented by two variables so that the loop body reads from one and writes to
+    the other. At the end of the body, the contents of the second (write) variable is shallow copied to the 
+    first (read) variable. In order to avoid inadvertent sharing of data referenced by pointers in the variables 
+    (array buffers, for instance), the pointers in the state are swapped rather than just copied so that the end 
+    up in the variable written to. Finally the read variable is shallow copied to the result location.
+
+    There are some simplifying cases:
+    - When the target lvalue loc is a variable, and thus cheap to access, it is reused as the read state variable
+    - When the type of the state is scalar, so that assignment is atomic, only one state variable is used and it 
+      is both read and written to in the loop body, eliminating the shallow copy in the loop body.
+
+    The strategy implemented a compromise between different design constraints:
+    - Avoid deep copying of arrays (that is what the double buffering is for)
+    - Avoid shallow copying if possible
+    - Avoid memory leaks of arrays and lvars
+-}
 
 mkDoubleBufferState :: Expression () -> VarId -> CodeWriter (Expression (), Expression ())
 mkDoubleBufferState loc stvar
    = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc) 
                      then return loc
-                     else do i <- freshId
-                             let v = mkNamedVar "e" (typeof loc) i -- Is tis ok? Surely the type of loc must be useable
-                                 vexp = varToExpr v
-                             tellDeclWith False [Declaration v Nothing]
+                     else do vexp <- freshAlias loc
                              shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc 
