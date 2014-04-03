@@ -678,49 +678,35 @@ compileExpr (In (Ut.ArrLength arr)) = do
 -- MutableReference
 compileExpr (In (Ut.GetRef r)) = compileExpr r
 -- Num
-compileExpr (In (Ut.Abs e))  = do
-    e' <- compileExpr e
-    return $ fun' Prefix (Rep.MachineVector 1 Rep.BoolType) True "abs" [e']
-compileExpr (In (Ut.Sign e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (Rep.MachineVector 1 Rep.BoolType) True "signum" [e']
-compileExpr (In (Ut.Add e1 e2)) = do
+compileExpr (In (Ut.PrimApp2 o@Ut.Add t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (typeof e1') True "+" [e1', e2']
-compileExpr (In (Ut.Sub e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.Sub t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (typeof e1') True "-" [e1', e2']
-compileExpr (In (Ut.Mul e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.Mul t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (typeof e1') True "*" [e1', e2']
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Ord
-compileExpr (In (Ut.LTH e1 e2)) = do
+compileExpr (In (Ut.PrimApp2 o@Ut.LTH t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True "<" [e1', e2']
-compileExpr (In (Ut.GTH e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.GTH t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True ">" [e1', e2']
-compileExpr (In (Ut.LTE e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.LTE t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True "<=" [e1', e2']
-compileExpr (In (Ut.GTE e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.GTE t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True ">=" [e1', e2']
-compileExpr (In (Ut.Min e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "min" [e1', e2']
-compileExpr (In (Ut.Max e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "max" [e1', e2']
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- SizeProp
 compileExpr (In (Ut.PropSize e)) = compileExpr e
 -- RealFloat
@@ -900,12 +886,22 @@ instance CompileOp Ut.PrimOp1 where
   compileOp Ut.F2I       = "f2i"
   compileOp Ut.I2N       = "i2n"
   compileOp Ut.B2I       = "b2i"
---  compileOp Ut.Sign      = "signum"
+  compileOp Ut.Sign      = "signum"
   compileOp p         = toLower h:t
     where (h:t) = show p
 
 instance CompileOp Ut.PrimOp2 where
+  -- Bits
   compileOp Ut.BAnd      = "&"
   compileOp Ut.BOr       = "|"
+  -- Num
+  compileOp Ut.Add       = "+"
+  compileOp Ut.Sub       = "-"
+  compileOp Ut.Mul       = "*"
+  -- Ord
+  compileOp Ut.LTH       = "<"
+  compileOp Ut.GTH       = ">"
+  compileOp Ut.LTE       = "<="
+  compileOp Ut.GTE       = "<="
   compileOp p         = toLower h:t
     where (h:t) = show p
