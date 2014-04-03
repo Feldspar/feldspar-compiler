@@ -14,10 +14,7 @@ before_install:
   - echo "Using feldspar-language from " && git rev-parse HEAD
   - cd $TRAVIS_BUILD_DIR
   
-  # Try installing some of the build-deps with apt-get for speed
-  # - ./tools/travis-cabal-apt-install $mode feldspar-language/ ./
   - cabal sandbox init
   - cabal sandbox add-source feldspar-language
-  # TODO newer distributive does not build on GHC 7.4.2
-  - cabal install --only-dep --enable-tests --constraint="distributive<0.4.2"
+  - cabal install --only-dep --enable-tests
 
