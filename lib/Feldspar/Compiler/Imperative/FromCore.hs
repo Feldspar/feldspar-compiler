@@ -324,12 +324,12 @@ compileProg (Just loc) (In (Ut.WhileLoop init (In (Ut.Lambda (Ut.Var cv ct) cond
     tellProg [while cond' condv body']
     shallowAssign (Just loc) lstate
 -- LoopM
-compileProg loc (In (Ut.While (In (Ut.Lambda v cond)) step)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.While _ (In (Ut.Lambda v cond)) step)) = do
    condv <- freshVar "cond" (typeof cond)
    (_, cond') <- confiscateBlock $ compileProg (Just condv) cond
    (_, step') <- confiscateBlock $ compileProg loc step
    tellProg [while cond' condv step']
-compileProg loc (In (Ut.For len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg loc (In (Ut.PrimApp2 Ut.For _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    let ix = mkVar (compileTypeRep ta) v
    len' <- mkLength len ta
    (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
@@ -340,7 +340,7 @@ compileProg loc (In (Ut.PrimApp1 Ut.Return t a))
   | Ut.MutType Ut.UnitType <- t = return ()
   | Ut.ParType Ut.UnitType <- t = return ()
   | otherwise = compileProg loc a
-compileProg loc (In (Ut.Bind ma (In (Ut.Lambda (Ut.Var v ta) body))))
+compileProg loc (In (Ut.PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body))))
   | (In Ut.ParNew) <- ma = do
    let var = mkVar (compileTypeRep ta) v
    declare var
@@ -351,10 +351,10 @@ compileProg loc (In (Ut.Bind ma (In (Ut.Lambda (Ut.Var v ta) body))))
    declare var
    compileProg (Just var) ma
    compileProg loc body
-compileProg loc (In (Ut.Then ma mb)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.Then _ ma mb)) = do
    compileProg Nothing ma
    compileProg loc mb
-compileProg loc (In (Ut.When c action)) =
+compileProg loc (In (Ut.PrimApp2 Ut.When _ c action)) =
    mkBranch loc c action Nothing
 -- MutableArray
 compileProg loc (In (Ut.NewArr len a)) = do
@@ -389,7 +389,7 @@ compileProg loc (In (Ut.ModRef r (In (Ut.Lambda (Ut.Var v ta) body)))) = do
        -- v with var here
 -- MutableToPure
 compileProg (Just loc) (In (Ut.RunMutableArray marr))
- | (In (Ut.Bind (In (Ut.NewArr_ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
+ | (In (Ut.PrimApp2 Ut.Bind _ (In (Ut.NewArr_ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
  , (In (Ut.PrimApp1 Ut.Return _ (In (Ut.Variable (Ut.Var r _))))) <- chaseBind body
  , v == r
  = do
@@ -748,8 +748,8 @@ chaseTree loc _ a = do
 -- | Chase down the right-spine of `Bind` and `Then` constructs and return
 -- the last term
 chaseBind :: Ut.UntypedFeld -> Ut.UntypedFeld
-chaseBind (In (Ut.Bind _ (In (Ut.Lambda _  body)))) = chaseBind body
-chaseBind (In (Ut.Then _ body))                     = chaseBind body
+chaseBind (In (Ut.PrimApp2 Ut.Bind _ _ (In (Ut.Lambda _  body)))) = chaseBind body
+chaseBind (In (Ut.PrimApp2 Ut.Then _ _ body))                     = chaseBind body
 chaseBind a                                         = a
 
 {- NOTES:
