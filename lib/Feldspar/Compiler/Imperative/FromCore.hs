@@ -580,60 +580,7 @@ compileExpr (In (Ut.DivFrac e1 e2)) = do
     e2' <- compileExpr e2
     return $ fun' Prefix (typeof e1') True "div" [e1', e2']
 -- Floating
-compileExpr (In Ut.Pi) = error "No pi ready"
-compileExpr (In (Ut.Exp e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "exp" [e']
-compileExpr (In (Ut.Sqrt e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "sqrt" [e']
-compileExpr (In (Ut.Log e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "log" [e']
-compileExpr (In (Ut.Pow e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "pow" [e1', e2']
-compileExpr (In (Ut.LogBase e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "logBase" [e1', e2']
-compileExpr (In (Ut.Sin e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "sin" [e']
-compileExpr (In (Ut.Tan e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "tan" [e']
-compileExpr (In (Ut.Cos e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "cos" [e']
-compileExpr (In (Ut.Asin e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "asin" [e']
-compileExpr (In (Ut.Atan e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "atan" [e']
-compileExpr (In (Ut.Acos e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "acos" [e']
-compileExpr (In (Ut.Sinh e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "sinh" [e']
-compileExpr (In (Ut.Tanh e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "tanh" [e']
-compileExpr (In (Ut.Cosh e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "cosh" [e']
-compileExpr (In (Ut.Asinh e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "asinh" [e']
-compileExpr (In (Ut.Atanh e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "atanh" [e']
-compileExpr (In (Ut.Acosh e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "acosh" [e']
+compileExpr (In (Ut.PrimApp0 Ut.Pi t)) = error "No pi ready"
 -- Integral
 compileExpr (In (Ut.Quot e1 e2)) = do
     e1' <- compileExpr e1
@@ -742,6 +689,8 @@ compileExpr (In (Ut.PrimApp1 Ut.Sel6 _ tup)) = do
 compileExpr (In (Ut.PrimApp1 Ut.Sel7 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member7"
+compileExpr (In (Ut.PrimApp0 p t)) = do
+    return $ fun' Prefix (compileTypeRep t) True (compileOp p) []
 compileExpr (In (Ut.PrimApp1 p t e)) = do
     e' <- compileExpr e
     return $ fun' Prefix (compileTypeRep t) True (compileOp p) [e']
@@ -876,6 +825,10 @@ compileBind (Ut.Var v t, e) = do
 
 class CompileOp a where
   compileOp :: Show a => a -> String
+
+instance CompileOp Ut.PrimOp0 where
+  compileOp p         = toLower h:t
+    where (h:t) = show p
 
 instance CompileOp Ut.PrimOp1 where
 {-  compileOp Ut.RealPart  = "creal"
