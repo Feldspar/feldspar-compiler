@@ -261,9 +261,9 @@ compileProg loc (In (Ut.EparFor len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    (_, ixf') <- confiscateBlock $ compileProg loc ixf
    tellProg [for True (lName ix) len' (litI32 1) ixf']
 -- Error
-compileProg loc (In Ut.Undefined) = return ()
-compileProg loc (In (Ut.Assert cond a)) = do
-   compileAssert cond "temprary msg" -- msg
+compileProg loc (In (Ut.PrimApp0 Ut.Undefined _)) = return ()
+compileProg loc (In (Ut.PrimApp2 (Ut.Assert msg) _ cond a)) = do
+   compileAssert cond msg
    compileProg loc a
 -- Future
 compileProg (Just loc) (In (Ut.MkFuture p)) = do
@@ -466,7 +466,7 @@ compileProg loc (In (Ut.SourceInfo info a)) = do
     tellProg [Comment True info]
     compileProg loc a
 -- Switch
-compileProg loc (In (Ut.Switch tree@(In (Ut.Condition (In (Ut.Equal _ s)) _ _)))) = do
+compileProg loc (In (Ut.Switch tree@(In (Ut.Condition (In (Ut.PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
     scrutinee <- compileExpr s
     alts      <- chaseTree loc s tree
     tellProg [Switch{..}]
@@ -527,18 +527,18 @@ compileExpr (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet a ta v
     withAlias v e $ compileExpr body
 -- Error
-compileExpr (In (Ut.Assert cond a)) = do
-    compileAssert cond "temp msg" -- msg
+compileExpr (In (Ut.PrimApp2 (Ut.Assert msg) _ cond a)) = do
+    compileAssert cond msg
     compileExpr a
 -- Eq
-compileExpr (In (Ut.Equal e1 e2)) = do
+compileExpr (In (Ut.PrimApp2 o@Ut.Equal t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True "==" [e1', e2']
-compileExpr (In (Ut.NotEqual e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.NotEqual t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True "/=" [e1', e2']
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- FFI
 compileExpr (In (Ut.ForeignImport name es)) = do
     es' <- mapM compileExpr es
@@ -752,7 +752,7 @@ literalLoc loc t =
 
 chaseTree :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
-chaseTree loc _s (In (Ut.Condition (In (Ut.Equal c  a)) t f))
+chaseTree loc _s (In (Ut.Condition (In (Ut.PrimApp2 Ut.Equal _ c  a)) t f))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
          e <- compileExpr c
@@ -813,6 +813,9 @@ instance CompileOp Ut.PrimOp2 where
   -- Bits
   compileOp Ut.BAnd      = "&"
   compileOp Ut.BOr       = "|"
+  -- Eq
+  compileOp Ut.Equal     = "=="
+  compileOp Ut.NotEqual  = "/="
   -- Logic
   compileOp Ut.And      = "&&"
   compileOp Ut.Or       = "||"
