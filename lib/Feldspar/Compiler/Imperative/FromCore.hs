@@ -757,25 +757,25 @@ compileExpr (In (Ut.Trace e1 e2)) = do
     e2' <- compileExpr e2
     return $ fun' Prefix (typeof e2') True "trace" [e1', e2']
 -- Tuple
-compileExpr (In (Ut.Sel1 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel1 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member1"
-compileExpr (In (Ut.Sel2 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel2 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member2"
-compileExpr (In (Ut.Sel3 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel3 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member3"
-compileExpr (In (Ut.Sel4 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel4 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member4"
-compileExpr (In (Ut.Sel5 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel5 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member5"
-compileExpr (In (Ut.Sel6 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel6 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member6"
-compileExpr (In (Ut.Sel7 tup)) = do
+compileExpr (In (Ut.PrimApp1 Ut.Sel7 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member7"
 compileExpr (In (Ut.PrimApp1 p t e)) = do
