@@ -377,12 +377,12 @@ compileProg loc (In (Ut.SetArr arr i a)) = do
    a'   <- compileExpr a
    assign (Just $ ArrayElem arr' i') a'
 -- MutableReference
-compileProg loc (In (Ut.NewRef a)) = compileProg loc a
-compileProg loc (In (Ut.GetRef r)) = compileProg loc r
-compileProg loc (In (Ut.SetRef r a)) = do
+compileProg loc (In (Ut.PrimApp1 Ut.NewRef _ a)) = compileProg loc a
+compileProg loc (In (Ut.PrimApp1 Ut.GetRef _ r)) = compileProg loc r
+compileProg loc (In (Ut.PrimApp2 Ut.SetRef _ r a)) = do
    var  <- compileExpr r
    compileProg (Just var) a
-compileProg loc (In (Ut.ModRef r (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg loc (In (Ut.PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v ta) body)))) = do
    var <- compileExpr r
    withAlias v var $ compileProg (Just var) body
        -- Since the modifier function is pure it is safe to alias
@@ -568,7 +568,7 @@ compileExpr (In (Ut.ArrLength arr)) = do
     a' <- compileExpr arr
     return $ arrayLength a'
 -- MutableReference
-compileExpr (In (Ut.GetRef r)) = compileExpr r
+compileExpr (In (Ut.PrimApp1 Ut.GetRef _ r)) = compileExpr r
 -- Num
 compileExpr (In (Ut.PrimApp2 o@Ut.Add t e1 e2)) = do
     e1' <- compileExpr e1
