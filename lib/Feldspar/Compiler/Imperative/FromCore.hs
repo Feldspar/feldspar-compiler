@@ -550,27 +550,6 @@ compileExpr (In (Ut.DivFrac e1 e2)) = do
     return $ fun' Prefix (typeof e1') True "div" [e1', e2']
 -- Floating
 compileExpr (In (Ut.PrimApp0 Ut.Pi t)) = error "No pi ready"
--- Integral
-compileExpr (In (Ut.Quot e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "quot" [e1', e2']
-compileExpr (In (Ut.Rem e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "rem" [e1', e2']
-compileExpr (In (Ut.Div e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "div" [e1', e2']
-compileExpr (In (Ut.Mod e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "mod" [e1', e2']
-compileExpr (In (Ut.IExp e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "exp" [e1', e2']
 -- Literal
 compileExpr (In (Ut.Literal l)) = literal l
 -- Logic
@@ -816,9 +795,11 @@ instance CompileOp Ut.PrimOp2 where
   -- Eq
   compileOp Ut.Equal     = "=="
   compileOp Ut.NotEqual  = "/="
+  -- Floating
+  compileOp Ut.IExp      = "exp"
   -- Logic
-  compileOp Ut.And      = "&&"
-  compileOp Ut.Or       = "||"
+  compileOp Ut.And       = "&&"
+  compileOp Ut.Or        = "||"
   -- Num
   compileOp Ut.Add       = "+"
   compileOp Ut.Sub       = "-"
