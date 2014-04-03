@@ -341,7 +341,7 @@ compileProg loc (In (Ut.PrimApp1 Ut.Return t a))
   | Ut.ParType Ut.UnitType <- t = return ()
   | otherwise = compileProg loc a
 compileProg loc (In (Ut.PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body))))
-  | (In Ut.ParNew) <- ma = do
+  | (In (Ut.PrimApp0 Ut.ParNew _)) <- ma = do
    let var = mkVar (compileTypeRep ta) v
    declare var
    tellProg [iVarInit (AddrOf var)]
@@ -422,12 +422,12 @@ compileProg (Just loc) (In (Ut.PrimApp1 Ut.NoInline _ p)) = do
     let ins' = map (\v -> ValueParameter $ varToExpr $ Rep.Variable (typeof v) (vName v)) ins
     tellProg [call funname $ ins' ++ [ValueParameter loc]]
 -- Par
-compileProg loc (In (Ut.ParRun p)) = compileProg loc p
-compileProg loc (In (Ut.ParNew)) = return ()
-compileProg loc (In (Ut.ParGet r)) = do
+compileProg loc (In (Ut.PrimApp1 Ut.ParRun _ p)) = compileProg loc p
+compileProg loc (In (Ut.PrimApp0 Ut.ParNew _)) = return ()
+compileProg loc (In (Ut.PrimApp1 Ut.ParGet _ r)) = do
     iv <- compileExpr r
     tellProg [iVarGet l iv | Just l <- [loc]]
-compileProg loc (In (Ut.ParPut r a)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.ParPut _ r a)) = do
     iv  <- compileExpr r
     val <- compileExpr a
     i   <- freshId
@@ -435,7 +435,7 @@ compileProg loc (In (Ut.ParPut r a)) = do
     declare var
     assign (Just var) val
     tellProg [iVarPut iv var]
-compileProg loc (In (Ut.ParFork p)) = do
+compileProg loc (In (Ut.PrimApp1 Ut.ParFork _ p)) = do
    env <- ask
    let args = nub $ [case lookup v (alias env) of
                      Nothing -> mkVariable (compileTypeRep t) v
@@ -454,7 +454,7 @@ compileProg loc (In (Ut.ParFork p)) = do
    tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
    -- Spawn:
    tellProg [spawn taskName args]
-compileProg loc (In (Ut.ParYield)) = return ()
+compileProg loc (In (Ut.PrimApp0 Ut.ParYield _)) = return ()
 -- Save
 compileProg loc (In (Ut.PrimApp1 Ut.Save _ e)) = compileProg loc e
 -- SizeProp
@@ -541,11 +541,6 @@ compileExpr (In (Ut.PrimApp2 o@Ut.NotEqual t e1 e2)) = do
 compileExpr (In (Ut.ForeignImport name es)) = do
     es' <- mapM compileExpr es
     return $ fun' Prefix Rep.VoidType True name es'
--- Fractional
-compileExpr (In (Ut.DivFrac e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "div" [e1', e2']
 -- Floating
 compileExpr (In (Ut.PrimApp0 Ut.Pi t)) = error "No pi ready"
 -- Future
@@ -793,6 +788,8 @@ instance CompileOp Ut.PrimOp2 where
   -- Eq
   compileOp Ut.Equal     = "=="
   compileOp Ut.NotEqual  = "/="
+  -- Fractional
+  compileOp Ut.DivFrac   = "div"
   -- Floating
   compileOp Ut.IExp      = "exp"
   -- Logic
