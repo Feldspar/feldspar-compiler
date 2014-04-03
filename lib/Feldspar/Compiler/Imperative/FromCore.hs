@@ -35,7 +35,11 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Feldspar.Compiler.Imperative.FromCore where
+module Feldspar.Compiler.Imperative.FromCore (
+    fromCore
+  , getCore'
+  )
+  where
 
 import Data.Char (toLower)
 import Data.List (nub, partition, last)
@@ -47,11 +51,14 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation (Term(..), Lit(..))
+import Feldspar.Core.UntypedRepresentation
+         ( UntypedFeldF(PrimApp0), UntypedFeldF(PrimApp1)
+         , UntypedFeldF(PrimApp2), UntypedFeldF(PrimApp3)
+         )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
 import Feldspar.Core.Constructs (SyntacticFeld(..))
 import Feldspar.Core.Frontend (reifyFeld)
-
 import Feldspar.Range (upperBound)
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..), ScalarType(..))
@@ -64,6 +71,10 @@ import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 
+-- Module that translates from the Syntactic program from the frontend to the
+-- module format in the backend.
+
+-- | Get the generated core for a program with a specified output name.
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
@@ -92,7 +103,8 @@ compileProgTop opt funname bs (In (Ut.Lambda (Ut.Var v ta) body)) = do
      compileProgTop opt funname bs body
 -- Input on form let x = n in e
 compileProgTop opt funname bs (In (Ut.Let e@(In Ut.Literal{}) (In (Ut.Lambda (Ut.Var v vt) body))))
-  | [ProcedureCall "copy" [ValueParameter (VarExpr vr), ValueParameter (ConstExpr c)]] <- bd
+  | [ProcedureCall "copy" [ ValueParameter (VarExpr vr)
+                          , ValueParameter (ConstExpr c)]] <- bd
   , freshName Prelude.== vName vr -- Ensure that compiled result is on form x = n
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
@@ -164,13 +176,13 @@ mkBranch loc c th el = do
 
 compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg loc (In (Ut.PrimApp2 Ut.Parallel _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg loc (In (PrimApp2 Ut.Parallel _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    let ix = mkVar (compileTypeRep ta) v
    len' <- mkLength len ta
    (_, b) <- confiscateBlock $ compileProg (ArrayElem <$> loc <*> pure ix) ixf
    tellProg [initArray loc len']
    tellProg [for True (lName ix) len' (litI32 1) b]
-compileProg loc (In (Ut.PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v tix) lt1))))
+compileProg loc (In (PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v tix) lt1))))
    | (bs1, In (Ut.Lambda (Ut.Var s tst) l)) <- collectLetBinders lt1
    , (bs, In (Ut.Tup2 (In (Ut.Variable t1)) (In (Ut.Variable t2)))) <- collectLetBinders l
    , not $ null bs
@@ -193,7 +205,7 @@ compileProg loc (In (Ut.PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Va
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for False (lName ix) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg loc (In (Ut.PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v t) lt1))))
+compileProg loc (In (PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v t) lt1))))
   | (bs1, In (Ut.Lambda (Ut.Var s _) step)) <- collectLetBinders lt1
   = do
        blocks <- mapM (confiscateBlock . compileBind) bs1
@@ -210,22 +222,22 @@ compileProg loc (In (Ut.PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v
                                toBlock $ Sequence (concat lets ++ body ++
                                     [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                                     ])]
-compileProg loc (In (Ut.PrimApp2 Ut.Append _ a b)) = do
+compileProg loc (In (PrimApp2 Ut.Append _ a b)) = do
    a' <- compileExpr a
    b' <- compileExpr b
    tellProg [copyProg loc [a', b']]
-compileProg loc (In (Ut.PrimApp3 Ut.SetIx _ arr i a)) = do
+compileProg loc (In (PrimApp3 Ut.SetIx _ arr i a)) = do
    compileProg loc arr
    i' <- compileExpr i
    compileProg (ArrayElem <$> loc <*> pure i') a
-compileProg (Just loc) (In (Ut.PrimApp2 Ut.GetIx _ arr i)) = do
+compileProg (Just loc) (In (PrimApp2 Ut.GetIx _ arr i)) = do
    a' <- compileExpr arr
    i' <- compileExpr i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
                 then [Assign loc el]
                 else [copyProg (Just loc) [el]]
-compileProg loc (In (Ut.PrimApp2 Ut.SetLength _ len arr)) = do
+compileProg loc (In (PrimApp2 Ut.SetLength _ len arr)) = do
    len' <- compileExpr len
    compileProg loc arr
    tellProg [setLength loc len']
@@ -237,36 +249,36 @@ compileProg loc (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
 -- Bits
 -- Complex
 -- Condition
-compileProg loc (In (Ut.PrimApp3 Ut.Condition _ cond tHEN eLSE)) =
+compileProg loc (In (PrimApp3 Ut.Condition _ cond tHEN eLSE)) =
    mkBranch loc cond tHEN $ Just eLSE
-compileProg loc (In (Ut.PrimApp3 Ut.ConditionM _ cond tHEN eLSE)) =
+compileProg loc (In (PrimApp3 Ut.ConditionM _ cond tHEN eLSE)) =
    mkBranch loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg loc (In (Ut.PrimApp2 Ut.EMaterialize t len arr)) = do
+compileProg loc (In (PrimApp2 Ut.EMaterialize t len arr)) = do
    len' <- mkLength len t
    tellProg [initArray loc len']
    compileProg loc arr
-compileProg (Just loc) (In (Ut.PrimApp2 Ut.EWrite _ ix e)) = do
+compileProg (Just loc) (In (PrimApp2 Ut.EWrite _ ix e)) = do
    dst <- compileExpr ix
    compileProg (Just $ ArrayElem loc dst) e
-compileProg loc (In (Ut.PrimApp0 Ut.ESkip _)) = return ()
-compileProg loc (In (Ut.PrimApp2 Ut.EPar _ p1 p2)) = do
+compileProg loc (In (PrimApp0 Ut.ESkip _)) = return ()
+compileProg loc (In (PrimApp2 Ut.EPar _ p1 p2)) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg loc p1
    (_, Block ds2 b2) <- confiscateBlock $ compileProg loc p2
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
-compileProg loc (In (Ut.PrimApp2 Ut.EparFor _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg loc (In (PrimApp2 Ut.EparFor _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    let ix = mkVar (compileTypeRep ta) v
    len' <- mkLength len ta
    (_, ixf') <- confiscateBlock $ compileProg loc ixf
    tellProg [for True (lName ix) len' (litI32 1) ixf']
 -- Error
-compileProg loc (In (Ut.PrimApp0 Ut.Undefined _)) = return ()
-compileProg loc (In (Ut.PrimApp2 (Ut.Assert msg) _ cond a)) = do
+compileProg loc (In (PrimApp0 Ut.Undefined _)) = return ()
+compileProg loc (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
    compileAssert cond msg
    compileProg loc a
 -- Future
-compileProg (Just loc) (In (Ut.PrimApp1 Ut.MkFuture _ p)) = do
+compileProg (Just loc) (In (PrimApp1 Ut.MkFuture _ p)) = do
    env <- ask
    let args = nub $ [case lookup v (alias env) of
                     Nothing -> mkVariable (compileTypeRep t) v
@@ -290,7 +302,7 @@ compileProg (Just loc) (In (Ut.PrimApp1 Ut.MkFuture _ p)) = do
    -- Spawn:
    tellProg [iVarInit (AddrOf loc)]
    tellProg [spawn taskName args]
-compileProg loc (In (Ut.PrimApp1 Ut.Await _ a)) = do
+compileProg loc (In (PrimApp1 Ut.Await _ a)) = do
    fut <- compileExprVar a -- compileExpr a
    tellProg [iVarGet l fut | Just l <- [loc]]
 -- Literal
@@ -299,7 +311,7 @@ compileProg loc (In (Ut.Literal a)) = case loc of
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg (Just loc) (In (Ut.PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) lt1))))
+compileProg (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) lt1))))
   | (bs1, In (Ut.Lambda (Ut.Var st stt) ixf)) <- collectLetBinders lt1
   = do
       blocks <- mapM (confiscateBlock . compileBind) bs1
@@ -313,7 +325,7 @@ compileProg (Just loc) (In (Ut.PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut
                           $ compileProg (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
       tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
       shallowAssign (Just loc) lstate
-compileProg (Just loc) (In (Ut.PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) e@(In (Ut.Lambda (Ut.Var bv bt) body)))) = do
+compileProg (Just loc) (In (PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) e@(In (Ut.Lambda (Ut.Var bv bt) body)))) = do
     let stvar = mkVar (compileTypeRep bt) bv
         condv = mkVar (compileTypeRep (typeof cond)) cv
     (lstate,stvar) <- mkDoubleBufferState loc bv
@@ -324,24 +336,24 @@ compileProg (Just loc) (In (Ut.PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.V
     tellProg [while cond' condv body']
     shallowAssign (Just loc) lstate
 -- LoopM
-compileProg loc (In (Ut.PrimApp2 Ut.While _ (In (Ut.Lambda v cond)) step)) = do
+compileProg loc (In (PrimApp2 Ut.While _ (In (Ut.Lambda v cond)) step)) = do
    condv <- freshVar "cond" (typeof cond)
    (_, cond') <- confiscateBlock $ compileProg (Just condv) cond
    (_, step') <- confiscateBlock $ compileProg loc step
    tellProg [while cond' condv step']
-compileProg loc (In (Ut.PrimApp2 Ut.For _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg loc (In (PrimApp2 Ut.For _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    let ix = mkVar (compileTypeRep ta) v
    len' <- mkLength len ta
    (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
    tellProg [toProg $ Block ds (for False (lName ix) len' (litI32 1) (toBlock body))]
 -- Mutable
-compileProg loc (In (Ut.PrimApp1 Ut.Run _ ma)) = compileProg loc ma
-compileProg loc (In (Ut.PrimApp1 Ut.Return t a))
+compileProg loc (In (PrimApp1 Ut.Run _ ma)) = compileProg loc ma
+compileProg loc (In (PrimApp1 Ut.Return t a))
   | Ut.MutType Ut.UnitType <- t = return ()
   | Ut.ParType Ut.UnitType <- t = return ()
   | otherwise = compileProg loc a
-compileProg loc (In (Ut.PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body))))
-  | (In (Ut.PrimApp0 Ut.ParNew _)) <- ma = do
+compileProg loc (In (PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body))))
+  | (In (PrimApp0 Ut.ParNew _)) <- ma = do
    let var = mkVar (compileTypeRep ta) v
    declare var
    tellProg [iVarInit (AddrOf var)]
@@ -351,65 +363,65 @@ compileProg loc (In (Ut.PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body)
    declare var
    compileProg (Just var) ma
    compileProg loc body
-compileProg loc (In (Ut.PrimApp2 Ut.Then _ ma mb)) = do
+compileProg loc (In (PrimApp2 Ut.Then _ ma mb)) = do
    compileProg Nothing ma
    compileProg loc mb
-compileProg loc (In (Ut.PrimApp2 Ut.When _ c action)) =
+compileProg loc (In (PrimApp2 Ut.When _ c action)) =
    mkBranch loc c action Nothing
 -- MutableArray
-compileProg loc (In (Ut.PrimApp2 Ut.NewArr _ len a)) = do
+compileProg loc (In (PrimApp2 Ut.NewArr _ len a)) = do
    nId <- freshId
    let ix = varToExpr $ mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
    a' <- compileExpr a
    l  <- compileExpr len
    tellProg [initArray loc l]
    tellProg [for False "i" l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
-compileProg loc (In (Ut.PrimApp1 Ut.NewArr_ _ len)) = do
+compileProg loc (In (PrimApp1 Ut.NewArr_ _ len)) = do
    l <- compileExpr len
    tellProg [initArray loc l]
-compileProg loc (In (Ut.PrimApp2 Ut.GetArr _ arr i)) = do
+compileProg loc (In (PrimApp2 Ut.GetArr _ arr i)) = do
    arr' <- compileExpr arr
    i'   <- compileExpr i
    assign loc (ArrayElem arr' i')
-compileProg loc (In (Ut.PrimApp3 Ut.SetArr _ arr i a)) = do
+compileProg loc (In (PrimApp3 Ut.SetArr _ arr i a)) = do
    arr' <- compileExpr arr
    i'   <- compileExpr i
    a'   <- compileExpr a
    assign (Just $ ArrayElem arr' i') a'
 -- MutableReference
-compileProg loc (In (Ut.PrimApp1 Ut.NewRef _ a)) = compileProg loc a
-compileProg loc (In (Ut.PrimApp1 Ut.GetRef _ r)) = compileProg loc r
-compileProg loc (In (Ut.PrimApp2 Ut.SetRef _ r a)) = do
+compileProg loc (In (PrimApp1 Ut.NewRef _ a)) = compileProg loc a
+compileProg loc (In (PrimApp1 Ut.GetRef _ r)) = compileProg loc r
+compileProg loc (In (PrimApp2 Ut.SetRef _ r a)) = do
    var  <- compileExpr r
    compileProg (Just var) a
-compileProg loc (In (Ut.PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg loc (In (PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v ta) body)))) = do
    var <- compileExpr r
    withAlias v var $ compileProg (Just var) body
        -- Since the modifier function is pure it is safe to alias
        -- v with var here
 -- MutableToPure
-compileProg (Just loc) (In (Ut.PrimApp1 Ut.RunMutableArray _ marr))
- | (In (Ut.PrimApp2 Ut.Bind _ (In (Ut.PrimApp1 Ut.NewArr_ _ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
- , (In (Ut.PrimApp1 Ut.Return _ (In (Ut.Variable (Ut.Var r _))))) <- chaseBind body
+compileProg (Just loc) (In (PrimApp1 Ut.RunMutableArray _ marr))
+ | (In (PrimApp2 Ut.Bind _ (In (PrimApp1 Ut.NewArr_ _ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
+ , (In (PrimApp1 Ut.Return _ (In (Ut.Variable (Ut.Var r _))))) <- chaseBind body
  , v == r
  = do
      len <- compileExpr l
      tellProg [setLength (Just loc) len]
      withAlias v loc $ compileProg (Just loc) body
-compileProg loc (In (Ut.PrimApp1 Ut.RunMutableArray _ marr)) = compileProg loc marr
-compileProg loc (In (Ut.PrimApp2 Ut.WithArray _ marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg loc (In (PrimApp1 Ut.RunMutableArray _ marr)) = compileProg loc marr
+compileProg loc (In (PrimApp2 Ut.WithArray _ marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileExpr marr
     withAlias v e $ do
       b <- compileExpr body
       tellProg [copyProg loc [b]]
-compileProg loc (In (Ut.PrimApp2 Ut.WithArray _ marr (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg loc (In (PrimApp2 Ut.WithArray _ marr (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     let var = mkVar (compileTypeRep ta) v
     declare var
     compileProg (Just var) marr
     e <- compileExpr body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg (Just loc) (In (Ut.PrimApp1 Ut.NoInline _ p)) = do
+compileProg (Just loc) (In (PrimApp1 Ut.NoInline _ p)) = do
     let args = nub $ [mkVariable (compileTypeRep t) v
                | (Ut.Var v t) <- Ut.fv p
                ] ++ fv loc
@@ -422,12 +434,12 @@ compileProg (Just loc) (In (Ut.PrimApp1 Ut.NoInline _ p)) = do
     let ins' = map (\v -> ValueParameter $ varToExpr $ Rep.Variable (typeof v) (vName v)) ins
     tellProg [call funname $ ins' ++ [ValueParameter loc]]
 -- Par
-compileProg loc (In (Ut.PrimApp1 Ut.ParRun _ p)) = compileProg loc p
-compileProg loc (In (Ut.PrimApp0 Ut.ParNew _)) = return ()
-compileProg loc (In (Ut.PrimApp1 Ut.ParGet _ r)) = do
+compileProg loc (In (PrimApp1 Ut.ParRun _ p)) = compileProg loc p
+compileProg loc (In (PrimApp0 Ut.ParNew _)) = return ()
+compileProg loc (In (PrimApp1 Ut.ParGet _ r)) = do
     iv <- compileExpr r
     tellProg [iVarGet l iv | Just l <- [loc]]
-compileProg loc (In (Ut.PrimApp2 Ut.ParPut _ r a)) = do
+compileProg loc (In (PrimApp2 Ut.ParPut _ r a)) = do
     iv  <- compileExpr r
     val <- compileExpr a
     i   <- freshId
@@ -435,7 +447,7 @@ compileProg loc (In (Ut.PrimApp2 Ut.ParPut _ r a)) = do
     declare var
     assign (Just var) val
     tellProg [iVarPut iv var]
-compileProg loc (In (Ut.PrimApp1 Ut.ParFork _ p)) = do
+compileProg loc (In (PrimApp1 Ut.ParFork _ p)) = do
    env <- ask
    let args = nub $ [case lookup v (alias env) of
                      Nothing -> mkVariable (compileTypeRep t) v
@@ -454,21 +466,21 @@ compileProg loc (In (Ut.PrimApp1 Ut.ParFork _ p)) = do
    tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
    -- Spawn:
    tellProg [spawn taskName args]
-compileProg loc (In (Ut.PrimApp0 Ut.ParYield _)) = return ()
+compileProg loc (In (PrimApp0 Ut.ParYield _)) = return ()
 -- Save
-compileProg loc (In (Ut.PrimApp1 Ut.Save _ e)) = compileProg loc e
+compileProg loc (In (PrimApp1 Ut.Save _ e)) = compileProg loc e
 -- SizeProp
-compileProg loc (In (Ut.PrimApp1 Ut.PropSize _ e)) = compileProg loc e
+compileProg loc (In (PrimApp1 Ut.PropSize _ e)) = compileProg loc e
 -- SourceInfo
-compileProg loc (In (Ut.PrimApp1 (Ut.SourceInfo info) _ a)) = do
+compileProg loc (In (PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileProg loc a
 -- Switch
-compileProg loc (In (Ut.PrimApp1 Ut.Switch _ tree@(In (Ut.PrimApp3 Ut.Condition _ (In (Ut.PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
+compileProg loc (In (PrimApp1 Ut.Switch _ tree@(In (PrimApp3 Ut.Condition _ (In (PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
     scrutinee <- compileExpr s
     alts      <- chaseTree loc s tree
     tellProg [Switch{..}]
-compileProg loc (In (Ut.PrimApp1 Ut.Switch _ tree)) = compileProg loc tree
+compileProg loc (In (PrimApp1 Ut.Switch _ tree)) = compileProg loc tree
 -- Tuple
 compileProg loc (In (Ut.Tup2 m1 m2)) = do
     compileProg (StructField <$> loc <*> pure "member1") m1
@@ -508,10 +520,10 @@ compileProg loc e = compileExprLoc loc e
 
 compileExpr :: Ut.UntypedFeld -> CodeWriter (Expression ())
 -- Array
-compileExpr (In (Ut.PrimApp1 Ut.GetLength _ a)) = do
+compileExpr (In (PrimApp1 Ut.GetLength _ a)) = do
    aExpr <- compileExpr a
    return $ arrayLength aExpr
-compileExpr (In (Ut.PrimApp2 Ut.GetIx _ arr i)) = do
+compileExpr (In (PrimApp2 Ut.GetIx _ arr i)) = do
    a' <- compileExpr arr
    i' <- compileExpr i
    return $ ArrayElem a' i'
@@ -525,15 +537,15 @@ compileExpr (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet a ta v
     withAlias v e $ compileExpr body
 -- Error
-compileExpr (In (Ut.PrimApp2 (Ut.Assert msg) _ cond a)) = do
+compileExpr (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
     compileAssert cond msg
     compileExpr a
 -- Eq
-compileExpr (In (Ut.PrimApp2 o@Ut.Equal t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.Equal t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.NotEqual t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.NotEqual t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
@@ -542,100 +554,100 @@ compileExpr (In (Ut.ForeignImport name t es)) = do
     es' <- mapM compileExpr es
     return $ fun' Prefix (compileTypeRep t) True name es'
 -- Floating
-compileExpr (In (Ut.PrimApp0 Ut.Pi t)) = error "No pi ready"
+compileExpr (In (PrimApp0 Ut.Pi t)) = error "No pi ready"
 -- Future
-compileExpr e@(In (Ut.PrimApp1 Ut.MkFuture _ _)) = compileProgFresh e
-compileExpr e@(In (Ut.PrimApp1 Ut.Await _ _)) = compileProgFresh e
+compileExpr e@(In (PrimApp1 Ut.MkFuture _ _)) = compileProgFresh e
+compileExpr e@(In (PrimApp1 Ut.Await _ _)) = compileProgFresh e
 -- Literal
 compileExpr (In (Ut.Literal l)) = literal l
 -- Logic
-compileExpr (In (Ut.PrimApp2 o@Ut.And t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.And t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.Or t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.Or t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Mutable
-compileExpr (In (Ut.PrimApp1 Ut.Run _ ma)) = compileExpr ma
+compileExpr (In (PrimApp1 Ut.Run _ ma)) = compileExpr ma
 -- MutableArray
-compileExpr (In (Ut.PrimApp1 Ut.ArrLength _ arr)) = do
+compileExpr (In (PrimApp1 Ut.ArrLength _ arr)) = do
     a' <- compileExpr arr
     return $ arrayLength a'
-compileExpr e@(In (Ut.PrimApp2 Ut.WithArray _ marr f)) = compileProgFresh e
+compileExpr e@(In (PrimApp2 Ut.WithArray _ marr f)) = compileProgFresh e
 -- MutableReference
-compileExpr (In (Ut.PrimApp1 Ut.GetRef _ r)) = compileExpr r
+compileExpr (In (PrimApp1 Ut.GetRef _ r)) = compileExpr r
 -- MutableToPure
-compileExpr e@(In (Ut.PrimApp1 Ut.RunMutableArray _ _)) = compileProgFresh e
+compileExpr e@(In (PrimApp1 Ut.RunMutableArray _ _)) = compileProgFresh e
 -- NoInline
-compileExpr e@(In (Ut.PrimApp1 Ut.NoInline _ _)) = compileProgFresh e
+compileExpr e@(In (PrimApp1 Ut.NoInline _ _)) = compileProgFresh e
 -- Num
-compileExpr (In (Ut.PrimApp2 o@Ut.Add t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.Add t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.Sub t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.Sub t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.Mul t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.Mul t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Ord
-compileExpr (In (Ut.PrimApp2 o@Ut.LTH t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.LTH t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.GTH t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.GTH t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.LTE t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.LTE t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
-compileExpr (In (Ut.PrimApp2 o@Ut.GTE t e1 e2)) = do
+compileExpr (In (PrimApp2 o@Ut.GTE t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Save
-compileExpr (In (Ut.PrimApp1 Ut.Save _ e)) = compileExpr e
+compileExpr (In (PrimApp1 Ut.Save _ e)) = compileExpr e
 -- SizeProp
-compileExpr (In (Ut.PrimApp1 Ut.PropSize _ e)) = compileExpr e
+compileExpr (In (PrimApp1 Ut.PropSize _ e)) = compileExpr e
 -- SourceInfo
-compileExpr (In (Ut.PrimApp1 (Ut.SourceInfo info) _ a)) = do
+compileExpr (In (PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileExpr a
 -- Tuple
-compileExpr (In (Ut.PrimApp1 Ut.Sel1 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel1 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member1"
-compileExpr (In (Ut.PrimApp1 Ut.Sel2 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel2 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member2"
-compileExpr (In (Ut.PrimApp1 Ut.Sel3 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel3 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member3"
-compileExpr (In (Ut.PrimApp1 Ut.Sel4 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel4 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member4"
-compileExpr (In (Ut.PrimApp1 Ut.Sel5 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel5 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member5"
-compileExpr (In (Ut.PrimApp1 Ut.Sel6 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel6 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member6"
-compileExpr (In (Ut.PrimApp1 Ut.Sel7 _ tup)) = do
+compileExpr (In (PrimApp1 Ut.Sel7 _ tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member7"
-compileExpr (In (Ut.PrimApp0 p t)) = do
+compileExpr (In (PrimApp0 p t)) = do
     return $ fun' Prefix (compileTypeRep t) True (compileOp p) []
-compileExpr (In (Ut.PrimApp1 p t e)) = do
+compileExpr (In (PrimApp1 p t e)) = do
     e' <- compileExpr e
     return $ fun' Prefix (compileTypeRep t) True (compileOp p) [e']
-compileExpr (In (Ut.PrimApp2 p t e1 e2)) = do
+compileExpr (In (PrimApp2 p t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Prefix (compileTypeRep t) True (compileOp p) [e1', e2']
@@ -724,7 +736,7 @@ literalLoc loc t =
 
 chaseTree :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
-chaseTree loc _s (In (Ut.PrimApp3 Ut.Condition _ (In (Ut.PrimApp2 Ut.Equal _ c  a)) t f))
+chaseTree loc _s (In (PrimApp3 Ut.Condition _ (In (PrimApp2 Ut.Equal _ c  a)) t f))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
          e <- compileExpr c
@@ -739,8 +751,8 @@ chaseTree loc _ a = do
 -- | Chase down the right-spine of `Bind` and `Then` constructs and return
 -- the last term
 chaseBind :: Ut.UntypedFeld -> Ut.UntypedFeld
-chaseBind (In (Ut.PrimApp2 Ut.Bind _ _ (In (Ut.Lambda _  body)))) = chaseBind body
-chaseBind (In (Ut.PrimApp2 Ut.Then _ _ body))                     = chaseBind body
+chaseBind (In (PrimApp2 Ut.Bind _ _ (In (Ut.Lambda _  body)))) = chaseBind body
+chaseBind (In (PrimApp2 Ut.Then _ _ body))                     = chaseBind body
 chaseBind a                                         = a
 
 {- NOTES:
@@ -764,11 +776,12 @@ compileBind (Ut.Var v t, e) = do
    declare var
    compileProg (Just var) e
 
+-- Class for translating PrimOp names to strings.
 class CompileOp a where
   compileOp :: Show a => a -> String
 
 instance CompileOp Ut.PrimOp0 where
-  compileOp p         = toLower h:t
+  compileOp p            = toLower h:t
     where (h:t) = show p
 
 instance CompileOp Ut.PrimOp1 where
@@ -778,7 +791,7 @@ instance CompileOp Ut.PrimOp1 where
   compileOp Ut.I2N       = "i2n"
   compileOp Ut.B2I       = "b2i"
   compileOp Ut.Sign      = "signum"
-  compileOp p         = toLower h:t
+  compileOp p            = toLower h:t
     where (h:t) = show p
 
 instance CompileOp Ut.PrimOp2 where
@@ -804,5 +817,5 @@ instance CompileOp Ut.PrimOp2 where
   compileOp Ut.GTH       = ">"
   compileOp Ut.LTE       = "<="
   compileOp Ut.GTE       = "<="
-  compileOp p         = toLower h:t
+  compileOp p            = toLower h:t
     where (h:t) = show p
