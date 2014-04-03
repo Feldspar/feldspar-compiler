@@ -243,19 +243,19 @@ compileProg loc (In (Ut.PrimApp3 Ut.ConditionM _ cond tHEN eLSE)) =
    mkBranch loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg loc (In (Ut.EMaterialize len arr)) = do
-   len' <- mkLength len (typeof len)
+compileProg loc (In (Ut.PrimApp2 Ut.EMaterialize t len arr)) = do
+   len' <- mkLength len t
    tellProg [initArray loc len']
    compileProg loc arr
-compileProg (Just loc) (In (Ut.EWrite ix e)) = do
+compileProg (Just loc) (In (Ut.PrimApp2 Ut.EWrite _ ix e)) = do
    dst <- compileExpr ix
    compileProg (Just $ ArrayElem loc dst) e
-compileProg loc (In Ut.ESkip) = tellProg [Comment True "Skip"]
-compileProg loc (In (Ut.EPar p1 p2)) = do
+compileProg loc (In (Ut.PrimApp0 Ut.ESkip _)) = return ()
+compileProg loc (In (Ut.PrimApp2 Ut.EPar _ p1 p2)) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg loc p1
    (_, Block ds2 b2) <- confiscateBlock $ compileProg loc p2
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
-compileProg loc (In (Ut.EparFor len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg loc (In (Ut.PrimApp2 Ut.EparFor _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    let ix = mkVar (compileTypeRep ta) v
    len' <- mkLength len ta
    (_, ixf') <- confiscateBlock $ compileProg loc ixf
