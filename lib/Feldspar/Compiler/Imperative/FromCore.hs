@@ -266,7 +266,7 @@ compileProg loc (In (Ut.PrimApp2 (Ut.Assert msg) _ cond a)) = do
    compileAssert cond msg
    compileProg loc a
 -- Future
-compileProg (Just loc) (In (Ut.MkFuture p)) = do
+compileProg (Just loc) (In (Ut.PrimApp1 Ut.MkFuture _ p)) = do
    env <- ask
    let args = nub $ [case lookup v (alias env) of
                     Nothing -> mkVariable (compileTypeRep t) v
@@ -290,7 +290,7 @@ compileProg (Just loc) (In (Ut.MkFuture p)) = do
    -- Spawn:
    tellProg [iVarInit (AddrOf loc)]
    tellProg [spawn taskName args]
-compileProg loc (In (Ut.Await a)) = do
+compileProg loc (In (Ut.PrimApp1 Ut.Await _ a)) = do
    fut <- compileExprVar a -- compileExpr a
    tellProg [iVarGet l fut | Just l <- [loc]]
 -- Literal
@@ -409,7 +409,7 @@ compileProg loc (In (Ut.PrimApp2 Ut.WithArray _ marr (In (Ut.Lambda (Ut.Var v ta
     e <- compileExpr body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg (Just loc) (In (Ut.NoInline p)) = do
+compileProg (Just loc) (In (Ut.PrimApp1 Ut.NoInline _ p)) = do
     let args = nub $ [mkVariable (compileTypeRep t) v
                | (Ut.Var v t) <- Ut.fv p
                ] ++ fv loc
@@ -548,6 +548,9 @@ compileExpr (In (Ut.DivFrac e1 e2)) = do
     return $ fun' Prefix (typeof e1') True "div" [e1', e2']
 -- Floating
 compileExpr (In (Ut.PrimApp0 Ut.Pi t)) = error "No pi ready"
+-- Future
+compileExpr e@(In (Ut.PrimApp1 Ut.MkFuture _ _)) = compileProgFresh e
+compileExpr e@(In (Ut.PrimApp1 Ut.Await _ _)) = compileProgFresh e
 -- Literal
 compileExpr (In (Ut.Literal l)) = literal l
 -- Logic
@@ -570,6 +573,8 @@ compileExpr e@(In (Ut.PrimApp2 Ut.WithArray _ marr f)) = compileProgFresh e
 compileExpr (In (Ut.PrimApp1 Ut.GetRef _ r)) = compileExpr r
 -- MutableToPure
 compileExpr e@(In (Ut.PrimApp1 Ut.RunMutableArray _ _)) = compileProgFresh e
+-- NoInline
+compileExpr e@(In (Ut.PrimApp1 Ut.NoInline _ _)) = compileProgFresh e
 -- Num
 compileExpr (In (Ut.PrimApp2 o@Ut.Add t e1 e2)) = do
     e1' <- compileExpr e1
