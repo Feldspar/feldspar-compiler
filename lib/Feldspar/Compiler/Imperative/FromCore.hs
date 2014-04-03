@@ -658,17 +658,14 @@ compileExpr (In (Ut.IExp e1 e2)) = do
 -- Literal
 compileExpr (In (Ut.Literal l)) = literal l
 -- Logic
-compileExpr (In (Ut.And e1 e2)) = do
+compileExpr (In (Ut.PrimApp2 o@Ut.And t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True "&&" [e1', e2']
-compileExpr (In (Ut.Or e1 e2)) = do
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (Ut.PrimApp2 o@Ut.Or t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
-    return $ fun' Infix (Rep.MachineVector 1 Rep.BoolType) True "||" [e1', e2']
-compileExpr (In (Ut.Not e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (Rep.MachineVector 1 Rep.BoolType) True "not" [e']
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Mutable
 compileExpr (In (Ut.Run ma)) = compileExpr ma
 -- MutableArray
@@ -894,6 +891,9 @@ instance CompileOp Ut.PrimOp2 where
   -- Bits
   compileOp Ut.BAnd      = "&"
   compileOp Ut.BOr       = "|"
+  -- Logic
+  compileOp Ut.And      = "&&"
+  compileOp Ut.Or       = "||"
   -- Num
   compileOp Ut.Add       = "+"
   compileOp Ut.Sub       = "-"
