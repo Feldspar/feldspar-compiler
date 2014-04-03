@@ -458,19 +458,19 @@ compileProg loc (In (Ut.ParFork p)) = do
    tellProg [spawn taskName args]
 compileProg loc (In (Ut.ParYield)) = return ()
 -- Save
-compileProg loc (In (Ut.Save e)) = compileProg loc e
+compileProg loc (In (Ut.PrimApp1 Ut.Save _ e)) = compileProg loc e
 -- SizeProp
-compileProg loc (In (Ut.PropSize e)) = compileProg loc e
+compileProg loc (In (Ut.PrimApp1 Ut.PropSize _ e)) = compileProg loc e
 -- SourceInfo
-compileProg loc (In (Ut.SourceInfo info a)) = do
+compileProg loc (In (Ut.PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileProg loc a
 -- Switch
-compileProg loc (In (Ut.Switch tree@(In (Ut.Condition (In (Ut.PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
+compileProg loc (In (Ut.PrimApp1 Ut.Switch _ tree@(In (Ut.Condition (In (Ut.PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
     scrutinee <- compileExpr s
     alts      <- chaseTree loc s tree
     tellProg [Switch{..}]
-compileProg loc (In (Ut.Switch tree)) = compileProg loc tree
+compileProg loc (In (Ut.PrimApp1 Ut.Switch _ tree)) = compileProg loc tree
 -- Tuple
 compileProg loc (In (Ut.Tup2 m1 m2)) = do
     compileProg (StructField <$> loc <*> pure "member1") m1
@@ -599,15 +599,17 @@ compileExpr (In (Ut.PrimApp2 o@Ut.GTE t e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+-- Save
+compileExpr (In (Ut.PrimApp1 Ut.Save _ e)) = compileExpr e
 -- SizeProp
-compileExpr (In (Ut.PropSize e)) = compileExpr e
+compileExpr (In (Ut.PrimApp1 Ut.PropSize _ e)) = compileExpr e
 -- RealFloat
 compileExpr (In (Ut.Atan2 e1 e2)) = do
     e1' <- compileExpr e1
     e2' <- compileExpr e2
     return $ fun' Prefix (typeof e1') True "atan2" [e1', e2']
 -- SourceInfo
-compileExpr (In (Ut.SourceInfo info a)) = do
+compileExpr (In (Ut.PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileExpr a
 -- Trace
