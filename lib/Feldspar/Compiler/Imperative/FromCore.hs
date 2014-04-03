@@ -37,6 +37,7 @@
 
 module Feldspar.Compiler.Imperative.FromCore where
 
+import Data.Char (toLower)
 import Data.List (nub, partition, last)
 import Data.Maybe (isJust, fromJust)
 
@@ -525,82 +526,6 @@ compileExpr (In (Ut.Variable (Ut.Var v t))) = do
 compileExpr (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet a ta v
     withAlias v e $ compileExpr body
--- Bits
-compileExpr (In (Ut.BAnd e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Infix (typeof e1') True "&" [e1', e2']
-compileExpr (In (Ut.BOr e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Infix (typeof e1') True "|" [e1', e2']
-compileExpr (In (Ut.BXor e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "xor" [e1', e2']
-compileExpr (In (Ut.Complement e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "complement" [e']
-compileExpr (In (Ut.Bit e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix Rep.VoidType True "bit" [e']
-compileExpr (In (Ut.SetBit e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "setBit" [e1', e2']
-compileExpr (In (Ut.ClearBit e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "" [e1', e2']
-compileExpr (In (Ut.ComplementBit e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "complementBit" [e1', e2']
-compileExpr (In (Ut.TestBit e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (Rep.MachineVector 1 Rep.BoolType) True "testBit" [e1', e2']
-compileExpr (In (Ut.ShiftLU e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "shiftLU" [e1', e2']
-compileExpr (In (Ut.ShiftRU e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "shiftRU" [e1', e2']
-compileExpr (In (Ut.ShiftL e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "shiftL" [e1', e2']
-compileExpr (In (Ut.ShiftR e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "shiftR" [e1', e2']
-compileExpr (In (Ut.RotateLU e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "rotateLU" [e1', e2']
-compileExpr (In (Ut.RotateRU e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "rotateRU" [e1', e2']
-compileExpr (In (Ut.RotateL e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "rotateL" [e1', e2']
-compileExpr (In (Ut.RotateR e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "rotateR" [e1', e2']
-compileExpr (In (Ut.ReverseBits e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "reverseBits" [e']
-compileExpr (In (Ut.BitScan e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) True "bitScan" [e']
-compileExpr (In (Ut.BitCount e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) True "bitCount" [e']
 -- Complex
 compileExpr (In (Ut.MkComplex e1 e2)) = do
     e1' <- compileExpr e1
@@ -853,6 +778,13 @@ compileExpr (In (Ut.Sel6 tup)) = do
 compileExpr (In (Ut.Sel7 tup)) = do
     tupExpr <- compileExpr tup
     return $ StructField tupExpr "member7"
+compileExpr (In (Ut.PrimApp1 p t e)) = do
+    e' <- compileExpr e
+    return $ fun' Prefix (compileTypeRep t) True (compileOp p) [e']
+compileExpr (In (Ut.PrimApp2 p t e1 e2)) = do
+    e1' <- compileExpr e1
+    e2' <- compileExpr e2
+    return $ fun' Prefix (compileTypeRep t) True (compileOp p) [e1', e2']
 compileExpr e = compileProgFresh e
 
 compileLet :: Ut.UntypedFeld -> Ut.Type -> Integer -> CodeWriter (Expression ())
@@ -977,3 +909,22 @@ compileBind (Ut.Var v t, e) = do
    let var = mkVar (compileTypeRep t) v
    declare var
    compileProg (Just var) e
+
+class CompileOp a where
+  compileOp :: Show a => a -> String
+
+instance CompileOp Ut.PrimOp1 where
+{-  compileOp Ut.RealPart  = "creal"
+  compileOp Ut.ImagPart  = "cimag"
+  compileOp Ut.F2I       = "f2i"
+  compileOp Ut.I2N       = "i2n"
+  compileOp Ut.B2I       = "b2i"
+  compileOp Ut.Sign      = "signum"-}
+  compileOp p         = toLower h:t
+    where (h:t) = show p
+
+instance CompileOp Ut.PrimOp2 where
+  compileOp Ut.BAnd      = "&"
+  compileOp Ut.BOr       = "|"
+  compileOp p         = toLower h:t
+    where (h:t) = show p
