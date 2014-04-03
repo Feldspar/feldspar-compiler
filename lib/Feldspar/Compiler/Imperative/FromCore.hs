@@ -538,9 +538,9 @@ compileExpr (In (Ut.PrimApp2 o@Ut.NotEqual t e1 e2)) = do
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- FFI
-compileExpr (In (Ut.ForeignImport name es)) = do
+compileExpr (In (Ut.ForeignImport name t es)) = do
     es' <- mapM compileExpr es
-    return $ fun' Prefix Rep.VoidType True name es'
+    return $ fun' Prefix (compileTypeRep t) True name es'
 -- Floating
 compileExpr (In (Ut.PrimApp0 Ut.Pi t)) = error "No pi ready"
 -- Future
