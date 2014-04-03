@@ -335,10 +335,10 @@ compileProg loc (In (Ut.For len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
    tellProg [toProg $ Block ds (for False (lName ix) len' (litI32 1) (toBlock body))]
 -- Mutable
-compileProg loc (In (Ut.Run ma)) = compileProg loc ma
-compileProg loc (In (Ut.Return a))
-  | Ut.MutType Ut.UnitType <- Ut.typeof a = return ()
-  | Ut.ParType Ut.UnitType <- Ut.typeof a = return ()
+compileProg loc (In (Ut.PrimApp1 Ut.Run _ ma)) = compileProg loc ma
+compileProg loc (In (Ut.PrimApp1 Ut.Return t a))
+  | Ut.MutType Ut.UnitType <- t = return ()
+  | Ut.ParType Ut.UnitType <- t = return ()
   | otherwise = compileProg loc a
 compileProg loc (In (Ut.Bind ma (In (Ut.Lambda (Ut.Var v ta) body))))
   | (In Ut.ParNew) <- ma = do
@@ -390,7 +390,7 @@ compileProg loc (In (Ut.ModRef r (In (Ut.Lambda (Ut.Var v ta) body)))) = do
 -- MutableToPure
 compileProg (Just loc) (In (Ut.RunMutableArray marr))
  | (In (Ut.Bind (In (Ut.NewArr_ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
- , (In (Ut.Return (In (Ut.Variable (Ut.Var r _))))) <- chaseBind body
+ , (In (Ut.PrimApp1 Ut.Return _ (In (Ut.Variable (Ut.Var r _))))) <- chaseBind body
  , v == r
  = do
      len <- compileExpr l
@@ -562,7 +562,7 @@ compileExpr (In (Ut.PrimApp2 o@Ut.Or t e1 e2)) = do
     e2' <- compileExpr e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Mutable
-compileExpr (In (Ut.Run ma)) = compileExpr ma
+compileExpr (In (Ut.PrimApp1 Ut.Run _ ma)) = compileExpr ma
 -- MutableArray
 compileExpr (In (Ut.ArrLength arr)) = do
     a' <- compileExpr arr
