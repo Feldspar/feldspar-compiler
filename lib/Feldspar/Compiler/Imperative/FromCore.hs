@@ -357,21 +357,21 @@ compileProg loc (In (Ut.PrimApp2 Ut.Then _ ma mb)) = do
 compileProg loc (In (Ut.PrimApp2 Ut.When _ c action)) =
    mkBranch loc c action Nothing
 -- MutableArray
-compileProg loc (In (Ut.NewArr len a)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.NewArr _ len a)) = do
    nId <- freshId
    let ix = varToExpr $ mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
    a' <- compileExpr a
    l  <- compileExpr len
    tellProg [initArray loc l]
    tellProg [for False "i" l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
-compileProg loc (In (Ut.NewArr_ len)) = do
+compileProg loc (In (Ut.PrimApp1 Ut.NewArr_ _ len)) = do
    l <- compileExpr len
    tellProg [initArray loc l]
-compileProg loc (In (Ut.GetArr arr i)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.GetArr _ arr i)) = do
    arr' <- compileExpr arr
    i'   <- compileExpr i
    assign loc (ArrayElem arr' i')
-compileProg loc (In (Ut.SetArr arr i a)) = do
+compileProg loc (In (Ut.PrimApp3 Ut.SetArr _ arr i a)) = do
    arr' <- compileExpr arr
    i'   <- compileExpr i
    a'   <- compileExpr a
@@ -388,28 +388,26 @@ compileProg loc (In (Ut.PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v ta) body
        -- Since the modifier function is pure it is safe to alias
        -- v with var here
 -- MutableToPure
-compileProg (Just loc) (In (Ut.RunMutableArray marr))
- | (In (Ut.PrimApp2 Ut.Bind _ (In (Ut.NewArr_ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
+compileProg (Just loc) (In (Ut.PrimApp1 Ut.RunMutableArray _ marr))
+ | (In (Ut.PrimApp2 Ut.Bind _ (In (Ut.PrimApp1 Ut.NewArr_ _ l)) (In (Ut.Lambda (Ut.Var v t) body)))) <- marr
  , (In (Ut.PrimApp1 Ut.Return _ (In (Ut.Variable (Ut.Var r _))))) <- chaseBind body
  , v == r
  = do
      len <- compileExpr l
      tellProg [setLength (Just loc) len]
      withAlias v loc $ compileProg (Just loc) body
-compileProg loc (In (Ut.RunMutableArray marr)) = compileProg loc marr
-compileProg loc (In (Ut.WithArray marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg loc (In (Ut.PrimApp1 Ut.RunMutableArray _ marr)) = compileProg loc marr
+compileProg loc (In (Ut.PrimApp2 Ut.WithArray _ marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileExpr marr
     withAlias v e $ do
       b <- compileExpr body
       tellProg [copyProg loc [b]]
-compileProg loc (In (Ut.WithArray marr (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg loc (In (Ut.PrimApp2 Ut.WithArray _ marr (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     let var = mkVar (compileTypeRep ta) v
     declare var
     compileProg (Just var) marr
     e <- compileExpr body
     tellProg [copyProg loc [e]]
-
-
 -- Noinline
 compileProg (Just loc) (In (Ut.NoInline p)) = do
     let args = nub $ [mkVariable (compileTypeRep t) v
@@ -564,11 +562,14 @@ compileExpr (In (Ut.PrimApp2 o@Ut.Or t e1 e2)) = do
 -- Mutable
 compileExpr (In (Ut.PrimApp1 Ut.Run _ ma)) = compileExpr ma
 -- MutableArray
-compileExpr (In (Ut.ArrLength arr)) = do
+compileExpr (In (Ut.PrimApp1 Ut.ArrLength _ arr)) = do
     a' <- compileExpr arr
     return $ arrayLength a'
+compileExpr e@(In (Ut.PrimApp2 Ut.WithArray _ marr f)) = compileProgFresh e
 -- MutableReference
 compileExpr (In (Ut.PrimApp1 Ut.GetRef _ r)) = compileExpr r
+-- MutableToPure
+compileExpr e@(In (Ut.PrimApp1 Ut.RunMutableArray _ _)) = compileProgFresh e
 -- Num
 compileExpr (In (Ut.PrimApp2 o@Ut.Add t e1 e2)) = do
     e1' <- compileExpr e1
