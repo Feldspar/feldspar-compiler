@@ -557,25 +557,6 @@ compileExpr (In (Ut.Phase e)) = do
 compileExpr (In (Ut.Cis e)) = do
     e' <- compileExpr e
     return $ fun' Prefix (Rep.MachineVector 1 (Rep.ComplexType (typeof e'))) True "cis" [e']
--- Conversion
-compileExpr (In (Ut.F2I t e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (compileTypeRep t) True "f2i" [e']
-compileExpr (In (Ut.I2N t e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (compileTypeRep t) True "i2n" [e']
-compileExpr (In (Ut.B2I t e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (compileTypeRep t) True "b2i" [e']
-compileExpr (In (Ut.Round t e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (compileTypeRep t) True "round" [e']
-compileExpr (In (Ut.Ceiling t e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (compileTypeRep t) True "ceiling" [e']
-compileExpr (In (Ut.Floor t e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (compileTypeRep t) True "floor" [e']
 -- Error
 compileExpr (In (Ut.Assert cond a)) = do
     compileAssert cond "temp msg" -- msg
@@ -915,11 +896,11 @@ class CompileOp a where
 
 instance CompileOp Ut.PrimOp1 where
 {-  compileOp Ut.RealPart  = "creal"
-  compileOp Ut.ImagPart  = "cimag"
+  compileOp Ut.ImagPart  = "cimag"-}
   compileOp Ut.F2I       = "f2i"
   compileOp Ut.I2N       = "i2n"
   compileOp Ut.B2I       = "b2i"
-  compileOp Ut.Sign      = "signum"-}
+--  compileOp Ut.Sign      = "signum"
   compileOp p         = toLower h:t
     where (h:t) = show p
 
