@@ -164,14 +164,14 @@ mkBranch loc c th el = do
 
 compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg loc (In (Ut.Parallel len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg loc (In (Ut.PrimApp2 Ut.Parallel _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
    let ix = mkVar (compileTypeRep ta) v
    len' <- mkLength len ta
    (_, b) <- confiscateBlock $ compileProg (ArrayElem <$> loc <*> pure ix) ixf
    tellProg [initArray loc len']
    tellProg [for True (lName ix) len' (litI32 1) b]
-compileProg loc (In (Ut.Sequential len init' (In (Ut.Lambda (Ut.Var v tix) lt1))))
-   | (bs1, In (Ut.Lambda (Ut.Var s tst) l))         <- collectLetBinders lt1
+compileProg loc (In (Ut.PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v tix) lt1))))
+   | (bs1, In (Ut.Lambda (Ut.Var s tst) l)) <- collectLetBinders lt1
    , (bs, In (Ut.Tup2 (In (Ut.Variable t1)) (In (Ut.Variable t2)))) <- collectLetBinders l
    , not $ null bs
    , (e, step) <- last bs
@@ -193,8 +193,8 @@ compileProg loc (In (Ut.Sequential len init' (In (Ut.Lambda (Ut.Var v tix) lt1))
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for False (lName ix) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg loc (In (Ut.Sequential len st (In (Ut.Lambda (Ut.Var v t) lt1))))
-  | (bs1, In (Ut.Lambda (Ut.Var s _) step))          <- collectLetBinders lt1
+compileProg loc (In (Ut.PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v t) lt1))))
+  | (bs1, In (Ut.Lambda (Ut.Var s _) step)) <- collectLetBinders lt1
   = do
        blocks <- mapM (confiscateBlock . compileBind) bs1
        let tr' = typeof step
@@ -210,22 +210,22 @@ compileProg loc (In (Ut.Sequential len st (In (Ut.Lambda (Ut.Var v t) lt1))))
                                toBlock $ Sequence (concat lets ++ body ++
                                     [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                                     ])]
-compileProg loc (In (Ut.Append a b)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.Append _ a b)) = do
    a' <- compileExpr a
    b' <- compileExpr b
    tellProg [copyProg loc [a', b']]
-compileProg loc (In (Ut.SetIx arr i a)) = do
+compileProg loc (In (Ut.PrimApp3 Ut.SetIx _ arr i a)) = do
    compileProg loc arr
    i' <- compileExpr i
    compileProg (ArrayElem <$> loc <*> pure i') a
-compileProg (Just loc) (In (Ut.GetIx arr i)) = do
+compileProg (Just loc) (In (Ut.PrimApp2 Ut.GetIx _ arr i)) = do
    a' <- compileExpr arr
    i' <- compileExpr i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
                 then [Assign loc el]
                 else [copyProg (Just loc) [el]]
-compileProg loc (In (Ut.SetLength len arr)) = do
+compileProg loc (In (Ut.PrimApp2 Ut.SetLength _ len arr)) = do
    len' <- compileExpr len
    compileProg loc arr
    tellProg [setLength loc len']
@@ -510,10 +510,10 @@ compileProg loc e = compileExprLoc loc e
 
 compileExpr :: Ut.UntypedFeld -> CodeWriter (Expression ())
 -- Array
-compileExpr (In (Ut.GetLength a)) = do
+compileExpr (In (Ut.PrimApp1 Ut.GetLength _ a)) = do
    aExpr <- compileExpr a
    return $ arrayLength aExpr
-compileExpr (In (Ut.GetIx arr i)) = do
+compileExpr (In (Ut.PrimApp2 Ut.GetIx _ arr i)) = do
    a' <- compileExpr arr
    i' <- compileExpr i
    return $ ArrayElem a' i'
