@@ -603,20 +603,10 @@ compileExpr (In (Ut.PrimApp2 o@Ut.GTE t e1 e2)) = do
 compileExpr (In (Ut.PrimApp1 Ut.Save _ e)) = compileExpr e
 -- SizeProp
 compileExpr (In (Ut.PrimApp1 Ut.PropSize _ e)) = compileExpr e
--- RealFloat
-compileExpr (In (Ut.Atan2 e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e1') True "atan2" [e1', e2']
 -- SourceInfo
 compileExpr (In (Ut.PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileExpr a
--- Trace
-compileExpr (In (Ut.Trace e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (typeof e2') True "trace" [e1', e2']
 -- Tuple
 compileExpr (In (Ut.PrimApp1 Ut.Sel1 _ tup)) = do
     tupExpr <- compileExpr tup
