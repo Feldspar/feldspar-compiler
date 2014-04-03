@@ -237,9 +237,9 @@ compileProg loc (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
 -- Bits
 -- Complex
 -- Condition
-compileProg loc (In (Ut.Condition cond tHEN eLSE)) =
+compileProg loc (In (Ut.PrimApp3 Ut.Condition _ cond tHEN eLSE)) =
    mkBranch loc cond tHEN $ Just eLSE
-compileProg loc (In (Ut.ConditionM cond tHEN eLSE)) =
+compileProg loc (In (Ut.PrimApp3 Ut.ConditionM _ cond tHEN eLSE)) =
    mkBranch loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
@@ -299,7 +299,7 @@ compileProg loc (In (Ut.Literal a)) = case loc of
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg (Just loc) (In (Ut.ForLoop len init (In (Ut.Lambda (Ut.Var ix ta) lt1))))
+compileProg (Just loc) (In (Ut.PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) lt1))))
   | (bs1, In (Ut.Lambda (Ut.Var st stt) ixf)) <- collectLetBinders lt1
   = do
       blocks <- mapM (confiscateBlock . compileBind) bs1
@@ -313,7 +313,7 @@ compileProg (Just loc) (In (Ut.ForLoop len init (In (Ut.Lambda (Ut.Var ix ta) lt
                           $ compileProg (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
       tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
       shallowAssign (Just loc) lstate
-compileProg (Just loc) (In (Ut.WhileLoop init (In (Ut.Lambda (Ut.Var cv ct) cond)) (In (Ut.Lambda (Ut.Var bv bt) body)))) = do
+compileProg (Just loc) (In (Ut.PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) e@(In (Ut.Lambda (Ut.Var bv bt) body)))) = do
     let stvar = mkVar (compileTypeRep bt) bv
         condv = mkVar (compileTypeRep (typeof cond)) cv
     (lstate,stvar) <- mkDoubleBufferState loc bv
@@ -464,7 +464,7 @@ compileProg loc (In (Ut.PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileProg loc a
 -- Switch
-compileProg loc (In (Ut.PrimApp1 Ut.Switch _ tree@(In (Ut.Condition (In (Ut.PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
+compileProg loc (In (Ut.PrimApp1 Ut.Switch _ tree@(In (Ut.PrimApp3 Ut.Condition _ (In (Ut.PrimApp2 Ut.Equal _ _ s)) _ _)))) = do
     scrutinee <- compileExpr s
     alts      <- chaseTree loc s tree
     tellProg [Switch{..}]
@@ -724,7 +724,7 @@ literalLoc loc t =
 
 chaseTree :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
-chaseTree loc _s (In (Ut.Condition (In (Ut.PrimApp2 Ut.Equal _ c  a)) t f))
+chaseTree loc _s (In (Ut.PrimApp3 Ut.Condition _ (In (Ut.PrimApp2 Ut.Equal _ c  a)) t f))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
          e <- compileExpr c

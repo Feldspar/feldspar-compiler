@@ -52,9 +52,9 @@ void divConq3(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, struct s_arr_un
   uint32_t v639;
   struct s_arr_unsignedS32_UD_arr_s_arr_unsignedS32_UD_arr_signedS32_UD_UD v634 = { .member1 = NULL, .member2 = NULL };
   uint32_t v631;
-  struct s_arr_unsignedS32_1_arr_signedS32_0 e2 = { .member1 = NULL, .member2 = NULL };
+  struct s_arr_unsignedS32_1_arr_signedS32_UD e2 = { .member1 = NULL, .member2 = NULL };
   uint32_t len3;
-  struct s_arr_unsignedS32_1_arr_signedS32_0 v12 = { .member1 = NULL, .member2 = NULL };
+  struct s_arr_unsignedS32_1_arr_signedS32_UD v12 = { .member1 = NULL, .member2 = NULL };
   uint32_t v635;
   struct s_arr_unsignedS32_1_arr_signedS32_UD e4 = { .member1 = NULL, .member2 = NULL };
   struct ivar e5;
