@@ -526,37 +526,6 @@ compileExpr (In (Ut.Variable (Ut.Var v t))) = do
 compileExpr (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet a ta v
     withAlias v e $ compileExpr body
--- Complex
-compileExpr (In (Ut.MkComplex e1 e2)) = do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (Rep.MachineVector 1 (Rep.ComplexType (typeof e1'))) True "complex" [e1', e2']
-compileExpr (In (Ut.RealPart e)) = do
-    e' <- compileExpr e
-    let (Rep.MachineVector 1 (Rep.ComplexType t)) = typeof e'
-    return $ fun' Prefix t True "creal" [e']
-compileExpr (In (Ut.ImagPart e)) = do
-    e' <- compileExpr e
-    let (Rep.MachineVector 1 (Rep.ComplexType t)) = typeof e'
-    return $ fun' Prefix t True "cimag" [e']
-compileExpr (In (Ut.Conjugate e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (typeof e') True "conjugate" [e']
-compileExpr (In (Ut.MkPolar e1 e2))= do
-    e1' <- compileExpr e1
-    e2' <- compileExpr e2
-    return $ fun' Prefix (Rep.MachineVector 1 (Rep.ComplexType (typeof e1'))) True "complex" [e1', e2']
-compileExpr (In (Ut.Magnitude e)) = do
-    e' <- compileExpr e
-    let (Rep.MachineVector 1 (Rep.ComplexType t)) = typeof e'
-    return $ fun' Prefix t True "magnitude" [e']
-compileExpr (In (Ut.Phase e)) = do
-    e' <- compileExpr e
-    let (Rep.MachineVector 1 (Rep.ComplexType t)) = typeof e'
-    return $ fun' Prefix t True "phase" [e']
-compileExpr (In (Ut.Cis e)) = do
-    e' <- compileExpr e
-    return $ fun' Prefix (Rep.MachineVector 1 (Rep.ComplexType (typeof e'))) True "cis" [e']
 -- Error
 compileExpr (In (Ut.Assert cond a)) = do
     compileAssert cond "temp msg" -- msg
@@ -831,8 +800,8 @@ instance CompileOp Ut.PrimOp0 where
     where (h:t) = show p
 
 instance CompileOp Ut.PrimOp1 where
-{-  compileOp Ut.RealPart  = "creal"
-  compileOp Ut.ImagPart  = "cimag"-}
+  compileOp Ut.RealPart  = "creal"
+  compileOp Ut.ImagPart  = "cimag"
   compileOp Ut.F2I       = "f2i"
   compileOp Ut.I2N       = "i2n"
   compileOp Ut.B2I       = "b2i"
