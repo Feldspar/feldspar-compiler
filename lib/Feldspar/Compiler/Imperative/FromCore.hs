@@ -462,8 +462,8 @@ compileProg loc (In (Ut.Save e)) = compileProg loc e
 -- SizeProp
 compileProg loc (In (Ut.PropSize e)) = compileProg loc e
 -- SourceInfo
-compileProg loc (In (Ut.SourceInfo a)) = do
-    -- tellProg [Comment True info] XXX: Add this when we have annotations.
+compileProg loc (In (Ut.SourceInfo info a)) = do
+    tellProg [Comment True info]
     compileProg loc a
 -- Switch
 compileProg loc (In (Ut.Switch tree@(In (Ut.Condition (In (Ut.Equal _ s)) _ _)))) = do
@@ -715,8 +715,8 @@ compileExpr (In (Ut.Atan2 e1 e2)) = do
     e2' <- compileExpr e2
     return $ fun' Prefix (typeof e1') True "atan2" [e1', e2']
 -- SourceInfo
-compileExpr (In (Ut.SourceInfo a)) = do
-    -- tellProg [Comment True info] XXX: Add this when we have annotations.
+compileExpr (In (Ut.SourceInfo info a)) = do
+    tellProg [Comment True info]
     compileExpr a
 -- Trace
 compileExpr (In (Ut.Trace e1 e2)) = do
