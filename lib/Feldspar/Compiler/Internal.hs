@@ -31,7 +31,6 @@ module Feldspar.Compiler.Internal
     , c99PlatformOptions
     , c99OpenMpPlatformOptions
     , tic64xPlatformOptions
-    , unrollOptions
     , nativeArrayRules
     , noPrimitiveInstructionHandling
     , noMemoryInformation

@@ -44,7 +44,6 @@ import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..))
 data Options =
     Options
     { platform          :: Platform
-    , unroll            :: UnrollStrategy
     , debug             :: DebugOption
     , memoryInfoVisible :: Bool
     , printHeader       :: Bool
@@ -52,9 +51,6 @@ data Options =
     , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
     }
-
-data UnrollStrategy = NoUnroll | Unroll Int
-    deriving (Eq, Show)
 
 data DebugOption = NoDebug | NoPrimitiveInstructionHandling
     deriving (Eq, Show)

@@ -127,7 +127,6 @@ defaultOptions :: Options
 defaultOptions
     = Options
     { platform          = c99
-    , unroll            = NoUnroll
     , debug             = NoDebug
     , memoryInfoVisible = True
     , printHeader       = False
@@ -144,9 +143,6 @@ c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
 
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
-
-unrollOptions :: Options
-unrollOptions                   = defaultOptions { unroll = Unroll 8 }
 
 noPrimitiveInstructionHandling :: Options
 noPrimitiveInstructionHandling  = defaultOptions { debug = NoPrimitiveInstructionHandling }

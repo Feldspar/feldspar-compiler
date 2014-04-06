@@ -88,15 +88,6 @@ optionDescriptors =
                                          { CompilerCoreOptions.platform = decodePlatform arg } })
             "<platform>")
         ("Overrides the target platform " ++ availablePlatformsStrRep)
-     , Option "u" ["unroll"]
-        (ReqArg
-            (\arg opt -> return opt {
-                optCompilerMode = (optCompilerMode opt) {
-                    CompilerCoreOptions.unroll = CompilerCoreOptions.Unroll (parseInt arg "Invalid unroll count")
-                }
-            })
-            "<unrollCount>")
-        "Enables loop unrolling"
      , Option "D" ["debuglevel"]
         (ReqArg
             (\arg opt -> return opt { optCompilerMode = (optCompilerMode opt)
