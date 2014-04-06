@@ -68,8 +68,8 @@ data CompiledModule = CompiledModule {
 }
 
 -- | Split a module into interface and implemenation.
-moduleSplitter :: Module () -> (Module (), Module ())
-moduleSplitter m = (Module (hdr ++ createProcDecls (entities m)), Module body)
+splitModule :: Module () -> (Module (), Module ())
+splitModule m = (Module (hdr ++ createProcDecls (entities m)), Module body)
   where
     (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
@@ -84,8 +84,8 @@ moduleSplitter m = (Module (hdr ++ createProcDecls (entities m)), Module body)
     defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
     defToDecl _ = []
 
-moduleToCCore :: Options -> (Module (), Module ()) -> SplitModule
-moduleToCCore opts (hmdl, cmdl)
+compileSplitModule :: Options -> (Module (), Module ()) -> SplitModule
+compileSplitModule opts (hmdl, cmdl)
   = SplitModule
     { interface = CompiledModule { sourceCode  = incls ++ hres
                                  , debugModule = hmdl
@@ -108,9 +108,9 @@ compileToCCore name opts prg = compileToCCore' opts mod
         mod = fromCore opts (encodeFunctionName name) prg
 
 compileToCCore' :: Options -> Module () -> SplitModule
-compileToCCore' opts m = moduleToCCore opts separatedModules
+compileToCCore' opts m = compileSplitModule opts mods
       where
-        separatedModules = moduleSplitter $ executePluginChain opts m
+        mods = splitModule $ executePluginChain opts m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
