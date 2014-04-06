@@ -14,7 +14,6 @@ module Feldspar.Compiler
     , c99OpenMpPlatformOptions
     , tic64xPlatformOptions
     , nativeArrayRules
-    , noMemoryInformation
     ) where
 
 import Feldspar.Compiler.Internal

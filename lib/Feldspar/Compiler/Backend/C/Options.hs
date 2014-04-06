@@ -44,7 +44,6 @@ import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..))
 data Options =
     Options
     { platform          :: Platform
-    , memoryInfoVisible :: Bool
     , printHeader       :: Bool
     , rules             :: [Rule]
     , frontendOpts      :: FeldOpts

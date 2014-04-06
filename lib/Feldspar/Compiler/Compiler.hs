@@ -127,7 +127,6 @@ defaultOptions :: Options
 defaultOptions
     = Options
     { platform          = c99
-    , memoryInfoVisible = True
     , printHeader       = False
     , rules             = []
     , frontendOpts      = defaultFeldOpts
@@ -142,9 +141,6 @@ c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
 
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
-
-noMemoryInformation :: Options
-noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 
 -- | Plugin system
 
