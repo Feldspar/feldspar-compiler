@@ -32,7 +32,6 @@ module Feldspar.Compiler.Internal
     , c99OpenMpPlatformOptions
     , tic64xPlatformOptions
     , nativeArrayRules
-    , noPrimitiveInstructionHandling
     , noMemoryInformation
     , module Internal
     ) where

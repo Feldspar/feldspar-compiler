@@ -88,12 +88,6 @@ optionDescriptors =
                                          { CompilerCoreOptions.platform = decodePlatform arg } })
             "<platform>")
         ("Overrides the target platform " ++ availablePlatformsStrRep)
-     , Option "D" ["debuglevel"]
-        (ReqArg
-            (\arg opt -> return opt { optCompilerMode = (optCompilerMode opt)
-                                         { CompilerCoreOptions.debug = decodeDebug arg } })
-            "<level>")
-        "Specifies debug level (currently the only possible option is NoPrimitiveInstructionHandling)"
     , Option "h" ["help"]
         (NoArg
             (\_ -> do
@@ -115,10 +109,6 @@ findPlatformByName platformName = -- Finds a platform by name using case-insensi
 decodePlatform :: String -> CompilerCoreOptions.Platform
 decodePlatform s = fromMaybe (error $ "Invalid platform specified. Valid platforms are: " ++ availablePlatformsStrRep)
                  $ findPlatformByName s
-
-decodeDebug :: String -> CompilerCoreOptions.DebugOption
-decodeDebug "NoPrimitiveInstructionHandling" = CompilerCoreOptions.NoPrimitiveInstructionHandling
-decodeDebug _ = error "Invalid debug level specified"
 
 parseInt :: String -> String -> Int
 parseInt arg message = case reads arg of

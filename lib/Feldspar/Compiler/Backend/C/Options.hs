@@ -44,16 +44,12 @@ import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..))
 data Options =
     Options
     { platform          :: Platform
-    , debug             :: DebugOption
     , memoryInfoVisible :: Bool
     , printHeader       :: Bool
     , rules             :: [Rule]
     , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
     }
-
-data DebugOption = NoDebug | NoPrimitiveInstructionHandling
-    deriving (Eq, Show)
 
 data Platform = Platform {
     name            :: String,

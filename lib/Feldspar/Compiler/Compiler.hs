@@ -127,7 +127,6 @@ defaultOptions :: Options
 defaultOptions
     = Options
     { platform          = c99
-    , debug             = NoDebug
     , memoryInfoVisible = True
     , printHeader       = False
     , rules             = []
@@ -143,9 +142,6 @@ c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
 
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
-
-noPrimitiveInstructionHandling :: Options
-noPrimitiveInstructionHandling  = defaultOptions { debug = NoPrimitiveInstructionHandling }
 
 noMemoryInformation :: Options
 noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
