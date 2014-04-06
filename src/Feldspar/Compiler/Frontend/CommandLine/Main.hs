@@ -69,7 +69,7 @@ data CompilationError =
     | InternalErrorCall String
 
 compileFunction :: String -> String -> Options -> String
-                -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
+                -> Interpreter (Either (String, (Module (), Module ())) (String, CompilationError))
 compileFunction _ _ coreOptions functionName = do
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
     let splitModuleDescriptor = moduleSplitter $ executePluginChain coreOptions prg
@@ -86,7 +86,7 @@ compileFunction _ _ coreOptions functionName = do
         return $ Left (functionName, splitModuleDescriptor)
 
 compileAllFunctions :: String -> String -> Options -> [String]
-                    -> Interpreter [Either (String, SplitModuleDescriptor) (String, CompilationError)]
+                    -> Interpreter [Either (String, (Module (), Module ())) (String, CompilationError)]
 compileAllFunctions inFileName outFileName options = mapM go
   where
     go functionName = do
@@ -149,8 +149,7 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeSummary modules
         let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
-        let smd = SplitModuleDescriptor { smdHeader = mergedHModules
-                                        , smdSource = mergedCModules }
+        let smd = (mergedHModules, mergedCModules)
         let compToCResult = moduleToCCore coreOptions smd
         let cCompToCResult = sctccrSource compToCResult
             hCompToCResult = sctccrHeader compToCResult

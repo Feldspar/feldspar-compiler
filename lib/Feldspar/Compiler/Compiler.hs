@@ -57,26 +57,20 @@ import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
 
-data SplitModuleDescriptor = SplitModuleDescriptor
-    { smdSource :: Module ()
-    , smdHeader :: Module ()
-    }
-
 data SplitCompToCCoreResult = SplitCompToCCoreResult
-    { sctccrSource :: CompToCCoreResult ()
-    , sctccrHeader :: CompToCCoreResult ()
+    { sctccrSource :: CompToCCoreResult
+    , sctccrHeader :: CompToCCoreResult
     }
 
-data CompToCCoreResult t = CompToCCoreResult {
+data CompToCCoreResult = CompToCCoreResult {
     sourceCode      :: String,
-    debugModule     :: Module t
+    debugModule     :: Module ()
 }
 
-moduleSplitter :: Module () -> SplitModuleDescriptor
-moduleSplitter m = SplitModuleDescriptor {
-    smdHeader = Module (hdr ++ createProcDecls (entities m)),
-    smdSource = Module body
-} where
+-- | Split a module into interface and implemenation.
+moduleSplitter :: Module () -> (Module (), Module ())
+moduleSplitter m = (Module (hdr ++ createProcDecls (entities m)), Module body)
+  where
     (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
     belongsToHeader StructDef{}                     = True
@@ -90,8 +84,8 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
     defToDecl _ = []
 
-moduleToCCore :: Options -> SplitModuleDescriptor -> SplitCompToCCoreResult
-moduleToCCore opts smd
+moduleToCCore :: Options -> (Module (), Module ()) -> SplitCompToCCoreResult
+moduleToCCore opts (hmdl, cmdl)
   = SplitCompToCCoreResult
     { sctccrHeader = CompToCCoreResult { sourceCode  = incls ++ hres
                                        , debugModule = hmdl
@@ -101,15 +95,13 @@ moduleToCCore opts smd
                                        }
     }
   where
-    hmdl = smdHeader smd
-    cmdl = smdSource smd
     hres = compToCWithInfos opts hmdl
     cres = compToCWithInfos opts cmdl
     incls = genIncludeLines opts Nothing
 
-
--- | Compiler core
--- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
+-- | Compiler core.
+-- Everything should call this function and only do a trivial interface adaptation.
+-- Do not duplicate.
 compileToCCore
   :: SyntacticFeld c => String -> Options -> c -> SplitCompToCCoreResult
 compileToCCore name opts prg = compileToCCore' opts mod

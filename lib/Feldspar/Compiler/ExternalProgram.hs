@@ -39,7 +39,7 @@ compileFile fileName outFile funName opts = do
       where prg = SplitCompToCCoreResult cprg hprg
 
 compileFile' :: Options -> (String, B.ByteString) -> (String, B.ByteString)
-            -> (Maybe (CompToCCoreResult ()), Maybe (CompToCCoreResult ()))
+            -> (Maybe CompToCCoreResult, Maybe CompToCCoreResult)
 compileFile' opts (hfilename, hfile) (cfilename, cfile) =
   case parseFile hfilename hfile [] of
     Nothing -> (Nothing, Nothing)
