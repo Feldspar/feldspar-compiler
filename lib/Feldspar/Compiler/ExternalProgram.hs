@@ -22,11 +22,11 @@ icompileFile filename = do
   case comp of
     (Nothing, _) -> putStrLn $ "Could not parse " ++ hfilename
     (_, Nothing) -> putStrLn $ "Could not parse " ++ cfilename
-    (Just hprg, Just cprg) -> putStrLn $ sourceCode cprg
+    (_, Just cprg) -> putStrLn $ sourceCode cprg
 
 
-compileFile :: FilePath -> FilePath -> String -> Options -> IO ()
-compileFile fileName outFile funName opts = do
+compileFile :: FilePath -> FilePath -> Options -> IO ()
+compileFile fileName outFile opts = do
   let hfilename = fileName ++ ".h"
       cfilename = fileName ++ ".c"
   h <- B.readFile hfilename
@@ -35,7 +35,7 @@ compileFile fileName outFile funName opts = do
   case comp of
     (Nothing, _) -> print $ "Could not parse " ++ hfilename
     (_, Nothing) -> putStrLn $ "Could not parse " ++ cfilename
-    (Just hprg, Just cprg) -> writeFiles prg outFile funName opts
+    (Just hprg, Just cprg) -> writeFiles prg outFile opts
       where prg = SplitModule cprg hprg
 
 compileFile' :: Options -> (String, B.ByteString) -> (String, B.ByteString)
