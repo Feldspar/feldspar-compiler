@@ -76,9 +76,6 @@ data Rule where
 instance Show Rule where
     show _ = "Transformation rule."
 
-instance Eq Rule where
-    _ == _ = False
-
 rule :: (Typeable t) => (t -> [Action t]) -> Rule
 rule f = Rule $ \x -> f x
 
