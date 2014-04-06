@@ -536,6 +536,19 @@ compileExpr (In (Ut.Variable (Ut.Var v t))) = do
 compileExpr (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet a ta v
     withAlias v e $ compileExpr body
+-- Bits
+compileExpr (In (PrimApp2 o@Ut.BAnd t e1 e2)) = do
+    e1' <- compileExpr e1
+    e2' <- compileExpr e2
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (PrimApp2 o@Ut.BOr t e1 e2)) = do
+    e1' <- compileExpr e1
+    e2' <- compileExpr e2
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+compileExpr (In (PrimApp2 o@Ut.BXor t e1 e2)) = do
+    e1' <- compileExpr e1
+    e2' <- compileExpr e2
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Error
 compileExpr (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
     compileAssert cond msg
@@ -555,6 +568,11 @@ compileExpr (In (Ut.ForeignImport name t es)) = do
     return $ fun' Prefix (compileTypeRep t) True name es'
 -- Floating
 compileExpr (In (PrimApp0 Ut.Pi t)) = error "No pi ready"
+-- Fractional
+compileExpr (In (PrimApp2 o@Ut.DivFrac t e1 e2)) = do
+    e1' <- compileExpr e1
+    e2' <- compileExpr e2
+    return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
 -- Future
 compileExpr e@(In (PrimApp1 Ut.MkFuture _ _)) = compileProgFresh e
 compileExpr e@(In (PrimApp1 Ut.Await _ _)) = compileProgFresh e
@@ -798,11 +816,12 @@ instance CompileOp Ut.PrimOp2 where
   -- Bits
   compileOp Ut.BAnd      = "&"
   compileOp Ut.BOr       = "|"
+  compileOp Ut.BXor      = "^"
   -- Eq
   compileOp Ut.Equal     = "=="
   compileOp Ut.NotEqual  = "/="
   -- Fractional
-  compileOp Ut.DivFrac   = "div"
+  compileOp Ut.DivFrac   = "/"
   -- Floating
   compileOp Ut.IExp      = "exp"
   -- Logic
