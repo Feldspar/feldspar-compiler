@@ -32,11 +32,19 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Feldspar.Compiler.Compiler where
+module Feldspar.Compiler.Compiler (
+    compileToCCore
+  , compileToCCore'
+  , defaultOptions
+  , c99PlatformOptions
+  , c99OpenMpPlatformOptions
+  , tic64xPlatformOptions
+  , SplitCompToCCoreResult(..)
+  , CompToCCoreResult(..)
+  ) where
 
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
-import Control.Applicative
 
 import Feldspar.Transformation
 import Feldspar.Core.Constructs (SyntacticFeld)
