@@ -68,7 +68,6 @@ data Action t
     = Replace t
     | Propagate Rule
     | WithId (Int -> [Action t])
-    | WithOptions (Options -> [Action t])
   deriving Typeable
 
 data Rule where
