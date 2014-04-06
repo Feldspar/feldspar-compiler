@@ -32,11 +32,19 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Feldspar.Compiler.Compiler where
+module Feldspar.Compiler.Compiler (
+    compileToCCore
+  , compileToCCore'
+  , defaultOptions
+  , c99PlatformOptions
+  , c99OpenMpPlatformOptions
+  , tic64xPlatformOptions
+  , SplitCompToCCoreResult(..)
+  , CompToCCoreResult(..)
+  ) where
 
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
-import Control.Applicative
 
 import Feldspar.Transformation
 import Feldspar.Core.Constructs (SyntacticFeld)
@@ -127,9 +135,6 @@ defaultOptions :: Options
 defaultOptions
     = Options
     { platform          = c99
-    , unroll            = NoUnroll
-    , debug             = NoDebug
-    , memoryInfoVisible = True
     , printHeader       = False
     , rules             = []
     , frontendOpts      = defaultFeldOpts
@@ -144,15 +149,6 @@ c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
 
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
-
-unrollOptions :: Options
-unrollOptions                   = defaultOptions { unroll = Unroll 8 }
-
-noPrimitiveInstructionHandling :: Options
-noPrimitiveInstructionHandling  = defaultOptions { debug = NoPrimitiveInstructionHandling }
-
-noMemoryInformation :: Options
-noMemoryInformation             = defaultOptions { memoryInfoVisible = False }
 
 -- | Plugin system
 

@@ -85,8 +85,7 @@ c99 = Platform {
         , "<stdbool.h>"
         , "<complex.h>"],
     platformRules = c99Rules ++ traceRules ++ arrayRules,
-    varFloating = True,
-    isRestrict = NoRestrict
+    varFloating = True
 }
 
 c99OpenMp :: Platform
@@ -121,8 +120,7 @@ tic64x = Platform {
         ] ,
     includes = ["feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>", "<math.h>"],
     platformRules = tic64xRules ++ c99Rules ++ traceRules,
-    varFloating = True,
-    isRestrict = Restrict
+    varFloating = True
 }
 
 showRe, showIm :: Constant t -> String

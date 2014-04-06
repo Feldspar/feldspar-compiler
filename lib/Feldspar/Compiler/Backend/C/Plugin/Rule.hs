@@ -83,7 +83,6 @@ instance ( DefaultTransformable RulePlugin t
                         applyActionFun (_     , prop'', i) (Replace newConstr) = (newConstr, prop''        , i)
                         applyActionFun (ccc'  , prop'', i) (Propagate pr)      = (ccc'     , prop'' ++ [pr], i)
                         applyActionFun (constr, _     , i) (WithId f)          = applyAction constr (i + 1) (f i)
-                        applyActionFun (constr, _     , i) (WithOptions f)     = applyAction constr i       (f d)
         (x',_,pr1,newID1) = applyRule (result recurse) (state recurse) (rules d)
         (x'',pr3,pr2,newID2) = applyRule x' newID1 (up recurse)
 

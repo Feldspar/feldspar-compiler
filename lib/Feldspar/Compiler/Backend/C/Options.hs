@@ -37,27 +37,17 @@ module Feldspar.Compiler.Backend.C.Options where
 
 import Data.Typeable
 
-import Feldspar.Core.Interpretation (FeldOpts(..))
-
-import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..))
+import Feldspar.Core.Interpretation (FeldOpts)
+import Feldspar.Compiler.Imperative.Representation (Type, Constant)
 
 data Options =
     Options
     { platform          :: Platform
-    , unroll            :: UnrollStrategy
-    , debug             :: DebugOption
-    , memoryInfoVisible :: Bool
     , printHeader       :: Bool
     , rules             :: [Rule]
     , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
     }
-
-data UnrollStrategy = NoUnroll | Unroll Int
-    deriving (Eq, Show)
-
-data DebugOption = NoDebug | NoPrimitiveInstructionHandling
-    deriving (Eq, Show)
 
 data Platform = Platform {
     name            :: String,
@@ -65,17 +55,10 @@ data Platform = Platform {
     values          :: [(Type, ShowValue)],
     includes        :: [String],
     platformRules   :: [Rule],
-    varFloating     :: Bool,
-    isRestrict      :: IsRestrict
+    varFloating     :: Bool
 } deriving (Show)
 
 type ShowValue = Constant () -> String
-
-instance Eq ShowValue where
-    (==) _ _ = True
-
-data IsRestrict = Restrict | NoRestrict
-    deriving (Show,Eq)
 
 -- * Actions and rules
 
@@ -83,7 +66,6 @@ data Action t
     = Replace t
     | Propagate Rule
     | WithId (Int -> [Action t])
-    | WithOptions (Options -> [Action t])
   deriving Typeable
 
 data Rule where
@@ -91,9 +73,6 @@ data Rule where
 
 instance Show Rule where
     show _ = "Transformation rule."
-
-instance Eq Rule where
-    _ == _ = False
 
 rule :: (Typeable t) => (t -> [Action t]) -> Rule
 rule f = Rule $ \x -> f x
