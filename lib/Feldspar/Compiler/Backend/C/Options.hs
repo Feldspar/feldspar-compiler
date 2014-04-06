@@ -66,9 +66,6 @@ data Platform = Platform {
 
 type ShowValue = Constant () -> String
 
-instance Eq ShowValue where
-    (==) _ _ = True
-
 -- * Actions and rules
 
 data Action t
