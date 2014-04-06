@@ -61,17 +61,13 @@ data Platform = Platform {
     values          :: [(Type, ShowValue)],
     includes        :: [String],
     platformRules   :: [Rule],
-    varFloating     :: Bool,
-    isRestrict      :: IsRestrict
+    varFloating     :: Bool
 } deriving (Show)
 
 type ShowValue = Constant () -> String
 
 instance Eq ShowValue where
     (==) _ _ = True
-
-data IsRestrict = Restrict | NoRestrict
-    deriving (Show,Eq)
 
 -- * Actions and rules
 
