@@ -51,13 +51,13 @@ compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName funName opts = writeFiles compRes fileName funName opts
   where compRes = compileToCCore funName opts prg
 
-writeFiles :: SplitCompToCCoreResult -> FilePath -> String -> Options -> IO ()
+writeFiles :: SplitModule -> FilePath -> String -> Options -> IO ()
 writeFiles prg fileName functionName opts = do
     writeFile cfile $ unlines [ "#include \"" ++ takeFileName hfile ++ "\""
                               , "\n"
-                              , sourceCode $ sctccrSource prg
+                              , sourceCode $ implementation prg
                               ]
-    writeFile hfile $ withIncludeGuard $ sourceCode $ sctccrHeader prg
+    writeFile hfile $ withIncludeGuard $ sourceCode $ interface prg
   where
     hfile = makeHFileName fileName
     cfile = makeCFileName fileName
@@ -85,9 +85,9 @@ icompile' opts functionName prg = do
     let res = compileToCCore functionName opts prg
     when (printHeader opts) $ do
       putStrLn "=============== Header ================"
-      putStrLn $ sourceCode $ sctccrHeader res
+      putStrLn $ sourceCode $ interface res
       putStrLn "=============== Source ================"
-    putStrLn $ sourceCode $ sctccrSource res
+    putStrLn $ sourceCode $ implementation res
 
 -- | Get the generated core for a program.
 getCore :: (SyntacticFeld t) => t -> Module ()

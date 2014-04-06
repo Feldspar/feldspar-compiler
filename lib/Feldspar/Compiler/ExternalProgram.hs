@@ -36,10 +36,10 @@ compileFile fileName outFile funName opts = do
     (Nothing, _) -> print $ "Could not parse " ++ hfilename
     (_, Nothing) -> putStrLn $ "Could not parse " ++ cfilename
     (Just hprg, Just cprg) -> writeFiles prg outFile funName opts
-      where prg = SplitCompToCCoreResult cprg hprg
+      where prg = SplitModule cprg hprg
 
 compileFile' :: Options -> (String, B.ByteString) -> (String, B.ByteString)
-            -> (Maybe CompToCCoreResult, Maybe CompToCCoreResult)
+            -> (Maybe CompiledModule, Maybe CompiledModule)
 compileFile' opts (hfilename, hfile) (cfilename, cfile) =
   case parseFile hfilename hfile [] of
     Nothing -> (Nothing, Nothing)
@@ -47,12 +47,12 @@ compileFile' opts (hfilename, hfile) (cfilename, cfile) =
                    Nothing -> (Just hres, Nothing)
                    Just cprg -> (Just hres', Just cres)
                      where res = compileToCCore' opts cprg
-                           cres = sctccrSource res
+                           cres = implementation res
                            -- Un-duplicated hres.
-                           hres' = sctccrHeader res
+                           hres' = interface res
       where -- Will result in duplicate function declarations, but we
             -- just failed parsing the c file and return nothing for
             -- that so the user is probably not that picky on
             -- potential duplicate declarations if they had succeeded.
-            hres = sctccrHeader $ compileToCCore' opts hprg
+            hres = interface $ compileToCCore' opts hprg
 

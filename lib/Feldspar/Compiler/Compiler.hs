@@ -39,8 +39,8 @@ module Feldspar.Compiler.Compiler (
   , c99PlatformOptions
   , c99OpenMpPlatformOptions
   , tic64xPlatformOptions
-  , SplitCompToCCoreResult(..)
-  , CompToCCoreResult(..)
+  , SplitModule(..)
+  , CompiledModule(..)
   ) where
 
 import Data.List (partition)
@@ -57,12 +57,12 @@ import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
 
-data SplitCompToCCoreResult = SplitCompToCCoreResult
-    { sctccrSource :: CompToCCoreResult
-    , sctccrHeader :: CompToCCoreResult
+data SplitModule = SplitModule
+    { implementation :: CompiledModule
+    , interface :: CompiledModule
     }
 
-data CompToCCoreResult = CompToCCoreResult {
+data CompiledModule = CompiledModule {
     sourceCode      :: String,
     debugModule     :: Module ()
 }
@@ -84,15 +84,15 @@ moduleSplitter m = (Module (hdr ++ createProcDecls (entities m)), Module body)
     defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
     defToDecl _ = []
 
-moduleToCCore :: Options -> (Module (), Module ()) -> SplitCompToCCoreResult
+moduleToCCore :: Options -> (Module (), Module ()) -> SplitModule
 moduleToCCore opts (hmdl, cmdl)
-  = SplitCompToCCoreResult
-    { sctccrHeader = CompToCCoreResult { sourceCode  = incls ++ hres
-                                       , debugModule = hmdl
-                                       }
-    , sctccrSource = CompToCCoreResult { sourceCode  = cres
-                                       , debugModule = cmdl
-                                       }
+  = SplitModule
+    { interface = CompiledModule { sourceCode  = incls ++ hres
+                                 , debugModule = hmdl
+                                 }
+    , implementation = CompiledModule { sourceCode  = cres
+                                      , debugModule = cmdl
+                                      }
     }
   where
     hres = compToCWithInfos opts hmdl
@@ -102,13 +102,12 @@ moduleToCCore opts (hmdl, cmdl)
 -- | Compiler core.
 -- Everything should call this function and only do a trivial interface adaptation.
 -- Do not duplicate.
-compileToCCore
-  :: SyntacticFeld c => String -> Options -> c -> SplitCompToCCoreResult
+compileToCCore :: SyntacticFeld c => String -> Options -> c -> SplitModule
 compileToCCore name opts prg = compileToCCore' opts mod
       where
         mod = fromCore opts (encodeFunctionName name) prg
 
-compileToCCore' :: Options -> Module () -> SplitCompToCCoreResult
+compileToCCore' :: Options -> Module () -> SplitModule
 compileToCCore' opts m = moduleToCCore opts separatedModules
       where
         separatedModules = moduleSplitter $ executePluginChain opts m

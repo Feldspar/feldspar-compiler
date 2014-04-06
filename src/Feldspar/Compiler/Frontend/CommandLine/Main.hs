@@ -79,8 +79,8 @@ compileFunction _ _ coreOptions functionName = do
         tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
         let core = compileToCCore functionName coreOptions prg
-        Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
-                                      hPutStrLn temph $ sourceCode $ sctccrHeader core)
+        Control.Exception.finally (do hPutStrLn temph $ sourceCode $ implementation core
+                                      hPutStrLn temph $ sourceCode $ interface core)
                                   (do hClose temph
                                       removeFileIfPossible tempfile)
         return $ Left (functionName, splitModuleDescriptor)
@@ -151,8 +151,8 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
         let smd = (mergedHModules, mergedCModules)
         let compToCResult = moduleToCCore coreOptions smd
-        let cCompToCResult = sctccrSource compToCResult
-            hCompToCResult = sctccrHeader compToCResult
+        let cCompToCResult = implementation compToCResult
+            hCompToCResult = interface compToCResult
         appendFile cOutFileName (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
         appendFile hOutFileName (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
         writeFile cdbgOutFileName (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
