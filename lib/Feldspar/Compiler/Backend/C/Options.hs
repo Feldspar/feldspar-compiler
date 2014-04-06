@@ -37,9 +37,8 @@ module Feldspar.Compiler.Backend.C.Options where
 
 import Data.Typeable
 
-import Feldspar.Core.Interpretation (FeldOpts(..))
-
-import Feldspar.Compiler.Imperative.Representation (Type(..), Constant(..))
+import Feldspar.Core.Interpretation (FeldOpts)
+import Feldspar.Compiler.Imperative.Representation (Type, Constant)
 
 data Options =
     Options
