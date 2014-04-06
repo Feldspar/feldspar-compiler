@@ -149,7 +149,7 @@ prepareInputFile inputFileName = do
 standaloneCompile :: (SyntacticFeld t) =>
     FilePath -> FilePath -> String -> Options -> t -> IO ()
 standaloneCompile _ outputFileName sig opts prg = do
-    appendFile (makeCFileName outputFileName) $ sourceCode $ sctccrSource compilationResult
-    appendFile (makeHFileName outputFileName) $ sourceCode $ sctccrHeader compilationResult
+    appendFile (makeCFileName outputFileName) $ sourceCode $ implementation compilationResult
+    appendFile (makeHFileName outputFileName) $ sourceCode $ interface compilationResult
   where
     compilationResult = compileToCCore sig opts prg

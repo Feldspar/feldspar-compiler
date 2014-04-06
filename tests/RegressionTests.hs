@@ -205,7 +205,7 @@ simpleCmp e x y =
 mkParseTest n opts = do
     let ref = goldDir <> n
         new = testDir <> "ep-" <> n
-        act = compileFile ref new n opts
+        act = compileFile ref new opts
         cmp = fuzzyCmp $ printf "Files '%s' and '%s' differ" ref new
         upd = LB.writeFile ref
     goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd

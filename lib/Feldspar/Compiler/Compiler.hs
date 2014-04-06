@@ -39,8 +39,8 @@ module Feldspar.Compiler.Compiler (
   , c99PlatformOptions
   , c99OpenMpPlatformOptions
   , tic64xPlatformOptions
-  , SplitCompToCCoreResult(..)
-  , CompToCCoreResult(..)
+  , SplitModule(..)
+  , CompiledModule(..)
   ) where
 
 import Data.List (partition)
@@ -57,26 +57,20 @@ import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Plugin.IVars
 
-data SplitModuleDescriptor = SplitModuleDescriptor
-    { smdSource :: Module ()
-    , smdHeader :: Module ()
+data SplitModule = SplitModule
+    { implementation :: CompiledModule
+    , interface :: CompiledModule
     }
 
-data SplitCompToCCoreResult = SplitCompToCCoreResult
-    { sctccrSource :: CompToCCoreResult ()
-    , sctccrHeader :: CompToCCoreResult ()
-    }
-
-data CompToCCoreResult t = CompToCCoreResult {
+data CompiledModule = CompiledModule {
     sourceCode      :: String,
-    debugModule     :: Module t
+    debugModule     :: Module ()
 }
 
-moduleSplitter :: Module () -> SplitModuleDescriptor
-moduleSplitter m = SplitModuleDescriptor {
-    smdHeader = Module (hdr ++ createProcDecls (entities m)),
-    smdSource = Module body
-} where
+-- | Split a module into interface and implemenation.
+splitModule :: Module () -> (Module (), Module ())
+splitModule m = (Module (hdr ++ createProcDecls (entities m)), Module body)
+  where
     (hdr, body) = partition belongsToHeader (entities m)
     belongsToHeader :: Entity () -> Bool
     belongsToHeader StructDef{}                     = True
@@ -90,36 +84,33 @@ moduleSplitter m = SplitModuleDescriptor {
     defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
     defToDecl _ = []
 
-moduleToCCore :: Options -> SplitModuleDescriptor -> SplitCompToCCoreResult
-moduleToCCore opts smd
-  = SplitCompToCCoreResult
-    { sctccrHeader = CompToCCoreResult { sourceCode  = incls ++ hres
-                                       , debugModule = hmdl
-                                       }
-    , sctccrSource = CompToCCoreResult { sourceCode  = cres
-                                       , debugModule = cmdl
-                                       }
+compileSplitModule :: Options -> (Module (), Module ()) -> SplitModule
+compileSplitModule opts (hmdl, cmdl)
+  = SplitModule
+    { interface = CompiledModule { sourceCode  = incls ++ hres
+                                 , debugModule = hmdl
+                                 }
+    , implementation = CompiledModule { sourceCode  = cres
+                                      , debugModule = cmdl
+                                      }
     }
   where
-    hmdl = smdHeader smd
-    cmdl = smdSource smd
     hres = compToCWithInfos opts hmdl
     cres = compToCWithInfos opts cmdl
     incls = genIncludeLines opts Nothing
 
-
--- | Compiler core
--- This functionality should not be duplicated. Instead, everything should call this and only do a trivial interface adaptation.
-compileToCCore
-  :: SyntacticFeld c => String -> Options -> c -> SplitCompToCCoreResult
+-- | Compiler core.
+-- Everything should call this function and only do a trivial interface adaptation.
+-- Do not duplicate.
+compileToCCore :: SyntacticFeld c => String -> Options -> c -> SplitModule
 compileToCCore name opts prg = compileToCCore' opts mod
       where
         mod = fromCore opts (encodeFunctionName name) prg
 
-compileToCCore' :: Options -> Module () -> SplitCompToCCoreResult
-compileToCCore' opts m = moduleToCCore opts separatedModules
+compileToCCore' :: Options -> Module () -> SplitModule
+compileToCCore' opts m = compileSplitModule opts mods
       where
-        separatedModules = moduleSplitter $ executePluginChain opts m
+        mods = splitModule $ executePluginChain opts m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"

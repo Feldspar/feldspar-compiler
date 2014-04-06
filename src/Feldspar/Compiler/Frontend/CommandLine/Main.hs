@@ -69,24 +69,24 @@ data CompilationError =
     | InternalErrorCall String
 
 compileFunction :: String -> String -> Options -> String
-                -> Interpreter (Either (String, SplitModuleDescriptor) (String, CompilationError))
+                -> Interpreter (Either (String, (Module (), Module ())) (String, CompilationError))
 compileFunction _ _ coreOptions functionName = do
     (SomeCompilable prg) <- interpret ("SomeCompilable " ++ functionName) (as::SomeCompilable)
-    let splitModuleDescriptor = moduleSplitter $ executePluginChain coreOptions prg
+    let splitModuleDescriptor = splitModule $ executePluginChain coreOptions prg
     -- XXX force evaluation in order to be able to catch the exceptions
     -- liftIO $ evaluate $ compToC coreOptions compilationUnit -- XXX somehow not enough(?!) -- counter-example: structexamples
     liftIO $ do
         tempdir <- Control.Exception.catch getTemporaryDirectory (\(_ :: IOException) -> return ".")
         (tempfile, temph) <- openTempFile tempdir "feldspar-temp.txt"
         let core = compileToCCore functionName coreOptions prg
-        Control.Exception.finally (do hPutStrLn temph $ sourceCode $ sctccrSource core
-                                      hPutStrLn temph $ sourceCode $ sctccrHeader core)
+        Control.Exception.finally (do hPutStrLn temph $ sourceCode $ implementation core
+                                      hPutStrLn temph $ sourceCode $ interface core)
                                   (do hClose temph
                                       removeFileIfPossible tempfile)
         return $ Left (functionName, splitModuleDescriptor)
 
 compileAllFunctions :: String -> String -> Options -> [String]
-                    -> Interpreter [Either (String, SplitModuleDescriptor) (String, CompilationError)]
+                    -> Interpreter [Either (String, (Module (), Module ())) (String, CompilationError)]
 compileAllFunctions inFileName outFileName options = mapM go
   where
     go functionName = do
@@ -147,13 +147,11 @@ multiFunctionCompilationBody inFileName outFileName coreOptions declarationList 
         mapM_ writeError $ rights modules
         withColor Blue $ putStrLn "\n================= [ Summary of compilation results ] =================\n"
         mapM_ writeSummary modules
-        let mergedCModules = mergeModules $ map (smdSource . snd) $ lefts modules
-        let mergedHModules = mergeModules $ map (smdHeader . snd) $ lefts modules
-        let smd = SplitModuleDescriptor { smdHeader = mergedHModules
-                                        , smdSource = mergedCModules }
-        let compToCResult = moduleToCCore coreOptions smd
-        let cCompToCResult = sctccrSource compToCResult
-            hCompToCResult = sctccrHeader compToCResult
+        let cmods = mergeModules $ map (smdSource . snd) $ lefts modules
+            hmods = mergeModules $ map (smdHeader . snd) $ lefts modules
+            compToCResult = compileSplitModule coreOptions (hmods, cmods)
+            cCompToCResult = implementation compToCResult
+            hCompToCResult = interface compToCResult
         appendFile cOutFileName (sourceCode cCompToCResult) `Control.Exception.catch` errorHandler
         appendFile hOutFileName (sourceCode hCompToCResult) `Control.Exception.catch` errorHandler
         writeFile cdbgOutFileName (show $ debugModule cCompToCResult) `Control.Exception.catch` errorHandler
