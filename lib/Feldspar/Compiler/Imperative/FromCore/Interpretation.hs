@@ -233,7 +233,7 @@ tellDeclWith free ds = do
     let frees | free = freeArrays ds ++ freeIVars ds
               | otherwise = []
         opts = backendOpts rs
-        defs = getTypes opts ds
+        defs = getTypes ds
         code | varFloating $ platform opts = mempty {decl=ds, epilogue = frees, def = defs}
              | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
@@ -324,8 +324,8 @@ decodeType s = goL s []
     likelyDim ('_':n:_) | [(_,_)] <- reads [n] :: [(Integer,String)] = True
     likelyDim _                                                      = False
 
-getTypes :: Options -> [Declaration ()] -> [Entity ()]
-getTypes _ defs = concatMap mkDef comps
+getTypes :: [Declaration ()] -> [Entity ()]
+getTypes defs = concatMap mkDef comps
   where
     comps = filter isComposite' $ map (typeof . dVar) defs
     -- There are other composite types that are not flagged as such by this
