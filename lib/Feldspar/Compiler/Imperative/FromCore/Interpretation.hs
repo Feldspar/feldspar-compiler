@@ -362,9 +362,9 @@ shallowCopyWithRefSwap dst src
   | dst /= src
   = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
       [] -> tellProg [Assign dst src]
-      arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF,t) <- arrs]
+      arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF, _) <- arrs]
                  tellProg [Assign dst src]
-                 tellProg [Assign (accF src) tmp | (tmp, (accF,t)) <- zip temps arrs]
+                 tellProg [Assign (accF src) tmp | (tmp, (accF, _)) <- zip temps arrs]
   | otherwise = return ()
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
