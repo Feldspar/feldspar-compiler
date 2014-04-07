@@ -177,6 +177,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "ivartest2" defaultOptions
     , mkParseTest "arrayInStruct" defaultOptions
     , mkParseTest "arrayInStructInStruct" defaultOptions
+    , mkParseTest "not1" defaultOptions
     ]
 
 main :: IO ()

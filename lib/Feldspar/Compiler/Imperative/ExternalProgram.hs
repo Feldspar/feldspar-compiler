@@ -364,7 +364,7 @@ unOpToExp (ConstExpr (R.DoubleConst n)) Negate
 unOpToExp e Negate = fun' Infix (typeof e) True "-" [e]
 unOpToExp e Positive = e
 unOpToExp e Not = error "Not"
-unOpToExp e Lnot = error "Lnot"
+unOpToExp e Lnot = fun' Infix (MachineVector 1 BoolType) True "!" [e]
 
 typToType :: TPEnv -> Type -> R.Type
 typToType env (Type ds de _) = declSpecToType env ds
