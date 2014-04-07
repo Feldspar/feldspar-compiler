@@ -44,21 +44,10 @@ import Control.Applicative
 
 import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix)
-import Data.Maybe (isJust, fromJust)
-
-import Language.Syntactic.Syntax hiding (result)
-import Language.Syntactic.Traversal
-import Language.Syntactic.Constraint
-import Language.Syntactic.Constructs.Binding (VarId)
 
 import Feldspar.Lattice (universal)
-import Feldspar.Range (upperBound, isSingleton, singletonRange)
-import Feldspar.Core.Types hiding (Type, ArrayType, BoolType, FloatType, DoubleType,
-                                   ComplexType, IVarType, Signedness, Size)
-import Feldspar.Core.Interpretation
-import qualified Feldspar.Core.Types as Core
-import qualified Feldspar.Core.Constructs.Binding as Core
-import qualified Feldspar.Core.Constructs.Literal as Core
+import Feldspar.Range (upperBound, isSingleton, singletonRange, fullRange)
+import qualified Feldspar.Core.UntypedRepresentation as Ut
 
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
@@ -74,13 +63,12 @@ import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
 
-data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasing
-                       , sourceInfo :: SourceInfo -- ^ Surrounding source info
+data Readers = Readers { alias :: [(Integer, Expression ())] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
                        }
 
 initReader :: Options -> Readers
-initReader = Readers [] ""
+initReader = Readers []
 
 data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
                        , def      :: [Entity ()]      -- ^ collects top level definitions
@@ -104,7 +92,7 @@ instance Monoid Writers
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
-data States = States { fresh :: VarId -- ^ The first fresh variable id
+data States = States { fresh :: Integer -- ^ The first fresh variable id
                      }
 
 initState :: States
@@ -113,216 +101,104 @@ initState = States 0
 -- | Where to place the program result
 type Location = Maybe (Expression ())
 
--- | A minimal complete instance has to define either 'compileProgSym' or
--- 'compileExprSym'.
-class Compile sub dom
-  where
-    compileProgSym
-        :: sub a
-        -> Info (DenResult a)
-        -> Location
-        -> Args (AST (Decor Info dom)) a
-        -> CodeWriter ()
-    compileProgSym = compileExprLoc
-
-    compileExprSym
-        :: sub a
-        -> Info (DenResult a)
-        -> Args (AST (Decor Info dom)) a
-        -> CodeWriter (Expression ())
-    compileExprSym = compileProgFresh
-
-instance (Compile sub1 dom, Compile sub2 dom) =>
-    Compile (sub1 :+: sub2) dom
-  where
-    compileProgSym (InjL a) = compileProgSym a
-    compileProgSym (InjR a) = compileProgSym a
-
-    compileExprSym (InjL a) = compileExprSym a
-    compileExprSym (InjR a) = compileExprSym a
-
-
-
--- | Implementation of 'compileExprSym' that assigns an expression to the given
--- location.
-compileExprLoc :: Compile sub dom
-    => sub a
-    -> Info (DenResult a)
-    -> Location
-    -> Args (AST (Decor Info dom)) a
-    -> CodeWriter ()
-compileExprLoc a info loc args = do
-    expr <- compileExprSym a info args
-    assign loc expr
-
--- | Implementation of 'compileProgSym' that generates code into a fresh
--- variable.
-compileProgFresh :: Compile sub dom
-    => sub a
-    -> Info (DenResult a)
-    -> Args (AST (Decor Info dom)) a
-    -> CodeWriter (Expression ())
-compileProgFresh a info args = do
-    loc <- freshVar "e" (infoType info) (infoSize info)
-    compileProgSym a info (Just loc) args
-    return loc
-
-compileDecor :: Info a -> CodeWriter b -> CodeWriter b
-compileDecor info action = do
-    let src = infoSource info
-    aboveSrc <- asks sourceInfo
-    unless (null src || src==aboveSrc) $ tellProg [Comment True src]
-    local (\env -> env{sourceInfo=src}) action
-
-compileProgDecor :: Compile dom dom
-    => Location
-    -> Decor Info dom a
-    -> Args (AST (Decor Info dom)) a
-    -> CodeWriter ()
-compileProgDecor result (Decor info a) args =
-    compileDecor info $ compileProgSym a info result args
-
-compileExprDecor :: Compile dom dom
-    => Decor Info dom a
-    -> Args (AST (Decor Info dom)) a
-    -> CodeWriter (Expression ())
-compileExprDecor (Decor info a) args =
-    compileDecor info $ compileExprSym a info args
-
-compileProg :: Compile dom dom =>
-    Location -> ASTF (Decor Info dom) a -> CodeWriter ()
-compileProg result = simpleMatch (compileProgDecor result)
-
-compileExpr :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter (Expression ())
-compileExpr = simpleMatch compileExprDecor
-
--- Compile an expression and make sure that the result is stored in a variable
-compileExprVar :: Compile dom dom => ASTF (Decor Info dom) a -> CodeWriter (Expression ())
-compileExprVar e = do
-    e' <- compileExpr e
-    case e' of
-        _ | isNearlyVar e' -> return e'
-        _         -> do
-            varId <- freshId
-            let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
-            declare loc
-            assign (Just loc) e'
-            return loc
-  where isNearlyVar VarExpr{}  = True
-        isNearlyVar (Deref e)  = isNearlyVar e
-        isNearlyVar (AddrOf e) = isNearlyVar e
-        isNearlyVar _          = False
-
 --------------------------------------------------------------------------------
 -- * Utility functions
 --------------------------------------------------------------------------------
-
-compileNumType :: Core.Signedness a -> BitWidth n -> ScalarType
-compileNumType U N8      = NumType Unsigned S8
-compileNumType S N8      = NumType Signed S8
-compileNumType U N16     = NumType Unsigned S16
-compileNumType S N16     = NumType Signed S16
-compileNumType U N32     = NumType Unsigned S32
-compileNumType S N32     = NumType Signed S32
-compileNumType U N64     = NumType Unsigned S64
-compileNumType S N64     = NumType Signed S64
-compileNumType U NNative = NumType Unsigned S32  -- TODO
-compileNumType S NNative = NumType Signed S32    -- TODO
 
 mkStructType :: [(String, Type)] -> Type
 mkStructType trs = StructType n trs
   where
     n = intercalate "_" $ "s" : map (encodeType . snd) trs
 
-compileTypeRep :: TypeRep a -> Core.Size a -> Type
-compileTypeRep UnitType _                = VoidType
-compileTypeRep Core.BoolType _           = MachineVector 1 BoolType
-compileTypeRep (IntType s n) _           = MachineVector 1 $ compileNumType s n
-compileTypeRep Core.FloatType _          = MachineVector 1 FloatType
-compileTypeRep Core.DoubleType _         = MachineVector 1 DoubleType
-compileTypeRep (Core.ComplexType t) _    = MachineVector 1 $ ComplexType (compileTypeRep t (defaultSize t))
-compileTypeRep (Tup2Type a b) (sa,sb)          = mkStructType
-        [ ("member1", compileTypeRep a sa)
-        , ("member2", compileTypeRep b sb)
+compileTypeRep :: Ut.Type -> Type
+compileTypeRep Ut.UnitType            = VoidType
+compileTypeRep Ut.BoolType            = MachineVector 1 BoolType
+compileTypeRep (Ut.IntType s n)       = MachineVector 1 (NumType s n)
+compileTypeRep Ut.FloatType           = MachineVector 1 FloatType
+compileTypeRep Ut.DoubleType          = MachineVector 1 DoubleType
+compileTypeRep (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileTypeRep t)
+compileTypeRep (Ut.Tup2Type a b)           = mkStructType
+        [ ("member1", compileTypeRep a)
+        , ("member2", compileTypeRep b)
         ]
-compileTypeRep (Tup3Type a b c) (sa,sb,sc)        = mkStructType
-        [ ("member1", compileTypeRep a sa)
-        , ("member2", compileTypeRep b sb)
-        , ("member3", compileTypeRep c sc)
+compileTypeRep (Ut.Tup3Type a b c)         = mkStructType
+        [ ("member1", compileTypeRep a)
+        , ("member2", compileTypeRep b)
+        , ("member3", compileTypeRep c)
         ]
-compileTypeRep (Tup4Type a b c d) (sa,sb,sc,sd)      = mkStructType
-        [ ("member1", compileTypeRep a sa)
-        , ("member2", compileTypeRep b sb)
-        , ("member3", compileTypeRep c sc)
-        , ("member4", compileTypeRep d sd)
+compileTypeRep (Ut.Tup4Type a b c d)       = mkStructType
+        [ ("member1", compileTypeRep a)
+        , ("member2", compileTypeRep b)
+        , ("member3", compileTypeRep c)
+        , ("member4", compileTypeRep d)
         ]
-compileTypeRep (Tup5Type a b c d e) (sa,sb,sc,sd,se)    = mkStructType
-        [ ("member1", compileTypeRep a sa)
-        , ("member2", compileTypeRep b sb)
-        , ("member3", compileTypeRep c sc)
-        , ("member4", compileTypeRep d sd)
-        , ("member5", compileTypeRep e se)
+compileTypeRep (Ut.Tup5Type a b c d e)     = mkStructType
+        [ ("member1", compileTypeRep a)
+        , ("member2", compileTypeRep b)
+        , ("member3", compileTypeRep c)
+        , ("member4", compileTypeRep d)
+        , ("member5", compileTypeRep e)
         ]
-compileTypeRep (Tup6Type a b c d e f) (sa,sb,sc,sd,se,sf)  = mkStructType
-        [ ("member1", compileTypeRep a sa)
-        , ("member2", compileTypeRep b sb)
-        , ("member3", compileTypeRep c sc)
-        , ("member4", compileTypeRep d sd)
-        , ("member5", compileTypeRep e se)
-        , ("member6", compileTypeRep f sf)
+compileTypeRep (Ut.Tup6Type a b c d e f)   = mkStructType
+        [ ("member1", compileTypeRep a)
+        , ("member2", compileTypeRep b)
+        , ("member3", compileTypeRep c)
+        , ("member4", compileTypeRep d)
+        , ("member5", compileTypeRep e)
+        , ("member6", compileTypeRep f)
         ]
-compileTypeRep (Tup7Type a b c d e f g) (sa,sb,sc,sd,se,sf,sg) = mkStructType
-        [ ("member1", compileTypeRep a sa)
-        , ("member2", compileTypeRep b sb)
-        , ("member3", compileTypeRep c sc)
-        , ("member4", compileTypeRep d sd)
-        , ("member5", compileTypeRep e se)
-        , ("member6", compileTypeRep f sf)
-        , ("member7", compileTypeRep g sg)
+compileTypeRep (Ut.Tup7Type a b c d e f g) = mkStructType
+        [ ("member1", compileTypeRep a)
+        , ("member2", compileTypeRep b)
+        , ("member3", compileTypeRep c)
+        , ("member4", compileTypeRep d)
+        , ("member5", compileTypeRep e)
+        , ("member6", compileTypeRep f)
+        , ("member7", compileTypeRep g)
         ]
-compileTypeRep (MutType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (RefType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (Core.ArrayType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
-compileTypeRep (MArrType a) (rs :> es)  = ArrayType rs $ compileTypeRep a es
-compileTypeRep (ParType a) _            = compileTypeRep a (defaultSize a)
-compileTypeRep (ElementsType a) (rs :> es) = ArrayType rs $ compileTypeRep a es
-compileTypeRep (Core.IVarType a) _      = IVarType $ compileTypeRep a $ defaultSize a
-compileTypeRep (FunType _ b) (_, sz)    = compileTypeRep b sz
-compileTypeRep (FValType a) sz          = IVarType $ compileTypeRep a sz
-compileTypeRep typ _                    = error $ "compileTypeRep: missing " ++ show typ  -- TODO
+compileTypeRep (Ut.MutType a)           = compileTypeRep a
+compileTypeRep (Ut.RefType a)           = compileTypeRep a
+compileTypeRep (Ut.ArrayType rs a)      = ArrayType rs $ compileTypeRep a
+compileTypeRep (Ut.MArrType rs a)       = ArrayType rs $ compileTypeRep a
+compileTypeRep (Ut.ParType a)           = compileTypeRep a
+compileTypeRep (Ut.ElementsType a)      = ArrayType fullRange $ compileTypeRep a
+compileTypeRep (Ut.IVarType a)          = IVarType $ compileTypeRep a
+compileTypeRep (Ut.FunType _ b)         = compileTypeRep b
+compileTypeRep (Ut.FValType a)          = IVarType $ compileTypeRep a
+compileTypeRep typ                      = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
 -- | Construct a variable.
-mkVar :: Type -> VarId -> Expression ()
+mkVar :: Type -> Integer -> Expression ()
 mkVar t i = varToExpr $ mkNamedVar "v" t i
 
 -- | Construct a named variable.
-mkNamedVar :: String -> Type -> VarId -> Variable ()
+mkNamedVar :: String -> Type -> Integer -> Variable ()
 mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 
 -- | Construct a named pointer.
-mkNamedRef :: String -> Type -> VarId -> Variable ()
+mkNamedRef :: String -> Type -> Integer -> Variable ()
 mkNamedRef base t i = Variable (Pointer t) $ base ++ if i < 0 then "" else show i
 
 -- | Construct a pointer.
-mkRef :: Type -> VarId -> Expression ()
+mkRef :: Type -> Integer -> Expression ()
 mkRef t i = varToExpr $ mkNamedRef "v" t i
 
-mkVariable :: Type -> VarId -> Variable ()
+mkVariable :: Type -> Integer -> Variable ()
 mkVariable = mkNamedVar "v"
 
-mkPointer :: Type -> VarId -> Variable ()
+mkPointer :: Type -> Integer -> Variable ()
 mkPointer = mkNamedRef "v"
 
-freshId :: CodeWriter VarId
+freshId :: CodeWriter Integer
 freshId = do
   s <- get
   let v = fresh s
   put (s {fresh = v + 1})
   return v
 
-freshVar :: String -> TypeRep a -> Core.Size a -> CodeWriter (Expression ()) -- TODO take just info instead of TypeRep and Size?
-freshVar base t sz = do
-  v <- varToExpr . mkNamedVar base (compileTypeRep t sz) <$> freshId
+freshVar :: String -> Ut.Type -> CodeWriter (Expression ())
+freshVar base t = do
+  v <- varToExpr . mkNamedVar base (compileTypeRep t) <$> freshId
   declare v
   return v
 
@@ -513,7 +389,7 @@ shallowCopyReferences dst src = tellProg [Assign (accF dst) (accF src) | (accF, 
     - Avoid memory leaks of arrays and lvars
 -}
 
-mkDoubleBufferState :: Expression () -> VarId -> CodeWriter (Expression (), Expression ())
+mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Expression ())
 mkDoubleBufferState loc stvar
    = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc) 
                      then return loc
@@ -544,37 +420,14 @@ confiscateBigBlock m
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
-withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
+withAlias :: Integer -> Expression () -> CodeWriter a -> CodeWriter a
 withAlias v0 expr =
   local (\e -> e {alias = (v0,expr) : alias e})
 
-isVariableOrLiteral :: ( Project (Core.Variable :|| Core.Type) dom
-                       , Project (Core.Literal  :|| Core.Type) dom)
-                    => AST (Decor info dom) a -> Bool
-isVariableOrLiteral (prjF -> Just (C' (Core.Literal  _))) = True
-isVariableOrLiteral (prjF -> Just (C' (Core.Variable _))) = True
-isVariableOrLiteral _                                     = False
-
-mkLength :: ( Project (Core.Literal  :|| Core.Type) dom
-            , Project (Core.Variable :|| Core.Type) dom
-            , Compile dom dom
-            )
-         => ASTF (Decor Info dom) a -> TypeRep a -> Core.Size a -> CodeWriter (Expression ())
-mkLength a t sz 
-  | isVariableOrLiteral a = compileExpr a
-  | otherwise             = do
-      lenvar    <- freshVar "len" t sz
-      compileProg (Just lenvar) a
-      return lenvar
-
-mkBranch :: (Compile dom dom)
-         => Location -> ASTF (Decor Info dom) Bool -> ASTF (Decor Info dom) a -> Maybe (ASTF (Decor Info dom) a) -> CodeWriter ()
-mkBranch loc c th el = do
-    ce <- compileExpr c
-    (_, tb) <- confiscateBlock $ compileProg loc th
-    (_, eb) <- if isJust el then confiscateBlock $ compileProg loc (fromJust el) else return (undefined, toBlock Empty)
-    tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
-
+isVariableOrLiteral :: Ut.UntypedFeld -> Bool
+isVariableOrLiteral (Ut.In Ut.Literal{})  = True
+isVariableOrLiteral (Ut.In Ut.Variable{}) = True
+isVariableOrLiteral _                     = False
 
 isComposite :: Type -> Bool
 isComposite ArrayType{}   = True

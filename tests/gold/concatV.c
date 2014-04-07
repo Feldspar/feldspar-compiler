@@ -13,9 +13,9 @@ void concatV(struct s_arr_unsignedS32_UD_arr_s_arr_unsignedS32_UD_arr_signedS32_
   struct s_arr_unsignedS32_UD_arr_signedS32_UD v94 = { .member1 = NULL, .member2 = NULL };
   struct array * e2 = NULL;
   struct array * e3 = NULL;
-  struct s_arr_unsignedS32_1_arr_signedS32_UD v100 = { .member1 = NULL, .member2 = NULL };
+  struct s_arr_unsignedS32_UD_arr_signedS32_UD v100 = { .member1 = NULL, .member2 = NULL };
   uint32_t len4;
-  struct s_arr_unsignedS32_1_arr_signedS32_UD v65 = { .member1 = NULL, .member2 = NULL };
+  struct s_arr_unsignedS32_UD_arr_signedS32_UD v65 = { .member1 = NULL, .member2 = NULL };
   uint32_t v96;
   uint32_t v97;
   uint32_t v98;

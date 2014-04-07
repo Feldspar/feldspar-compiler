@@ -36,7 +36,26 @@
 {-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Feldspar.Compiler.Imperative.Representation where
+module Feldspar.Compiler.Imperative.Representation (
+    Module(..)
+  , Entity(..)
+  , Declaration(..)
+  , Block(..)
+  , Program(..)
+  , Expression(..)
+  , ActualParameter(..)
+  , FunctionMode(..)
+  , Function(..)
+  , Variable(..)
+  , StructMember(..)
+  , Pattern(..)
+  , Type(..)
+  , ScalarType(..)
+  , Constant(..)
+  , module Feldspar.Core.UntypedRepresentation
+  , fv
+  )
+  where
 
 import Data.Typeable
 import Data.List (nub)
@@ -47,6 +66,8 @@ import Feldspar.Compiler.Error
 
 import Feldspar.Range
 import Feldspar.Core.Types (Length)
+import Feldspar.Core.UntypedRepresentation ( Signedness(..), Size(..)
+                                           , HasType(..))
 
 -- =================================================
 -- == Data stuctures to store imperative programs ==
@@ -243,12 +264,6 @@ instance Monoid (Block t)
 -- == Basic structures ==
 -- ======================
 
-data Size = S8 | S16 | S32 | S40 | S64
-    deriving (Eq,Show)
-
-data Signedness = Signed | Unsigned
-    deriving (Eq,Show)
-
 data ScalarType =
       BoolType
     | BitType
@@ -275,10 +290,6 @@ data FunctionMode = Prefix | Infix
 ----------------------
 --   Type inference --
 ----------------------
-
-class HasType a where
-    type TypeOf a
-    typeof :: a -> TypeOf a
 
 instance HasType (Variable t) where
     type TypeOf (Variable t) = Type
