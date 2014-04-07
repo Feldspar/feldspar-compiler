@@ -208,6 +208,13 @@ freshAlias e = do i <- freshId
                   declareAlias vexp
                   return vexp
 
+-- | Create a fresh variable aliasing some other variable and
+-- initialize it to the parameter.
+freshAliasInit :: Expression () -> CodeWriter (Expression ())
+freshAliasInit e = do vexp <- freshAlias e
+                      tellProg [Assign vexp e]
+                      return vexp
+
 declare :: Expression () -> CodeWriter ()
 declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
@@ -255,6 +262,7 @@ encodeType = go
                                              ]
     goScalar BoolType          = "bool"
     goScalar BitType           = "bit"
+    goScalar CharType          = "char"
     goScalar FloatType         = "float"
     goScalar DoubleType        = "double"
     goScalar (NumType s w)     = map toLower (show s) ++ show w
@@ -347,15 +355,10 @@ assign _          _   = return ()
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
 shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
-shallowAssign loc src = return ()
-
-freshAliasInit :: Expression () -> CodeWriter (Expression ())
-freshAliasInit e = do vexp <- freshAlias e
-                      tellProg [Assign vexp e]
-                      return vexp
+shallowAssign _          _                = return ()
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
-shallowCopyWithRefSwap dst src 
+shallowCopyWithRefSwap dst src
   | dst /= src
   = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
       [] -> tellProg [Assign dst src]
@@ -367,41 +370,48 @@ shallowCopyWithRefSwap dst src
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyReferences dst src = tellProg [Assign (accF dst) (accF src) | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
 
-{- 
-    This function implements double buffering of state for nonmutable seqential loops (forLoop and whileLoop).
-    The intention is to generate the minimal amount of copying (especially deep array copies) while also avoiding
-    frequent references to data that can not be allocated in registers.
+{-
+This function implements double buffering of state for imnmutable
+seqential loops (forLoop and whileLoop).  The intention is to generate
+the minimal amount of copying (especially deep array copies) while
+also avoiding frequent references to data that can not be allocated in
+registers.
 
-    The state of the loop is implemented by two variables so that the loop body reads from one and writes to
-    the other. At the end of the body, the contents of the second (write) variable is shallow copied to the 
-    first (read) variable. In order to avoid inadvertent sharing of data referenced by pointers in the variables 
-    (array buffers, for instance), the pointers in the state are swapped rather than just copied so that the end 
-    up in the variable written to. Finally the read variable is shallow copied to the result location.
+The state of the loop is implemented by two variables so that the
+loop body reads from one and writes to the other. At the end of the
+body, the contents of the second (write) variable is shallow copied to
+the first (read) variable. In order to avoid inadvertent sharing of
+data referenced by pointers in the variables (array buffers, for
+instance), the pointers in the state are swapped rather than just
+copied so that the end up in the variable written to. Finally the read
+variable is shallow copied to the result location.
 
-    There are some simplifying cases:
-    - When the target lvalue loc is a variable, and thus cheap to access, it is reused as the read state variable
-    - When the type of the state is scalar, so that assignment is atomic, only one state variable is used and it 
-      is both read and written to in the loop body, eliminating the shallow copy in the loop body.
-
-    The strategy implemented a compromise between different design constraints:
+There are some simplifying cases:
+    - When the target lvalue loc is a variable, and thus cheap to
+      access, it is reused as the read state variable
+    - When the type of the state is scalar, so that assignment is
+      atomic, only one state variable is used and it is both read and
+      written to in the loop body, eliminating the shallow copy in the
+      loop body.
+The strategy implemented a compromise between different design constraints:
     - Avoid deep copying of arrays (that is what the double buffering is for)
     - Avoid shallow copying if possible
-    - Avoid memory leaks of arrays and lvars
+    - Avoid memory leaks of arrays and ivars
 -}
 
 mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Expression ())
 mkDoubleBufferState loc stvar
-   = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc) 
+   = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc)
                      then return loc
                      else do vexp <- freshAlias loc
                              shallowCopyReferences vexp loc
                              return vexp
-        stvar2 <- if isComposite $ typeof loc 
-                     then do let vexp2 = mkVar (typeof loc) stvar 
+        stvar2 <- if isComposite $ typeof loc
+                     then do let vexp2 = mkVar (typeof loc) stvar
                              declare vexp2
                              return vexp2
                      else return stvar1
-        return (stvar1,stvar2)
+        return (stvar1, stvar2)
 
 
 -- | Like 'listen', but also prevents the program from being written in the
@@ -421,8 +431,7 @@ confiscateBigBlock m
     $ listen m
 
 withAlias :: Integer -> Expression () -> CodeWriter a -> CodeWriter a
-withAlias v0 expr =
-  local (\e -> e {alias = (v0,expr) : alias e})
+withAlias v0 expr = local (\e -> e {alias = (v0,expr) : alias e})
 
 isVariableOrLiteral :: Ut.UntypedFeld -> Bool
 isVariableOrLiteral (Ut.In Ut.Literal{})  = True
