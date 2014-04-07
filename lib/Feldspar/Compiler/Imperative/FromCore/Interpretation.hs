@@ -55,7 +55,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Size(..), Variable(..),
                                                     Expression(..), ScalarType(..),
                                                     Declaration(..),
-                                                    Program(..), Pattern(..),
+                                                    Program(..),
                                                     Entity(..), StructMember(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
