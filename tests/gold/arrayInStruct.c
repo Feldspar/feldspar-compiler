@@ -7,7 +7,7 @@ void arrayInStruct(struct array * v0, struct array * * out)
   struct s_unsignedS32_arr_unsignedS32_UD v2 = { .member1 = 0, .member2 = NULL };
   uint32_t len1;
   struct array * e2 = NULL;
-  uint32_t v1;
+  bool v1;
   
   (e0).member1 = getLength(v0);
   (e0).member2 = initArray((e0).member2, sizeof(uint32_t), getLength(v0));

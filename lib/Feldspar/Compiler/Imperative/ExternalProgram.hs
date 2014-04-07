@@ -45,7 +45,8 @@ parseFile filename s headerDefs = do
 -- the parser will die with a mysterious parse error.
 builtin_types :: [String]
 builtin_types = [ "uint64_t", "uint32_t", "uint16_t", "uint8_t"
-                , "int64_t", "int32_t", "int16_t", "int8_t"]
+                , "int64_t", "int32_t", "int16_t", "int8_t"
+                , "bool"]
 
 toProgram :: [Entity ()] -> [Definition] -> [Entity ()]
 toProgram [] defs = snd $ defsToProgram (emptyEnv []) defs
@@ -412,6 +413,7 @@ namedToType "int40_t"  = MachineVector 1 (NumType R.Signed S40)
 namedToType "int32_t"  = MachineVector 1 (NumType R.Signed S32)
 namedToType "int16_t"  = MachineVector 1 (NumType R.Signed S16)
 namedToType "int8_t"   = MachineVector 1 (NumType R.Signed S8)
+namedToType "bool"     = MachineVector 1 BoolType
 namedToType s          = error ("namedToType: Unrecognized type: " ++ s)
 
 declToType :: R.Type -> Decl -> R.Type

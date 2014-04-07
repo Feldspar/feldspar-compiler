@@ -111,6 +111,9 @@ arrayInStructInStruct x = x
 fut1 :: Future (Data IntN) -> Future (Data IntN)
 fut1 x  = forLoop 20 x (\_ e -> future $ force $ await e)
 
+not1 :: Data Bool -> Data Bool
+not1 x = not x
+
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
@@ -133,6 +136,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkGoldTest fut1 "fut1" defaultOptions
+    , mkGoldTest not1 "not1" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
@@ -150,6 +154,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkBuildTest fut1 "fut1" defaultOptions
+    , mkBuildTest not1 "not1" defaultOptions
     ]
 
 externalProgramTests :: TestTree

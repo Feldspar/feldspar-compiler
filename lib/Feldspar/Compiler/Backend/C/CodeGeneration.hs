@@ -171,7 +171,6 @@ instance CodeGen (Expression ())
     cgen env StructField{..}  = parens (cgen env struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..}    = cgen env constExpr
     cgen env FunctionCall{..}
-        | funName function == "!"   = call (text "at") $ map (cgen env) funCallParams
         | funMode function == Infix
         , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
         | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
