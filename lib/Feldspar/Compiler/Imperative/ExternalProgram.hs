@@ -4,8 +4,8 @@ import Feldspar.Lattice (universal)
 import Feldspar.Compiler.Imperative.FromCore.Interpretation (decodeType)
 import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
-  Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
-  Deref, AddrOf, Unsigned, Signed)
+  Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, CharConst,
+  Type, Deref, AddrOf, Unsigned, Signed)
 import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun')
 
 import qualified Data.ByteString.Char8 as B
@@ -44,8 +44,8 @@ parseFile filename s headerDefs = do
 -- A list of built in types. We need the regular C99 types in this list, or
 -- the parser will die with a mysterious parse error.
 builtin_types :: [String]
-builtin_types = [ "uint32_t", "uint16_t", "uint8_t"
-                , "int32_t", "int16_t", "int8_t"]
+builtin_types = [ "uint64_t", "uint32_t", "uint16_t", "uint8_t"
+                , "int64_t", "int32_t", "int16_t", "int8_t"]
 
 toProgram :: [Entity ()] -> [Definition] -> [Entity ()]
 toProgram [] defs = snd $ defsToProgram (emptyEnv []) defs
