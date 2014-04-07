@@ -809,6 +809,8 @@ instance CompileOp Ut.PrimOp1 where
   compileOp Ut.I2N       = "i2n"
   compileOp Ut.B2I       = "b2i"
   compileOp Ut.Sign      = "signum"
+  -- Floating
+  compileOp Ut.Exp       = "exp"
   compileOp p            = toLower h:t
     where (h:t) = show p
 
@@ -822,8 +824,8 @@ instance CompileOp Ut.PrimOp2 where
   compileOp Ut.NotEqual  = "/="
   -- Fractional
   compileOp Ut.DivFrac   = "/"
-  -- Floating
-  compileOp Ut.IExp      = "exp"
+  -- Integral
+  compileOp Ut.IExp      = "pow"
   -- Logic
   compileOp Ut.And       = "&&"
   compileOp Ut.Or        = "||"
