@@ -412,32 +412,4 @@ complexOf_float cis_fun_float( float );
 unsigned cis_fun_short( short );
 unsigned cis_fun_ushort( unsigned short );
 
-
-
-void traceStart();
-void traceEnd();
-
-void trace_char( char, int );
-void trace_short( short, int );
-void trace_int( int, int );
-void trace_long( long, int );
-void trace_llong( long long, int );
-void trace_uchar( unsigned char, int );
-void trace_ushort( unsigned short, int );
-void trace_uint( unsigned, int );
-void trace_ulong( unsigned long, int );
-void trace_ullong( unsigned long long, int );
-void trace_float( float, int );
-void trace_complexOf_char( complexOf_char, int );
-void trace_complexOf_short( unsigned, int );
-void trace_complexOf_int( complexOf_int, int );
-void trace_complexOf_long( complexOf_long, int );
-void trace_complexOf_llong( complexOf_llong, int );
-void trace_complexOf_uchar( complexOf_uchar, int );
-void trace_complexOf_ushort( unsigned, int );
-void trace_complexOf_uint( complexOf_uint, int );
-void trace_complexOf_ulong( complexOf_ulong, int );
-void trace_complexOf_ullong( complexOf_ullong, int );
-void trace_complexOf_float( complexOf_float, int );
-
 #endif /* FELDSPAR_TI_C64X_H */

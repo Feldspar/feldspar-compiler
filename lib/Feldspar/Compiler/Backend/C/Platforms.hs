@@ -36,7 +36,6 @@ module Feldspar.Compiler.Backend.C.Platforms
     , tic64x
     , c99Rules
     , tic64xRules
-    , traceRules
     , nativeArrayRules
     ) where
 
@@ -84,7 +83,7 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    platformRules = c99Rules ++ traceRules ++ arrayRules,
+    platformRules = c99Rules ++ arrayRules,
     varFloating = True
 }
 
@@ -119,7 +118,7 @@ tic64x = Platform {
         , (MachineVector 1 BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
     includes = ["feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>", "<math.h>"],
-    platformRules = tic64xRules ++ c99Rules ++ traceRules,
+    platformRules = tic64xRules ++ c99Rules,
     varFloating = True
 }
 
@@ -329,29 +328,6 @@ tic64xRules = [rule go]
     go (FunctionCall (Function "bitCount" t _) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]]
     go (FunctionCall (Function _ t _) [arg@(typeof -> MachineVector 1 ComplexType{})]) = [replaceWith $ fun t False (extend tic64x "creal" $ typeof arg) [arg]]
     go _ = []
-
-traceRules :: [Rule]
-traceRules = [rule trace]
-  where
-    trace (FunctionCall (Function "trace" t _) [lab, val]) = [WithId acts]
-      where
-       acts i = [replaceWith trcVar, propagate decl, propagate trc, propagate frame]
-         where
-            v          = Variable t trcVarName
-            trcVar     = varToExpr v
-            trcVarName = "trc" ++ show i
-            defTrcVar  = Declaration v Nothing
-            decl :: Block () -> [Action (Block ())]
-            decl (Block defs prg) = [replaceWith $ Block (defs ++ [defTrcVar]) prg]
-            trc :: Program () -> [Action (Program ())]
-            trc instr = [replaceWith $ Sequence [Assign trcVar val,trcCall,instr]]
-            trcCall = call (extend' "trace" t) [ValueParameter trcVar, ValueParameter lab]
-            frame (Proc pname ins outs (Just prg)) = [replaceWith $ Proc pname ins outs prg']
-              where
-                prg' = Just $ case prg of
-                    Block _ (Sequence (ProcedureCall "traceStart" [] : _)) -> prg
-                    Block ds ps -> Block ds (Sequence [call "traceStart" [], ps, call "traceEnd" []])
-    trace _ = []
 
 extend :: Platform -> String -> Type -> String
 extend Platform{..} s t = s ++ "_fun_" ++ fromMaybe (show t) (lookup t types)
