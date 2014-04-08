@@ -50,7 +50,7 @@ import Control.Monad.RWS
 import Control.Applicative
 
 import Feldspar.Core.Types
-import Feldspar.Core.UntypedRepresentation (Term(..), Lit(..))
+import Feldspar.Core.UntypedRepresentation (Term(..), Lit(..), collectLetBinders)
 import Feldspar.Core.UntypedRepresentation
          ( UntypedFeldF(PrimApp0), UntypedFeldF(PrimApp1)
          , UntypedFeldF(PrimApp2), UntypedFeldF(PrimApp3)
@@ -79,7 +79,7 @@ fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
     (outParam,results) = evalRWS (compileProgTop opt funname [] ast) (initReader opt) initState
-    ast        = untypeProg $ reifyFeld (frontendOpts opt) N32 prog
+    ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
     post       = epilogue results
@@ -182,15 +182,15 @@ compileProg loc (In (PrimApp2 Ut.Parallel _ len (In (Ut.Lambda (Ut.Var v ta) ixf
    (_, b) <- confiscateBlock $ compileProg (ArrayElem <$> loc <*> pure ix) ixf
    tellProg [initArray loc len']
    tellProg [for True (lName ix) len' (litI32 1) b]
-compileProg loc (In (PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v tix) lt1))))
-   | (bs1, In (Ut.Lambda (Ut.Var s tst) l)) <- collectLetBinders lt1
+compileProg loc (In (PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v tix) ixf1))))
+   | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.Tup2 (In (Ut.Variable t1)) (In (Ut.Variable t2)))) <- collectLetBinders l
    , not $ null bs
    , (e, step) <- last bs
    , t1 == e
    , t2 == e
    = do
-        blocks <- mapM (confiscateBlock . compileBind) (bs1 ++ init bs)
+        blocks <- mapM (confiscateBlock . compileBind) (init bs)
         let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
         let ix = mkVar (compileTypeRep tix) v
         len' <- mkLength len tix
@@ -205,23 +205,20 @@ compileProg loc (In (PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for False (lName ix) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg loc (In (PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v t) lt1))))
-  | (bs1, In (Ut.Lambda (Ut.Var s _) step)) <- collectLetBinders lt1
+compileProg loc (In (PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step))))))
   = do
-       blocks <- mapM (confiscateBlock . compileBind) bs1
        let tr' = typeof step
        let ix = mkVar (compileTypeRep t) v
-           (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
        len' <- mkLength len t
        tmp  <- freshVar "seq" tr'
        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg (Just tmp) step
        tellProg [initArray loc len']
        compileProg (Just $ StructField tmp "member2") st
-       tellProg [toProg $ Block (concat dss ++ ds) $
-                 for False (lName ix) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++
-                                    [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
-                                    ])]
+       tellProg [toProg $ Block ds $
+                 for False (lName ix) len' (litI32 1) $ toBlock $
+                   Sequence $ body ++
+                     [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
+                     ]]
 compileProg loc (In (PrimApp2 Ut.Append _ a b)) = do
    a' <- compileExpr a
    b' <- compileExpr b
@@ -311,11 +308,8 @@ compileProg loc (In (Ut.Literal a)) = case loc of
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) lt1))))
-  | (bs1, In (Ut.Lambda (Ut.Var st stt) ixf)) <- collectLetBinders lt1
+compileProg (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf))))))
   = do
-      blocks <- mapM (confiscateBlock . compileBind) bs1
-      let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
       let ix' = mkVar (compileTypeRep ta) ix
           stvar = mkVar (compileTypeRep (typeof ixf)) st
       len' <- mkLength len ta
@@ -323,7 +317,7 @@ compileProg (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Va
       compileProg (Just lstate) init
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
                           $ compileProg (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
-      tellProg [toProg $ Block (concat dss ++ ds) (for False (lName ix') len' (litI32 1) (toBlock $ Sequence $ concat lets ++ [body]))]
+      tellProg [toProg $ Block ds (for False (lName ix') len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
 compileProg (Just loc) (In (PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) e@(In (Ut.Lambda (Ut.Var bv bt) body)))) = do
     let stvar = mkVar (compileTypeRep bt) bv
@@ -782,11 +776,6 @@ it allows us to implement `freezeArray` in terms of `withArray`.
 In most cases I expect `withArray` to return a scalar as its final
 result and then the copyProg is harmless.
 -}
-
-collectLetBinders :: Ut.UntypedFeld -> ([(Ut.Var, Ut.UntypedFeld)], Ut.UntypedFeld)
-collectLetBinders e = go e []
-  where go (In (Ut.Let e (In (Ut.Lambda v b)))) acc = go b ((v, e):acc)
-        go e acc = (reverse acc, e)
 
 compileBind :: (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
 compileBind (Ut.Var v t, e) = do
