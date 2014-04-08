@@ -193,7 +193,6 @@ instance CodeGen (Constant ())
     cgen env cnst@(FloatConst c)    = maybe (float c)   text $ transformConst env cnst
     cgen env cnst@(BoolConst False) = maybe (int 0)     text $ transformConst env cnst
     cgen env cnst@(BoolConst True)  = maybe (int 1)     text $ transformConst env cnst
-    cgen env cnst@(CharConst c)     = maybe (char c)    text $ transformConst env cnst
     cgen env      (ArrayConst cs)   = braces (cgenList env cs)
     cgen env cnst@ComplexConst{..}  = maybe cmplxCnst   text $ transformConst env cnst
       where
@@ -243,7 +242,6 @@ initialize False _                 = empty
 -- Simple types inside compound types.
 initialize _     (MachineVector 1 BoolType{})        = equals <+> text "false"
 initialize _     (MachineVector 1 BitType{})         = equals <+> text "0"
-initialize _     (MachineVector 1 CharType{})        = equals <+> text "0"
 initialize _     (MachineVector 1 NumType{})         = equals <+> text "0"
 initialize _     (MachineVector 1 FloatType{})       = equals <+> text "0.0f"
 initialize _     (MachineVector 1 DoubleType{})      = equals <+> text "0.0"

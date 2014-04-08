@@ -230,9 +230,6 @@ data Constant t
     | BoolConst
         { boolValue                 :: Bool
         }
-    | CharConst
-        { charValue                 :: Char
-        }
     | ComplexConst
         { realPartComplexValue      :: Constant t
         , imagPartComplexValue      :: Constant t
@@ -270,7 +267,6 @@ instance Monoid (Block t)
 data ScalarType =
       BoolType
     | BitType
-    | CharType
     | FloatType
     | DoubleType
     | NumType Signedness Size
@@ -305,7 +301,6 @@ instance HasType (Constant t) where
     typeof DoubleConst{}     = MachineVector 1 DoubleType
     typeof FloatConst{}      = MachineVector 1 FloatType
     typeof BoolConst{}       = MachineVector 1 BoolType
-    typeof CharConst{}       = MachineVector 1 CharType
     typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) t
       where t = typeof $ head arrayValues
     typeof ComplexConst{..}  = MachineVector 1 (ComplexType $ typeof realPartComplexValue)

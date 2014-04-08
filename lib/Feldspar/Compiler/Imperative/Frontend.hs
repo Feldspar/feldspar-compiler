@@ -165,9 +165,6 @@ litD n = ConstExpr (DoubleConst n)
 litB :: Bool -> Expression ()
 litB b = ConstExpr (BoolConst b)
 
-litS :: String -> Expression ()
-litS s = ConstExpr (ArrayConst (map CharConst s))
-
 litC :: Constant () -> Constant () -> Expression ()
 litC r i = ConstExpr (ComplexConst r i)
 
