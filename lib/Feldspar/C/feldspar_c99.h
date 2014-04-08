@@ -337,30 +337,4 @@ complexOf_uint64_t cis_fun_uint64_t( uint64_t );
 float complex cis_fun_float( float );
 double complex cis_fun_double( double );
 
-
-
-void traceStart();
-void traceEnd();
-
-void trace_int8_t( int8_t, int32_t );
-void trace_int16_t( int16_t, int32_t );
-void trace_int32_t( int32_t, int32_t );
-void trace_int64_t( int64_t, int32_t );
-void trace_uint8_t( uint8_t, int32_t );
-void trace_uint16_t( uint16_t, int32_t );
-void trace_uint32_t( uint32_t, int32_t );
-void trace_uint64_t( uint64_t, int32_t );
-void trace_float( float, int32_t );
-void trace_double( double, int32_t );
-void trace_complexOf_int8_t( complexOf_int8_t, int32_t );
-void trace_complexOf_int16_t( complexOf_int16_t, int32_t );
-void trace_complexOf_int32_t( complexOf_int32_t, int32_t );
-void trace_complexOf_int64_t( complexOf_int64_t, int32_t );
-void trace_complexOf_uint8_t( complexOf_uint8_t, int32_t );
-void trace_complexOf_uint16_t( complexOf_uint16_t, int32_t );
-void trace_complexOf_uint32_t( complexOf_uint32_t, int32_t );
-void trace_complexOf_uint64_t( complexOf_uint64_t, int32_t );
-void trace_complexOf_float( float complex, int32_t );
-void trace_complexOf_double( double complex, int32_t );
-
 #endif /* FELDSPAR_C99_H */
