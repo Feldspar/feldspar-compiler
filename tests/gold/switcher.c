@@ -1,7 +1,7 @@
 #include "switcher.h"
 
 
-void switcher(uint8_t v0, uint32_t v1, uint8_t * out)
+void switcher(uint8_t v0, bool v1, uint8_t * out)
 {
   switch (v1)
   {

@@ -62,7 +62,7 @@ c99 = Platform {
         , (MachineVector 1 (NumType Unsigned S16),  "uint16_t")
         , (MachineVector 1 (NumType Unsigned S32),  "uint32_t")
         , (MachineVector 1 (NumType Unsigned S64),  "uint64_t")
-        , (MachineVector 1 BoolType,                "uint32_t")
+        , (MachineVector 1 BoolType,                "bool")
         , (MachineVector 1 CharType,                "char")
         , (MachineVector 1 FloatType,               "float")
         , (MachineVector 1 DoubleType,              "double")

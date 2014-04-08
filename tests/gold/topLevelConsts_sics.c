@@ -7,7 +7,7 @@ uint32_t v3[] = {1, 2, 3, 4, 5};
 
 void topLevelConsts__sics(uint32_t v0, uint32_t v1, uint32_t * out)
 {
-  uint32_t v4;
+  bool v4;
   uint32_t v5;
   
   v4 = (v0 < 5);

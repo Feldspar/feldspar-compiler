@@ -84,7 +84,7 @@ fromCore opt funname prog = Module defs
     ins        = params results
     post       = epilogue results
     Block ds p = block results
-    paramTypes = getTypes opt $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
+    paramTypes = getTypes $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
     defs       =  nub (def results ++ paramTypes)
                ++ [Proc funname ins [outParam] $ Just (Block (ds ++ decls) (Sequence (p:post)))]
 

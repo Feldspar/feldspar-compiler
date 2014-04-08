@@ -1,5 +1,5 @@
-#ifndef TESTS_SWITCHER_H
-#define TESTS_SWITCHER_H
+#ifndef TESTS_NOT1_H
+#define TESTS_NOT1_H
 
 #include "feldspar_c99.h"
 #include "feldspar_array.h"
@@ -13,6 +13,6 @@
 #include <complex.h>
 
 
-void switcher(uint8_t v0, bool v1, uint8_t * out);
+void not1(bool v0, bool * out);
 
-#endif // TESTS_SWITCHER_H
+#endif // TESTS_NOT1_H
