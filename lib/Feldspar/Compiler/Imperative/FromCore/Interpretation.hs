@@ -262,7 +262,6 @@ encodeType = go
                                              ]
     goScalar BoolType          = "bool"
     goScalar BitType           = "bit"
-    goScalar CharType          = "char"
     goScalar FloatType         = "float"
     goScalar DoubleType        = "double"
     goScalar (NumType s w)     = map toLower (show s) ++ show w
