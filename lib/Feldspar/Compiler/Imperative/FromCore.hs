@@ -78,7 +78,7 @@ import Feldspar.Compiler.Backend.C.Options (Options(..))
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
-    (outParam,results) = evalRWS (compileProgTop opt funname [] ast) (initReader opt) initState
+    (outParam,results) = evalRWS (compileProgTop opt funname ast) (initReader opt) initState
     ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
@@ -92,32 +92,29 @@ fromCore opt funname prog = Module defs
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts = fromCore opts "test"
 
-compileProgTop :: Options -> String -> [(Ut.Var, Ut.UntypedFeld)]
-               -> Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
-compileProgTop opt funname bs (In (Ut.Lambda (Ut.Var v ta) body)) = do
+compileProgTop :: Options -> String -> Ut.UntypedFeld ->
+                  CodeWriter (Rep.Variable ())
+compileProgTop opt funname (In (Ut.Lambda (Ut.Var v ta) body)) = do
   let typ = compileTypeRep ta
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
-     compileProgTop opt funname bs body
+     compileProgTop opt funname body
 -- Input on form let x = n in e
-compileProgTop opt funname bs e@(In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v vt) body))))
+compileProgTop opt funname (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v vt) body))))
   = do tellDef [ValueDef var $ literalConst l]
        withAlias v (varToExpr var) $
-         compileProgTop opt funname bs body
+         compileProgTop opt funname body
   where
     var = mkVariable outType v
     outType  = case compileTypeRep vt of
                  Rep.ArrayType rs t -> Rep.NativeArray (Just $ upperBound rs) t
                  t -> t
-compileProgTop opt funname bs (In (Ut.Let e (In (Ut.Lambda v body))))
-  = compileProgTop opt funname ((v, e):bs) body
-compileProgTop _ _ bs a = do
+compileProgTop _ _ a = do
   let outType    = Rep.Pointer $ compileTypeRep (typeof a)
       outParam   = Rep.Variable outType "out"
       outLoc     = Deref $ varToExpr outParam
-  mapM_ compileBind (reverse bs)
   compileProg (Just outLoc) a
   return outParam
 
