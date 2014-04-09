@@ -78,7 +78,7 @@ import Feldspar.Compiler.Backend.C.Options (Options(..))
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
-    (outParam,results) = evalRWS (compileProgTop opt funname [] ast) (initReader opt) initState
+    (outParam,results) = evalRWS (compileProgTop opt funname ast) (initReader opt) initState
     ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
@@ -92,39 +92,41 @@ fromCore opt funname prog = Module defs
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts = fromCore opts "test"
 
-compileProgTop :: Options -> String -> [(Ut.Var, Ut.UntypedFeld)]
-               -> Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
-compileProgTop opt funname bs (In (Ut.Lambda (Ut.Var v ta) body)) = do
+compileProgTop :: Options -> String -> Ut.UntypedFeld ->
+                  CodeWriter (Rep.Variable ())
+compileProgTop opt funname (In (Ut.Lambda (Ut.Var v ta) body)) = do
   let typ = compileTypeRep ta
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
-     compileProgTop opt funname bs body
--- Input on form let x = n in e
-compileProgTop opt funname bs (In (Ut.Let e@(In Ut.Literal{}) (In (Ut.Lambda (Ut.Var v vt) body))))
-  | [ProcedureCall "copy" [ ValueParameter (VarExpr vr)
-                          , ValueParameter (ConstExpr c)]] <- bd
-  , freshName Prelude.== vName vr -- Ensure that compiled result is on form x = n
+     compileProgTop opt funname body
+compileProgTop opt funname (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) body))))
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
-         compileProgTop opt funname bs body
+         compileProgTop opt funname body
   where
-    outType  = case compileTypeRep vt of
-                 Rep.ArrayType rs t -> Rep.NativeArray (Just $ upperBound rs) t
-                 t -> t
-    var@(Rep.Variable _ freshName) = mkVariable outType v
-    bd = sequenceProgs $ blockBody $ block $ snd $
-          evalRWS (compileProg (Just $ varToExpr var) e) (initReader opt) initState
-compileProgTop opt funname bs (In (Ut.Let e (In (Ut.Lambda v body))))
-  = compileProgTop opt funname ((v, e):bs) body
-compileProgTop _ _ bs a = do
+    var = mkVariable (typeof c) v -- Note [Precise size information]
+    c   = literalConst l
+compileProgTop _ _ a = do
   let outType    = Rep.Pointer $ compileTypeRep (typeof a)
       outParam   = Rep.Variable outType "out"
       outLoc     = Deref $ varToExpr outParam
-  mapM_ compileBind (reverse bs)
   compileProg (Just outLoc) a
   return outParam
+
+{-
+
+Precise size information
+------------------------
+
+Tight size bounds for a given literal is easy to compute. Precise
+bounds are particularly important for array literals since they are
+often copied in the deepCopy function near the CodeGen in the
+backend. Deepcopy will appear to hang when generating the copy code
+for insanely large array literals, so don't do that.
+
+-}
 
 -- | Compiles code and assigns the expression to the given location.
 compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()

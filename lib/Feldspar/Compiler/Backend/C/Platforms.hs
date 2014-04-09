@@ -117,7 +117,8 @@ tic64x = Platform {
         , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)), \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
         , (MachineVector 1 BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
-    includes = ["feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>", "<math.h>"],
+    includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
+               , "<math.h>"],
     platformRules = tic64xRules ++ c99Rules,
     varFloating = True
 }
@@ -149,19 +150,28 @@ deepCopy [ValueParameter arg1, ValueParameter arg2]
 
   | NativeArray{} <- typeof arg2
   , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
-  = initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
+  = if n < 2000
+      then initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
+      else error ("Internal compiler error: array size (" ++ show n ++
+                  ") too large for deepcopy")
 
-  | StructType name fts <- typeof arg2
-  = concatMap (\ (fieldName,_) -> deepCopy [ValueParameter $ StructField arg1 fieldName, ValueParameter $ StructField arg2 fieldName]) fts
+  | StructType _ fts <- typeof arg2
+  = concatMap (deepCopyField . fst) fts
 
   | not (isArray (typeof arg1))
   = [Assign arg1 arg2]
+      where deepCopyField fld = deepCopy [ ValueParameter $ StructField arg1 fld
+                                         , ValueParameter $ StructField arg2 fld]
 
 deepCopy (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
   | isArray (typeof arg1)
-  = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++ flattenCopy (ValueParameter arg1) ins argnLens arg1len
+  = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++
+      flattenCopy (ValueParameter arg1) ins argnLens arg1len
     where expDstLen = foldr ePlus (litI32 0) aLens
-          copyFirstSegment = if arg1 == in1 then Empty else call "copyArray" [ValueParameter arg1, ValueParameter in1]
+          copyFirstSegment = if arg1 == in1
+                                then Empty
+                                else call "copyArray" [ ValueParameter arg1
+                                                      , ValueParameter in1]
           aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
 
 deepCopy _ = error "Multiple scalar arguments to copy"
@@ -198,7 +208,8 @@ nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
                         then Just $ upperBound r
                         else Nothing
 
-flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] -> Expression () -> [Program ()]
+flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] ->
+               Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
 flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
@@ -331,9 +342,6 @@ tic64xRules = [rule go]
 
 extend :: Platform -> String -> Type -> String
 extend Platform{..} s t = s ++ "_fun_" ++ fromMaybe (show t) (lookup t types)
-
-extend' :: String -> Type -> String
-extend' s t = s ++ "_" ++ show t
 
 log2 :: Integer -> Maybe Integer
 log2 n

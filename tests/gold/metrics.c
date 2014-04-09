@@ -55,11 +55,11 @@ void metrics(struct s_arr_unsignedS32_UD_arr_signedS32_UD * v0, struct s_arr_uns
   (*out).member2 = initArray((*out).member2, sizeof(struct s_arr_unsignedS32_1_arr_signedS32_UD), v66);
   for (uint32_t v9 = 0; v9 < v66; v9 += 1)
   {
-    v72 = at(uint32_t,(at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v9)).member1,0);
+    v72 = at(uint32_t,(at(struct s_arr_unsignedS32_UD_arr_signedS32_UD,v71,v9)).member1,0);
     (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member1 = setLength((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member1, sizeof(uint32_t), 1);
     at(uint32_t,(at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member1,0) = v72;
-    (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2 = initArray((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2, sizeof(int32_t), getLength((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v9)).member2));
-    copyArray((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2, (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,v71,v9)).member2);
+    (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2 = initArray((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2, sizeof(int32_t), getLength((at(struct s_arr_unsignedS32_UD_arr_signedS32_UD,v71,v9)).member2));
+    copyArray((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2, (at(struct s_arr_unsignedS32_UD_arr_signedS32_UD,v71,v9)).member2);
     (at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2 = setLength((at(struct s_arr_unsignedS32_1_arr_signedS32_UD,(*out).member2,v9)).member2, sizeof(int32_t), v72);
   }
   freeArray(e0);
