@@ -102,20 +102,15 @@ compileProgTop opt funname bs (In (Ut.Lambda (Ut.Var v ta) body)) = do
   withAlias v arge $
      compileProgTop opt funname bs body
 -- Input on form let x = n in e
-compileProgTop opt funname bs (In (Ut.Let e@(In Ut.Literal{}) (In (Ut.Lambda (Ut.Var v vt) body))))
-  | [ProcedureCall "copy" [ ValueParameter (VarExpr vr)
-                          , ValueParameter (ConstExpr c)]] <- bd
-  , freshName Prelude.== vName vr -- Ensure that compiled result is on form x = n
-  = do tellDef [ValueDef var c]
+compileProgTop opt funname bs e@(In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v vt) body))))
+  = do tellDef [ValueDef var $ literalConst l]
        withAlias v (varToExpr var) $
          compileProgTop opt funname bs body
   where
+    var = mkVariable outType v
     outType  = case compileTypeRep vt of
                  Rep.ArrayType rs t -> Rep.NativeArray (Just $ upperBound rs) t
                  t -> t
-    var@(Rep.Variable _ freshName) = mkVariable outType v
-    bd = sequenceProgs $ blockBody $ block $ snd $
-          evalRWS (compileProg (Just $ varToExpr var) e) (initReader opt) initState
 compileProgTop opt funname bs (In (Ut.Let e (In (Ut.Lambda v body))))
   = compileProgTop opt funname ((v, e):bs) body
 compileProgTop _ _ bs a = do
