@@ -101,22 +101,32 @@ compileProgTop opt funname (In (Ut.Lambda (Ut.Var v ta) body)) = do
   tell $ mempty {params=[arg]}
   withAlias v arge $
      compileProgTop opt funname body
--- Input on form let x = n in e
-compileProgTop opt funname (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v vt) body))))
-  = do tellDef [ValueDef var $ literalConst l]
+compileProgTop opt funname (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) body))))
+  = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
          compileProgTop opt funname body
   where
-    var = mkVariable outType v
-    outType  = case compileTypeRep vt of
-                 Rep.ArrayType rs t -> Rep.NativeArray (Just $ upperBound rs) t
-                 t -> t
+    var = mkVariable (typeof c) v -- Note [Precise size information]
+    c   = literalConst l
 compileProgTop _ _ a = do
   let outType    = Rep.Pointer $ compileTypeRep (typeof a)
       outParam   = Rep.Variable outType "out"
       outLoc     = Deref $ varToExpr outParam
   compileProg (Just outLoc) a
   return outParam
+
+{-
+
+Precise size information
+------------------------
+
+Tight size bounds for a given literal is easy to compute. Precise
+bounds are particularly important for array literals since they are
+often copied in the deepCopy function near the CodeGen in the
+backend. Deepcopy will appear to hang when generating the copy code
+for insanely large array literals, so don't do that.
+
+-}
 
 -- | Compiles code and assigns the expression to the given location.
 compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()

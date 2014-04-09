@@ -149,7 +149,9 @@ deepCopy [ValueParameter arg1, ValueParameter arg2]
 
   | NativeArray{} <- typeof arg2
   , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
-  = initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
+  = if n < 2000
+      then initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
+      else error ("Internal compiler error: array size (" ++ show n ++ ") too large for deepcopy")
 
   | StructType name fts <- typeof arg2
   = concatMap (\ (fieldName,_) -> deepCopy [ValueParameter $ StructField arg1 fieldName, ValueParameter $ StructField arg2 fieldName]) fts
