@@ -55,7 +55,6 @@ import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
 import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Imperative.FromCore
-import Feldspar.Compiler.Imperative.Plugin.IVars
 
 data SplitModule = SplitModule
     { implementation :: CompiledModule
@@ -147,7 +146,6 @@ pluginChain :: ExternalInfoCollection -> Module () -> Module ()
 pluginChain externalInfo
     = executePlugin RulePlugin (ruleExternalInfo externalInfo)
     . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
-    . executePlugin IVarPlugin ()
 
 data ExternalInfoCollection = ExternalInfoCollection
     { primitivesExternalInfo :: ExternalInfo RulePlugin

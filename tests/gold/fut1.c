@@ -5,7 +5,7 @@ void task_core2(struct ivar e0)
 {
   int32_t e1;
   
-  ivar_get_nontask(int32_t, &e1, e0);
+  ivar_get(int32_t, &e1, e0);
   ivar_put(int32_t, e0, &e1);
 }
 

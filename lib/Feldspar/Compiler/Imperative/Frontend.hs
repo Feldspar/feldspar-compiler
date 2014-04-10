@@ -103,12 +103,17 @@ chaseArray = go []  -- TODO: Extend to handle x.member1.member2
 iVarInit :: Expression () -> Program ()
 iVarInit var = call "ivar_init" [ValueParameter var]
 
-iVarGet :: Expression () -> Expression () -> Program ()
-iVarGet loc ivar
-    | isArray typ   = call "ivar_get_array" [ValueParameter loc, ValueParameter ivar]
-    | otherwise     = call "ivar_get" [TypeParameter typ, ValueParameter (AddrOf loc), ValueParameter ivar]
+iVarGet :: Bool -> Expression () -> Expression () -> Program ()
+iVarGet inTask loc ivar
+    | isArray typ   = call (mangle inTask "ivar_get_array") [ ValueParameter loc
+                                                             , ValueParameter ivar]
+    | otherwise     = call (mangle inTask "ivar_get") [ TypeParameter typ
+                                                       , ValueParameter (AddrOf loc)
+                                                       , ValueParameter ivar]
       where
         typ = typeof loc
+        mangle True  s = s
+        mangle False s = s ++ "_nontask"
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
