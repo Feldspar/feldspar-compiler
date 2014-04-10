@@ -13,18 +13,18 @@
 #include <complex.h>
 
 
-struct s_signedS16_signedS16
+struct s_2_signedS16_signedS16
 {
   int16_t member1;
   int16_t member2;
 };
 
-struct s_s_signedS16_signedS16_s_signedS16_signedS16
+struct s_2_s_2_signedS16_signedS16_s_2_signedS16_signedS16
 {
-  struct s_signedS16_signedS16 member1;
-  struct s_signedS16_signedS16 member2;
+  struct s_2_signedS16_signedS16 member1;
+  struct s_2_signedS16_signedS16 member2;
 };
 
-void pairParam2(struct s_signedS16_signedS16 * v0, struct s_s_signedS16_signedS16_s_signedS16_signedS16 * out);
+void pairParam2(struct s_2_signedS16_signedS16 * v0, struct s_2_s_2_signedS16_signedS16_s_2_signedS16_signedS16 * out);
 
 #endif // TESTS_PAIRPARAM2_H

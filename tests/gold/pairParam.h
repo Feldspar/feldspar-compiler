@@ -13,12 +13,12 @@
 #include <complex.h>
 
 
-struct s_unsignedS32_unsignedS32
+struct s_2_unsignedS32_unsignedS32
 {
   uint32_t member1;
   uint32_t member2;
 };
 
-void pairParam(struct s_unsignedS32_unsignedS32 * v0, uint32_t * out);
+void pairParam(struct s_2_unsignedS32_unsignedS32 * v0, uint32_t * out);
 
 #endif // TESTS_PAIRPARAM_H
