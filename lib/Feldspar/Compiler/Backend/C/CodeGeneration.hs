@@ -171,8 +171,9 @@ instance CodeGen (Expression ())
     cgen env StructField{..}  = parens (cgen env struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..}    = cgen env constExpr
     cgen env FunctionCall{..}
-        | funMode function == Infix
-        , [a,b] <- funCallParams    = parens (cgen env a <+> text (funName function) <+> cgen env b)
+        | [a,b] <- funCallParams
+        , isInfixFun (funName function)
+        = parens (cgen env a <+> text (funName function) <+> cgen env b)
         | otherwise                 = call (text $ funName function) $ map (cgen env) funCallParams
     cgen env Cast{..} = parens $ parens (cgen env castType) <> parens (cgen env castExpr)
     cgen env AddrOf{..} = text "&" <> cgen env addrExpr
@@ -270,3 +271,20 @@ pvar env Variable{..} = typ <+> (name <> size)
 
 pvars :: PrintEnv -> [Variable t] -> Doc
 pvars env = hsep . punctuate comma . map (pvar env)
+
+-- C operators and their precedence.
+-- Precondition: s is a binop.
+isInfixFun :: String -> Bool
+isInfixFun s = s `elem` [
+    "*", "/", "%" -- 5
+  , "+", "-" -- 6
+  , "<<", ">>" -- 7
+  , "<", "<=", ">", ">=" -- 8
+  , "==", "!=" -- 9
+  , "&" -- 10
+  , "^" -- 11
+  , "|" -- 12
+  , "&&" -- 13
+  , "||" -- 14
+  , "=", "+=", "-=", "*=", "/=", "%=", "<<=", ">>=", "&=", "^=", "|=" -- 16
+  ]
