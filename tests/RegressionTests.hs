@@ -168,7 +168,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "topLevelConsts_native" nativeOpts
     , mkParseTest "topLevelConsts_sics" sicsOpts
     -- TODO: Enable when encodeType does not include sizes in struct names.
---    , mkParseTest "metrics" defaultOptions
+    , mkParseTest "metrics" defaultOptions
 --    , mkParseTest "scanlPush" defaultOptions
     -- Still incomplete reconstruction of futures.
     , mkParseTest "divConq3" defaultOptions

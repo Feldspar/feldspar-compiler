@@ -13,16 +13,16 @@
 #include <complex.h>
 
 
-struct s_unsignedS32_unsignedS32
+struct s_2_unsignedS32_unsignedS32
 {
   uint32_t member1;
   uint32_t member2;
 };
 
-void task_core0(struct s_unsignedS32_unsignedS32 * v0, struct ivar v3);
+void task_core0(struct s_2_unsignedS32_unsignedS32 * v0, struct ivar v3);
 
 void task0(void * params);
 
-void ivartest2(struct s_unsignedS32_unsignedS32 * v0, struct s_unsignedS32_unsignedS32 * out);
+void ivartest2(struct s_2_unsignedS32_unsignedS32 * v0, struct s_2_unsignedS32_unsignedS32 * out);
 
 #endif // TESTS_IVARTEST2_H

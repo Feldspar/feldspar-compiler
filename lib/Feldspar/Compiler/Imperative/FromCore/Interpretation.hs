@@ -43,7 +43,7 @@ import Control.Monad.RWS
 import Control.Applicative
 
 import Data.Char (toLower)
-import Data.List (intercalate, stripPrefix)
+import Data.List (intercalate, stripPrefix, nub)
 
 import Feldspar.Lattice (universal)
 import Feldspar.Range (upperBound, isSingleton, singletonRange, fullRange)
@@ -108,7 +108,7 @@ type Location = Maybe (Expression ())
 mkStructType :: [(String, Type)] -> Type
 mkStructType trs = StructType n trs
   where
-    n = intercalate "_" $ "s" : map (encodeType . snd) trs
+    n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
 
 compileTypeRep :: Ut.Type -> Type
 compileTypeRep Ut.UnitType            = VoidType
@@ -246,26 +246,36 @@ tellDeclWith free ds = do
                                    epilogue = frees, def = defs}
     tell code
 
+{-
+Encoded format is:
+
+<type tag>_<inner_type_tag(s)>
+
+Where the type tag is some unique prefix except for the scalar
+types. The tag for StructTypes include the number of elements in the
+struct to simplify the job for decodeType, and AliasType does the same
+thing with encoding the length of the name of the aliased type.
+
+-}
+
 encodeType :: Type -> String
 encodeType = go
   where
-    go VoidType            = "void"
-    go (MachineVector 1 t) = goScalar t
-    go (Pointer t)         = "ptr_" ++ go t
-    go (AliasType _ s)     = s
-    go (IVarType t)        = go t
-    go (NativeArray _ t)   = go t
-    go (StructType n _)    = n
-    go (ArrayType l t)     = intercalate "_" ["arr", go t, if isSingleton l
-                                                            then show (upperBound l)
-                                                            else "UD"
-                                             ]
-    goScalar BoolType          = "bool"
-    goScalar BitType           = "bit"
-    goScalar FloatType         = "float"
-    goScalar DoubleType        = "double"
-    goScalar (NumType s w)     = map toLower (show s) ++ show w
-    goScalar (ComplexType t)   = "complex" ++ go t
+    go VoidType              = "void"
+    -- Machine vectors do not change memory layout, so keep internal.
+    go (MachineVector _ t)   = goScalar t
+    go (Pointer t)           = "ptr_" ++ go t
+    go (AliasType t s)       = "a_" ++ show (length s) ++ "_" ++ s ++ "_" ++ go t
+    go (IVarType t)          = "i_" ++ go t
+    go (NativeArray _ t)     = "narr_" ++ go t
+    go (StructType n _)      = n
+    go (ArrayType _ t)       = "arr_" ++ go t
+    goScalar BoolType        = "bool"
+    goScalar BitType         = "bit"
+    goScalar FloatType       = "float"
+    goScalar DoubleType      = "double"
+    goScalar (NumType s w)   = map toLower (show s) ++ show w
+    goScalar (ComplexType t) = "complex_" ++ go t
 
 -- Almost the inverse of encodeType. Some type encodings are lossy so
 -- they are impossible to recover.
@@ -292,26 +302,24 @@ decodeType s = goL s []
      where (tn, t') = go t
     go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
      where (tt, t') = go t
--- Lossy encodings left out:
---    go (AliasType _ s)   = s
---    go (IVarType t)      = go t
---    go (NativeArray _ t) = go t
+    go (stripPrefix "a_"       -> Just t) = (AliasType tt s', t'')
+     where Just (n, ('_':t')) = decodeLen t
+           s' = take n t'
+           (tt, t'') = go $ drop n t'
+    go (stripPrefix "i_"       -> Just t) = (IVarType tt, t')
+     where (tt, t') = go t
+    go (stripPrefix "narr_"    -> Just t) = (NativeArray Nothing tt, t')
+     where (tt, t') = go t
     go h@('s':'_':t) = (StructType h' $ zipWith mkMember [1..] ts, t'')
        where mkMember n t = ("member" ++ show n, t)
-             (ts, t'') = structGo t []
-             structGo [] acc = (reverse acc, [])
-             structGo s  acc = if "_" == take 1 s' && not (likelyDim s')
-                                 then structGo (drop 1 s') (ts:acc)
-                                 else (reverse (ts:acc), s')
+             Just (n, t') = decodeLen t
+             (ts, t'') = structGo n t' []
+             structGo 0 s acc = (reverse acc, s)
+             structGo n ('_':s) acc = structGo (n - 1) s' (ts:acc)
                       where (ts, s') = go s
-             -- There might be dangling size encodings at the end of h
-             -- because of a struct of arrays inside an array. The right
-             -- h for this nest level is the part of h that is not
-             -- intersecting with t''.
              h' = take (length h - length t'') h
-    go (stripPrefix "arr_"     -> Just t) = (ArrayType d tt, t'')
-      where (tt, ('_':t')) = go t
-            (d, t'') = decodeDim t'
+    go (stripPrefix "arr_"     -> Just t) = (ArrayType fullRange tt, t')
+      where (tt, t') = go t
     go s = error ("decodeType: " ++ s)
 
     decodeSize (stripPrefix "S32" -> Just t) = (S32, t)
@@ -320,19 +328,13 @@ decodeType s = goL s []
     decodeSize (stripPrefix "S40" -> Just t) = (S40, t)
     decodeSize (stripPrefix "S64" -> Just t) = (S64, t)
 
-    decodeDim ('_':t)     = (universal, t)
-    decodeDim ('U':'D':t) = (universal, t)
-    decodeDim e
-      | [(n,t)] <- reads e :: [(Integer,String)]
-      = (singletonRange $ fromInteger n, t)
-    decodeDim e           = error ("decodeDim: " ++ e)
-
-    likelyDim (stripPrefix "_UD" -> Just _)                          = True
-    likelyDim ('_':n:_) | [(_,_)] <- reads [n] :: [(Integer,String)] = True
-    likelyDim _                                                      = False
+    decodeLen e
+      | [p@(_,_)] <- reads e :: [(Int,String)]
+      = Just p
+      | otherwise = Nothing
 
 getTypes :: [Declaration ()] -> [Entity ()]
-getTypes defs = concatMap mkDef comps
+getTypes defs = nub $ concatMap mkDef comps
   where
     comps = filter isComposite' $ map (typeof . dVar) defs
     -- There are other composite types that are not flagged as such by this

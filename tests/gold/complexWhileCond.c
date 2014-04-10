@@ -1,10 +1,10 @@
 #include "complexWhileCond.h"
 
 
-void complexWhileCond(int32_t v0, struct s_signedS32_signedS32 * out)
+void complexWhileCond(int32_t v0, struct s_2_signedS32_signedS32 * out)
 {
-  struct s_signedS32_signedS32 e0 = { .member1 = 0, .member2 = 0 };
-  struct s_signedS32_signedS32 v2 = { .member1 = 0, .member2 = 0 };
+  struct s_2_signedS32_signedS32 e0 = { .member1 = 0, .member2 = 0 };
+  struct s_2_signedS32_signedS32 v2 = { .member1 = 0, .member2 = 0 };
   int32_t v5;
   bool v1;
   

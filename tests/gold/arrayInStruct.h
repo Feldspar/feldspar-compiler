@@ -13,7 +13,7 @@
 #include <complex.h>
 
 
-struct s_unsignedS32_arr_unsignedS32_UD
+struct s_2_unsignedS32_arr_unsignedS32
 {
   uint32_t member1;
   struct array * member2;

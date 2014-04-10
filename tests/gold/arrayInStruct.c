@@ -3,8 +3,8 @@
 
 void arrayInStruct(struct array * v0, struct array * * out)
 {
-  struct s_unsignedS32_arr_unsignedS32_UD e0 = { .member1 = 0, .member2 = NULL };
-  struct s_unsignedS32_arr_unsignedS32_UD v2 = { .member1 = 0, .member2 = NULL };
+  struct s_2_unsignedS32_arr_unsignedS32 e0 = { .member1 = 0, .member2 = NULL };
+  struct s_2_unsignedS32_arr_unsignedS32 v2 = { .member1 = 0, .member2 = NULL };
   uint32_t len1;
   struct array * e2 = NULL;
   bool v1;

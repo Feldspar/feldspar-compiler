@@ -282,7 +282,21 @@ data Type =
     | StructType String [(String, Type)]
     | Pointer Type
     | IVarType Type
-    deriving (Eq,Show)
+    deriving (Show)
+
+-- | Type equality is just structural equality, except for arrays
+-- where size info is ignored and struct types where the tag is ignored.
+instance Eq Type where
+   VoidType              == VoidType              = True
+   (MachineVector l1 t1) == (MachineVector l2 t2) = l1 == l2 && t1 == t2
+   (AliasType t1 s1)     == (AliasType t2 s2)     = t1 == t2 && s1 == s2
+   (ArrayType _ t1)      == (ArrayType _ t2)      = t1 == t2
+   (NativeArray l1 t1)   == (NativeArray l2 t2)   = l1 == l2 && t1 == t2
+   (StructType _ l1)     == (StructType _ l2)     = l1 == l2
+   (Pointer t1)          == (Pointer t2)          = t1 == t2
+   (IVarType t1)         == (IVarType t2)         = t1 == t2
+   _                     == _                     = False
+
 
 data FunctionMode = Prefix | Infix
     deriving (Eq,Show)
