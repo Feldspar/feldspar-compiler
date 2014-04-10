@@ -111,39 +111,42 @@ blockItemToProgram :: TPEnv -> BlockItem -> (TPEnv, Program ())
 blockItemToProgram _ b@BlockDecl{}
   = error ("Declaration in the middle of a block: " ++ show b)
 -- Ivar reconstruction stuff.
--- Change the name on ivar_get_nontask.
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_get_nontask" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_get" _) _) _ _)) _))
   = (env, ProcedureCall "ivar_get" (tp:map ValueParameter es))
+    where (FunctionCall (Function "ivar_get" _ _) es) = expToExpression env e
+          tp = TypeParameter $ typeof (R.Deref (head es))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_get_nontask" _) _) _ _)) _))
+  = (env, ProcedureCall "ivar_get_nontask" (tp:map ValueParameter es))
     where (FunctionCall (Function "ivar_get_nontask" _ _) es) = expToExpression env e
           tp = TypeParameter $ typeof (R.Deref (head es))
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_put" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_put" _) _) _ _)) _))
   = (env, ProcedureCall s (tp:(map ValueParameter es)))
    where (FunctionCall (Function s _ _) es) = expToExpression env e
          tp = TypeParameter (typeof (R.Deref (last es)))
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run2" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run2" _) _) _ _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run3" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run3" _) _) _ _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) _ _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) _ _)) _))
   = (env, ProcedureCall s es)
    where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3]
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn3" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn3" _) _) _ _)) _))
   = (env, ProcedureCall s es)
    where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3,e4]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4]
-blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) es _)) _))
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) _ _)) _))
   = (env, ProcedureCall s es)
    where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
@@ -568,7 +571,7 @@ lookup3 s xs = ts
 massageInput:: B.ByteString -> B.ByteString
 massageInput xs = foldr (\w xs -> dropBitMask xs w) tmp otherWords'
  where -- Drop first parameter for these functions.
-       prefixWords = map B.pack ["at(", "ivar_put(","ivar_get_nontask("]
+       prefixWords = map B.pack ["at(", "ivar_put(","ivar_get(", "ivar_get_nontask("]
        -- Drop some parameters according to mask for these.
        otherWords = [ ("spawn2(", [True, False, True, False, True])
                     , ("run2(", [True, False, False])
