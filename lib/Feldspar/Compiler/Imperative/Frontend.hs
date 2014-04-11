@@ -179,6 +179,14 @@ litI (MachineVector _ t) n = ConstExpr (IntConst n t)
 litI32 :: Integer -> Expression ()
 litI32 = litI (MachineVector 1 (NumType Unsigned S32))
 
+isComplex :: Type -> Bool
+isComplex (MachineVector _ ComplexType{}) = True
+isComplex _                               = False
+
+isFloat :: Type -> Bool
+isFloat (MachineVector _ FloatType{}) = True
+isFloat _                             = False
+
 isArray :: Type -> Bool
 isArray ArrayType{} = True
 isArray (Pointer t) = isArray t

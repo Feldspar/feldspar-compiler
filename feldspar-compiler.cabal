@@ -43,6 +43,7 @@ library
     Feldspar.Compiler.Backend.C.CodeGeneration
     Feldspar.Compiler.Backend.C.Plugin.Rule
     Feldspar.Compiler.Backend.C.Library
+    Feldspar.Compiler.Backend.C.MachineLowering
     Feldspar.Compiler.Backend.C.Options
     Feldspar.Compiler.Backend.C.Platforms
     Feldspar.Compiler.Frontend.Interactive.Interface

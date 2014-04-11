@@ -82,3 +82,22 @@ replaceWith = Replace
 
 propagate :: (Typeable t) => (t -> [Action t]) -> Action t'
 propagate = Propagate . rule
+
+-- * Renamer data types to avoid cyclic imports.
+
+type Rename = (String, [(Which, Destination)])
+
+data Predicate = Complex | Float | Signed32 | Unsigned32
+   deriving Show
+
+data Which = All | Only Predicate
+   deriving Show
+
+data WhichType = FunType | ArgType
+   deriving Show
+
+data Destination =
+    Name String
+  | Extend WhichType Platform
+  | ExtendRename WhichType Platform String
+   deriving Show
