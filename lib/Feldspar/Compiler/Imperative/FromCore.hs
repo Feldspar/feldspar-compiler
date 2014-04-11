@@ -614,6 +614,7 @@ compileExpr env (In (PrimApp1 Ut.PropSize _ e)) = compileExpr env e
 compileExpr env (In (PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileExpr env a
+compileExpr env e@(In (PrimApp1 Ut.Switch _ _)) = compileProgFresh env e
 -- Tuple
 compileExpr env (In (PrimApp1 Ut.Sel1 _ tup)) = do
     tupExpr <- compileExpr env tup
