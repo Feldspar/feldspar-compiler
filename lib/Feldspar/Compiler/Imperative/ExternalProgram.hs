@@ -113,42 +113,42 @@ blockItemToProgram _ b@BlockDecl{}
 -- Ivar reconstruction stuff.
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_get" _) _) _ _)) _))
   = (env, ProcedureCall "ivar_get" (tp:map ValueParameter es))
-    where (FunctionCall (Function "ivar_get" _ _) es) = expToExpression env e
+    where (FunctionCall (Function "ivar_get" _) es) = expToExpression env e
           tp = TypeParameter $ typeof (R.Deref (head es))
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_get_nontask" _) _) _ _)) _))
   = (env, ProcedureCall "ivar_get_nontask" (tp:map ValueParameter es))
-    where (FunctionCall (Function "ivar_get_nontask" _ _) es) = expToExpression env e
+    where (FunctionCall (Function "ivar_get_nontask" _) es) = expToExpression env e
           tp = TypeParameter $ typeof (R.Deref (head es))
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_put" _) _) _ _)) _))
   = (env, ProcedureCall s (tp:(map ValueParameter es)))
-   where (FunctionCall (Function s _ _) es) = expToExpression env e
+   where (FunctionCall (Function s _) es) = expToExpression env e
          tp = TypeParameter (typeof (R.Deref (last es)))
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run2" _) _) _ _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
-   where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run3" _) _) _ _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
-   where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) _ _)) _))
   = (env, ProcedureCall s ((FunParameter e1):tp))
-   where (FunctionCall (Function s _ _) [VarExpr (Variable _ e1)]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
+   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3]
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn3" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)),e2,e3,e4]) = expToExpression env e
+   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)),e2,e3,e4]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4]
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _ _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5]) = expToExpression env e
+   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4
@@ -156,7 +156,7 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) _ 
 -- Probably copyArray.
 blockItemToProgram env (BlockStm (Exp (Just e@FnCall{}) _))
   = (env, ProcedureCall s (map ValueParameter es))
-   where (FunctionCall (Function s _ _) es) = expToExpression env e
+   where (FunctionCall (Function s _) es) = expToExpression env e
 blockItemToProgram env (BlockStm (Exp (Just e) _)) = impureExpToProgram env e
 blockItemToProgram env (BlockStm e) = (env, stmToProgram env e)
 blockItemToProgram _ e = error ("blockItemsToProgram: Unhandled construct: " ++ show e)
@@ -286,8 +286,8 @@ expToExpression _ e = error ("expToExpression: Unhandled construct: " ++ show e)
 
 opToFunctionCall :: [Expression ()] -> BinOp -> Expression ()
 opToFunctionCall es op = case opToString op of
-                      Right s -> fun' Infix t True s es
-                      Left s -> fun' Infix (MachineVector 1 BoolType) True s es
+                      Right s -> fun' t True s es
+                      Left s -> fun' (MachineVector 1 BoolType) True s es
   where t = typeof (head es)
 
 opToString :: BinOp -> Either String String
@@ -364,10 +364,10 @@ unOpToExp (ConstExpr (R.FloatConst  n)) Negate
   = ConstExpr (R.FloatConst (-1*n))
 unOpToExp (ConstExpr (R.DoubleConst n)) Negate
   = ConstExpr (R.DoubleConst (-1*n))
-unOpToExp e Negate = fun' Infix (typeof e) True "-" [e]
+unOpToExp e Negate = fun' (typeof e) True "-" [e]
 unOpToExp e Positive = e
 unOpToExp e Not = error "Not"
-unOpToExp e Lnot = fun' Infix (MachineVector 1 BoolType) True "!" [e]
+unOpToExp e Lnot = fun' (MachineVector 1 BoolType) True "!" [e]
 
 typToType :: TPEnv -> Type -> R.Type
 typToType env (Type ds de _) = declSpecToType env ds

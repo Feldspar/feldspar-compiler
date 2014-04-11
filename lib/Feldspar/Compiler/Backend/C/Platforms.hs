@@ -191,11 +191,11 @@ c99Rules :: [Rule]
 c99Rules = [rule go]
   where
     go :: Expression () -> [Action (Expression ())]
-    go (FunctionCall (Function "-" t _) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "-" t _) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "*" t _) [ConstExpr (IntConst (log2 -> Just n) _), arg2])    = [replaceWith $ binop t "<<" arg2 (litI32 n)]
-    go (FunctionCall (Function "*" t _) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
-    go (FunctionCall (Function "div" t _) [arg1, arg2]) = [replaceWith $ StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"]
+    go (FunctionCall (Function "-" t) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t True "-" [arg2]]
+    go (FunctionCall (Function "-" t) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t True "-" [arg2]]
+    go (FunctionCall (Function "*" t) [ConstExpr (IntConst (log2 -> Just n) _), arg2])    = [replaceWith $ binop t "<<" arg2 (litI32 n)]
+    go (FunctionCall (Function "*" t) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
+    go (FunctionCall (Function "div" t) [arg1, arg2]) = [replaceWith $ StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"]
       where div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
             div_f (MachineVector 1 (NumType Signed S8))  = "div"
             div_f (MachineVector 1 (NumType Signed S16)) = "div"
@@ -208,9 +208,9 @@ c99Rules = [rule go]
 tic64xRules :: [Rule]
 tic64xRules = [rule go]
   where
-    go (FunctionCall (Function "/=" t _) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t True "!" [fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]]
-    go (FunctionCall (Function "bitCount" t _) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]]
-    go (FunctionCall (Function _ t _) [arg@(typeof -> MachineVector 1 ComplexType{})]) = [replaceWith $ fun t False (extend tic64x "creal" $ typeof arg) [arg]]
+    go (FunctionCall (Function "/=" t) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t True "!" [fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]]
+    go (FunctionCall (Function "bitCount" t) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]]
+    go (FunctionCall (Function _ t) [arg@(typeof -> MachineVector 1 ComplexType{})]) = [replaceWith $ fun t False (extend tic64x "creal" $ typeof arg) [arg]]
     go _ = []
 
 extend :: Platform -> String -> Type -> String
