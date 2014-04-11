@@ -44,7 +44,6 @@ module Feldspar.Compiler.Imperative.Representation (
   , Program(..)
   , Expression(..)
   , ActualParameter(..)
-  , FunctionMode(..)
   , Function(..)
   , Variable(..)
   , StructMember(..)
@@ -212,7 +211,6 @@ data Function
     = Function
         { funName                   :: String
         , returnType                :: Type
-        , funMode                   :: FunctionMode
         }
     deriving (Typeable, Show, Eq)
 
@@ -297,9 +295,6 @@ instance Eq Type where
    (IVarType t1)         == (IVarType t2)         = t1 == t2
    _                     == _                     = False
 
-
-data FunctionMode = Prefix | Infix
-    deriving (Eq,Show)
 
 ----------------------
 --   Type inference --

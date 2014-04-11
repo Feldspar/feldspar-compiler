@@ -65,7 +65,7 @@ import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..
 import Feldspar.Compiler.Imperative.Representation
          ( ActualParameter(..), Block(..), Declaration(..), Entity(..)
          , Expression(..), Module(..), Program(..), Pattern(..)
-         , FunctionMode(..), Constant(..), typeof, fv
+         , Constant(..), typeof, fv
          )
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
@@ -544,18 +544,6 @@ compileExpr env (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet env a ta v
     withAlias v e $ compileExpr env body
 -- Bits
-compileExpr env (In (PrimApp2 o@Ut.BAnd t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.BOr t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.BXor t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
 -- Conversion
 compileExpr env (In (PrimApp1 Ut.F2I t e)) = do
     e' <- compileExpr env e
@@ -591,39 +579,19 @@ compileExpr env (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
     compileAssert env cond msg
     compileExpr env a
 -- Eq
-compileExpr env (In (PrimApp2 o@Ut.Equal t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.NotEqual t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
 -- FFI
 compileExpr env (In (Ut.ForeignImport name t es)) = do
     es' <- mapM (compileExpr env) es
-    return $ fun' Prefix (compileTypeRep (opts env) t) True name es'
+    return $ fun' (compileTypeRep (opts env) t) True name es'
 -- Floating
 compileExpr env (In (PrimApp0 Ut.Pi t)) = error "No pi ready"
 -- Fractional
-compileExpr env (In (PrimApp2 o@Ut.DivFrac t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
 -- Future
 compileExpr env e@(In (PrimApp1 Ut.MkFuture _ _)) = compileProgFresh env e
 compileExpr env e@(In (PrimApp1 Ut.Await _ _)) = compileProgFresh env e
 -- Literal
 compileExpr env (In (Ut.Literal l)) = literal env l
 -- Logic
-compileExpr env (In (PrimApp2 o@Ut.And t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.Or t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
 -- Mutable
 compileExpr env (In (PrimApp1 Ut.Run _ ma)) = compileExpr env ma
 -- MutableArray
@@ -638,35 +606,7 @@ compileExpr env e@(In (PrimApp1 Ut.RunMutableArray _ _)) = compileProgFresh env 
 -- NoInline
 compileExpr env e@(In (PrimApp1 Ut.NoInline _ _)) = compileProgFresh env e
 -- Num
-compileExpr env (In (PrimApp2 o@Ut.Add t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.Sub t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.Mul t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
 -- Ord
-compileExpr env (In (PrimApp2 o@Ut.LTH t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.GTH t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.LTE t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
-compileExpr env (In (PrimApp2 o@Ut.GTE t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' Infix (compileTypeRep (opts env) t) True (compileOp o) [e1', e2']
 -- Save
 compileExpr env (In (PrimApp1 Ut.Save _ e)) = compileExpr env e
 -- SizeProp
@@ -698,14 +638,14 @@ compileExpr env (In (PrimApp1 Ut.Sel7 _ tup)) = do
     tupExpr <- compileExpr env tup
     return $ StructField tupExpr "member7"
 compileExpr env (In (PrimApp0 p t)) = do
-    return $ fun' Prefix (compileTypeRep (opts env) t) True (compileOp p) []
+    return $ fun' (compileTypeRep (opts env) t) True (compileOp p) []
 compileExpr env (In (PrimApp1 p t e)) = do
     e' <- compileExpr env e
-    return $ fun' Prefix (compileTypeRep (opts env) t) True (compileOp p) [e']
+    return $ fun' (compileTypeRep (opts env) t) True (compileOp p) [e']
 compileExpr env (In (PrimApp2 p t e1 e2)) = do
     e1' <- compileExpr env e1
     e2' <- compileExpr env e2
-    return $ fun' Prefix (compileTypeRep (opts env) t) True (compileOp p) [e1', e2']
+    return $ fun' (compileTypeRep (opts env) t) True (compileOp p) [e1', e2']
 compileExpr env e = compileProgFresh env e
 
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->

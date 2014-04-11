@@ -74,9 +74,9 @@ renameAlt m (p, b) = (p, renameBlock m b)
 
 -- | Renames functions that should be renamed. Identity function on others.
 renameFun :: M.Map String [(Which, Destination)] -> Type -> Function -> Function
-renameFun m argtype f@(Function name t p)
+renameFun m argtype f@(Function name t)
   | Just ps <- M.lookup name m
-  , Just s <- findFun name argtype ps t = Function s t p
+  , Just s <- findFun name argtype ps t = Function s t
   | otherwise                           = f
 
 -- | Finds the new name of the function, if any.

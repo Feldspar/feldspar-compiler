@@ -247,13 +247,13 @@ varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
-binop t n e1 e2 = fun' Infix t True n [e1, e2]
+binop t n e1 e2 = fun' t True n [e1, e2]
 
 fun :: Type -> Bool -> String -> [Expression ()] -> Expression ()
-fun = fun' Prefix
+fun = fun'
 
-fun' :: FunctionMode -> Type -> Bool -> String -> [Expression ()] -> Expression ()
-fun' m t p n = FunctionCall (Function n t m)
+fun' :: Type -> Bool -> String -> [Expression ()] -> Expression ()
+fun' t p n = FunctionCall (Function n t)
 
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
