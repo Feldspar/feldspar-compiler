@@ -58,9 +58,8 @@ import Feldspar.Core.UntypedRepresentation
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
 import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
-import Feldspar.Core.Constructs (SyntacticFeld(..))
+import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Core.Frontend (reifyFeld)
-import Feldspar.Range (upperBound)
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..), ScalarType(..))
 import Feldspar.Compiler.Imperative.Representation
@@ -322,7 +321,6 @@ compileProg env loc (In (Ut.Literal a)) = case loc of
 compileProg env (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf))))))
   = do
       let ix' = mkVar (compileTypeRep (opts env) ta) ix
-          stvar = mkVar (compileTypeRep (opts env) (typeof ixf)) st
       len' <- mkLength env len ta
       (lstate, stvar) <- mkDoubleBufferState loc st
       compileProg env (Just lstate) init
@@ -330,9 +328,8 @@ compileProg env (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (U
                           $ compileProg env (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
       tellProg [toProg $ Block ds (for False (lName ix') len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
-compileProg env (Just loc) (In (PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) e@(In (Ut.Lambda (Ut.Var bv bt) body)))) = do
-    let stvar = mkVar (compileTypeRep (opts env) bt) bv
-        condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
+compileProg env (Just loc) (In (PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) (In (Ut.Lambda (Ut.Var bv bt) body)))) = do
+    let condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
     (lstate,stvar) <- mkDoubleBufferState loc bv
     compileProg env (Just lstate) init
     (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg env (Just condv) cond
@@ -388,7 +385,7 @@ compileProg env loc (In (PrimApp2 Ut.GetArr _ arr i)) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    assign loc (ArrayElem arr' i')
-compileProg env loc (In (PrimApp3 Ut.SetArr _ arr i a)) = do
+compileProg env _ (In (PrimApp3 Ut.SetArr _ arr i a)) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    a'   <- compileExpr env a
@@ -396,10 +393,10 @@ compileProg env loc (In (PrimApp3 Ut.SetArr _ arr i a)) = do
 -- MutableReference
 compileProg env loc (In (PrimApp1 Ut.NewRef _ a)) = compileProg env loc a
 compileProg env loc (In (PrimApp1 Ut.GetRef _ r)) = compileProg env loc r
-compileProg env loc (In (PrimApp2 Ut.SetRef _ r a)) = do
+compileProg env _ (In (PrimApp2 Ut.SetRef _ r a)) = do
    var  <- compileExpr env r
    compileProg env (Just var) a
-compileProg env loc (In (PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v _) body)))) = do
+compileProg env _ (In (PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v _) body)))) = do
    var <- compileExpr env r
    withAlias v var $ compileProg env (Just var) body
        -- Since the modifier function is pure it is safe to alias
@@ -414,7 +411,7 @@ compileProg env (Just loc) (In (PrimApp1 Ut.RunMutableArray _ marr))
      tellProg [setLength (Just loc) len]
      withAlias v loc $ compileProg env (Just loc) body
 compileProg env loc (In (PrimApp1 Ut.RunMutableArray _ marr)) = compileProg env loc marr
-compileProg env loc (In (PrimApp2 Ut.WithArray _ marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg env loc (In (PrimApp2 Ut.WithArray _ marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v _) body)))) = do
     e <- compileExpr env marr
     withAlias v e $ do
       b <- compileExpr env body
@@ -444,7 +441,7 @@ compileProg _   _   (In (PrimApp0 Ut.ParNew _)) = return ()
 compileProg env loc (In (PrimApp1 Ut.ParGet _ r)) = do
     iv <- compileExpr env r
     tellProg [iVarGet (inTask env) l iv | Just l <- [loc]]
-compileProg env loc (In (PrimApp2 Ut.ParPut _ r a)) = do
+compileProg env _ (In (PrimApp2 Ut.ParPut _ r a)) = do
     iv  <- compileExpr env r
     val <- compileExpr env a
     i   <- freshId
@@ -471,7 +468,7 @@ compileProg env loc (In (PrimApp1 Ut.ParFork _ p)) = do
    tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
    -- Spawn:
    tellProg [spawn taskName args]
-compileProg env loc (In (PrimApp0 Ut.ParYield _)) = return ()
+compileProg _ _ (In (PrimApp0 Ut.ParYield _)) = return ()
 -- Save
 compileProg env loc (In (PrimApp1 Ut.Save _ e)) = compileProg env loc e
 -- SizeProp
@@ -743,11 +740,11 @@ literalConst (LBool a)      = BoolConst a
 literalConst (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
 literalConst (LFloat a)     = FloatConst a
 literalConst (LDouble a)    = DoubleConst a
-literalConst (LArray t es)  = ArrayConst $ map literalConst es
+literalConst (LArray _ es)  = ArrayConst $ map literalConst es
 literalConst (LComplex r i) = ComplexConst (literalConst r) (literalConst i)
 
 literalLoc :: CompileEnv -> Expression () -> Ut.Lit -> CodeWriter ()
-literalLoc env loc arr@Ut.LArray{}
+literalLoc _ loc arr@Ut.LArray{}
     = tellProg [copyProg (Just loc) [ConstExpr $ literalConst arr]]
 
 literalLoc env loc (Ut.LTup2 ta tb) =
