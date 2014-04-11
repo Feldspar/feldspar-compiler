@@ -158,7 +158,7 @@ mkC99TrigRule s = (s, [ (Only Complex, Name ('c':s')), (All, Name s') ])
 -- | Tic64x renaming list.
 tic64xlist :: [Rename]
 tic64xlist =
-  [ ("==",          [ (Only Complex, ExtendRename ArgType tic64x "!=") ])
+  [ ("==",          [ (Only Complex, ExtendRename ArgType tic64x "equal") ])
   , ("abs",         [ (Only Float, Name "_fabs"), (Only Signed32, Name "_abs") ])
   , ("+",           [ (Only Complex, ExtendRename ArgType tic64x "add") ])
   , ("-",           [ (Only Complex, ExtendRename ArgType tic64x "sub") ])
