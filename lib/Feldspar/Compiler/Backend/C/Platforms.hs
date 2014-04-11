@@ -41,7 +41,6 @@ module Feldspar.Compiler.Backend.C.Platforms
 
 import Data.Maybe (fromMaybe)
 
-import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
