@@ -79,7 +79,7 @@ import Feldspar.Compiler.Backend.C.Options (Options(..))
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
-    (outParam,results) = evalRWS (compileProgTop opt funname ast) (initReader opt) initState
+    (outParam,results) = evalRWS (compileProgTop opt ast) (initReader opt) initState
     ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
@@ -93,23 +93,22 @@ fromCore opt funname prog = Module defs
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts = fromCore opts "test"
 
-compileProgTop :: Options -> String -> Ut.UntypedFeld ->
-                  CodeWriter (Rep.Variable ())
-compileProgTop opt funname (In (Ut.Lambda (Ut.Var v ta) body)) = do
+compileProgTop :: Options -> Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
+compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
   let typ = compileTypeRep opt ta
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
-     compileProgTop opt funname body
-compileProgTop opt funname (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) body))))
+     compileProgTop opt body
+compileProgTop opt (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) body))))
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
-         compileProgTop opt funname body
+         compileProgTop opt body
   where
     var = mkVariable (typeof c) v -- Note [Precise size information]
     c   = literalConst l
-compileProgTop opt _ a = do
+compileProgTop opt a = do
   let outType    = Rep.Pointer $ compileTypeRep opt (typeof a)
       outParam   = Rep.Variable outType "out"
       outLoc     = Deref $ varToExpr outParam
