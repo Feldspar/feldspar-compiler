@@ -193,8 +193,6 @@ c99Rules = [rule go]
     go :: Expression () -> [Action (Expression ())]
     go (FunctionCall (Function "-" t) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t True "-" [arg2]]
     go (FunctionCall (Function "-" t) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "*" t) [ConstExpr (IntConst (log2 -> Just n) _), arg2])    = [replaceWith $ binop t "<<" arg2 (litI32 n)]
-    go (FunctionCall (Function "*" t) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
     go (FunctionCall (Function "div" t) [arg1, arg2]) = [replaceWith $ StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"]
       where div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
             div_f (MachineVector 1 (NumType Signed S8))  = "div"
@@ -215,11 +213,4 @@ tic64xRules = [rule go]
 
 extend :: Platform -> String -> Type -> String
 extend Platform{..} s t = s ++ "_fun_" ++ fromMaybe (show t) (lookup t types)
-
-log2 :: Integer -> Maybe Integer
-log2 n
-    | n == 2 Prelude.^ l = Just l
-    | otherwise          = Nothing
-  where
-    l = toInteger $ length $ takeWhile (<n) $ iterate (*2) 1
 
