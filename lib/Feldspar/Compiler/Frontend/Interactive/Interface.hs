@@ -48,11 +48,11 @@ import System.FilePath (takeFileName)
 -- ================================================================================================
 
 compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
-compile prg fileName funName opts = writeFiles compRes fileName opts
+compile prg fileName funName opts = writeFiles compRes fileName
   where compRes = compileToCCore funName opts prg
 
-writeFiles :: SplitModule -> FilePath -> Options -> IO ()
-writeFiles prg fileName opts = do
+writeFiles :: SplitModule -> FilePath -> IO ()
+writeFiles prg fileName = do
     writeFile cfile $ unlines [ "#include \"" ++ takeFileName hfile ++ "\""
                               , "\n"
                               , sourceCode $ implementation prg
