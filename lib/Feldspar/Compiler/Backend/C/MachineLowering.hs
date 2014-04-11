@@ -10,6 +10,10 @@ import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x, deepCopy)
 
 -- This module does function renaming as well as copy expansion, in a single pass.
+--
+-- Missing from the old C99 rules: Constant folding of 0 - x. That really belongs
+-- in the frontend but there is no negate in NUM and multiplying by -1 gives crazy
+-- results due to overflow.
 
 -- | External interface for renaming.
 rename :: Options -> Module () -> Module ()
@@ -60,8 +64,21 @@ renameExp _ v@VarExpr{}         = v
 renameExp m (ArrayElem e1 e2)   = ArrayElem (renameExp m e1) (renameExp m e2)
 renameExp m (StructField e s)   = StructField (renameExp m e) s
 renameExp _ c@ConstExpr{}       = c
-renameExp m (FunctionCall f es)
-  = FunctionCall (renameFun m (typeof $ head es) f) $ map (renameExp m) es
+renameExp m (FunctionCall f es) = res
+  where f'@(Function new t) = (renameFun m (typeof $ head es) f)
+        es' = map (renameExp m) es
+        res | new /= "div"      = FunctionCall f' es'
+            | [arg1,arg2] <- es
+            = StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"
+          where
+           div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
+           div_f (MachineVector 1 (NumType Signed S8))  = "div"
+           div_f (MachineVector 1 (NumType Signed S16)) = "div"
+           div_f (MachineVector 1 (NumType Signed S32)) = "div"
+           div_f (MachineVector 1 (NumType Signed S40)) = "ldiv"
+           div_f (MachineVector 1 (NumType Signed S64)) = "lldiv"
+           div_f typ = error $ "div not defined for " ++ show typ
+
 renameExp m (Cast t e)          = Cast t $ renameExp m e
 renameExp m (AddrOf e)          = AddrOf $ renameExp m e
 renameExp _ s@SizeOf{}          = s

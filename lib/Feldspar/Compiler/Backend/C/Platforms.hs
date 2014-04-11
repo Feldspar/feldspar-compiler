@@ -34,7 +34,6 @@ module Feldspar.Compiler.Backend.C.Platforms
     , c99
     , c99OpenMp
     , tic64x
-    , c99Rules
     , extend
     , deepCopy
     ) where
@@ -82,7 +81,7 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    platformRules = c99Rules,
+    platformRules = [],
     varFloating = True
 }
 
@@ -118,7 +117,7 @@ tic64x = Platform {
         ] ,
     includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
                , "<math.h>"],
-    platformRules = c99Rules,
+    platformRules = [],
     varFloating = True
 }
 
@@ -178,22 +177,6 @@ ePlus :: Expression () -> Expression () -> Expression ()
 ePlus (ConstExpr (IntConst 0 _)) e = e
 ePlus e (ConstExpr (IntConst 0 _)) = e
 ePlus e1 e2 = binop (MachineVector 1 (NumType Signed S32)) "+" e1 e2
-
-c99Rules :: [Rule]
-c99Rules = [rule go]
-  where
-    go :: Expression () -> [Action (Expression ())]
-    go (FunctionCall (Function "-" t) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "-" t) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "div" t) [arg1, arg2]) = [replaceWith $ StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"]
-      where div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
-            div_f (MachineVector 1 (NumType Signed S8))  = "div"
-            div_f (MachineVector 1 (NumType Signed S16)) = "div"
-            div_f (MachineVector 1 (NumType Signed S32)) = "div"
-            div_f (MachineVector 1 (NumType Signed S40)) = "ldiv"
-            div_f (MachineVector 1 (NumType Signed S64)) = "lldiv"
-            div_f typ = error $ "div not defined for " ++ show typ
-    go _ = []
 
 extend :: Platform -> String -> Type -> String
 extend Platform{..} s t = s ++ "_fun_" ++ fromMaybe (show t) (lookup t types)
