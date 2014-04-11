@@ -39,11 +39,10 @@ library
     Feldspar.Compiler.Imperative.FromCore
     Feldspar.Compiler.Imperative.FromCore.Interpretation
     Feldspar.Compiler.Imperative.Frontend
-    Feldspar.Compiler.Imperative.TransformationInstance
     Feldspar.Compiler.Backend.C.CodeGeneration
-    Feldspar.Compiler.Backend.C.Plugin.Rule
     Feldspar.Compiler.Backend.C.Library
     Feldspar.Compiler.Backend.C.MachineLowering
+    Feldspar.Compiler.Backend.C.Tic64x
     Feldspar.Compiler.Backend.C.Options
     Feldspar.Compiler.Backend.C.Platforms
     Feldspar.Compiler.Frontend.Interactive.Interface
@@ -55,8 +54,6 @@ library
     Feldspar.Compiler.ExternalProgram
     Feldspar.Compiler.Internal
     Feldspar.Compiler
-    Feldspar.Transformation
-    Feldspar.Transformation.Framework
     Feldspar.Runtime
 
   default-language: Haskell2010

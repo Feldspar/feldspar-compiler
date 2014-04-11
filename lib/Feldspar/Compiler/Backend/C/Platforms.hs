@@ -34,14 +34,12 @@ module Feldspar.Compiler.Backend.C.Platforms
     , c99
     , c99OpenMp
     , tic64x
-    , c99Rules
-    , tic64xRules
     , extend
+    , deepCopy
     ) where
 
 import Data.Maybe (fromMaybe)
 
-import Feldspar.Range
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
@@ -83,7 +81,6 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    platformRules = c99Rules ++ arrayRules,
     varFloating = True
 }
 
@@ -119,7 +116,6 @@ tic64x = Platform {
         ] ,
     includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
                , "<math.h>"],
-    platformRules = tic64xRules ++ c99Rules,
     varFloating = True
 }
 
@@ -131,13 +127,6 @@ showConstant :: Constant t -> String
 showConstant (DoubleConst c) = show c ++ "f"
 showConstant (FloatConst c)  = show c ++ "f"
 showConstant c               = show c
-
-arrayRules :: [Rule]
-arrayRules = [rule copy]
-  where
-    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy ps]
-    copy _ = []
-    toProgram ss = if null ss then Empty else Sequence ss
 
 deepCopy :: [ActualParameter ()] -> [Program ()]
 deepCopy [ValueParameter arg1, ValueParameter arg2]
@@ -187,39 +176,6 @@ ePlus (ConstExpr (IntConst 0 _)) e = e
 ePlus e (ConstExpr (IntConst 0 _)) = e
 ePlus e1 e2 = binop (MachineVector 1 (NumType Signed S32)) "+" e1 e2
 
-c99Rules :: [Rule]
-c99Rules = [rule go]
-  where
-    go :: Expression () -> [Action (Expression ())]
-    go (FunctionCall (Function "-" t) [ConstExpr (IntConst 0 _), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "-" t) [ConstExpr (FloatConst 0), arg2]) = [replaceWith $ fun t True "-" [arg2]]
-    go (FunctionCall (Function "*" t) [ConstExpr (IntConst (log2 -> Just n) _), arg2])    = [replaceWith $ binop t "<<" arg2 (litI32 n)]
-    go (FunctionCall (Function "*" t) [arg1, ConstExpr (IntConst (log2 -> Just n) _)])    = [replaceWith $ binop t "<<" arg1 (litI32 n)]
-    go (FunctionCall (Function "div" t) [arg1, arg2]) = [replaceWith $ StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"]
-      where div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
-            div_f (MachineVector 1 (NumType Signed S8))  = "div"
-            div_f (MachineVector 1 (NumType Signed S16)) = "div"
-            div_f (MachineVector 1 (NumType Signed S32)) = "div"
-            div_f (MachineVector 1 (NumType Signed S40)) = "ldiv"
-            div_f (MachineVector 1 (NumType Signed S64)) = "lldiv"
-            div_f typ = error $ "div not defined for " ++ show typ
-    go _ = []
-
-tic64xRules :: [Rule]
-tic64xRules = [rule go]
-  where
-    go (FunctionCall (Function "/=" t) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t True "!" [fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]]
-    go (FunctionCall (Function "bitCount" t) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]]
-    go (FunctionCall (Function _ t) [arg@(typeof -> MachineVector 1 ComplexType{})]) = [replaceWith $ fun t False (extend tic64x "creal" $ typeof arg) [arg]]
-    go _ = []
-
 extend :: Platform -> String -> Type -> String
 extend Platform{..} s t = s ++ "_fun_" ++ fromMaybe (show t) (lookup t types)
-
-log2 :: Integer -> Maybe Integer
-log2 n
-    | n == 2 Prelude.^ l = Just l
-    | otherwise          = Nothing
-  where
-    l = toInteger $ length $ takeWhile (<n) $ iterate (*2) 1
 

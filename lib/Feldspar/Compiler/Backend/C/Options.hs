@@ -35,8 +35,6 @@
 
 module Feldspar.Compiler.Backend.C.Options where
 
-import Data.Typeable
-
 import Feldspar.Core.Interpretation (FeldOpts)
 import Feldspar.Compiler.Imperative.Representation (Type, Constant)
 
@@ -45,7 +43,6 @@ data Options =
     { platform          :: Platform
     , printHeader       :: Bool
     , useNativeArrays   :: Bool
-    , rules             :: [Rule]
     , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
     }
@@ -55,34 +52,10 @@ data Platform = Platform {
     types           :: [(Type, String)],
     values          :: [(Type, ShowValue)],
     includes        :: [String],
-    platformRules   :: [Rule],
     varFloating     :: Bool
 } deriving (Show)
 
 type ShowValue = Constant () -> String
-
--- * Actions and rules
-
-data Action t
-    = Replace t
-    | Propagate Rule
-    | WithId (Int -> [Action t])
-  deriving Typeable
-
-data Rule where
-    Rule :: (Typeable t) => (t -> [Action t]) -> Rule
-
-instance Show Rule where
-    show _ = "Transformation rule."
-
-rule :: (Typeable t) => (t -> [Action t]) -> Rule
-rule f = Rule $ \x -> f x
-
-replaceWith :: t -> Action t
-replaceWith = Replace
-
-propagate :: (Typeable t) => (t -> [Action t]) -> Action t'
-propagate = Propagate . rule
 
 -- * Renamer data types to avoid cyclic imports.
 

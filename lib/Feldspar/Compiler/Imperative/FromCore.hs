@@ -42,17 +42,16 @@ module Feldspar.Compiler.Imperative.FromCore (
   where
 
 import Data.Char (toLower)
-import Data.List (nub, partition, last)
+import Data.List (nub, partition)
 import Data.Maybe (isJust, fromJust)
 
-import Control.Monad (unless)
 import Control.Monad.RWS
 import Control.Applicative
 
 import Feldspar.Core.Types
-import Feldspar.Core.UntypedRepresentation (Term(..), Lit(..), collectLetBinders)
 import Feldspar.Core.UntypedRepresentation
-         ( UntypedFeldF(PrimApp0), UntypedFeldF(PrimApp1)
+         ( Term(..), Lit(..), collectLetBinders
+         , UntypedFeldF(PrimApp0), UntypedFeldF(PrimApp1)
          , UntypedFeldF(PrimApp2), UntypedFeldF(PrimApp3)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -615,6 +614,7 @@ compileExpr env (In (PrimApp1 Ut.PropSize _ e)) = compileExpr env e
 compileExpr env (In (PrimApp1 (Ut.SourceInfo info) _ a)) = do
     tellProg [Comment True info]
     compileExpr env a
+compileExpr env e@(In (PrimApp1 Ut.Switch _ _)) = compileProgFresh env e
 -- Tuple
 compileExpr env (In (PrimApp1 Ut.Sel1 _ tup)) = do
     tupExpr <- compileExpr env tup

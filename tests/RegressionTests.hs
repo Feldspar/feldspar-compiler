@@ -114,6 +114,15 @@ fut1 x  = forLoop 20 x (\_ e -> future $ force $ await e)
 not1 :: Data Bool -> Data Bool
 not1 x = not x
 
+issue128_ex1 :: Data WordN -> Data WordN
+issue128_ex1 a = share (switch 45 [(1,10)] a) $ \b -> (1==a ? b $ a)
+
+issue128_ex2 :: Data WordN -> Data WordN
+issue128_ex2 a = share (switch 45 [(1,20)] a) $ \b -> (2==a ? b $ a)
+
+issue128_ex3 :: Data WordN -> Data WordN
+issue128_ex3 a = switch 45 [(1,10)] a + (2==a ? 2 $ a)
+
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
@@ -137,6 +146,9 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkGoldTest fut1 "fut1" defaultOptions
     , mkGoldTest not1 "not1" defaultOptions
+    , mkGoldTest issue128_ex1 "issue128_ex1" defaultOptions
+    , mkGoldTest issue128_ex2 "issue128_ex2" defaultOptions
+    , mkGoldTest issue128_ex3 "issue128_ex3" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest concatV "concatV" defaultOptions
@@ -155,6 +167,9 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkBuildTest fut1 "fut1" defaultOptions
     , mkBuildTest not1 "not1" defaultOptions
+    , mkBuildTest issue128_ex1 "issue128_ex1" defaultOptions
+    , mkBuildTest issue128_ex2 "issue128_ex2" defaultOptions
+    , mkBuildTest issue128_ex3 "issue128_ex3" defaultOptions
     ]
 
 externalProgramTests :: TestTree
