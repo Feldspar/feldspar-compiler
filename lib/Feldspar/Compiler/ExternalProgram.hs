@@ -31,7 +31,7 @@ compileFile fileName outFile opts = do
       cfilename = fileName ++ ".c"
   h <- B.readFile hfilename
   c <- B.readFile cfilename
-  let comp = compileFile' defaultOptions (hfilename, h) (cfilename, c)
+  let comp = compileFile' opts (hfilename, h) (cfilename, c)
   case comp of
     (Nothing, _) -> print $ "Could not parse " ++ hfilename
     (_, Nothing) -> putStrLn $ "Could not parse " ++ cfilename
