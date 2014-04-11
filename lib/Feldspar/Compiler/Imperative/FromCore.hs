@@ -532,6 +532,11 @@ compileExpr env (In (PrimApp2 Ut.GetIx _ arr i)) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
    return $ ArrayElem a' i'
+-- Bits
+compileExpr env (In (PrimApp1 Ut.Bit t arr)) = do
+   a' <- compileExpr env arr
+   let t' = compileTypeRep t
+   return $ binop t' "<<" (litI t' 1) a'
 -- Binding
 compileExpr env (In (Ut.Variable (Ut.Var v t))) = do
         env' <- ask
