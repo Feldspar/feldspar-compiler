@@ -55,6 +55,7 @@ import Feldspar.Compiler.Backend.C.Platforms
 import Feldspar.Compiler.Backend.C.Plugin.Rule
 import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Backend.C.MachineLowering
+import Feldspar.Compiler.Backend.C.Tic64x
 import Feldspar.Compiler.Imperative.FromCore
 
 data SplitModule = SplitModule
@@ -108,9 +109,9 @@ compileToCCore name opts prg = compileToCCore' opts mod
         mod = fromCore opts (encodeFunctionName name) prg
 
 compileToCCore' :: Options -> Module () -> SplitModule
-compileToCCore' opts m = compileSplitModule opts mods
+compileToCCore' opts m = compileSplitModule opts $ splitModule mod
       where
-        mods = splitModule $ rename opts $ executePluginChain opts m
+        mod = adaptTic64x opts $ rename opts $ executePluginChain opts m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"

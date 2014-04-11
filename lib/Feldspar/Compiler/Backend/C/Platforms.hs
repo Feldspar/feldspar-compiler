@@ -35,7 +35,6 @@ module Feldspar.Compiler.Backend.C.Platforms
     , c99OpenMp
     , tic64x
     , c99Rules
-    , tic64xRules
     , extend
     ) where
 
@@ -118,7 +117,7 @@ tic64x = Platform {
         ] ,
     includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
                , "<math.h>"],
-    platformRules = tic64xRules ++ c99Rules,
+    platformRules = c99Rules,
     varFloating = True
 }
 
@@ -200,14 +199,6 @@ c99Rules = [rule go]
             div_f (MachineVector 1 (NumType Signed S40)) = "ldiv"
             div_f (MachineVector 1 (NumType Signed S64)) = "lldiv"
             div_f typ = error $ "div not defined for " ++ show typ
-    go _ = []
-
-tic64xRules :: [Rule]
-tic64xRules = [rule go]
-  where
-    go (FunctionCall (Function "/=" t) [arg1@(typeof -> MachineVector 1 ComplexType{}), arg2])    = [replaceWith $ fun t True "!" [fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]]
-    go (FunctionCall (Function "bitCount" t) [arg@(typeof -> MachineVector 1 (NumType Unsigned S32))])  = [replaceWith $ fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]]
-    go (FunctionCall (Function _ t) [arg@(typeof -> MachineVector 1 ComplexType{})]) = [replaceWith $ fun t False (extend tic64x "creal" $ typeof arg) [arg]]
     go _ = []
 
 extend :: Platform -> String -> Type -> String
