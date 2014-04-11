@@ -7,26 +7,28 @@ import qualified Data.Map as M
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x)
+import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x, deepCopy)
+
+-- This module does function renaming as well as copy expansion, in a single pass.
 
 -- | External interface for renaming.
 rename :: Options -> Module () -> Module ()
-rename opts m = rename' x m
+rename opts m = rename' opts x m
   where x = getPlatformRenames (name $ platform opts)
 
 -- | Internal interface for renaming.
-rename' :: M.Map String [(Which, Destination)] -> Module () -> Module ()
-rename' m (Module ents) = Module $ map (renameEnt m) ents
+rename' :: Options -> M.Map String [(Which, Destination)] -> Module () -> Module ()
+rename' opts m (Module ents) = Module $ map (renameEnt opts m) ents
 
 -- | Rename entities.
-renameEnt :: M.Map String [(Which, Destination)] -> Entity () -> Entity ()
-renameEnt m p@Proc{..}
-  | Just body <- procBody = p { procBody = Just $ renameBlock m body }
-renameEnt _ e             = e
+renameEnt :: Options -> M.Map String [(Which, Destination)] -> Entity () -> Entity ()
+renameEnt opts m p@Proc{..}
+  | Just body <- procBody = p { procBody = Just $ renameBlock opts m body }
+renameEnt _    _ e        = e
 
 -- | Rename blocks.
-renameBlock :: M.Map String [(Which, Destination)] -> Block () -> Block ()
-renameBlock m (Block vs p) = Block (map (renameDecl m) vs) (renameProg m p)
+renameBlock :: Options -> M.Map String [(Which, Destination)] -> Block () -> Block ()
+renameBlock opts m (Block vs p) = Block (map (renameDecl m) vs) (renameProg opts m p)
 
 -- | Rename declarations.
 renameDecl :: M.Map String [(Which, Destination)] -> Declaration () -> Declaration ()
@@ -34,19 +36,23 @@ renameDecl m (Declaration v (Just e)) = Declaration v (Just $ renameExp m e)
 renameDecl _ d                        = d
 
 -- | Rename programs.
-renameProg :: M.Map String [(Which, Destination)] -> Program () -> Program ()
-renameProg _ e@Empty              = e
-renameProg _ c@Comment{}          = c
-renameProg m (Assign lhs rhs)     = Assign (renameExp m lhs) (renameExp m rhs)
-renameProg m (ProcedureCall n ps) = ProcedureCall n (map (renameParam m) ps)
-renameProg m (Sequence ps)        = Sequence $ map (renameProg m) ps
-renameProg m (Switch scrut alts)
-   = Switch (renameExp m scrut) (map (renameAlt m) alts)
-renameProg m (SeqLoop cond calc block)
-  = SeqLoop (renameExp m cond) (renameBlock m calc) (renameBlock m block)
-renameProg m (ParLoop p v e1 e2 b)
-  = ParLoop p v (renameExp m e1) (renameExp m e2) (renameBlock m b)
-renameProg m (BlockProgram b)     = BlockProgram $ renameBlock m b
+renameProg :: Options -> M.Map String [(Which, Destination)] -> Program ()
+           -> Program ()
+renameProg _    _ e@Empty              = e
+renameProg _    _ c@Comment{}          = c
+renameProg _    m (Assign lhs rhs)     = Assign (renameExp m lhs) (renameExp m rhs)
+renameProg opts m (ProcedureCall "copy" ps)
+  | "tic64x" /= (name $ platform opts) = flattenProgram $ deepCopy ps'
+    where ps' = map (renameParam m) ps
+renameProg _    m (ProcedureCall n ps) = ProcedureCall n (map (renameParam m) ps)
+renameProg opts m (Sequence ps)        = Sequence $ map (renameProg opts m) ps
+renameProg opts m (Switch scrut alts)
+   = Switch (renameExp m scrut) (map (renameAlt opts m) alts)
+renameProg opts m (SeqLoop cond calc block)
+  = SeqLoop (renameExp m cond) (renameBlock opts m calc) (renameBlock opts m block)
+renameProg opts m (ParLoop p v e1 e2 b)
+  = ParLoop p v (renameExp m e1) (renameExp m e2) (renameBlock opts m b)
+renameProg opts m (BlockProgram b)     = BlockProgram $ renameBlock opts m b
 
 -- | Rename expressions.
 renameExp :: M.Map String [(Which, Destination)] -> Expression () -> Expression ()
@@ -68,9 +74,9 @@ renameParam m (ValueParameter e) = ValueParameter $ renameExp m e
 renameParam _ p                  = p
 
 -- | Rename switch alternatives.
-renameAlt :: M.Map String [(Which, Destination)] -> (Pattern (), Block ())
-          -> (Pattern (), Block ())
-renameAlt m (p, b) = (p, renameBlock m b)
+renameAlt :: Options -> M.Map String [(Which, Destination)]
+          -> (Pattern (), Block ()) -> (Pattern (), Block ())
+renameAlt opts m (p, b) = (p, renameBlock opts m b)
 
 -- | Renames functions that should be renamed. Identity function on others.
 renameFun :: M.Map String [(Which, Destination)] -> Type -> Function -> Function
@@ -184,3 +190,6 @@ getPlatformRenames "tic64x"       = M.fromList (tic64xlist ++ c99list)
 getPlatformRenames s
   | s `elem` ["c99", "c99OpenMp"] = M.fromList c99list
   | otherwise                     = M.fromList []
+
+flattenProgram :: [Program ()] -> Program ()
+flattenProgram ss = if null ss then Empty else Sequence ss

@@ -36,6 +36,7 @@ module Feldspar.Compiler.Backend.C.Platforms
     , tic64x
     , c99Rules
     , extend
+    , deepCopy
     ) where
 
 import Data.Maybe (fromMaybe)
@@ -81,7 +82,7 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    platformRules = c99Rules ++ arrayRules,
+    platformRules = c99Rules,
     varFloating = True
 }
 
@@ -129,13 +130,6 @@ showConstant :: Constant t -> String
 showConstant (DoubleConst c) = show c ++ "f"
 showConstant (FloatConst c)  = show c ++ "f"
 showConstant c               = show c
-
-arrayRules :: [Rule]
-arrayRules = [rule copy]
-  where
-    copy (ProcedureCall "copy" ps) = [replaceWith $ toProgram $ deepCopy ps]
-    copy _ = []
-    toProgram ss = if null ss then Empty else Sequence ss
 
 deepCopy :: [ActualParameter ()] -> [Program ()]
 deepCopy [ValueParameter arg1, ValueParameter arg2]
