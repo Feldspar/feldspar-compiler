@@ -46,17 +46,16 @@ module Feldspar.Compiler.Compiler (
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
 
-import Feldspar.Transformation
 import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Core.Interpretation (defaultFeldOpts)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
-import Feldspar.Compiler.Backend.C.Plugin.Rule
 import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Backend.C.MachineLowering
 import Feldspar.Compiler.Backend.C.Tic64x
 import Feldspar.Compiler.Imperative.FromCore
+import Feldspar.Compiler.Imperative.Representation
 
 data SplitModule = SplitModule
     { implementation :: CompiledModule
@@ -111,7 +110,7 @@ compileToCCore name opts prg = compileToCCore' opts mod
 compileToCCore' :: Options -> Module () -> SplitModule
 compileToCCore' opts m = compileSplitModule opts $ splitModule mod
       where
-        mod = adaptTic64x opts $ rename opts $ executePluginChain opts m
+        mod = adaptTic64x opts $ rename opts m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
@@ -129,7 +128,6 @@ defaultOptions
     { platform          = c99
     , printHeader       = False
     , useNativeArrays   = False
-    , rules             = []
     , frontendOpts      = defaultFeldOpts
     , nestSize          = 2
     }
@@ -142,23 +140,4 @@ c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
 
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
-
--- | Plugin system
-
-pluginChain :: ExternalInfoCollection -> Module () -> Module ()
-pluginChain externalInfo
-    = executePlugin RulePlugin (ruleExternalInfo externalInfo)
-    . executePlugin RulePlugin (primitivesExternalInfo externalInfo)
-
-data ExternalInfoCollection = ExternalInfoCollection
-    { primitivesExternalInfo :: ExternalInfo RulePlugin
-    , ruleExternalInfo       :: ExternalInfo RulePlugin
-    }
-
-executePluginChain :: Options -> Module () -> Module ()
-executePluginChain opt prg =
-  pluginChain ExternalInfoCollection
-    { primitivesExternalInfo = opt{ rules = platformRules $ platform opt }
-    , ruleExternalInfo       = opt
-    } $ prg
 

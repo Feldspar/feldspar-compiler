@@ -81,7 +81,6 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    platformRules = [],
     varFloating = True
 }
 
@@ -117,7 +116,6 @@ tic64x = Platform {
         ] ,
     includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
                , "<math.h>"],
-    platformRules = [],
     varFloating = True
 }
 
