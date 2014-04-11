@@ -56,12 +56,17 @@ copyProg (Just outExp) inExp
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
-mkInitialize name (Just arr) len = Assign arr $ fun (typeof arr) False name [arr, sz, len]
-  where
+mkInitialize name (Just arr) len
+  | isNativeArray arrType
+  = Empty
+  | otherwise
+  = Assign arr $ fun arrType False name [arr, sz, len]
+   where
+    arrType = typeof arr
     sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
        | otherwise  = t
     t = SizeOf t'
-    t' = go $ typeof arr
+    t' = go $ arrType
     go (ArrayType _ e) = e
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 

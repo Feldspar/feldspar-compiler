@@ -127,6 +127,7 @@ defaultOptions
     = Options
     { platform          = c99
     , printHeader       = False
+    , useNativeArrays   = False
     , rules             = []
     , frontendOpts      = defaultFeldOpts
     , nestSize          = 2
