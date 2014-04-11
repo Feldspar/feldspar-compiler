@@ -44,6 +44,7 @@ data Options =
     Options
     { platform          :: Platform
     , printHeader       :: Bool
+    , useNativeArrays   :: Bool
     , rules             :: [Rule]
     , frontendOpts      :: FeldOpts
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting

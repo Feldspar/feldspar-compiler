@@ -190,7 +190,7 @@ testDir = "tests/"
 goldDir = "tests/gold/"
 
 nativeOpts :: Options
-nativeOpts = defaultOptions{rules=nativeArrayRules}
+nativeOpts = defaultOptions{useNativeArrays=True}
 sicsOpts :: Options
 sicsOpts   = defaultOptions{frontendOpts=defaultFeldOpts{targets= [SICS]}}
 

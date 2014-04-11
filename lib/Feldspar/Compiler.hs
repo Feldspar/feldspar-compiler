@@ -13,7 +13,6 @@ module Feldspar.Compiler
     , c99PlatformOptions
     , c99OpenMpPlatformOptions
     , tic64xPlatformOptions
-    , nativeArrayRules
     ) where
 
 import Feldspar.Compiler.Internal

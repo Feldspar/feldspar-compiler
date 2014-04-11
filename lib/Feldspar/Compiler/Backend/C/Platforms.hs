@@ -36,7 +36,6 @@ module Feldspar.Compiler.Backend.C.Platforms
     , tic64x
     , c99Rules
     , tic64xRules
-    , nativeArrayRules
     , extend
     ) where
 
@@ -176,38 +175,6 @@ deepCopy (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
           aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
 
 deepCopy _ = error "Multiple scalar arguments to copy"
-
-
-nativeArrayRules :: [Rule]
-nativeArrayRules = [rule toNativeExpr, rule toNativeProg, rule toNativeVariable]
-  where
-    toNativeExpr :: Expression () -> [Action (Expression ())]
-    toNativeExpr _ = []
-
-    toNativeProg (Assign _ (FunctionCall (Function "initArray" _ _) [arr,_,_]))
-      | native (typeof arr) = [replaceWith $ call "assert" [ValueParameter arr]]
-    toNativeProg (ProcedureCall "freeArray" [ValueParameter arr])
-      | native (typeof arr) = [replaceWith Empty]
-    toNativeProg _ = []
-
-
-    toNativeVariable :: Variable () -> [Action (Variable ())]
-    toNativeVariable v@Variable{..} | isArray varType
-      = [replaceWith $ v { varType = nativeArray varType }]
-    toNativeVariable _ = []
-
-    nativeArray (Pointer (ArrayType sz t)) = NativeArray (fromSingleton sz) (nativeArray t)
-    nativeArray (ArrayType sz t) = NativeArray (fromSingleton sz) (nativeArray t)
-    nativeArray (Pointer t)      = Pointer (nativeArray t)
-    nativeArray t = t
-
-    native (NativeArray {}) = True
-    native (Pointer t)      = native t
-    native _                = False
-
-    fromSingleton r = if isSingleton r
-                        then Just $ upperBound r
-                        else Nothing
 
 flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] ->
                Expression () -> [Program ()]

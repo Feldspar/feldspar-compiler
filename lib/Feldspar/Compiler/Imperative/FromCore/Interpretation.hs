@@ -110,62 +110,68 @@ mkStructType trs = StructType n trs
   where
     n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
 
-compileTypeRep :: Ut.Type -> Type
-compileTypeRep Ut.UnitType            = VoidType
-compileTypeRep Ut.BoolType            = MachineVector 1 BoolType
-compileTypeRep (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileTypeRep Ut.FloatType           = MachineVector 1 FloatType
-compileTypeRep Ut.DoubleType          = MachineVector 1 DoubleType
-compileTypeRep (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileTypeRep t)
-compileTypeRep (Ut.Tup2Type a b)           = mkStructType
-        [ ("member1", compileTypeRep a)
-        , ("member2", compileTypeRep b)
+compileTypeRep :: Options -> Ut.Type -> Type
+compileTypeRep _   Ut.UnitType            = VoidType
+compileTypeRep _   Ut.BoolType            = MachineVector 1 BoolType
+compileTypeRep _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
+compileTypeRep _   Ut.FloatType           = MachineVector 1 FloatType
+compileTypeRep _   Ut.DoubleType          = MachineVector 1 DoubleType
+compileTypeRep opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileTypeRep opt t)
+compileTypeRep opt (Ut.Tup2Type a b)           = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
         ]
-compileTypeRep (Ut.Tup3Type a b c)         = mkStructType
-        [ ("member1", compileTypeRep a)
-        , ("member2", compileTypeRep b)
-        , ("member3", compileTypeRep c)
+compileTypeRep opt (Ut.Tup3Type a b c)         = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
         ]
-compileTypeRep (Ut.Tup4Type a b c d)       = mkStructType
-        [ ("member1", compileTypeRep a)
-        , ("member2", compileTypeRep b)
-        , ("member3", compileTypeRep c)
-        , ("member4", compileTypeRep d)
+compileTypeRep opt (Ut.Tup4Type a b c d)       = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
         ]
-compileTypeRep (Ut.Tup5Type a b c d e)     = mkStructType
-        [ ("member1", compileTypeRep a)
-        , ("member2", compileTypeRep b)
-        , ("member3", compileTypeRep c)
-        , ("member4", compileTypeRep d)
-        , ("member5", compileTypeRep e)
+compileTypeRep opt (Ut.Tup5Type a b c d e)     = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
         ]
-compileTypeRep (Ut.Tup6Type a b c d e f)   = mkStructType
-        [ ("member1", compileTypeRep a)
-        , ("member2", compileTypeRep b)
-        , ("member3", compileTypeRep c)
-        , ("member4", compileTypeRep d)
-        , ("member5", compileTypeRep e)
-        , ("member6", compileTypeRep f)
+compileTypeRep opt (Ut.Tup6Type a b c d e f)   = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
         ]
-compileTypeRep (Ut.Tup7Type a b c d e f g) = mkStructType
-        [ ("member1", compileTypeRep a)
-        , ("member2", compileTypeRep b)
-        , ("member3", compileTypeRep c)
-        , ("member4", compileTypeRep d)
-        , ("member5", compileTypeRep e)
-        , ("member6", compileTypeRep f)
-        , ("member7", compileTypeRep g)
+compileTypeRep opt (Ut.Tup7Type a b c d e f g) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
         ]
-compileTypeRep (Ut.MutType a)           = compileTypeRep a
-compileTypeRep (Ut.RefType a)           = compileTypeRep a
-compileTypeRep (Ut.ArrayType rs a)      = ArrayType rs $ compileTypeRep a
-compileTypeRep (Ut.MArrType rs a)       = ArrayType rs $ compileTypeRep a
-compileTypeRep (Ut.ParType a)           = compileTypeRep a
-compileTypeRep (Ut.ElementsType a)      = ArrayType fullRange $ compileTypeRep a
-compileTypeRep (Ut.IVarType a)          = IVarType $ compileTypeRep a
-compileTypeRep (Ut.FunType _ b)         = compileTypeRep b
-compileTypeRep (Ut.FValType a)          = IVarType $ compileTypeRep a
-compileTypeRep typ                      = error $ "compileTypeRep: missing " ++ show typ  -- TODO
+compileTypeRep opt (Ut.MutType a)           = compileTypeRep opt a
+compileTypeRep opt (Ut.RefType a)           = compileTypeRep opt a
+compileTypeRep opt (Ut.ArrayType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
+ | otherwise           = ArrayType rs $ compileTypeRep opt a
+compileTypeRep opt (Ut.MArrType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
+ | otherwise           = ArrayType rs $ compileTypeRep opt a
+compileTypeRep opt (Ut.ParType a)           = compileTypeRep opt a
+compileTypeRep opt (Ut.ElementsType a)
+ | useNativeArrays opt = NativeArray Nothing $ compileTypeRep opt a
+ | otherwise           = ArrayType fullRange $ compileTypeRep opt a
+compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
+compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
+compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
+compileTypeRep _   typ                      = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
 -- | Construct a variable.
 mkVar :: Type -> Integer -> Expression ()
@@ -196,9 +202,9 @@ freshId = do
   put (s {fresh = v + 1})
   return v
 
-freshVar :: String -> Ut.Type -> CodeWriter (Expression ())
-freshVar base t = do
-  v <- varToExpr . mkNamedVar base (compileTypeRep t) <$> freshId
+freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
+freshVar opt base t = do
+  v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
   declare v
   return v
 
