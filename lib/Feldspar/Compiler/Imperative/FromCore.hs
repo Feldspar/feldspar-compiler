@@ -57,6 +57,7 @@ import Feldspar.Core.UntypedRepresentation
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
+import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
 import Feldspar.Core.Constructs (SyntacticFeld(..))
 import Feldspar.Core.Frontend (reifyFeld)
 import Feldspar.Range (upperBound)
@@ -553,6 +554,36 @@ compileExpr env (In (PrimApp2 o@Ut.BXor t e1 e2)) = do
     e1' <- compileExpr env e1
     e2' <- compileExpr env e2
     return $ fun' Infix (compileTypeRep t) True (compileOp o) [e1', e2']
+-- Conversion
+compileExpr env (In (PrimApp1 Ut.F2I t e)) = do
+    e' <- compileExpr env e
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "truncf" [e']
+    return $ Cast (compileTypeRep t) $ f'
+compileExpr env (In (PrimApp1 Ut.I2N t1 e))
+ | (Rep.MachineVector 1 (Rep.ComplexType t)) <- t'
+ = do
+    e' <- compileExpr env e
+    let args = [Cast t e', litF 0]
+    return $ fun t' False (extend c99 "complex" t) args
+ | otherwise = do
+    e' <- compileExpr env e
+    return $ Cast t' e'
+  where t' = compileTypeRep t1
+compileExpr env (In (PrimApp1 Ut.B2I t e)) = do
+    e' <- compileExpr env e
+    return $ Cast (compileTypeRep t) e'
+compileExpr env (In (PrimApp1 Ut.Round t e)) = do
+    e' <- compileExpr env e
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "roundf" [e']
+    return $ Cast (compileTypeRep t) $ f'
+compileExpr env (In (PrimApp1 Ut.Ceiling t e)) = do
+    e' <- compileExpr env e
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "ceilf" [e']
+    return $ Cast (compileTypeRep t) $ f'
+compileExpr env (In (PrimApp1 Ut.Floor t e)) = do
+    e' <- compileExpr env e
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "floorf" [e']
+    return $ Cast (compileTypeRep t) $ f'
 -- Error
 compileExpr env (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
     compileAssert env cond msg
@@ -805,9 +836,6 @@ instance CompileOp Ut.PrimOp0 where
 instance CompileOp Ut.PrimOp1 where
   compileOp Ut.RealPart  = "creal"
   compileOp Ut.ImagPart  = "cimag"
-  compileOp Ut.F2I       = "f2i"
-  compileOp Ut.I2N       = "i2n"
-  compileOp Ut.B2I       = "b2i"
   compileOp Ut.Sign      = "signum"
   -- Floating
   compileOp Ut.Exp       = "exp"

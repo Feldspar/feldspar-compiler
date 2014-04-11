@@ -37,6 +37,7 @@ module Feldspar.Compiler.Backend.C.Platforms
     , c99Rules
     , tic64xRules
     , nativeArrayRules
+    , extend
     ) where
 
 import Data.Maybe (fromMaybe)
@@ -306,13 +307,6 @@ c99Rules = [rule go]
     go (FunctionCall (Function "phase" t _) [arg])    = [replaceWith $ fun t False "cargf" [arg]]
     go (FunctionCall (Function "mkPolar" t _) [arg1, arg2])   = [replaceWith $ fun t False (extend c99 "mkPolar" $ typeof arg1) [arg1, arg2]]
     go (FunctionCall (Function "cis" t _) [arg])  = [replaceWith $ fun t False (extend c99 "cis" $ typeof arg) [arg]]
-    go (FunctionCall (Function "f2i" t _) [arg])  = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "truncf" [arg]]
-    go (FunctionCall (Function "i2n" (MachineVector 1 (ComplexType t)) _) [arg])    = [replaceWith $ fun (MachineVector 1 (ComplexType t)) False (extend c99 "complex" t) [Cast t arg, litF 0]]
-    go (FunctionCall (Function "i2n" t _) [arg])  = [replaceWith $ Cast t arg]
-    go (FunctionCall (Function "b2i" t _) [arg])  = [replaceWith $ Cast t arg]
-    go (FunctionCall (Function "round" t _) [arg])    = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "roundf" [arg]]
-    go (FunctionCall (Function "ceiling" t _) [arg])  = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "ceilf" [arg]]
-    go (FunctionCall (Function "floor" t _) [arg])    = [replaceWith $ Cast t $ fun (MachineVector 1 FloatType) False "floorf" [arg]]
     go _ = []
 
 tic64xRules :: [Rule]
