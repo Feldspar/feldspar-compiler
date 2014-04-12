@@ -63,9 +63,9 @@ adaptTic64xExp (ArrayElem e1 e2)   = ArrayElem (adaptTic64xExp e1) (adaptTic64xE
 adaptTic64xExp (StructField e s)   = StructField (adaptTic64xExp e) s
 adaptTic64xExp c@ConstExpr{}       = c
 adaptTic64xExp (FunctionCall (Function "/=" t) [arg1,arg2]) | isComplex (typeof arg1)
-  = fun t True "!" [fun t False (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]
+  = fun t "!" [fun t (extend tic64x "equal" $ typeof arg1) [arg1, arg2]]
 adaptTic64xExp (FunctionCall (Function "bitCount" t) [arg]) | isComplex (typeof arg)
-  = fun t False "_dotpu4" [fun t False "_bitc4" [arg], litI32 0x01010101]
+  = fun t "_dotpu4" [fun t "_bitc4" [arg], litI32 0x01010101]
 adaptTic64xExp (FunctionCall f es)
   = FunctionCall (adaptTic64xFun argtype (length es) f) $ map adaptTic64xExp es
    where argtype = typeof $ head es

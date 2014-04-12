@@ -74,7 +74,7 @@ renameExp m (FunctionCall f es) = res
         es' = map (renameExp m) es
         res | new /= "div"      = FunctionCall f' es'
             | [arg1,arg2] <- es
-            = StructField (fun div_t False (div_f t) [arg1, arg2]) "quot"
+            = StructField (fun div_t (div_f t) [arg1, arg2]) "quot"
           where
            div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
            div_f (MachineVector 1 (NumType Signed S8))  = "div"

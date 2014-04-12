@@ -569,14 +569,14 @@ compileExpr env (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
 -- Conversion
 compileExpr env (In (PrimApp1 Ut.F2I t e)) = do
     e' <- compileExpr env e
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "truncf" [e']
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" [e']
     return $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (PrimApp1 Ut.I2N t1 e))
  | (Rep.MachineVector 1 (Rep.ComplexType t)) <- t'
  = do
     e' <- compileExpr env e
     let args = [Cast t e', litF 0]
-    return $ fun t' False (extend c99 "complex" t) args
+    return $ fun t' (extend c99 "complex" t) args
  | otherwise = do
     e' <- compileExpr env e
     return $ Cast t' e'
@@ -586,15 +586,15 @@ compileExpr env (In (PrimApp1 Ut.B2I t e)) = do
     return $ Cast (compileTypeRep (opts env) t) e'
 compileExpr env (In (PrimApp1 Ut.Round t e)) = do
     e' <- compileExpr env e
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "roundf" [e']
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" [e']
     return $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (PrimApp1 Ut.Ceiling t e)) = do
     e' <- compileExpr env e
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "ceilf" [e']
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" [e']
     return $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (PrimApp1 Ut.Floor t e)) = do
     e' <- compileExpr env e
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) False "floorf" [e']
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" [e']
     return $ Cast (compileTypeRep (opts env) t) $ f'
 -- Error
 compileExpr env (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
@@ -604,7 +604,7 @@ compileExpr env (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
 -- FFI
 compileExpr env (In (Ut.ForeignImport name t es)) = do
     es' <- mapM (compileExpr env) es
-    return $ fun' (compileTypeRep (opts env) t) True name es'
+    return $ fun' (compileTypeRep (opts env) t) name es'
 -- Floating
 compileExpr env (In (PrimApp0 Ut.Pi t)) = error "No pi ready"
 -- Fractional
@@ -661,14 +661,14 @@ compileExpr env (In (PrimApp1 Ut.Sel7 _ tup)) = do
     tupExpr <- compileExpr env tup
     return $ StructField tupExpr "member7"
 compileExpr env (In (PrimApp0 p t)) = do
-    return $ fun' (compileTypeRep (opts env) t) True (compileOp p) []
+    return $ fun' (compileTypeRep (opts env) t) (compileOp p) []
 compileExpr env (In (PrimApp1 p t e)) = do
     e' <- compileExpr env e
-    return $ fun' (compileTypeRep (opts env) t) True (compileOp p) [e']
+    return $ fun' (compileTypeRep (opts env) t) (compileOp p) [e']
 compileExpr env (In (PrimApp2 p t e1 e2)) = do
     e1' <- compileExpr env e1
     e2' <- compileExpr env e2
-    return $ fun' (compileTypeRep (opts env) t) True (compileOp p) [e1', e2']
+    return $ fun' (compileTypeRep (opts env) t) (compileOp p) [e1', e2']
 compileExpr env e = compileProgFresh env e
 
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
