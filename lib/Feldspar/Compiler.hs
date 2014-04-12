@@ -8,6 +8,7 @@ module Feldspar.Compiler
     , printCore
     , Options (..)
     , defaultOptions
+    , sicsOptions
     , FeldOpts(..)
     , Target(..)
     , c99PlatformOptions
