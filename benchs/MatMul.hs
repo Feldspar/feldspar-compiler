@@ -22,7 +22,7 @@ testdata :: [WordN]
 testdata = cycle [1,2,3,4]
 
 matmul :: Pull DIM2 (Data WordN) -> Pull DIM2 (Data WordN) -> Pull DIM2 (Data WordN)
-matmul = mmMult
+matmul = mmMult True
 
 loadFunOpts ["-optc=-O2"] 'matmul
 
