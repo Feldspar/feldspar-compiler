@@ -6,7 +6,7 @@ import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
   Deref, AddrOf, Unsigned, Signed)
-import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun')
+import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun', call)
 
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
@@ -71,9 +71,13 @@ defToProgram _ e = error ("defToProgram: Unhandled construct: " ++ show e)
 
 funcToProgram :: TPEnv -> Func -> (TPEnv, Entity ())
 funcToProgram env (Func ds name decl (Params parms _ _) bis _)
-  = (env'', Proc (unId name) (init vs) [last vs] (Just bs))
+  = (env'', Proc (unId name) inParams outParams (Just bs))
    where (env', vs) = mapAccumL paramToVariable env parms
          (env'', bs) = blockToBlock env' bis
+         (inParams, outParams)
+           | VoidType <- dsl = (init vs, Left [last vs])
+           | otherwise       = (vs, Right $ Variable dsl "out")
+         dsl = declSpecToType env ds
 funcToProgram _ e = error ("funcToProgram: Unhandled construct: " ++ show e)
 
 valueToProgram :: TPEnv -> DeclSpec -> [Init] -> Id -> [Initializer]
@@ -213,7 +217,8 @@ stmToProgram env (For (Left es) (Just (BinOp Lt name@Var{} v2 _))
 stmToProgram _ Goto{} = error "stmToProgram: No support for goto."
 stmToProgram _ Continue{} = error "stmToProgram: No support for continue."
 stmToProgram _ Break{} = error "stmToProgram: Unexpected break."
-stmToProgram _ Return{} = error "stmToProgram: Unexpected return."
+stmToProgram env (Return (Just e) _)
+  = call "return" [ValueParameter $ expToExpression env e]
 stmToProgram env (Pragma s _) = error "Pragma not supported yet."
 stmToProgram _ a@Asm{} = error ("stmToProgram: unexpected asm: " ++ show a)
 stmToProgram _ e = error ("stmToProgram: Unhandled construct: " ++ show e)
@@ -343,7 +348,7 @@ declSpecToType env ds@(DeclSpec st tq ts _) = typSpecToType env ts
 declSpecToType _ e = error ("declSpecToType: Unhandled construct: " ++ show e)
 
 initToFunDecl :: TPEnv -> DeclSpec -> Init -> [Param] -> (TPEnv, Entity ())
-initToFunDecl env ds is ps = (env', Proc iv ps' [] Nothing)
+initToFunDecl env ds is ps = (env', Proc iv ps' (Left []) Nothing)
  where iv = fst $ initToName env (declSpecToType env' ds) is
        (env', ps') = mapAccumL paramToVariable env ps
 
@@ -549,7 +554,9 @@ patchHdefs (d@(StructDef s members):t)
   where [(StructType _ ts)] = decodeType s
         toDef (n,t') = StructMember n t'
 patchHdefs (p@(Proc n ins outs Nothing):t)
-  = (n, map typeof (ins++outs), p):patchHdefs t
+  = (n, (map typeof ins) ++ etypeof outs, p):patchHdefs t
+   where etypeof (Left es) = map typeof es
+         etypeof (Right e) = [typeof e]
 patchHdefs (e:t) = patchHdefs t
 
 mkDef :: R.Type -> [Entity ()]

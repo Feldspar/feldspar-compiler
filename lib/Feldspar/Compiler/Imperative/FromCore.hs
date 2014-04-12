@@ -69,19 +69,44 @@ import Feldspar.Compiler.Backend.C.Options (Options(..))
 -- Module that translates from the Syntactic program from the frontend to the
 -- module format in the backend.
 
+{-
+
+Fast returns
+------------
+
+Fast returns really means single return value and that value fits in a
+register--thus they are platform dependent. This is why we have to
+compileTypeRep since that can make configuration specific choices
+about data layout.
+
+The user is free to ask for fast returns, but we might not be able to comply.
+For those cases we flip the option before generating code.
+
+-}
+
 -- | Get the generated core for a program with a specified output name.
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
-    (outParam,results) = evalRWS (compileProgTop opt ast) (initReader opt) initState
+    (outParam,results) = evalRWS (compileProgTop opt' ast) (initReader opt) initState
+    opt' | useNativeReturns opt
+         , not $ canFastReturn $ compileTypeRep opt (typeof ast)
+         = opt { useNativeReturns = False } -- Note [Fast returns]
+         | otherwise = opt
+    fastRet    = useNativeReturns opt'
     ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
-    post       = epilogue results
+    post       = epilogue results ++ returns
     Block ds p = block results
-    paramTypes = getTypes $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
-    defs       =  nub (def results ++ paramTypes)
-               ++ [Proc funname ins [outParam] $ Just (Block (ds ++ decls) (Sequence (p:post)))]
+    outDecl    = Declaration outParam Nothing
+    paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
+    defs       = nub (def results ++ paramTypes) ++ topProc
+    (outs, ds', returns)
+     | fastRet   = ( Right outParam,  outDecl:ds ++ decls
+                   , [call "return" [ValueParameter $ varToExpr outParam]])
+     | otherwise = ( Left [outParam],         ds ++ decls, [])
+    topProc    = [Proc funname ins outs $ Just (Block ds' (Sequence (p:post)))]
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
@@ -103,9 +128,11 @@ compileProgTop opt (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) b
     var = mkVariable (typeof c) v -- Note [Precise size information]
     c   = literalConst l
 compileProgTop opt a = do
-  let outType    = Rep.Pointer $ compileTypeRep opt (typeof a)
+  let outType' = compileTypeRep opt (typeof a)
+      (outType, outLoc)
+       | useNativeReturns opt = (outType',             varToExpr outParam)
+       | otherwise            = (Rep.Pointer outType', Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
-      outLoc     = Deref $ varToExpr outParam
   compileProg (cenv0 opt) (Just outLoc) a
   return outParam
 
@@ -296,11 +323,11 @@ compileProg env (Just loc) (In (PrimApp1 Ut.MkFuture _ p)) = do
        tellProg [iVarPut loc p']
    funId  <- freshId
    let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args [] $ Just (Block (decl ws ++ ds) bl)]
+   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) bl)]
    -- Task:
    let taskName = "task" ++ show funId
        runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
+   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
    -- Spawn:
    tellProg [iVarInit (AddrOf loc)]
    tellProg [spawn taskName args]
@@ -427,7 +454,7 @@ compileProg env (Just loc) (In (PrimApp1 Ut.NoInline _ p)) = do
     let (ins,outs) = partition isInParam args
     funId  <- freshId
     let funname = "noinline" ++ show funId
-    tellDef [Proc funname ins outs $ Just b]
+    tellDef [Proc funname ins (Left outs) $ Just b]
     let ins' = map (\v -> ValueParameter $ varToExpr $ Rep.Variable (typeof v) (vName v)) ins
     tellProg [call funname $ ins' ++ [ValueParameter loc]]
 -- Par
@@ -456,11 +483,11 @@ compileProg env loc (In (PrimApp1 Ut.ParFork _ p)) = do
    ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg env {inTask = True} loc p
    funId  <- freshId
    let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args [] $ Just (Block (decl ws ++ ds) b)]
+   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) b)]
    -- Task:
    let taskName = "task" ++ show funId
        runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
+   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
    -- Spawn:
    tellProg [spawn taskName args]
 compileProg _ _ (In (PrimApp0 Ut.ParYield _)) = return ()
