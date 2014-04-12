@@ -219,6 +219,14 @@ isComposite NativeArray{} = True
 isComposite StructType{}  = True
 isComposite _             = False
 
+-- | Does the parameters allow a fast/cheap (in register) return.
+canFastReturn :: Type -> Bool
+canFastReturn t
+  | not $ isComposite t
+  , not $ isPointer t -- Conservative, pointers are handled the regular way.
+  , not $ isIVar t      = True
+canFastReturn _         = False
+
 containsNativeArray :: Type -> Bool
 containsNativeArray t = any (isNativeArray . snd) $ flattenStructs t
 

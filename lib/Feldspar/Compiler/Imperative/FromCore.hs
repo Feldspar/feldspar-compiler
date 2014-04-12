@@ -69,19 +69,44 @@ import Feldspar.Compiler.Backend.C.Options (Options(..))
 -- Module that translates from the Syntactic program from the frontend to the
 -- module format in the backend.
 
+{-
+
+Fast returns
+------------
+
+Fast returns really means single return value and that value fits in a
+register--thus they are platform dependent. This is why we have to
+compileTypeRep since that can make configuration specific choices
+about data layout.
+
+The user is free to ask for fast returns, but we might not be able to comply.
+For those cases we flip the option before generating code.
+
+-}
+
 -- | Get the generated core for a program with a specified output name.
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
 fromCore opt funname prog = Module defs
   where
-    (outParam,results) = evalRWS (compileProgTop opt ast) (initReader opt) initState
+    (outParam,results) = evalRWS (compileProgTop opt' ast) (initReader opt) initState
+    opt' | useNativeReturns opt
+         , not $ canFastReturn $ compileTypeRep opt (typeof ast)
+         = opt { useNativeReturns = False } -- Note [Fast returns]
+         | otherwise = opt
+    fastRet    = useNativeReturns opt'
     ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
-    post       = epilogue results
+    post       = epilogue results ++ returns
     Block ds p = block results
-    paramTypes = getTypes $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
-    defs       =  nub (def results ++ paramTypes)
-               ++ [Proc funname ins (Left [outParam]) $ Just (Block (ds ++ decls) (Sequence (p:post)))]
+    outDecl    = Declaration outParam Nothing
+    paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
+    defs       = nub (def results ++ paramTypes) ++ topProc
+    (outs, ds', returns)
+     | fastRet   = ( Right outParam,  outDecl:ds ++ decls
+                   , [call "return" [ValueParameter $ varToExpr outParam]])
+     | otherwise = ( Left [outParam],         ds ++ decls, [])
+    topProc    = [Proc funname ins outs $ Just (Block ds' (Sequence (p:post)))]
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
@@ -103,9 +128,11 @@ compileProgTop opt (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) b
     var = mkVariable (typeof c) v -- Note [Precise size information]
     c   = literalConst l
 compileProgTop opt a = do
-  let outType    = Rep.Pointer $ compileTypeRep opt (typeof a)
+  let outType' = compileTypeRep opt (typeof a)
+      (outType, outLoc)
+       | useNativeReturns opt = (outType',             varToExpr outParam)
+       | otherwise            = (Rep.Pointer outType', Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
-      outLoc     = Deref $ varToExpr outParam
   compileProg (cenv0 opt) (Just outLoc) a
   return outParam
 

@@ -6,7 +6,7 @@ import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
   Deref, AddrOf, Unsigned, Signed)
-import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun')
+import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun', call)
 
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
@@ -217,7 +217,8 @@ stmToProgram env (For (Left es) (Just (BinOp Lt name@Var{} v2 _))
 stmToProgram _ Goto{} = error "stmToProgram: No support for goto."
 stmToProgram _ Continue{} = error "stmToProgram: No support for continue."
 stmToProgram _ Break{} = error "stmToProgram: Unexpected break."
-stmToProgram _ Return{} = error "stmToProgram: Unexpected return."
+stmToProgram env (Return (Just e) _)
+  = call "return" [ValueParameter $ expToExpression env e]
 stmToProgram env (Pragma s _) = error "Pragma not supported yet."
 stmToProgram _ a@Asm{} = error ("stmToProgram: unexpected asm: " ++ show a)
 stmToProgram _ e = error ("stmToProgram: Unhandled construct: " ++ show e)

@@ -131,6 +131,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
+    , mkGoldTest pairParam "pairParam_ret" nativeRetOpts
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
     , mkGoldTest concatV "concatV" defaultOptions
     , mkGoldTest complexWhileCond "complexWhileCond" defaultOptions
@@ -145,12 +146,15 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkGoldTest fut1 "fut1" defaultOptions
+    , mkGoldTest fut1 "fut1_ret" nativeRetOpts
     , mkGoldTest not1 "not1" defaultOptions
+    , mkGoldTest not1 "not1_ret" nativeRetOpts
     , mkGoldTest issue128_ex1 "issue128_ex1" defaultOptions
     , mkGoldTest issue128_ex2 "issue128_ex2" defaultOptions
     , mkGoldTest issue128_ex3 "issue128_ex3" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
+    , mkBuildTest pairParam "pairParam_ret" nativeRetOpts
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
@@ -166,7 +170,9 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
     , mkBuildTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkBuildTest fut1 "fut1" defaultOptions
+    , mkBuildTest fut1 "fut1_ret" nativeRetOpts
     , mkBuildTest not1 "not1" defaultOptions
+    , mkBuildTest not1 "not1_ret" nativeRetOpts
     , mkBuildTest issue128_ex1 "issue128_ex1" defaultOptions
     , mkBuildTest issue128_ex2 "issue128_ex2" defaultOptions
     , mkBuildTest issue128_ex3 "issue128_ex3" defaultOptions
@@ -176,6 +182,7 @@ externalProgramTests :: TestTree
 externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     [ mkParseTest "example9" defaultOptions
     , mkParseTest "pairParam" defaultOptions
+    , mkParseTest "pairParam_ret" defaultOptions
     , mkParseTest "pairParam2" defaultOptions
     , mkParseTest "concatV" defaultOptions
     , mkParseTest "complexWhileCond" defaultOptions
@@ -193,6 +200,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "arrayInStruct" defaultOptions
     , mkParseTest "arrayInStructInStruct" defaultOptions
     , mkParseTest "not1" defaultOptions
+    , mkParseTest "not1_ret" defaultOptions
     ]
 
 main :: IO ()
@@ -206,6 +214,8 @@ goldDir = "tests/gold/"
 
 nativeOpts :: Options
 nativeOpts = defaultOptions{useNativeArrays=True}
+nativeRetOpts :: Options
+nativeRetOpts = defaultOptions{useNativeReturns=True}
 
 writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
 writeGoldFile fun n = compile fun (goldDir <> n) n
