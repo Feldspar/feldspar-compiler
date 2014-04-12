@@ -443,9 +443,3 @@ isVariableOrLiteral :: Ut.UntypedFeld -> Bool
 isVariableOrLiteral (Ut.In Ut.Literal{})  = True
 isVariableOrLiteral (Ut.In Ut.Variable{}) = True
 isVariableOrLiteral _                     = False
-
-isComposite :: Type -> Bool
-isComposite ArrayType{}   = True
-isComposite NativeArray{} = True
-isComposite StructType{}  = True
-isComposite _             = False

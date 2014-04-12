@@ -213,6 +213,12 @@ isVarExpr :: Expression () -> Bool
 isVarExpr VarExpr{} = True
 isVarExpr _         = False
 
+isComposite :: Type -> Bool
+isComposite ArrayType{}   = True
+isComposite NativeArray{} = True
+isComposite StructType{}  = True
+isComposite _             = False
+
 containsNativeArray :: Type -> Bool
 containsNativeArray t = any (isNativeArray . snd) $ flattenStructs t
 
@@ -221,12 +227,13 @@ flattenStructs :: Type -> [(Expression () -> Expression (), Type)]
 flattenStructs (StructType _ fts) = [(\ e -> af $ StructField e fname, t') | (fname,t) <- fts, (af, t') <- flattenStructs t]
 flattenStructs t = [(id, t)]
 
+hasReference :: Type -> Bool
 hasReference ArrayType{}       = True
 hasReference NativeArray{}     = True -- TODO: Reconsider this safe approximation if we start using native arrays for performance
 hasReference Pointer{}         = True
 hasReference IVarType{}        = True
 hasReference (StructType _ fs) = any (hasReference . snd) fs
-hasReference t                 = False
+hasReference _                 = False
 
 dVar :: Declaration () -> Variable ()
 dVar (Declaration v _)    = v
