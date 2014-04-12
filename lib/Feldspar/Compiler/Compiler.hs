@@ -111,7 +111,7 @@ compileToCCore name opts prg = compileToCCore' opts mod
 compileToCCore' :: Options -> Module () -> SplitModule
 compileToCCore' opts m = compileSplitModule opts $ splitModule mod
       where
-        mod = adaptTic64x opts $ rename opts m
+        mod = adaptTic64x opts $ rename opts False m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
