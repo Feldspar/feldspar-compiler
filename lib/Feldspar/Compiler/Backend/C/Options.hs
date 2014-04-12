@@ -43,7 +43,9 @@ data Options =
     { platform          :: Platform
     , printHeader       :: Bool
     , useNativeArrays   :: Bool
+    , useNativeReturns  :: Bool
     , frontendOpts      :: FeldOpts
+    , safetyLimit       :: Integer -- ^ Threshold to stop when the size information gets lost.
     , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
     }
 

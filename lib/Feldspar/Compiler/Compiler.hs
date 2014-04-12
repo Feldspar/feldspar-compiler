@@ -36,6 +36,7 @@ module Feldspar.Compiler.Compiler (
     compileToCCore
   , compileToCCore'
   , defaultOptions
+  , sicsOptions
   , c99PlatformOptions
   , c99OpenMpPlatformOptions
   , tic64xPlatformOptions
@@ -47,7 +48,7 @@ import Data.List (partition)
 import Data.Maybe (fromMaybe)
 
 import Feldspar.Core.Constructs (SyntacticFeld)
-import Feldspar.Core.Interpretation (defaultFeldOpts)
+import Feldspar.Core.Interpretation (defaultFeldOpts, FeldOpts(..), Target(..))
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -128,7 +129,9 @@ defaultOptions
     { platform          = c99
     , printHeader       = False
     , useNativeArrays   = False
+    , useNativeReturns  = False
     , frontendOpts      = defaultFeldOpts
+    , safetyLimit       = 2000
     , nestSize          = 2
     }
 
@@ -141,3 +144,5 @@ c99OpenMpPlatformOptions        = defaultOptions { platform = c99OpenMp }
 tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
 
+sicsOptions :: Options
+sicsOptions = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS] }}

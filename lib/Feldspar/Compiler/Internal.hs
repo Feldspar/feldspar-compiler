@@ -28,6 +28,7 @@
 
 module Feldspar.Compiler.Internal
     ( defaultOptions
+    , sicsOptions
     , c99PlatformOptions
     , c99OpenMpPlatformOptions
     , tic64xPlatformOptions
