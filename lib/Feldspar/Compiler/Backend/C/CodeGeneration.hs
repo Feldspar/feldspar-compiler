@@ -97,10 +97,13 @@ instance CodeGen (Block ())
 
 instance CodeGen (Declaration ())
   where
-    cgen env Declaration{..} = pvar env declVar <+> nest (nestSize $ options env) initial <> semi
+    cgen env Declaration{..}
+     | Just i <- initVal
+     = var <+> nest (nestSize $ options env) equals <+> cgen env i <> semi <> text "\n"
+     | otherwise = var <+> nest (nestSize $ options env) init <> semi
       where
-        initial | Just i <- initVal = equals <+> cgen env i
-                | otherwise         = initialize False (varType declVar)
+        var  = pvar env declVar
+        init = initialize False (varType declVar)
     cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Program ())
@@ -112,6 +115,9 @@ instance CodeGen (Program ())
     cgen env Assign{..} = cgen env lhs <+> equals <+> nest (nestSize $ options env) (cgen env rhs) <> semi
     cgen env ProcedureCall{..} = stmt $ call (text procCallName) (map (cgen env) procCallParams)
     cgen env Sequence{..} = cgenList env sequenceProgs
+    cgen env (Switch scrut [(Pat (ConstExpr (BoolConst True)), thenBlock)])
+                        = text "if" <+> parens (cgen env scrut)
+                       $$ block env (cgen env thenBlock)
     cgen env (Switch scrut [(Pat (ConstExpr (BoolConst True)), thenBlock),
                             (Pat (ConstExpr (BoolConst False)), elseBlock)])
                         = text "if" <+> parens (cgen env scrut)
