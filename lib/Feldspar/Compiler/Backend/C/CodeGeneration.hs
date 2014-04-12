@@ -70,7 +70,9 @@ instance CodeGen (Entity ())
       | Just body <- procBody = start $$ block env (cgen env body)
       | otherwise = start <> semi
         where
-         start = text "void" <+> text procName <> parens (pvars env $ inParams ++ outParams)
+         start = text "void" <+> text procName <> parens (pvars env $ inParams ++ outs)
+         outs | Left params <- outParams = params
+              | otherwise                = []
     cgen env ValueDef{..}
       | isNativeArray $ typeof valVar
       = cgen env (typeof valVar) <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi

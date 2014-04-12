@@ -84,7 +84,8 @@ data Entity t
     | Proc
         { procName                  :: String
         , inParams                  :: [Variable t]
-        , outParams                 :: [Variable t]
+        -- Left is regular return, right is fast return.
+        , outParams                 :: Either [Variable t] (Variable t)
         , procBody                  :: Maybe (Block t)
         }
     | ValueDef

@@ -81,7 +81,7 @@ fromCore opt funname prog = Module defs
     Block ds p = block results
     paramTypes = getTypes $ Declaration outParam Nothing:map (`Declaration` Nothing) ins
     defs       =  nub (def results ++ paramTypes)
-               ++ [Proc funname ins [outParam] $ Just (Block (ds ++ decls) (Sequence (p:post)))]
+               ++ [Proc funname ins (Left [outParam]) $ Just (Block (ds ++ decls) (Sequence (p:post)))]
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
@@ -296,11 +296,11 @@ compileProg env (Just loc) (In (PrimApp1 Ut.MkFuture _ p)) = do
        tellProg [iVarPut loc p']
    funId  <- freshId
    let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args [] $ Just (Block (decl ws ++ ds) bl)]
+   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) bl)]
    -- Task:
    let taskName = "task" ++ show funId
        runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
+   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
    -- Spawn:
    tellProg [iVarInit (AddrOf loc)]
    tellProg [spawn taskName args]
@@ -427,7 +427,7 @@ compileProg env (Just loc) (In (PrimApp1 Ut.NoInline _ p)) = do
     let (ins,outs) = partition isInParam args
     funId  <- freshId
     let funname = "noinline" ++ show funId
-    tellDef [Proc funname ins outs $ Just b]
+    tellDef [Proc funname ins (Left outs) $ Just b]
     let ins' = map (\v -> ValueParameter $ varToExpr $ Rep.Variable (typeof v) (vName v)) ins
     tellProg [call funname $ ins' ++ [ValueParameter loc]]
 -- Par
@@ -456,11 +456,11 @@ compileProg env loc (In (PrimApp1 Ut.ParFork _ p)) = do
    ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg env {inTask = True} loc p
    funId  <- freshId
    let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args [] $ Just (Block (decl ws ++ ds) b)]
+   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) b)]
    -- Task:
    let taskName = "task" ++ show funId
        runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] [mkNamedRef "params" Rep.VoidType (-1)] runTask]
+   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
    -- Spawn:
    tellProg [spawn taskName args]
 compileProg _ _ (In (PrimApp0 Ut.ParYield _)) = return ()
