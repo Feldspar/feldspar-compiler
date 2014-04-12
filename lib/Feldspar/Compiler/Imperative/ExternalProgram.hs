@@ -291,8 +291,8 @@ expToExpression _ e = error ("expToExpression: Unhandled construct: " ++ show e)
 
 opToFunctionCall :: [Expression ()] -> BinOp -> Expression ()
 opToFunctionCall es op = case opToString op of
-                      Right s -> fun' t True s es
-                      Left s -> fun' (MachineVector 1 BoolType) True s es
+                      Right s -> fun' t s es
+                      Left s -> fun' (MachineVector 1 BoolType) s es
   where t = typeof (head es)
 
 opToString :: BinOp -> Either String String
@@ -318,8 +318,8 @@ opToString Rsh = Right ">>"
 expToFunctionCall :: TPEnv -> [Expression ()] -> Exp -> Expression ()
 expToFunctionCall env es (Var name _)
   | Just v <- lookup (unId name) builtins
-  = fun (varType v) False (varName v) es
-  | otherwise = fun fakeType False (unId name) es
+  = fun (varType v) (varName v) es
+  | otherwise = fun fakeType (unId name) es
 
 -- Signed integers are the default for literals, but that is not always
 -- convenient. Fix things up afterwards instead.
@@ -369,10 +369,10 @@ unOpToExp (ConstExpr (R.FloatConst  n)) Negate
   = ConstExpr (R.FloatConst (-1*n))
 unOpToExp (ConstExpr (R.DoubleConst n)) Negate
   = ConstExpr (R.DoubleConst (-1*n))
-unOpToExp e Negate = fun' (typeof e) True "-" [e]
+unOpToExp e Negate = fun' (typeof e) "-" [e]
 unOpToExp e Positive = e
 unOpToExp e Not = error "Not"
-unOpToExp e Lnot = fun' (MachineVector 1 BoolType) True "!" [e]
+unOpToExp e Lnot = fun' (MachineVector 1 BoolType) "!" [e]
 
 typToType :: TPEnv -> Type -> R.Type
 typToType env (Type ds de _) = declSpecToType env ds

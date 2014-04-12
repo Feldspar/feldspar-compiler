@@ -59,7 +59,7 @@ mkInitialize name (Just arr) len
   | isNativeArray arrType
   = Empty
   | otherwise
-  = Assign arr $ fun arrType False name [arr, sz, len]
+  = Assign arr $ fun arrType name [arr, sz, len]
    where
     arrType = typeof arr
     sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
@@ -86,7 +86,7 @@ freeArrays defs = map freeArray arrays
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
-  | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) False "getLength" [arr]
+  | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) "getLength" [arr]
 
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray = go []  -- TODO: Extend to handle x.member1.member2
@@ -261,13 +261,13 @@ varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
-binop t n e1 e2 = fun' t True n [e1, e2]
+binop t n e1 e2 = fun' t n [e1, e2]
 
-fun :: Type -> Bool -> String -> [Expression ()] -> Expression ()
+fun :: Type -> String -> [Expression ()] -> Expression ()
 fun = fun'
 
-fun' :: Type -> Bool -> String -> [Expression ()] -> Expression ()
-fun' t p n = FunctionCall (Function n t)
+fun' :: Type -> String -> [Expression ()] -> Expression ()
+fun' t n = FunctionCall (Function n t)
 
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
