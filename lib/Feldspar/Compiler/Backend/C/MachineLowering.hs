@@ -8,6 +8,7 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x, deepCopy)
+import Feldspar.Compiler.Backend.C.RuntimeLibrary
 
 -- This module does function renaming as well as copy expansion, in a single pass.
 --
@@ -16,13 +17,17 @@ import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x, deepCopy)
 -- results due to overflow.
 
 -- | External interface for renaming.
-rename :: Options -> Module () -> Module ()
-rename opts m = rename' opts x m
+rename :: Options -> Bool -> Module () -> Module ()
+rename opts addRuntimeLib m = rename' opts addRuntimeLib x m
   where x = getPlatformRenames (name $ platform opts)
 
 -- | Internal interface for renaming.
-rename' :: Options -> M.Map String [(Which, Destination)] -> Module () -> Module ()
-rename' opts m (Module ents) = Module $ map (renameEnt opts m) ents
+rename' :: Options -> Bool -> M.Map String [(Which, Destination)] -> Module ()
+        -> Module ()
+rename' opts addRuntimeLib m (Module ents) = Module ents'
+  where ents' = extra ++ map (renameEnt opts m) ents
+        extra | addRuntimeLib = machineLibrary opts
+              | otherwise     = []
 
 -- | Rename entities.
 renameEnt :: Options -> M.Map String [(Which, Destination)] -> Entity () -> Entity ()
