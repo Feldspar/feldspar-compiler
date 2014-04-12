@@ -129,6 +129,7 @@ defaultOptions
     , printHeader       = False
     , useNativeArrays   = False
     , frontendOpts      = defaultFeldOpts
+    , safetyLimit       = 2000
     , nestSize          = 2
     }
 

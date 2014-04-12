@@ -127,8 +127,8 @@ showConstant (DoubleConst c) = show c ++ "f"
 showConstant (FloatConst c)  = show c ++ "f"
 showConstant c               = show c
 
-deepCopy :: [ActualParameter ()] -> [Program ()]
-deepCopy [ValueParameter arg1, ValueParameter arg2]
+deepCopy :: Options -> [ActualParameter ()] -> [Program ()]
+deepCopy opts [ValueParameter arg1, ValueParameter arg2]
   | arg1 == arg2
   = []
 
@@ -138,7 +138,7 @@ deepCopy [ValueParameter arg1, ValueParameter arg2]
 
   | NativeArray{} <- typeof arg2
   , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
-  = if n < 2000
+  = if n < safetyLimit opts
       then initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
       else error ("Internal compiler error: array size (" ++ show n ++
                   ") too large for deepcopy")
@@ -148,10 +148,10 @@ deepCopy [ValueParameter arg1, ValueParameter arg2]
 
   | not (isArray (typeof arg1))
   = [Assign arg1 arg2]
-      where deepCopyField fld = deepCopy [ ValueParameter $ StructField arg1 fld
-                                         , ValueParameter $ StructField arg2 fld]
+    where deepCopyField fld = deepCopy opts [ ValueParameter $ StructField arg1 fld
+                                            , ValueParameter $ StructField arg2 fld]
 
-deepCopy (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
+deepCopy _ (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
   | isArray (typeof arg1)
   = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++
       flattenCopy (ValueParameter arg1) ins argnLens arg1len
@@ -162,7 +162,7 @@ deepCopy (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
                                                       , ValueParameter in1]
           aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
 
-deepCopy _ = error "Multiple scalar arguments to copy"
+deepCopy _ _ = error "Multiple scalar arguments to copy"
 
 flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] ->
                Expression () -> [Program ()]
