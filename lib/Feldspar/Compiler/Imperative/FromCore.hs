@@ -782,41 +782,38 @@ compileBind env (Ut.Var v t, e) = do
    declare var
    compileProg env (Just var) e
 
--- Class for translating PrimOp names to strings.
-class CompileOp a where
-  compileOp :: Show a => a -> String
-
-instance CompileOp Ut.Op where
-  -- Bits
-  compileOp Ut.BAnd      = "&"
-  compileOp Ut.BOr       = "|"
-  compileOp Ut.BXor      = "^"
-  -- Complex
-  compileOp Ut.RealPart  = "creal"
-  compileOp Ut.ImagPart  = "cimag"
-  compileOp Ut.Sign      = "signum"
+-- | Translates Op names to strings.
+compileOp :: Ut.Op -> String
+-- Bits
+compileOp Ut.BAnd              = "&"
+compileOp Ut.BOr               = "|"
+compileOp Ut.BXor              = "^"
+-- Complex
+compileOp Ut.RealPart          = "creal"
+compileOp Ut.ImagPart          = "cimag"
+compileOp Ut.Sign              = "signum"
   -- Eq
-  compileOp Ut.Equal     = "=="
-  compileOp Ut.NotEqual  = "/="
+compileOp Ut.Equal             = "=="
+compileOp Ut.NotEqual          = "/="
   -- FFI
-  compileOp (Ut.ForeignImport s) = s
+compileOp (Ut.ForeignImport s) = s
   -- Floating
-  compileOp Ut.Exp       = "exp"
+compileOp Ut.Exp               = "exp"
   -- Fractional
-  compileOp Ut.DivFrac   = "/"
+compileOp Ut.DivFrac           = "/"
   -- Integral
-  compileOp Ut.IExp      = "pow"
+compileOp Ut.IExp              = "pow"
   -- Logic
-  compileOp Ut.And       = "&&"
-  compileOp Ut.Or        = "||"
+compileOp Ut.And               = "&&"
+compileOp Ut.Or                = "||"
   -- Num
-  compileOp Ut.Add       = "+"
-  compileOp Ut.Sub       = "-"
-  compileOp Ut.Mul       = "*"
+compileOp Ut.Add               = "+"
+compileOp Ut.Sub               = "-"
+compileOp Ut.Mul               = "*"
   -- Ord
-  compileOp Ut.LTH       = "<"
-  compileOp Ut.GTH       = ">"
-  compileOp Ut.LTE       = "<="
-  compileOp Ut.GTE       = "<="
-  compileOp p            = toLower h:t
+compileOp Ut.LTH               = "<"
+compileOp Ut.GTH               = ">"
+compileOp Ut.LTE               = "<="
+compileOp Ut.GTE               = ">="
+compileOp p                    = toLower h:t
     where (h:t) = show p
