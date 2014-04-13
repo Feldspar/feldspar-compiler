@@ -119,7 +119,7 @@ compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
   tell $ mempty {params=[arg]}
   withAlias v arge $
      compileProgTop opt body
-compileProgTop opt (In (Ut.Let (In (Ut.Literal l)) (In (Ut.Lambda (Ut.Var v _) body))))
+compileProgTop opt (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
          compileProgTop opt body
@@ -272,7 +272,7 @@ compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
 -- Binding
 compileProg _   _   e@(In Ut.Lambda{})
   = error ("Can only compile top-level lambda: " ++ show e)
-compileProg env loc (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg env loc (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
    e <- compileLet env a ta v
    withAlias v e $ compileProg env loc body
 -- Bits
@@ -562,7 +562,7 @@ compileExpr env (In (Ut.Variable (Ut.Var v t))) = do
         case lookup v (alias env') of
           Nothing -> return $ mkVar (compileTypeRep (opts env) t) v
           Just e  -> return e
-compileExpr env (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileExpr env (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     e <- compileLet env a ta v
     withAlias v e $ compileExpr env body
 -- Bits
