@@ -48,7 +48,6 @@ import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
          ( Term(..), Lit(..), collectLetBinders
          , UntypedFeldF(App)
-         , UntypedFeldF(PrimApp3)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
@@ -214,7 +213,7 @@ compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf
    (_, b) <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
    tellProg [initArray loc len']
    tellProg [for True (lName ix) len' (litI32 1) b]
-compileProg env loc (In (PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.Var v tix) ixf1))))
+compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.Tup2 (In (Ut.Variable t1)) (In (Ut.Variable t2)))) <- collectLetBinders l
    , not $ null bs
@@ -237,7 +236,7 @@ compileProg env loc (In (PrimApp3 Ut.Sequential _ len init' (In (Ut.Lambda (Ut.V
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for False (lName ix) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg env loc (In (PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step))))))
+compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        let tr' = typeof step
        let ix = mkVar (compileTypeRep (opts env) t) v
@@ -255,7 +254,7 @@ compileProg env loc (In (App Ut.Append _ [a, b])) = do
    a' <- compileExpr env a
    b' <- compileExpr env b
    tellProg [copyProg loc [a', b']]
-compileProg env loc (In (PrimApp3 Ut.SetIx _ arr i a)) = do
+compileProg env loc (In (App Ut.SetIx _ [arr, i, a])) = do
    compileProg env loc arr
    i' <- compileExpr env i
    compileProg env (ArrayElem <$> loc <*> pure i') a
@@ -271,16 +270,17 @@ compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
    compileProg env loc arr
    tellProg [setLength loc len']
 -- Binding
-compileProg _   _   (In Ut.Lambda{}) = error "Can only compile top-level lambda"
+compileProg _   _   e@(In Ut.Lambda{})
+  = error ("Can only compile top-level lambda: " ++ show e)
 compileProg env loc (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
    e <- compileLet env a ta v
    withAlias v e $ compileProg env loc body
 -- Bits
 -- Complex
 -- Condition
-compileProg env loc (In (PrimApp3 Ut.Condition _ cond tHEN eLSE)) =
+compileProg env loc (In (App Ut.Condition _ [cond, tHEN, eLSE])) =
    mkBranch env loc cond tHEN $ Just eLSE
-compileProg env loc (In (PrimApp3 Ut.ConditionM _ cond tHEN eLSE)) =
+compileProg env loc (In (App Ut.ConditionM _ [cond, tHEN, eLSE])) =
    mkBranch env loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
@@ -340,20 +340,20 @@ compileProg env loc (In (Ut.Literal a)) = case loc of
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg env (Just loc) (In (PrimApp3 Ut.ForLoop _ len init (In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf))))))
+compileProg env (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
   = do
       let ix' = mkVar (compileTypeRep (opts env) ta) ix
       len' <- mkLength env len ta
       (lstate, stvar) <- mkDoubleBufferState loc st
-      compileProg env (Just lstate) init
+      compileProg env (Just lstate) init'
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
                           $ compileProg env (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
       tellProg [toProg $ Block ds (for False (lName ix') len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
-compileProg env (Just loc) (In (PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.Var cv ct) cond)) (In (Ut.Lambda (Ut.Var bv bt) body)))) = do
+compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
     let condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
     (lstate,stvar) <- mkDoubleBufferState loc bv
-    compileProg env (Just lstate) init
+    compileProg env (Just lstate) init'
     (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg env (Just condv) cond
     (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg env (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
     declare condv
@@ -407,7 +407,7 @@ compileProg env loc (In (App Ut.GetArr _ [arr, i])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    assign loc (ArrayElem arr' i')
-compileProg env _ (In (PrimApp3 Ut.SetArr _ arr i a)) = do
+compileProg env _ (In (App Ut.SetArr _ [arr, i, a])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    a'   <- compileExpr env a
@@ -500,7 +500,7 @@ compileProg env loc (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
     compileProg env loc a
 -- Switch
-compileProg env loc (In (App Ut.Switch _ [tree@(In (PrimApp3 Ut.Condition _ (In (App Ut.Equal _ [_, s])) _ _))])) = do
+compileProg env loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.Equal _ [_, s]), _, _]))])) = do
     scrutinee <- compileExpr env s
     alts      <- chaseTree env loc s tree
     tellProg [Switch{..}]
@@ -566,6 +566,9 @@ compileExpr env (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     e <- compileLet env a ta v
     withAlias v e $ compileExpr env body
 -- Bits
+-- Condition
+compileExpr env e@(In (App Ut.Condition _ _)) = compileProgFresh env e
+compileExpr env e@(In (App Ut.ConditionM _ _)) = compileProgFresh env e
 -- Conversion
 compileExpr env (In (App Ut.F2I t es)) = do
     es' <- mapM (compileExpr env) es
@@ -613,6 +616,9 @@ compileExpr env e@(In (App Ut.MkFuture _ _)) = compileProgFresh env e
 compileExpr env e@(In (App Ut.Await _ _)) = compileProgFresh env e
 -- Literal
 compileExpr env (In (Ut.Literal l)) = literal env l
+-- Loop
+compileExpr env e@(In (App Ut.WhileLoop _ _)) = compileProgFresh env e
+compileExpr env e@(In (App Ut.ForLoop _ _))   = compileProgFresh env e
 -- Logic
 -- Mutable
 compileExpr env (In (App Ut.Run _ [ma])) = compileExpr env ma
@@ -749,7 +755,7 @@ literalLoc env loc t =
 
 chaseTree :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
-chaseTree env loc _s (In (PrimApp3 Ut.Condition _ (In (App Ut.Equal _ [c, a])) t f))
+chaseTree env loc _s (In (App Ut.Condition _ [In (App Ut.Equal _ [c, a]), t, f]))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
          e <- compileExpr env c
@@ -765,7 +771,7 @@ chaseTree env loc _ a = do
 -- the last term
 chaseBind :: Ut.UntypedFeld -> Ut.UntypedFeld
 chaseBind (In (App Ut.Bind _ [_, In (Ut.Lambda _  body)])) = chaseBind body
-chaseBind (In (App Ut.Then _ [_, body]))                      = chaseBind body
+chaseBind (In (App Ut.Then _ [_, body]))                   = chaseBind body
 chaseBind a                                                = a
 
 {- NOTES:
