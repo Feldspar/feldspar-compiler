@@ -605,9 +605,6 @@ compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
     compileExpr env a
 -- Eq
 -- FFI
-compileExpr env (In (Ut.ForeignImport name t es)) = do
-    es' <- mapM (compileExpr env) es
-    return $ fun' (compileTypeRep (opts env) t) name es'
 -- Floating
 compileExpr env (In (App Ut.Pi t [])) = error "No pi ready"
 -- Fractional
@@ -806,6 +803,8 @@ instance CompileOp Ut.Op where
   -- Eq
   compileOp Ut.Equal     = "=="
   compileOp Ut.NotEqual  = "/="
+  -- FFI
+  compileOp (Ut.ForeignImport s) = s
   -- Floating
   compileOp Ut.Exp       = "exp"
   -- Fractional
