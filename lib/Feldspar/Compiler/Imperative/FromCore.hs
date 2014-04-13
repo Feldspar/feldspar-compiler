@@ -215,7 +215,7 @@ compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf
    tellProg [for True (lName ix) len' (litI32 1) b]
 compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
-   , (bs, In (Ut.Tup2 (In (Ut.Variable t1)) (In (Ut.Variable t2)))) <- collectLetBinders l
+   , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
    , not $ null bs
    , (e, step) <- last bs
    , t1 == e
@@ -506,32 +506,32 @@ compileProg env loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App 
     tellProg [Switch{..}]
 compileProg env loc (In (App Ut.Switch _ [tree])) = compileProg env loc tree
 -- Tuple
-compileProg env loc (In (Ut.Tup2 m1 m2)) = do
+compileProg env loc (In (App Ut.Tup2 _ [m1, m2])) = do
     compileProg env (StructField <$> loc <*> pure "member1") m1
     compileProg env (StructField <$> loc <*> pure "member2") m2
-compileProg env loc (In (Ut.Tup3 m1 m2 m3)) = do
+compileProg env loc (In (App Ut.Tup3 _ [m1, m2, m3])) = do
     compileProg env (StructField <$> loc <*> pure "member1") m1
     compileProg env (StructField <$> loc <*> pure "member2") m2
     compileProg env (StructField <$> loc <*> pure "member3") m3
-compileProg env loc (In (Ut.Tup4 m1 m2 m3 m4)) = do
+compileProg env loc (In (App Ut.Tup4 _ [m1, m2, m3, m4])) = do
     compileProg env (StructField <$> loc <*> pure "member1") m1
     compileProg env (StructField <$> loc <*> pure "member2") m2
     compileProg env (StructField <$> loc <*> pure "member3") m3
     compileProg env (StructField <$> loc <*> pure "member4") m4
-compileProg env loc (In (Ut.Tup5 m1 m2 m3 m4 m5)) = do
+compileProg env loc (In (App Ut.Tup5 _ [m1, m2, m3, m4, m5])) = do
     compileProg env (StructField <$> loc <*> pure "member1") m1
     compileProg env (StructField <$> loc <*> pure "member2") m2
     compileProg env (StructField <$> loc <*> pure "member3") m3
     compileProg env (StructField <$> loc <*> pure "member4") m4
     compileProg env (StructField <$> loc <*> pure "member5") m5
-compileProg env loc (In (Ut.Tup6 m1 m2 m3 m4 m5 m6)) = do
+compileProg env loc (In (App Ut.Tup6 _ [m1, m2, m3, m4, m5, m6])) = do
     compileProg env (StructField <$> loc <*> pure "member1") m1
     compileProg env (StructField <$> loc <*> pure "member2") m2
     compileProg env (StructField <$> loc <*> pure "member3") m3
     compileProg env (StructField <$> loc <*> pure "member4") m4
     compileProg env (StructField <$> loc <*> pure "member5") m5
     compileProg env (StructField <$> loc <*> pure "member6") m6
-compileProg env loc (In (Ut.Tup7 m1 m2 m3 m4 m5 m6 m7)) = do
+compileProg env loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
     compileProg env (StructField <$> loc <*> pure "member1") m1
     compileProg env (StructField <$> loc <*> pure "member2") m2
     compileProg env (StructField <$> loc <*> pure "member3") m3
@@ -551,6 +551,7 @@ compileExpr env (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
    return $ ArrayElem a' i'
+compileExpr env e@(In (App Ut.Parallel _ _)) = compileProgFresh env e
 -- Bits
 compileExpr env (In (App Ut.Bit t [arr])) = do
    a' <- compileExpr env arr
@@ -663,6 +664,9 @@ compileExpr env (In (App Ut.Sel6 _ [tup])) = do
 compileExpr env (In (App Ut.Sel7 _ [tup])) = do
     tupExpr <- compileExpr env tup
     return $ StructField tupExpr "member7"
+compileExpr env e@(In (App p _ _))
+ | p `elem` [Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5, Ut.Tup6, Ut.Tup7]
+ = compileProgFresh env e
 compileExpr env (In (App p t es)) = do
     es' <- mapM (compileExpr env) es
     return $ fun' (compileTypeRep (opts env) t) (compileOp p) es'
