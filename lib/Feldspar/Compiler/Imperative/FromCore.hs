@@ -48,7 +48,7 @@ import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
          ( Term(..), Lit(..), collectLetBinders
          , UntypedFeldF(App)
-         , UntypedFeldF(PrimApp2), UntypedFeldF(PrimApp3)
+         , UntypedFeldF(PrimApp3)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
@@ -208,7 +208,7 @@ mkBranch env loc c th el = do
 
 compileProg :: CompileEnv -> Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg env loc (In (PrimApp2 Ut.Parallel _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
    (_, b) <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
@@ -251,7 +251,7 @@ compileProg env loc (In (PrimApp3 Ut.Sequential _ len st (In (Ut.Lambda (Ut.Var 
                    Sequence $ body ++
                      [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                      ]]
-compileProg env loc (In (PrimApp2 Ut.Append _ a b)) = do
+compileProg env loc (In (App Ut.Append _ [a, b])) = do
    a' <- compileExpr env a
    b' <- compileExpr env b
    tellProg [copyProg loc [a', b']]
@@ -259,14 +259,14 @@ compileProg env loc (In (PrimApp3 Ut.SetIx _ arr i a)) = do
    compileProg env loc arr
    i' <- compileExpr env i
    compileProg env (ArrayElem <$> loc <*> pure i') a
-compileProg env (Just loc) (In (PrimApp2 Ut.GetIx _ arr i)) = do
+compileProg env (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
                 then [Assign loc el]
                 else [copyProg (Just loc) [el]]
-compileProg env loc (In (PrimApp2 Ut.SetLength _ len arr)) = do
+compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
    len' <- compileExpr env len
    compileProg env loc arr
    tellProg [setLength loc len']
@@ -284,26 +284,26 @@ compileProg env loc (In (PrimApp3 Ut.ConditionM _ cond tHEN eLSE)) =
    mkBranch env loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg env loc (In (PrimApp2 Ut.EMaterialize t len arr)) = do
+compileProg env loc (In (App Ut.EMaterialize t [len, arr])) = do
    len' <- mkLength env len t
    tellProg [initArray loc len']
    compileProg env loc arr
-compileProg env (Just loc) (In (PrimApp2 Ut.EWrite _ ix e)) = do
+compileProg env (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
    dst <- compileExpr env ix
    compileProg env (Just $ ArrayElem loc dst) e
 compileProg _   _   (In (App Ut.ESkip _ _)) = return ()
-compileProg env loc (In (PrimApp2 Ut.EPar _ p1 p2)) = do
+compileProg env loc (In (App Ut.EPar _ [p1, p2])) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg env loc p1
    (_, Block ds2 b2) <- confiscateBlock $ compileProg env loc p2
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
-compileProg env loc (In (PrimApp2 Ut.EparFor _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg env loc (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
    (_, ixf') <- confiscateBlock $ compileProg env loc ixf
    tellProg [for True (lName ix) len' (litI32 1) ixf']
 -- Error
 compileProg _   _   (In (App Ut.Undefined _ _)) = return ()
-compileProg env loc (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
+compileProg env loc (In (App (Ut.Assert msg) _ [cond, a])) = do
    compileAssert env cond msg
    compileProg env loc a
 -- Future
@@ -360,12 +360,12 @@ compileProg env (Just loc) (In (PrimApp3 Ut.WhileLoop t init (In (Ut.Lambda (Ut.
     tellProg [while cond' condv body']
     shallowAssign (Just loc) lstate
 -- LoopM
-compileProg env loc (In (PrimApp2 Ut.While _ (In (Ut.Lambda _ cond)) step)) = do
+compileProg env loc (In (App Ut.While _ [In (Ut.Lambda _ cond), step])) = do
    condv <- freshVar (opts env) "cond" (typeof cond)
    (_, cond') <- confiscateBlock $ compileProg env (Just condv) cond
    (_, step') <- confiscateBlock $ compileProg env loc step
    tellProg [while cond' condv step']
-compileProg env loc (In (PrimApp2 Ut.For _ len (In (Ut.Lambda (Ut.Var v ta) ixf)))) = do
+compileProg env loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
    (_, Block ds body) <- confiscateBlock $ compileProg env loc ixf
@@ -376,7 +376,7 @@ compileProg env loc (In (App Ut.Return t [a]))
   | Ut.MutType Ut.UnitType <- t = return ()
   | Ut.ParType Ut.UnitType <- t = return ()
   | otherwise = compileProg env loc a
-compileProg env loc (In (PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body))))
+compileProg env loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
    let var = mkVar (compileTypeRep (opts env) ta) v
    declare var
@@ -387,13 +387,13 @@ compileProg env loc (In (PrimApp2 Ut.Bind _ ma (In (Ut.Lambda (Ut.Var v ta) body
    declare var
    compileProg env (Just var) ma
    compileProg env loc body
-compileProg env loc (In (PrimApp2 Ut.Then _ ma mb)) = do
+compileProg env loc (In (App Ut.Then _ [ma, mb])) = do
    compileProg env Nothing ma
    compileProg env loc mb
-compileProg env loc (In (PrimApp2 Ut.When _ c action)) =
+compileProg env loc (In (App Ut.When _ [c, action])) =
    mkBranch env loc c action Nothing
 -- MutableArray
-compileProg env loc (In (PrimApp2 Ut.NewArr _ len a)) = do
+compileProg env loc (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
    let ix = varToExpr $ mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
    a' <- compileExpr env a
@@ -403,7 +403,7 @@ compileProg env loc (In (PrimApp2 Ut.NewArr _ len a)) = do
 compileProg env loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr env len
    tellProg [initArray loc l]
-compileProg env loc (In (PrimApp2 Ut.GetArr _ arr i)) = do
+compileProg env loc (In (App Ut.GetArr _ [arr, i])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    assign loc (ArrayElem arr' i')
@@ -415,17 +415,17 @@ compileProg env _ (In (PrimApp3 Ut.SetArr _ arr i a)) = do
 -- MutableReference
 compileProg env loc (In (App Ut.NewRef _ [a])) = compileProg env loc a
 compileProg env loc (In (App Ut.GetRef _ [r])) = compileProg env loc r
-compileProg env _ (In (PrimApp2 Ut.SetRef _ r a)) = do
+compileProg env _ (In (App Ut.SetRef _ [r, a])) = do
    var  <- compileExpr env r
    compileProg env (Just var) a
-compileProg env _ (In (PrimApp2 Ut.ModRef _ r (In (Ut.Lambda (Ut.Var v _) body)))) = do
+compileProg env _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _) body)])) = do
    var <- compileExpr env r
    withAlias v var $ compileProg env (Just var) body
        -- Since the modifier function is pure it is safe to alias
        -- v with var here
 -- MutableToPure
 compileProg env (Just loc) (In (App Ut.RunMutableArray _ [marr]))
- | (In (PrimApp2 Ut.Bind _ (In (App Ut.NewArr_ _ [l])) (In (Ut.Lambda (Ut.Var v _) body)))) <- marr
+ | (In (App Ut.Bind _ [In (App Ut.NewArr_ _ [l]), In (Ut.Lambda (Ut.Var v _) body)])) <- marr
  , (In (App Ut.Return _ [(In (Ut.Variable (Ut.Var r _)))])) <- chaseBind body
  , v == r
  = do
@@ -433,12 +433,12 @@ compileProg env (Just loc) (In (App Ut.RunMutableArray _ [marr]))
      tellProg [setLength (Just loc) len]
      withAlias v loc $ compileProg env (Just loc) body
 compileProg env loc (In (App Ut.RunMutableArray _ [marr])) = compileProg env loc marr
-compileProg env loc (In (PrimApp2 Ut.WithArray _ marr@(In Ut.Variable{}) (In (Ut.Lambda (Ut.Var v _) body)))) = do
+compileProg env loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _) body)])) = do
     e <- compileExpr env marr
     withAlias v e $ do
       b <- compileExpr env body
       tellProg [copyProg loc [b]]
-compileProg env loc (In (PrimApp2 Ut.WithArray _ marr (In (Ut.Lambda (Ut.Var v ta) body)))) = do
+compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     let var = mkVar (compileTypeRep (opts env) ta) v
     declare var
     compileProg env (Just var) marr
@@ -463,7 +463,7 @@ compileProg _   _   (In (App Ut.ParNew _ _)) = return ()
 compileProg env loc (In (App Ut.ParGet _ [r])) = do
     iv <- compileExpr env r
     tellProg [iVarGet (inTask env) l iv | Just l <- [loc]]
-compileProg env _ (In (PrimApp2 Ut.ParPut _ r a)) = do
+compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
     iv  <- compileExpr env r
     val <- compileExpr env a
     i   <- freshId
@@ -500,7 +500,7 @@ compileProg env loc (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
     compileProg env loc a
 -- Switch
-compileProg env loc (In (App Ut.Switch _ [tree@(In (PrimApp3 Ut.Condition _ (In (PrimApp2 Ut.Equal _ _ s)) _ _))])) = do
+compileProg env loc (In (App Ut.Switch _ [tree@(In (PrimApp3 Ut.Condition _ (In (App Ut.Equal _ [_, s])) _ _))])) = do
     scrutinee <- compileExpr env s
     alts      <- chaseTree env loc s tree
     tellProg [Switch{..}]
@@ -547,7 +547,7 @@ compileExpr :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
 compileExpr env (In (App Ut.GetLength _ [a])) = do
    aExpr <- compileExpr env a
    return $ arrayLength aExpr
-compileExpr env (In (PrimApp2 Ut.GetIx _ arr i)) = do
+compileExpr env (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
    return $ ArrayElem a' i'
@@ -597,7 +597,7 @@ compileExpr env (In (App Ut.Floor t es)) = do
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
     return $ Cast (compileTypeRep (opts env) t) $ f'
 -- Error
-compileExpr env (In (PrimApp2 (Ut.Assert msg) _ cond a)) = do
+compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
     compileAssert env cond msg
     compileExpr env a
 -- Eq
@@ -620,7 +620,7 @@ compileExpr env (In (App Ut.Run _ [ma])) = compileExpr env ma
 compileExpr env (In (App Ut.ArrLength _ [arr])) = do
     a' <- compileExpr env arr
     return $ arrayLength a'
-compileExpr env e@(In (PrimApp2 Ut.WithArray _ _ _)) = compileProgFresh env e
+compileExpr env e@(In (App Ut.WithArray _ _)) = compileProgFresh env e
 -- MutableReference
 compileExpr env (In (App Ut.GetRef _ [r])) = compileExpr env r
 -- MutableToPure
@@ -663,10 +663,6 @@ compileExpr env (In (App Ut.Sel7 _ [tup])) = do
 compileExpr env (In (App p t es)) = do
     es' <- mapM (compileExpr env) es
     return $ fun' (compileTypeRep (opts env) t) (compileOp p) es'
-compileExpr env (In (PrimApp2 p t e1 e2)) = do
-    e1' <- compileExpr env e1
-    e2' <- compileExpr env e2
-    return $ fun' (compileTypeRep (opts env) t) (compileOp p) [e1', e2']
 compileExpr env e = compileProgFresh env e
 
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
@@ -753,7 +749,7 @@ literalLoc env loc t =
 
 chaseTree :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
-chaseTree env loc _s (In (PrimApp3 Ut.Condition _ (In (PrimApp2 Ut.Equal _ c  a)) t f))
+chaseTree env loc _s (In (PrimApp3 Ut.Condition _ (In (App Ut.Equal _ [c, a])) t f))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
          e <- compileExpr env c
@@ -768,9 +764,9 @@ chaseTree env loc _ a = do
 -- | Chase down the right-spine of `Bind` and `Then` constructs and return
 -- the last term
 chaseBind :: Ut.UntypedFeld -> Ut.UntypedFeld
-chaseBind (In (PrimApp2 Ut.Bind _ _ (In (Ut.Lambda _  body)))) = chaseBind body
-chaseBind (In (PrimApp2 Ut.Then _ _ body))                     = chaseBind body
-chaseBind a                                         = a
+chaseBind (In (App Ut.Bind _ [_, In (Ut.Lambda _  body)])) = chaseBind body
+chaseBind (In (App Ut.Then _ [_, body]))                      = chaseBind body
+chaseBind a                                                = a
 
 {- NOTES:
 
@@ -793,22 +789,19 @@ class CompileOp a where
   compileOp :: Show a => a -> String
 
 instance CompileOp Ut.Op where
-  compileOp Ut.RealPart  = "creal"
-  compileOp Ut.ImagPart  = "cimag"
-  compileOp Ut.Sign      = "signum"
-  -- Floating
-  compileOp Ut.Exp       = "exp"
-  compileOp p            = toLower h:t
-    where (h:t) = show p
-
-instance CompileOp Ut.PrimOp2 where
   -- Bits
   compileOp Ut.BAnd      = "&"
   compileOp Ut.BOr       = "|"
   compileOp Ut.BXor      = "^"
+  -- Complex
+  compileOp Ut.RealPart  = "creal"
+  compileOp Ut.ImagPart  = "cimag"
+  compileOp Ut.Sign      = "signum"
   -- Eq
   compileOp Ut.Equal     = "=="
   compileOp Ut.NotEqual  = "/="
+  -- Floating
+  compileOp Ut.Exp       = "exp"
   -- Fractional
   compileOp Ut.DivFrac   = "/"
   -- Integral
