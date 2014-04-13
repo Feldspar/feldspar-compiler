@@ -551,7 +551,6 @@ compileExpr env (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
    return $ ArrayElem a' i'
-compileExpr env e@(In (App Ut.Parallel _ _)) = compileProgFresh env e
 -- Bits
 compileExpr env (In (App Ut.Bit t [arr])) = do
    a' <- compileExpr env arr
@@ -568,8 +567,6 @@ compileExpr env (In (Ut.Let a (In (Ut.Lambda (Ut.Var v ta) body)))) = do
     withAlias v e $ compileExpr env body
 -- Bits
 -- Condition
-compileExpr env e@(In (App Ut.Condition _ _)) = compileProgFresh env e
-compileExpr env e@(In (App Ut.ConditionM _ _)) = compileProgFresh env e
 -- Conversion
 compileExpr env (In (App Ut.F2I t es)) = do
     es' <- mapM (compileExpr env) es
@@ -610,13 +607,9 @@ compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
 compileExpr env (In (App Ut.Pi t [])) = error "No pi ready"
 -- Fractional
 -- Future
-compileExpr env e@(In (App Ut.MkFuture _ _)) = compileProgFresh env e
-compileExpr env e@(In (App Ut.Await _ _)) = compileProgFresh env e
 -- Literal
 compileExpr env (In (Ut.Literal l)) = literal env l
 -- Loop
-compileExpr env e@(In (App Ut.WhileLoop _ _)) = compileProgFresh env e
-compileExpr env e@(In (App Ut.ForLoop _ _))   = compileProgFresh env e
 -- Logic
 -- Mutable
 compileExpr env (In (App Ut.Run _ [ma])) = compileExpr env ma
@@ -624,13 +617,9 @@ compileExpr env (In (App Ut.Run _ [ma])) = compileExpr env ma
 compileExpr env (In (App Ut.ArrLength _ [arr])) = do
     a' <- compileExpr env arr
     return $ arrayLength a'
-compileExpr env e@(In (App Ut.WithArray _ _)) = compileProgFresh env e
 -- MutableReference
 compileExpr env (In (App Ut.GetRef _ [r])) = compileExpr env r
--- MutableToPure
-compileExpr env e@(In (App Ut.RunMutableArray _ _)) = compileProgFresh env e
 -- NoInline
-compileExpr env e@(In (App Ut.NoInline _ _)) = compileProgFresh env e
 -- Num
 -- Ord
 -- Save
@@ -641,7 +630,6 @@ compileExpr env (In (App Ut.PropSize _ [e])) = compileExpr env e
 compileExpr env (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
     compileExpr env a
-compileExpr env e@(In (App Ut.Switch _ _)) = compileProgFresh env e
 -- Tuple
 compileExpr env (In (App Ut.Sel1 _ [tup])) = do
     tupExpr <- compileExpr env tup
@@ -665,7 +653,10 @@ compileExpr env (In (App Ut.Sel7 _ [tup])) = do
     tupExpr <- compileExpr env tup
     return $ StructField tupExpr "member7"
 compileExpr env e@(In (App p _ _))
- | p `elem` [Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5, Ut.Tup6, Ut.Tup7]
+ | p `elem` [ Ut.Parallel, Ut.Condition, Ut.ConditionM, Ut.MkFuture, Ut.Await
+            , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
+            , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
+            , Ut.Tup6, Ut.Tup7]
  = compileProgFresh env e
 compileExpr env (In (App p t es)) = do
     es' <- mapM (compileExpr env) es
