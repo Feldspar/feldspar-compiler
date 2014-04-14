@@ -197,14 +197,17 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
         p' <- compileExprVar env {inTask = True } e'
         tellProg [iVarPut loc p']
       Par -> compileProg env {inTask = True} (Just loc) e'
-      None -> tellProg [Comment True "bah"]
+      None -> compileProg env (Just loc) e'
   es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
   let args = nub $ (map exprToVar es') ++ fv loc
   tellDef [Proc coreName args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
   let taskName = "task" ++ (drop 9 coreName)
-      runTask = Just $ toBlock $ run coreName args
-  tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
+      runTask  = Just $ toBlock $ run coreName args
+      outs     = [mkNamedRef "params" Rep.VoidType (-1)]
+  case kind of
+   None -> return ()
+   _    -> tellDef [Proc taskName [] (Left outs) runTask]
 
 mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
 mkLength env a t
@@ -445,18 +448,8 @@ compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) b
     e <- compileExpr env body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg env (Just loc) (In (App Ut.NoInline _ [p])) = do
-    let args = nub $ [mkVariable (compileTypeRep (opts env) t) v
-               | (Ut.Var v t) <- Ut.fv p
-               ] ++ fv loc
-    (_, b)  <- confiscateBlock $ compileProg env (Just loc) p
-    let isInParam v = vName v /= lName loc
-    let (ins,outs) = partition isInParam args
-    funId  <- freshId
-    let funname = "noinline" ++ show funId
-    tellDef [Proc funname ins (Left outs) $ Just b]
-    let ins' = map (\v -> ValueParameter $ varToExpr $ Rep.Variable (typeof v) (vName v)) ins
-    tellProg [call funname $ ins' ++ [ValueParameter loc]]
+compileProg env (Just loc) (In (App Ut.NoInline _ [e]))
+  = error ("Unexpected NoInline:" ++ show e)
 -- Par
 compileProg env loc (In (App Ut.ParRun _ [p])) = compileProg env loc p
 compileProg _   _   (In (App Ut.ParNew _ _)) = return ()
@@ -489,7 +482,7 @@ compileProg env loc (In (App Ut.ParFork _ [p])) = do
        runTask = Just $ toBlock $ run coreName args
    tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
    -- Spawn:
-   tellProg [spawn taskName args]
+   tellProg [spawn Ut.Par taskName args]
 compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
 -- Save
 compileProg env loc (In (App Ut.Save _ [e])) = compileProg env loc e
@@ -544,7 +537,7 @@ compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
   es' <- mapM (compileExpr env) es
   let args = nub $ map exprToVar es' ++ fv loc
   tellProg [iVarInitCond f (AddrOf loc)]
-  tellProg [spawn name args]
+  tellProg [spawn f name args]
 compileProg env loc e = compileExprLoc env loc e
 
 

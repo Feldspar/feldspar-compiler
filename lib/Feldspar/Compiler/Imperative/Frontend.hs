@@ -139,9 +139,12 @@ freeIVars defs = map iVarDestroy ivars
   where
     ivars = filter (isIVar . typeof) $ map dVar defs
 
-spawn :: String -> [Variable ()] -> Program ()
-spawn taskName vs = call spawnName allParams
+spawn :: Fork -> String -> [Variable ()] -> Program ()
+spawn f taskName vs
+ | None <- f = call taskName $ map mkV vs
+ | otherwise = call spawnName allParams
   where
+    mkV v = ValueParameter . varToExpr $ Variable (typeof v) (vName v)
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName
     typeParams = map (TypeParameter . typeof) vs
