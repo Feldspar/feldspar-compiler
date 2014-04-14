@@ -123,6 +123,9 @@ issue128_ex2 a = share (switch 45 [(1,20)] a) $ \b -> (2==a ? b $ a)
 issue128_ex3 :: Data WordN -> Data WordN
 issue128_ex3 a = switch 45 [(1,10)] a + (2==a ? 2 $ a)
 
+noinline1 :: Data Bool -> Data Bool
+noinline1 x = noInline $ not x
+
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
@@ -152,6 +155,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest issue128_ex1 "issue128_ex1" defaultOptions
     , mkGoldTest issue128_ex2 "issue128_ex2" defaultOptions
     , mkGoldTest issue128_ex3 "issue128_ex3" defaultOptions
+    , mkGoldTest noinline1 "noinline1" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest pairParam "pairParam_ret" nativeRetOpts
@@ -176,6 +180,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest issue128_ex1 "issue128_ex1" defaultOptions
     , mkBuildTest issue128_ex2 "issue128_ex2" defaultOptions
     , mkBuildTest issue128_ex3 "issue128_ex3" defaultOptions
+    , mkBuildTest noinline1 "noinline1" defaultOptions
     ]
 
 externalProgramTests :: TestTree

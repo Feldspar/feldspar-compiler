@@ -30,6 +30,7 @@
 
 module Feldspar.Compiler.Imperative.Frontend where
 
+import Feldspar.Core.UntypedRepresentation (Fork(..))
 import Feldspar.Compiler.Imperative.Representation
 
 import Feldspar.Range
@@ -104,6 +105,10 @@ chaseArray = go []  -- TODO: Extend to handle x.member1.member2
           = Just (singletonRange r)
         go _ _ = Nothing
 
+iVarInitCond :: Fork -> Expression () -> Program ()
+iVarInitCond Future var = iVarInit var
+iVarInitCond _      _   = Empty
+
 iVarInit :: Expression () -> Program ()
 iVarInit var = call "ivar_init" [ValueParameter var]
 
@@ -134,9 +139,12 @@ freeIVars defs = map iVarDestroy ivars
   where
     ivars = filter (isIVar . typeof) $ map dVar defs
 
-spawn :: String -> [Variable ()] -> Program ()
-spawn taskName vs = call spawnName allParams
+spawn :: Fork -> String -> [Variable ()] -> Program ()
+spawn f taskName vs
+ | None <- f = call taskName $ map mkV vs
+ | otherwise = call spawnName allParams
   where
+    mkV v = ValueParameter . varToExpr $ Variable (typeof v) (vName v)
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName
     typeParams = map (TypeParameter . typeof) vs
@@ -259,6 +267,11 @@ lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lN
 
 varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
+
+exprToVar :: Expression () -> Variable ()
+exprToVar (VarExpr v) = v
+exprToVar (Deref e)   = exprToVar e
+exprToVar e           = error $ "Frontend.exprToVar: Unexpected variable:" ++ show e
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
 binop t n e1 e2 = fun' t n [e1, e2]

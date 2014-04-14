@@ -1,5 +1,5 @@
-#ifndef TESTS_IVARTEST_H
-#define TESTS_IVARTEST_H
+#ifndef TESTS_NOINLINE1_H
+#define TESTS_NOINLINE1_H
 
 #include "feldspar_c99.h"
 #include "feldspar_array.h"
@@ -13,10 +13,8 @@
 #include <complex.h>
 
 
-void task_core0(uint32_t v0, struct ivar v1);
+void noinline0(bool v0, bool * out);
 
-void task0(void * params);
+void noinline1(bool v0, bool * out);
 
-void ivartest(uint32_t v0, uint32_t * out);
-
-#endif // TESTS_IVARTEST_H
+#endif // TESTS_NOINLINE1_H

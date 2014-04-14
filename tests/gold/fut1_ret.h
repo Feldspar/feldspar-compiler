@@ -13,9 +13,9 @@
 #include <complex.h>
 
 
-void task_core2(struct ivar e0);
+void task_core0(struct ivar e0);
 
-void task2(void * params);
+void task0(void * params);
 
 void fut1__ret(struct ivar v0, struct ivar * out);
 

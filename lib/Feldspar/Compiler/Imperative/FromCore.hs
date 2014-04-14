@@ -46,8 +46,8 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
-         ( Term(..), Lit(..), collectLetBinders
-         , UntypedFeldF(App)
+         ( Term(..), Lit(..), collectLetBinders, collectBinders
+         , UntypedFeldF(App, LetFun), Fork(..)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
@@ -187,6 +187,28 @@ compileExprVar env e = do
         isNearlyVar (AddrOf e) = isNearlyVar e
         isNearlyVar _          = False
 
+compileFunction :: CompileEnv -> Expression () -> (String, Fork, Ut.UntypedFeld)
+                -> CodeWriter ()
+compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
+  -- Task core:
+  ((_, ws), Block ds bl)  <- confiscateBigBlock $ do
+    case kind of
+      Future -> do
+        p' <- compileExprVar env {inTask = True } e'
+        tellProg [iVarPut loc p']
+      Par -> compileProg env {inTask = True} (Just loc) e'
+      None -> compileProg env (Just loc) e'
+  es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
+  let args = nub $ (map exprToVar es') ++ fv loc
+  tellDef [Proc coreName args (Left []) $ Just $ Block (decl ws ++ ds) bl]
+  -- Task:
+  let taskName = "task" ++ (drop 9 coreName)
+      runTask  = Just $ toBlock $ run coreName args
+      outs     = [mkNamedRef "params" Rep.VoidType (-1)]
+  case kind of
+   None -> return ()
+   _    -> tellDef [Proc taskName [] (Left outs) runTask]
+
 mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
 mkLength env a t
   | isVariableOrLiteral a = compileExpr env a
@@ -307,30 +329,11 @@ compileProg env loc (In (App (Ut.Assert msg) _ [cond, a])) = do
    compileAssert env cond msg
    compileProg env loc a
 -- Future
-compileProg env (Just loc) (In (App Ut.MkFuture _ [p])) = do
-   env' <- ask
-   let args = nub $ [case lookup v (alias env') of
-                    Nothing -> mkVariable (compileTypeRep (opts env) t) v
-                    Just (VarExpr e) -> e
-                    -- Variables that got a Pointer wrapped around
-                    -- their type in FromCore.
-                    Just (Deref (VarExpr e)) -> e
-              | (Ut.Var v t) <- Ut.fv p
-              ] ++ fv loc
-   -- Task core:
-   ((_, ws), Block ds bl)  <- confiscateBigBlock $ do
-       p' <- compileExprVar env {inTask = True} p
-       tellProg [iVarPut loc p']
-   funId  <- freshId
-   let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) bl)]
-   -- Task:
-   let taskName = "task" ++ show funId
-       runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
-   -- Spawn:
-   tellProg [iVarInit (AddrOf loc)]
-   tellProg [spawn taskName args]
+compileProg _  _ e@(In (App Ut.MkFuture _ _))
+  = error ("Unexpected MkFuture:" ++ show e)
+compileProg env (Just loc) (In (LetFun f e)) = do
+   compileFunction env loc f
+   compileProg env (Just loc) e
 compileProg env loc (In (App Ut.Await _ [a])) = do
    fut <- compileExprVar env a
    tellProg [iVarGet (inTask env) l fut | Just l <- [loc]]
@@ -445,18 +448,8 @@ compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) b
     e <- compileExpr env body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg env (Just loc) (In (App Ut.NoInline _ [p])) = do
-    let args = nub $ [mkVariable (compileTypeRep (opts env) t) v
-               | (Ut.Var v t) <- Ut.fv p
-               ] ++ fv loc
-    (_, b)  <- confiscateBlock $ compileProg env (Just loc) p
-    let isInParam v = vName v /= lName loc
-    let (ins,outs) = partition isInParam args
-    funId  <- freshId
-    let funname = "noinline" ++ show funId
-    tellDef [Proc funname ins (Left outs) $ Just b]
-    let ins' = map (\v -> ValueParameter $ varToExpr $ Rep.Variable (typeof v) (vName v)) ins
-    tellProg [call funname $ ins' ++ [ValueParameter loc]]
+compileProg env (Just loc) (In (App Ut.NoInline _ [e]))
+  = error ("Unexpected NoInline:" ++ show e)
 -- Par
 compileProg env loc (In (App Ut.ParRun _ [p])) = compileProg env loc p
 compileProg _   _   (In (App Ut.ParNew _ _)) = return ()
@@ -471,25 +464,8 @@ compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
     declare var
     assign (Just var) val
     tellProg [iVarPut iv var]
-compileProg env loc (In (App Ut.ParFork _ [p])) = do
-   env' <- ask
-   let args = nub $ [case lookup v (alias env') of
-                     Nothing -> mkVariable (compileTypeRep (opts env) t) v
-                     Just (VarExpr e) -> e
-                     Just (Deref (VarExpr e)) -> e
-               | (Ut.Var v t) <- Ut.fv p
-               ] ++ maybe [] fv loc
-   -- Task core:
-   ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg env {inTask = True} loc p
-   funId  <- freshId
-   let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) b)]
-   -- Task:
-   let taskName = "task" ++ show funId
-       runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
-   -- Spawn:
-   tellProg [spawn taskName args]
+compileProg env loc (In (App Ut.ParFork _ [e]))
+  = error ("Unexpected ParFork:" ++ show e)
 compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
 -- Save
 compileProg env loc (In (App Ut.Save _ [e])) = compileProg env loc e
@@ -539,6 +515,12 @@ compileProg env loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
     compileProg env (StructField <$> loc <*> pure "member5") m5
     compileProg env (StructField <$> loc <*> pure "member6") m6
     compileProg env (StructField <$> loc <*> pure "member7") m7
+-- Common nodes
+compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
+  es' <- mapM (compileExpr env) es
+  let args = nub $ map exprToVar es' ++ fv loc
+  tellProg [iVarInitCond f (AddrOf loc)]
+  tellProg [spawn f name args]
 compileProg env loc e = compileExprLoc env loc e
 
 
