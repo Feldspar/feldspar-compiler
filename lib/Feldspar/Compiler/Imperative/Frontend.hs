@@ -30,6 +30,7 @@
 
 module Feldspar.Compiler.Imperative.Frontend where
 
+import Feldspar.Core.UntypedRepresentation (Fork(..))
 import Feldspar.Compiler.Imperative.Representation
 
 import Feldspar.Range
@@ -103,6 +104,10 @@ chaseArray = go []  -- TODO: Extend to handle x.member1.member2
           | Just (NativeArray (Just r) _) <- lookup s fields
           = Just (singletonRange r)
         go _ _ = Nothing
+
+iVarInitCond :: Fork -> Expression () -> Program ()
+iVarInitCond Future var = iVarInit var
+iVarInitCond _      _   = Empty
 
 iVarInit :: Expression () -> Program ()
 iVarInit var = call "ivar_init" [ValueParameter var]
@@ -259,6 +264,11 @@ lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lN
 
 varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
+
+exprToVar :: Expression () -> Variable ()
+exprToVar (VarExpr v) = v
+exprToVar (Deref e)   = exprToVar e
+exprToVar e           = error $ "Frontend.exprToVar: Unexpected variable:" ++ show e
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
 binop t n e1 e2 = fun' t n [e1, e2]

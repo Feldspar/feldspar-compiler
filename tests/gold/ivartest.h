@@ -13,9 +13,9 @@
 #include <complex.h>
 
 
-void task_core1(uint32_t v0, struct ivar v1);
+void task_core0(uint32_t v0, struct ivar v1);
 
-void task1(void * params);
+void task0(void * params);
 
 void ivartest(uint32_t v0, uint32_t * out);
 

@@ -1,7 +1,7 @@
 #include "fut1_ret.h"
 
 
-void task_core2(struct ivar e0)
+void task_core0(struct ivar e0)
 {
   int32_t e1;
   
@@ -9,9 +9,9 @@ void task_core2(struct ivar e0)
   ivar_put(int32_t, e0, &e1);
 }
 
-void task2(void * params)
+void task0(void * params)
 {
-  run1(task_core2, struct ivar);
+  run1(task_core0, struct ivar);
 }
 
 void fut1__ret(struct ivar v0, struct ivar * out)
@@ -23,7 +23,7 @@ void fut1__ret(struct ivar v0, struct ivar * out)
   for (uint32_t v1 = 0; v1 < 20; v1 += 1)
   {
     ivar_init(&e0);
-    spawn1(task2, struct ivar, e0);
+    spawn1(task0, struct ivar, e0);
   }
   *out = e0;
 }
