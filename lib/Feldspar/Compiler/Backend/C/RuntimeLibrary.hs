@@ -15,7 +15,16 @@ machineLibrary opts =
   map (\t -> pow_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
   map (\t -> signum_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
   map (\t -> signum_fun_s opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> signum_fun_f opts (MachineVector 1 t)) floats
+  map (\t -> signum_fun_f opts (MachineVector 1 t)) floats ++
+  map (\t -> logbase_fun_f opts (MachineVector 1 t)) floats ++
+  map (\t -> setBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> setBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
+  map (\t -> clearBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> clearBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
+  map (\t -> complementBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> complementBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
+  map (\t -> testBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> testBit_fun opts (MachineVector 1 (NumType Signed t))) sizes
 
 
 sizes :: [Size]
@@ -149,7 +158,103 @@ signum_fun_f opts typ = Proc name [inVar] (Right outVar) (Just body)
        gzero  = binop typ ">" inVar' zero
        szero  = binop typ "<" inVar' zero
 
--- TODO: Add logBase() to complete the first section of feldspar_c99.c
+
+{-
+float logBase_fun_float( float a, float b ) {
+    return logf(b) / logf(a);
+}
+-}
+logbase_fun_f :: Options -> Type -> Entity ()
+logbase_fun_f opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "logbase_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "a"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable typ "b"
+       inVar2' = varToExpr inVar2
+       outVar = Variable typ "out"
+       body   = toBlock prg
+       prg    = call "return" [ValueParameter $
+                   binop typ "/" numer denom]
+       numer  = fun typ (logNam typ) [inVar2']
+       denom  = fun typ (logNam typ) [inVar1']
+       logNam (MachineVector _ FloatType) = "logf"
+       logNam (MachineVector _ DoubleType) = "log"
+
+{-
+int8_t setBit_fun_int8_t( int8_t x, uint32_t i ) {
+    return x | 1 << i;
+}
+-}
+setBit_fun :: Options -> Type -> Entity ()
+setBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "setBit_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "x"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable typ "i"
+       inVar2' = varToExpr inVar2
+       outVar  = Variable typ "out"
+       body    = toBlock prg
+       prg     = call "return" [ValueParameter $
+                   binop typ "|" inVar1' ival]
+       ival    = binop typ "<<" (litI typ 1) inVar2'
+
+{-
+int8_t clearBit_fun_int8_t( int8_t x, uint32_t i ) {
+    return x & ~(1 << i);
+}
+-}
+clearBit_fun :: Options -> Type -> Entity ()
+clearBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "clearBit_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "x"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable typ "i"
+       inVar2' = varToExpr inVar2
+       outVar  = Variable typ "out"
+       body    = toBlock prg
+       prg     = call "return" [ValueParameter $
+                   binop typ "&" inVar1' (fun typ "~" [ival])]
+       ival    = binop typ "<<" (litI typ 1) inVar2'
+
+{-
+int8_t complementBit_fun_int8_t( int8_t x, uint32_t i ) {
+    return x ^ 1 << i;
+}
+-}
+complementBit_fun :: Options -> Type -> Entity ()
+complementBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "complementBit_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "x"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable typ "i"
+       inVar2' = varToExpr inVar2
+       outVar  = Variable typ "out"
+       body    = toBlock prg
+       prg     = call "return" [ValueParameter $
+                   binop typ "^" inVar1' ival]
+       ival    = binop typ "<<" (litI typ 1) inVar2'
+
+{-
+bool testBit_fun_int8_t( int8_t x, uint32_t i )
+{
+    return (x & 1 << i) != 0;
+}
+-}
+testBit_fun :: Options -> Type -> Entity ()
+testBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "testBit_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "x"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable typ "i"
+       inVar2' = varToExpr inVar2
+       outVar  = Variable typ "out"
+       body    = toBlock prg
+       prg     = call "return" [ValueParameter $
+                   binop btyp "!=" (binop typ "&" inVar1' ival) (litI typ 0)]
+       ival    = binop typ "<<" (litI typ 1) inVar2'
+       btyp    = MachineVector 1 BoolType
+
+-- TODO: rotateL and forward in feldspar_c99.c
 
 sizeToNum :: Type -> Integer
 sizeToNum = fromJust . intWidth
