@@ -464,25 +464,8 @@ compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
     declare var
     assign (Just var) val
     tellProg [iVarPut iv var]
-compileProg env loc (In (App Ut.ParFork _ [p])) = do
-   env' <- ask
-   let args = nub $ [case lookup v (alias env') of
-                     Nothing -> mkVariable (compileTypeRep (opts env) t) v
-                     Just (VarExpr e) -> e
-                     Just (Deref (VarExpr e)) -> e
-               | (Ut.Var v t) <- Ut.fv p
-               ] ++ maybe [] fv loc
-   -- Task core:
-   ((_, ws), Block ds b) <- confiscateBigBlock $ compileProg env {inTask = True} loc p
-   funId  <- freshId
-   let coreName = "task_core" ++ show funId
-   tellDef [Proc coreName args (Left []) $ Just (Block (decl ws ++ ds) b)]
-   -- Task:
-   let taskName = "task" ++ show funId
-       runTask = Just $ toBlock $ run coreName args
-   tellDef [Proc taskName [] (Left [mkNamedRef "params" Rep.VoidType (-1)]) runTask]
-   -- Spawn:
-   tellProg [spawn Ut.Par taskName args]
+compileProg env loc (In (App Ut.ParFork _ [e]))
+  = error ("Unexpected ParFork:" ++ show e)
 compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
 -- Save
 compileProg env loc (In (App Ut.Save _ [e])) = compileProg env loc e
