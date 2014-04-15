@@ -11,9 +11,9 @@
 #include <complex.h>
 
 
-uint32_t v2[] = {2, 3, 4, 5, 6};
+static uint32_t const v2[5] = {2, 3, 4, 5, 6};
 
-uint32_t v3[] = {1, 2, 3, 4, 5};
+static uint32_t const v3[5] = {1, 2, 3, 4, 5};
 
 void topLevelConsts__sics(uint32_t v0, uint32_t v1, uint32_t * out)
 {
