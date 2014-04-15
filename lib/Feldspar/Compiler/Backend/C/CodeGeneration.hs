@@ -67,10 +67,13 @@ instance CodeGen (Entity ())
       | otherwise = start <> semi
         where
          start = text "void" <+> text procName <> parens (pvars env $ inParams ++ outParams)
-    cgen env ValueDef{..}
-      | isNativeArray $ typeof valVar
-      = cgen env (typeof valVar) <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi
-      | otherwise = cgen env valVar <+> equals              <+> cgen env valValue <> semi
+    cgen env ValueDef{..} = text "static" <+> typ <+> text "const" <+> name <+> equals <+> vals <> semi
+      where
+        typ  = cgen env (typeof valVar)
+        name = cgen env valVar <> size valValue
+        vals = cgen env valValue
+        size (ArrayConst vs) = brackets $ text $ show $ length vs
+        size _               = empty
 
     cgenList env = vcat . punctuate (text "\n") . map (cgen env)
 
