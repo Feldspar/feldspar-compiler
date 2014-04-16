@@ -67,8 +67,10 @@ instance CodeGen (Entity ())
       | otherwise = start <> semi
         where
          start = text "void" <+> text procName <> parens (pvars env $ inParams ++ outParams)
-    cgen env ValueDef{..} = text "static" <+> typ <+> text "const" <+> name <+> equals <+> vals <> semi
+    cgen env ValueDef{..} = static <+> typ <+> text "const" <+> name <+> align <+> equals <+> vals <> semi
       where
+        static = text "static"
+        align  = text "__attribute__" <> parens (parens (text "aligned" <> parens (int 256)))
         typ  = cgen env (typeof valVar)
         name = cgen env valVar <> size valValue
         vals = cgen env valValue
