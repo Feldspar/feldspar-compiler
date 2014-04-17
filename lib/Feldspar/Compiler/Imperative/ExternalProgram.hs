@@ -139,6 +139,10 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) _ _)
   = (env, ProcedureCall s ((FunParameter e1):tp))
    where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run5" _) _) _ _)) _))
+  = (env, ProcedureCall s ((FunParameter e1):tp))
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
+         tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) _ _)) _))
   = (env, ProcedureCall s es)
    where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
@@ -157,6 +161,14 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) _ 
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4
               , TypeParameter (typeof e5), ValueParameter e5]
+blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn5" _) _) _ _)) _))
+  = (env, ProcedureCall s es)
+   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5, e6]) = expToExpression env e
+         es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
+              , TypeParameter (typeof e3), ValueParameter e3
+              , TypeParameter (typeof e4), ValueParameter e4
+              , TypeParameter (typeof e5), ValueParameter e5
+              , TypeParameter (typeof e6), ValueParameter e6]
 -- Probably copyArray.
 blockItemToProgram env (BlockStm (Exp (Just e@FnCall{}) _))
   = (env, ProcedureCall s (map ValueParameter es))
@@ -587,7 +599,11 @@ massageInput xs = foldr (\w xs -> dropBitMask xs w) tmp otherWords'
                     , ("run3(", [True, False, False, False])
                     , ("spawn4(", [True, False, True, False, True
                                        , False, True, False, True])
-                    , ("run4(", [True, False, False, False, False])]
+                    , ("run4(", [True, False, False, False, False])
+                    , ("spawn5(", [True, False, True, False, True
+                                       , False, True, False, True
+                                       , False, True])
+                    , ("run5(", [True, False, False, False, False,False])]
        otherWords' = map (\(p1, b) -> (B.pack p1, b)) otherWords
        tmp = foldr (\w xs -> dropFirstArg xs w) xs prefixWords
 
