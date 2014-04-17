@@ -1,14 +1,10 @@
 #include "divConq3.h"
 
 
-void task_core0(struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v4, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v634)
+void task_core0(uint32_t v632, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v633, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v634, uint32_t v4)
 {
-  uint32_t v632;
-  uint32_t v633;
   struct s_2_arr_unsignedS32_arr_signedS32 e0 = { .member1 = NULL, .member2 = NULL };
   
-  v632 = min(1024, (at(uint32_t,(*v0).member1,0) - (v4 << 10)));
-  v633 = (v4 << 10);
   (e0).member1 = setLength((e0).member1, sizeof(uint32_t), 1);
   at(uint32_t,(e0).member1,0) = v632;
   (e0).member2 = initArray((e0).member2, sizeof(int32_t), v632);
@@ -21,17 +17,13 @@ void task_core0(struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v4, stru
 
 void task0(void * params)
 {
-  run3(task_core0, struct s_2_arr_unsignedS32_arr_signedS32 *, uint32_t, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32);
+  run5(task_core0, uint32_t, struct s_2_arr_unsignedS32_arr_signedS32 *, uint32_t, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32, uint32_t);
 }
 
-void task_core1(struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v423, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v643)
+void task_core1(uint32_t v641, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v642, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v643, uint32_t v423)
 {
-  uint32_t v641;
-  uint32_t v642;
   struct s_2_arr_unsignedS32_arr_signedS32 e10 = { .member1 = NULL, .member2 = NULL };
   
-  v641 = min(1024, (at(uint32_t,(*v0).member1,0) - (v423 << 10)));
-  v642 = (v423 << 10);
   (e10).member1 = setLength((e10).member1, sizeof(uint32_t), 1);
   at(uint32_t,(e10).member1,0) = v641;
   (e10).member2 = initArray((e10).member2, sizeof(int32_t), v641);
@@ -44,7 +36,7 @@ void task_core1(struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v423, st
 
 void task1(void * params)
 {
-  run3(task_core1, struct s_2_arr_unsignedS32_arr_signedS32 *, uint32_t, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32);
+  run5(task_core1, uint32_t, struct s_2_arr_unsignedS32_arr_signedS32 *, uint32_t, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32, uint32_t);
 }
 
 void divConq3(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsignedS32_arr_signedS32 * out)
@@ -52,6 +44,8 @@ void divConq3(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsi
   uint32_t v639;
   struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v634 = { .member1 = NULL, .member2 = NULL };
   uint32_t v631;
+  uint32_t v632;
+  uint32_t v633;
   struct s_2_arr_unsignedS32_arr_signedS32 e1 = { .member1 = NULL, .member2 = NULL };
   uint32_t len2;
   struct s_2_arr_unsignedS32_arr_signedS32 v12 = { .member1 = NULL, .member2 = NULL };
@@ -69,6 +63,8 @@ void divConq3(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsi
   struct s_2_arr_unsignedS32_arr_signedS32 v648 = { .member1 = NULL, .member2 = NULL };
   struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v643 = { .member1 = NULL, .member2 = NULL };
   uint32_t v640;
+  uint32_t v641;
+  uint32_t v642;
   uint32_t len11;
   struct s_2_arr_unsignedS32_arr_signedS32 v431 = { .member1 = NULL, .member2 = NULL };
   uint32_t v644;
@@ -89,8 +85,10 @@ void divConq3(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsi
   (v634).member2 = initArray((v634).member2, sizeof(struct ivar), v631);
   for (uint32_t v4 = 0; v4 < v631; v4 += 1)
   {
+    v632 = min(1024, (at(uint32_t,(*v0).member1,0) - (v4 << 10)));
+    v633 = (v4 << 10);
     ivar_init(&at(struct ivar,(v634).member2,v4));
-    spawn3(task0, struct s_2_arr_unsignedS32_arr_signedS32 *, v0, uint32_t, v4, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32, v634);
+    spawn5(task0, uint32_t, v632, struct s_2_arr_unsignedS32_arr_signedS32 *, v0, uint32_t, v633, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32, v634, uint32_t, v4);
   }
   len2 = at(uint32_t,(v634).member1,0);
   (e1).member1 = initArray((e1).member1, sizeof(uint32_t), 1);
@@ -131,8 +129,10 @@ void divConq3(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsi
   (v643).member2 = initArray((v643).member2, sizeof(struct ivar), v640);
   for (uint32_t v423 = 0; v423 < v640; v423 += 1)
   {
+    v641 = min(1024, (at(uint32_t,(*v0).member1,0) - (v423 << 10)));
+    v642 = (v423 << 10);
     ivar_init(&at(struct ivar,(v643).member2,v423));
-    spawn3(task1, struct s_2_arr_unsignedS32_arr_signedS32 *, v0, uint32_t, v423, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32, v643);
+    spawn5(task1, uint32_t, v641, struct s_2_arr_unsignedS32_arr_signedS32 *, v0, uint32_t, v642, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32, v643, uint32_t, v423);
   }
   len11 = at(uint32_t,(v643).member1,0);
   (v648).member1 = initArray((v648).member1, sizeof(uint32_t), 1);
