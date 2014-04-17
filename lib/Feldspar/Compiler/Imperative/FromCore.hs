@@ -635,7 +635,8 @@ compileExpr env (In (App Ut.Sel7 _ [tup])) = do
     tupExpr <- compileExpr env tup
     return $ StructField tupExpr "member7"
 compileExpr env e@(In (App p _ _))
- | p `elem` [ Ut.Parallel, Ut.Condition, Ut.ConditionM, Ut.MkFuture, Ut.Await
+ | p `elem` [ Ut.Parallel, Ut.Sequential, Ut.Condition, Ut.ConditionM
+            , Ut.MkFuture, Ut.Await
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
             , Ut.Tup6, Ut.Tup7]
