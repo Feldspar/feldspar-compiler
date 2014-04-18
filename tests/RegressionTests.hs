@@ -140,7 +140,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest complexWhileCond "complexWhileCond" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
-    , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOptions
+    , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOptions2
     , mkGoldTest metrics "metrics" defaultOptions
 --    , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkGoldTest divConq3 "divConq3" defaultOptions
@@ -162,7 +162,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest concatV "concatV" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
-    , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOptions
+    , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOptions2
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions

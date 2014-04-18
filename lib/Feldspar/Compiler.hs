@@ -9,6 +9,8 @@ module Feldspar.Compiler
     , Options (..)
     , defaultOptions
     , sicsOptions
+    , sicsOptions2
+    , sicsOptions3
     , FeldOpts(..)
     , Target(..)
     , c99PlatformOptions

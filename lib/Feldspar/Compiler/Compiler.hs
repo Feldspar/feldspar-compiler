@@ -37,6 +37,8 @@ module Feldspar.Compiler.Compiler (
   , compileToCCore'
   , defaultOptions
   , sicsOptions
+  , sicsOptions2
+  , sicsOptions3
   , c99PlatformOptions
   , c99OpenMpPlatformOptions
   , tic64xPlatformOptions
@@ -145,4 +147,10 @@ tic64xPlatformOptions :: Options
 tic64xPlatformOptions           = defaultOptions { platform = tic64x }
 
 sicsOptions :: Options
-sicsOptions = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS] }}
+sicsOptions = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS,CSE] }}
+
+sicsOptions2 :: Options
+sicsOptions2 = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS] }}
+
+sicsOptions3 :: Options
+sicsOptions3 = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS,CSE,Wool] }}
