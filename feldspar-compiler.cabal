@@ -66,7 +66,7 @@ library
     syntactic,
     plugins-multistage >= 0.4,
     feldspar-language >= 0.6.1 && < 0.7,
-    language-c-quote >= 0.7 && < 1.0,
+    language-c-quote >= 0.7.7 && < 1.0,
     bytestring       >= 0.9 && < 0.11,
     srcloc,
     mtl,
@@ -204,7 +204,7 @@ benchmark crc
     base,
     deepseq,
     -- Missing upper limits in criterion
-    hastache   < 0.6,
+    hastache   < 0.7,
     statistics < 0.11,
     criterion
 
@@ -226,7 +226,7 @@ benchmark fft
     base,
     deepseq,
     -- Missing upper limits in criterion
-    hastache   < 0.6,
+    hastache   < 0.7,
     statistics < 0.11,
     criterion
 
@@ -249,6 +249,6 @@ benchmark matmul
     base,
     deepseq,
     -- Missing upper limits in criterion
-    hastache   < 0.6,
+    hastache   < 0.7,
     statistics < 0.11,
     criterion
