@@ -515,6 +515,106 @@ compileProg env loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
     compileProg env (StructField <$> loc <*> pure "member5") m5
     compileProg env (StructField <$> loc <*> pure "member6") m6
     compileProg env (StructField <$> loc <*> pure "member7") m7
+compileProg env loc (In (App Ut.Tup8 _ [m1, m2, m3, m4, m5, m6, m7, m8])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+compileProg env loc (In (App Ut.Tup9 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+compileProg env loc (In (App Ut.Tup10 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+    compileProg env (StructField <$> loc <*> pure "member10") m10
+compileProg env loc (In (App Ut.Tup11 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+    compileProg env (StructField <$> loc <*> pure "member10") m10
+    compileProg env (StructField <$> loc <*> pure "member11") m11
+compileProg env loc (In (App Ut.Tup12 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+    compileProg env (StructField <$> loc <*> pure "member10") m10
+    compileProg env (StructField <$> loc <*> pure "member11") m11
+    compileProg env (StructField <$> loc <*> pure "member12") m12
+compileProg env loc (In (App Ut.Tup13 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+    compileProg env (StructField <$> loc <*> pure "member10") m10
+    compileProg env (StructField <$> loc <*> pure "member11") m11
+    compileProg env (StructField <$> loc <*> pure "member12") m12
+    compileProg env (StructField <$> loc <*> pure "member13") m13
+compileProg env loc (In (App Ut.Tup14 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+    compileProg env (StructField <$> loc <*> pure "member10") m10
+    compileProg env (StructField <$> loc <*> pure "member11") m11
+    compileProg env (StructField <$> loc <*> pure "member12") m12
+    compileProg env (StructField <$> loc <*> pure "member13") m13
+    compileProg env (StructField <$> loc <*> pure "member14") m14
+compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15])) = do
+    compileProg env (StructField <$> loc <*> pure "member1") m1
+    compileProg env (StructField <$> loc <*> pure "member2") m2
+    compileProg env (StructField <$> loc <*> pure "member3") m3
+    compileProg env (StructField <$> loc <*> pure "member4") m4
+    compileProg env (StructField <$> loc <*> pure "member5") m5
+    compileProg env (StructField <$> loc <*> pure "member6") m6
+    compileProg env (StructField <$> loc <*> pure "member7") m7
+    compileProg env (StructField <$> loc <*> pure "member8") m8
+    compileProg env (StructField <$> loc <*> pure "member9") m9
+    compileProg env (StructField <$> loc <*> pure "member10") m10
+    compileProg env (StructField <$> loc <*> pure "member11") m11
+    compileProg env (StructField <$> loc <*> pure "member12") m12
+    compileProg env (StructField <$> loc <*> pure "member13") m13
+    compileProg env (StructField <$> loc <*> pure "member14") m14
+    compileProg env (StructField <$> loc <*> pure "member15") m15
 -- Common nodes
 compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
   es' <- mapM (compileExpr env) es
@@ -613,33 +713,19 @@ compileExpr env (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
     compileExpr env a
 -- Tuple
-compileExpr env (In (App Ut.Sel1 _ [tup])) = do
+compileExpr env (In (App p _ [tup]))
+  | p `elem` [ Ut.Sel1, Ut.Sel2, Ut.Sel3, Ut.Sel4, Ut.Sel5, Ut.Sel6, Ut.Sel7
+             , Ut.Sel8, Ut.Sel9, Ut.Sel10, Ut.Sel11, Ut.Sel12, Ut.Sel13
+             , Ut.Sel14, Ut.Sel15] = do
     tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member1"
-compileExpr env (In (App Ut.Sel2 _ [tup])) = do
-    tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member2"
-compileExpr env (In (App Ut.Sel3 _ [tup])) = do
-    tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member3"
-compileExpr env (In (App Ut.Sel4 _ [tup])) = do
-    tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member4"
-compileExpr env (In (App Ut.Sel5 _ [tup])) = do
-    tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member5"
-compileExpr env (In (App Ut.Sel6 _ [tup])) = do
-    tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member6"
-compileExpr env (In (App Ut.Sel7 _ [tup])) = do
-    tupExpr <- compileExpr env tup
-    return $ StructField tupExpr "member7"
+    return $ StructField tupExpr ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.Sequential, Ut.Condition, Ut.ConditionM
             , Ut.MkFuture, Ut.Await
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
-            , Ut.Tup6, Ut.Tup7]
+            , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11
+            , Ut.Tup12, Ut.Tup13, Ut.Tup14, Ut.Tup15]
  = compileProgFresh env e
 compileExpr env (In (App p t es)) = do
     es' <- mapM (compileExpr env) es
@@ -723,6 +809,114 @@ literalLoc env loc (Ut.LTup7 ta tb tc td te tf tg) =
        literalLoc env (StructField loc "member5") te
        literalLoc env (StructField loc "member6") tf
        literalLoc env (StructField loc "member7") tg
+
+literalLoc env loc (Ut.LTup8 ta tb tc td te tf tg th) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+
+literalLoc env loc (Ut.LTup9 ta tb tc td te tf tg th ti) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+
+literalLoc env loc (Ut.LTup10 ta tb tc td te tf tg th ti tj) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+       literalLoc env (StructField loc "member10") tj
+
+literalLoc env loc (Ut.LTup11 ta tb tc td te tf tg th ti tj tk) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+       literalLoc env (StructField loc "member10") tj
+       literalLoc env (StructField loc "member11") tk
+
+literalLoc env loc (Ut.LTup12 ta tb tc td te tf tg th ti tj tk tl) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+       literalLoc env (StructField loc "member10") tj
+       literalLoc env (StructField loc "member11") tk
+       literalLoc env (StructField loc "member12") tl
+
+literalLoc env loc (Ut.LTup13 ta tb tc td te tf tg th ti tj tk tl tm) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+       literalLoc env (StructField loc "member10") tj
+       literalLoc env (StructField loc "member11") tk
+       literalLoc env (StructField loc "member12") tl
+       literalLoc env (StructField loc "member13") tm
+
+literalLoc env loc (Ut.LTup14 ta tb tc td te tf tg th ti tj tk tl tm tn) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+       literalLoc env (StructField loc "member10") tj
+       literalLoc env (StructField loc "member11") tk
+       literalLoc env (StructField loc "member12") tl
+       literalLoc env (StructField loc "member13") tm
+       literalLoc env (StructField loc "member14") tn
+
+literalLoc env loc (Ut.LTup15 ta tb tc td te tf tg th ti tj tk tl tm tn to) =
+    do literalLoc env (StructField loc "member1") ta
+       literalLoc env (StructField loc "member2") tb
+       literalLoc env (StructField loc "member3") tc
+       literalLoc env (StructField loc "member4") td
+       literalLoc env (StructField loc "member5") te
+       literalLoc env (StructField loc "member6") tf
+       literalLoc env (StructField loc "member7") tg
+       literalLoc env (StructField loc "member8") th
+       literalLoc env (StructField loc "member9") ti
+       literalLoc env (StructField loc "member10") tj
+       literalLoc env (StructField loc "member11") tk
+       literalLoc env (StructField loc "member12") tl
+       literalLoc env (StructField loc "member13") tm
+       literalLoc env (StructField loc "member14") tn
+       literalLoc env (StructField loc "member15") to
 
 literalLoc env loc t =
     do rhs <- literal env t
