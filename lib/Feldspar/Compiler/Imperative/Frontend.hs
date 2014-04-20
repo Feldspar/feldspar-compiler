@@ -282,6 +282,10 @@ fun = fun'
 fun' :: Type -> String -> [Expression ()] -> Expression ()
 fun' t n = FunctionCall (Function n t)
 
+if' :: Expression () -> Block () -> Maybe (Block ()) -> Program ()
+if' ce tb Nothing   = Switch ce [(Pat (litB True), tb)]
+if' ce tb (Just eb) = Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]
+
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
