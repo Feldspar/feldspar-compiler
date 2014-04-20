@@ -24,8 +24,11 @@ machineLibrary opts =
   map (\t -> complementBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
   map (\t -> complementBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
   map (\t -> testBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> testBit_fun opts (MachineVector 1 (NumType Signed t))) sizes
-
+  map (\t -> testBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
+  map (\t -> rotateL_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+--  map (\t -> rotateL_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> rotateR_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes
+--  map (\t -> rotateR_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
 
 sizes :: [Size]
 sizes = [S8, S16, S32, S64]
@@ -190,7 +193,7 @@ setBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "setBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable typ "i"
+       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -208,7 +211,7 @@ clearBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "clearBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable typ "i"
+       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -226,7 +229,7 @@ complementBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just bod
  where name   = "complementBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable typ "i"
+       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -245,7 +248,7 @@ testBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "testBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable typ "i"
+       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -254,7 +257,65 @@ testBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
        ival    = binop typ "<<" (litI typ 1) inVar2'
        btyp    = MachineVector 1 BoolType
 
--- TODO: rotateL and forward in feldspar_c99.c
+-- TODO: rotateL signed
+
+{-
+uint8_t rotateL_fun_uint8_t( uint8_t x, int32_t i ) {
+    if ((i %= 8) == 0) return x;
+    return (x << i) | (x >> (8 - i));
+}
+-}
+rotateL_fun_u :: Options -> Type -> Entity ()
+rotateL_fun_u opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "rotateL_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "x"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2' = varToExpr inVar2
+       outVar  = Variable typ "out"
+       body    = toBlock prg
+       ret1    = call "return" [ValueParameter inVar1']
+       cnd     = binop (MachineVector 1 BoolType) "=="
+                     (binop typ "%=" inVar2' (litI typ sz)) (litI typ 0)
+       prg     = Sequence [if' cnd (toBlock ret1) Nothing,
+                  call "return" [ValueParameter $
+                    binop typ "|" (binop typ "<<" inVar1' inVar2') rsh]]
+       rsh     = binop typ ">>" inVar1' (binop typ "-" arg2 inVar2')
+       arg2    = ConstExpr (IntConst sz typ')
+       sz      = sizeToNum typ
+       typ'    = case typ of
+                  MachineVector _ t -> t
+
+-- TODO: rotateR signed
+
+{-
+uint8_t rotateR_fun_uint8_t( uint8_t x, int32_t i ) {
+    if ((i %= 8) == 0) return x;
+    return (x << (8 - i)) | (x >> i);
+}
+-}
+rotateR_fun_u :: Options -> Type -> Entity ()
+rotateR_fun_u opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+ where name   = "rotateR_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar1  = Variable typ "x"
+       inVar1' = varToExpr inVar1
+       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2' = varToExpr inVar2
+       outVar  = Variable typ "out"
+       body    = toBlock prg
+       ret1    = call "return" [ValueParameter inVar1']
+       cnd     = binop (MachineVector 1 BoolType) "=="
+                     (binop typ "%=" inVar2' (litI typ sz)) (litI typ 0)
+       prg     = Sequence [if' cnd (toBlock ret1) Nothing,
+                  call "return" [ValueParameter $
+                    binop typ "|" lsh (binop typ ">>" inVar1' inVar2') ]]
+       lsh     = binop typ "<<" inVar1' (binop typ "-" arg2 inVar2')
+       arg2    = ConstExpr (IntConst sz typ')
+       sz      = sizeToNum typ
+       typ'    = case typ of
+                  MachineVector _ t -> t
+
+-- TODO:  reverseBits and forward in feldspar_c99.c
 
 sizeToNum :: Type -> Integer
 sizeToNum = fromJust . intWidth
