@@ -1,7 +1,7 @@
 module Feldspar.Compiler.Backend.C.RuntimeLibrary where
 
 import Data.Maybe (fromJust)
-import Text.PrettyPrint
+import Text.PrettyPrint (render)
 
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
@@ -27,8 +27,12 @@ machineLibrary opts =
   map (\t -> testBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
   map (\t -> rotateL_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
 --  map (\t -> rotateL_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> rotateR_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes
+  map (\t -> rotateR_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
 --  map (\t -> rotateR_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> reverseBits_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+--  map (\t -> rotateR_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> bitScan_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes
+--  map (\t -> bitScan_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
 
 sizes :: [Size]
 sizes = [S8, S16, S32, S64]
@@ -250,7 +254,7 @@ testBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
        inVar1' = varToExpr inVar1
        inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
-       outVar  = Variable typ "out"
+       outVar  = Variable (MachineVector 1 BoolType) "out"
        body    = toBlock prg
        prg     = call "return" [ValueParameter $
                    binop btyp "!=" (binop typ "&" inVar1' ival) (litI typ 0)]
@@ -315,7 +319,74 @@ rotateR_fun_u opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
        typ'    = case typ of
                   MachineVector _ t -> t
 
--- TODO:  reverseBits and forward in feldspar_c99.c
+-- TODO: reverseBits signed
+
+{-
+uint8_t reverseBits_fun_uint8_t( uint8_t x ) {
+    uint8_t r = x;
+    int i = 7;
+    while (x >>= 1)
+    {
+        r = (r << 1) | (x & 1);
+        --i;
+    }
+    return r << i;
+}
+-}
+
+reverseBits_fun_u :: Options -> Type -> Entity ()
+reverseBits_fun_u opts typ = Proc name [inVar] (Right outVar) (Just body)
+ where name   = "reverseBits_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar  = Variable typ "x"
+       inVar' = varToExpr inVar
+       outVar = Variable typ "r"
+       outVar'= varToExpr outVar
+       ivar   = Variable typ "i"
+       ivar'  = varToExpr ivar
+       lvars  = [ Declaration outVar $ Just inVar'
+                , Declaration ivar $ Just $ litI typ (sz - 1)]
+       body   = Block lvars prg
+       empty  = toBlock Empty
+       prg    = Sequence [ while empty (binop typ ">>=" inVar' (litI typ 1)) body'
+                         , call "return" [ValueParameter $
+                                             binop typ "<<" outVar' ivar']]
+       body'   = toBlock $ Sequence [ Assign outVar' shift
+                                    , Assign ivar' (binop typ "-" ivar' (litI typ 1))]
+       shift   = binop typ "|" (binop typ "<<" outVar' (litI typ 1))
+                               (binop typ "&" inVar' (litI typ 1))
+       sz      = sizeToNum typ
+
+-- TODO: bitScan for signed.
+
+{-
+uint32_t bitScan_fun_uint8_t( uint8_t x ) {
+    uint32_t r = 8;
+    while (x) {
+        --r;
+        x >>= 1;
+    }
+    return r;
+}
+-}
+bitScan_fun_u :: Options -> Type -> Entity ()
+bitScan_fun_u opts typ = Proc name [inVar] (Right outVar) (Just body)
+ where name   = "bitScan_fun_" ++ (render $ cgen (penv0 opts) typ)
+       inVar  = Variable typ "x"
+       inVar' = varToExpr inVar
+       ot     = MachineVector 1 (NumType Unsigned S32)
+       outVar = Variable ot "r"
+       outVar'= varToExpr outVar
+       lvars  = [Declaration outVar $ Just $ litI ot sz]
+       body   = Block lvars prg
+       empty  = toBlock Empty
+       prg    = Sequence [ while empty inVar' body'
+                         , call "return" [ValueParameter outVar']]
+       body'   = toBlock $ Sequence [ Assign outVar' (binop ot "-" outVar' (litI typ 1))
+                                    , Assign inVar' shift ]
+       shift   = binop typ ">>" inVar' (litI typ 1)
+       sz      = sizeToNum typ
+
+-- TODO:  bitCount and forward in feldspar_c99.c
 
 sizeToNum :: Type -> Integer
 sizeToNum = fromJust . intWidth
