@@ -93,7 +93,7 @@ fromCore opt funname prog = Module defs
          = opt { useNativeReturns = False } -- Note [Fast returns]
          | otherwise = opt
     fastRet    = useNativeReturns opt'
-    ast        = untype $ reifyFeld (frontendOpts opt) N32 prog
+    ast        = untype (frontendOpts opt) $ reifyFeld (frontendOpts opt) N32 prog
     decls      = decl results
     ins        = params results
     post       = epilogue results ++ returns
@@ -190,6 +190,8 @@ compileExprVar env e = do
 compileFunction :: CompileEnv -> Expression () -> (String, Fork, Ut.UntypedFeld)
                 -> CodeWriter ()
 compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
+  es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
+  let args = nub $ (map exprToVar es') ++ fv loc
   -- Task core:
   ((_, ws), Block ds bl)  <- confiscateBigBlock $ do
     case kind of
@@ -197,16 +199,15 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
         p' <- compileExprVar env {inTask = True } e'
         tellProg [iVarPut loc p']
       Par -> compileProg env {inTask = True} (Just loc) e'
+      Loop | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
       None -> compileProg env (Just loc) e'
-  es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
-  let args = nub $ (map exprToVar es') ++ fv loc
   tellDef [Proc coreName args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
   let taskName = "task" ++ (drop 9 coreName)
       runTask  = Just $ toBlock $ run coreName args
       outs     = [mkNamedRef "params" Rep.VoidType (-1)]
   case kind of
-   None -> return ()
+   _ | kind `elem` [None, Loop] -> return ()
    _    -> tellDef [Proc taskName [] (Left outs) runTask]
 
 mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
