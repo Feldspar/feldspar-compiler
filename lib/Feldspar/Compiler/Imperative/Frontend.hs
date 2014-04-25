@@ -141,7 +141,7 @@ freeIVars defs = map iVarDestroy ivars
 
 spawn :: Fork -> String -> [Variable ()] -> Program ()
 spawn f taskName vs
- | None <- f = call taskName $ map mkV vs
+ | f `elem` [None, Loop] = call taskName $ map mkV vs
  | otherwise = call spawnName allParams
   where
     mkV v = ValueParameter . varToExpr $ Variable (typeof v) (vName v)
