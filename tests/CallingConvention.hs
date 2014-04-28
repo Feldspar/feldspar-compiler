@@ -34,12 +34,7 @@ vectorInVector v = sum $ map sum v
 vectorInPairInVector :: Data WordN -> Vector (Data WordN, Vector1 WordN)
 vectorInPairInVector l = indexed l $ \i -> (i, indexed i id)
 
-loadFun 'pairArg
-loadFun 'pairRes
-loadFun 'vecId
-loadFun 'vectorInPair
-loadFun 'vectorInVector
-loadFun 'vectorInPairInVector
+loadFun ['pairArg, 'pairRes, 'vecId, 'vectorInPair, 'vectorInVector, 'vectorInPairInVector]
 
 prop_pairArg      = eval pairArg ==== c_pairArg
 prop_pairRes      = eval pairRes ==== c_pairRes

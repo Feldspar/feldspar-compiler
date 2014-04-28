@@ -61,23 +61,23 @@ feldsparPluginConfig =
                   , mkCSig       = buildCType
                   }
 
--- | Compile and load a Feldspar function into the current GHC session.
+-- | Compile and load Feldspar functions into the current GHC session.
 --
 -- > prog1 :: Data Index -> Vector1 Index
 -- > prog1 c = indexed c (const c)
 -- >
--- > $(loadFun 'prog1)
+-- > $(loadFun ['prog1])
 --
 -- The call to @loadFun@ above will splice code into the current module
 -- to compile, load and wrap a Feldspar function as a Haskell function:
 --
 -- > c_prog1 :: Index -> [Index]
 --
-loadFun :: Name -> Q [Dec]
+loadFun :: [Name] -> Q [Dec]
 loadFun = loadFunWithConfig feldsparPluginConfig
 
 -- | Call @loadFun@ with C compiler options
-loadFunOpts :: [String] -> Name -> Q [Dec]
+loadFunOpts :: [String] -> [Name] -> Q [Dec]
 loadFunOpts o = loadFunWithConfig feldsparPluginConfig{opts = o}
 
 feldsparWorker :: Name -> [Name] -> Q Body

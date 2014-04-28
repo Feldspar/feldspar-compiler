@@ -29,7 +29,7 @@ example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
 
 -- Compile and load example9 as c_example9 (using plugins)
-loadFun 'example9
+loadFun ['example9]
 
 topLevelConsts :: Data Index -> Data Index -> Data Index
 topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
