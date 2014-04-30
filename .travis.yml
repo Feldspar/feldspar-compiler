@@ -19,3 +19,5 @@ before_install:
   - cabal sandbox init
   - cabal sandbox add-source feldspar-language
 
+install:
+  - cabal install --only-dep --enable-tests && cabal install --only-dep --enable-tests -j1
