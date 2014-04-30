@@ -11,17 +11,9 @@
 #include <complex.h>
 
 
-static uint32_t const v2[5] __attribute__((aligned(256))) = {2,
-                                                             3,
-                                                             4,
-                                                             5,
-                                                             6};
+static uint32_t const v2[5] = {2, 3, 4, 5, 6};
 
-static uint32_t const v3[5] __attribute__((aligned(256))) = {1,
-                                                             2,
-                                                             3,
-                                                             4,
-                                                             5};
+static uint32_t const v3[5] = {1, 2, 3, 4, 5};
 
 void topLevelConsts__sics(uint32_t v0, uint32_t v1, uint32_t * out)
 {
