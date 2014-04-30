@@ -17,4 +17,5 @@ before_install:
   
   - cabal sandbox init
   - cabal sandbox add-source feldspar-language
+  - cabal install alex happy
 
