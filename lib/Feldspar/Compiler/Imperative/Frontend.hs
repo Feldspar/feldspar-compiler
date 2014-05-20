@@ -56,11 +56,11 @@ copyProg (Just outExp) inExp
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
-mkInitialize name (Just arr) len
+mkInitialize name loc@(Just arr) len
   | isNativeArray arrType
   = Empty
   | otherwise
-  = Assign arr $ fun arrType name [arr, sz, len]
+  = Assign loc $ fun arrType name [arr, sz, len]
    where
     arrType = typeof arr
     sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t

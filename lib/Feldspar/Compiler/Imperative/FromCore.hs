@@ -254,11 +254,11 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
         declareAlias st
         (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg env (ArrayElem <$> loc <*> pure ix) step
         withAlias s st_val $ compileProg env (Just st1) init'
-        tellProg [ Assign st (AddrOf st1)
+        tellProg [ Assign (Just st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for False (lName ix) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign st $ AddrOf (ArrayElem arr ix)]) loc)]
+                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just st) $ AddrOf (ArrayElem arr ix)]) loc)]
 compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        let tr' = typeof step
@@ -286,7 +286,7 @@ compileProg env (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
    i' <- compileExpr env i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
-                then [Assign loc el]
+                then [Assign (Just loc) el]
                 else [copyProg (Just loc) [el]]
 compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
    len' <- compileExpr env len
@@ -616,6 +616,10 @@ compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10
     compileProg env (StructField <$> loc <*> pure "member13") m13
     compileProg env (StructField <$> loc <*> pure "member14") m14
     compileProg env (StructField <$> loc <*> pure "member15") m15
+-- Special case foreign imports since they can be of void type and just have effects.
+compileProg env loc (In (App p@Ut.ForeignImport{} t es)) = do
+    es' <- mapM (compileExpr env) es
+    tellProg [Assign loc $ fun' (compileTypeRep (opts env) t) (compileOp p) es']
 -- Common nodes
 compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
   es' <- mapM (compileExpr env) es
@@ -722,7 +726,7 @@ compileExpr env (In (App p _ [tup]))
     return $ StructField tupExpr ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.Sequential, Ut.Condition, Ut.ConditionM
-            , Ut.MkFuture, Ut.Await
+            , Ut.MkFuture, Ut.Await, Ut.Then, Ut.For, Ut.SetArr
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
             , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11

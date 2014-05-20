@@ -217,7 +217,7 @@ freshAlias e = do i <- freshId
 -- initialize it to the parameter.
 freshAliasInit :: Expression () -> CodeWriter (Expression ())
 freshAliasInit e = do vexp <- freshAlias e
-                      tellProg [Assign vexp e]
+                      tellProg [Assign (Just vexp) e]
                       return vexp
 
 declare :: Expression () -> CodeWriter ()
@@ -360,21 +360,23 @@ assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just t
 assign _          _   = return ()
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
-shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
-shallowAssign _          _                = return ()
+shallowAssign loc@(Just dst) src | dst /= src = tellProg [Assign loc src]
+shallowAssign _          _                    = return ()
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyWithRefSwap dst src
   | dst /= src
   = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
-      [] -> tellProg [Assign dst src]
+      [] -> tellProg [Assign (Just dst) src]
       arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF, _) <- arrs]
-                 tellProg [Assign dst src]
-                 tellProg [Assign (accF src) tmp | (tmp, (accF, _)) <- zip temps arrs]
+                 tellProg [Assign (Just dst) src]
+                 tellProg [Assign (Just $ accF src) tmp | (tmp, (accF, _)) <- zip temps arrs]
   | otherwise = return ()
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
-shallowCopyReferences dst src = tellProg [Assign (accF dst) (accF src) | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
+shallowCopyReferences dst src
+  = tellProg [Assign (Just $ accF dst) (accF src)
+                 | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
 
 {-
 This function implements double buffering of state for imnmutable

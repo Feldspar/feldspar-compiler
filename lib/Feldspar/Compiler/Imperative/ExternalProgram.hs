@@ -240,15 +240,15 @@ impureExpToProgram :: TPEnv -> Exp -> (TPEnv, Program ())
 impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "initArray" _) _)
                                          [e1', (SizeofType e2' _), e3'] _) _)
-  = (env', R.Assign (expToExpression env' e) (expToExpression env' f))
+  = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
    where env' = fixupEnv env e $ typToType env e2'
 impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "setLength" _) _)
                                          [e1', (SizeofType e2' _), e3'] _) _)
-  = (env', R.Assign (expToExpression env' e) (expToExpression env' f))
+  = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
    where env' = fixupEnv env e $ typToType env e2'
 impureExpToProgram env (Assign e1 JustAssign e2 _)
-  = (env, R.Assign (expToExpression env e1) (expToExpression env e2))
+  = (env, R.Assign (Just $ expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
 
 varToVariable :: TPEnv -> Exp -> Variable ()

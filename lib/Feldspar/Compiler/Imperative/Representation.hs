@@ -115,7 +115,8 @@ data Program t
         , commentValue              :: String
         }
     | Assign
-        { lhs                       :: Expression t
+        { lhs                       :: Maybe (Expression t)
+           -- ^ Nothing for effects only
         , rhs                       :: Expression t
         }
     | ProcedureCall
