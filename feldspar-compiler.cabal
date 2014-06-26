@@ -34,6 +34,7 @@ library
   hs-source-dirs: lib
 
   exposed-modules:
+    Feldspar.Compiler
     Feldspar.Compiler.Imperative.Representation
     Feldspar.Compiler.Imperative.FromCore
     Feldspar.Compiler.Imperative.FromCore.Array
@@ -71,7 +72,6 @@ library
     Feldspar.Compiler.Compiler
     Feldspar.Compiler.Error
     Feldspar.Compiler.Internal
-    Feldspar.Compiler
     Feldspar.Transformation
     Feldspar.Transformation.Framework
     Feldspar.Runtime
