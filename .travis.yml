@@ -14,11 +14,9 @@ before_install:
   - cd feldspar-language && git checkout $TRAVIS_BRANCH || git checkout master
   - echo "Using feldspar-language from " && git rev-parse HEAD
   - cd $TRAVIS_BUILD_DIR
-  - alex --version
-  - happy --version
+  - cabal install alex happy
   - cabal sandbox init
   - cabal sandbox add-source feldspar-language
 
 install:
-  - cabal install alex happy
   - cabal install --only-dep --enable-tests || cabal install --only-dep --enable-tests -j1
