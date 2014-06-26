@@ -20,4 +20,5 @@ before_install:
   - cabal sandbox add-source feldspar-language
 
 install:
+  - cabal install alex happy
   - cabal install --only-dep --enable-tests || cabal install --only-dep --enable-tests -j1
