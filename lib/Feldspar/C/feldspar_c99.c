@@ -172,6 +172,15 @@ int64_t abs_fun_int64_t( int64_t a )
     return (a + mask) ^ mask;
 }
 
+float abs_fun_float( float a )
+{
+    return fabsf(a);
+}
+
+double abs_fun_double( double a )
+{
+    return fabs(a);
+}
 
 
 int8_t signum_fun_int8_t( int8_t a )

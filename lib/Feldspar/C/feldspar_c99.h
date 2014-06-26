@@ -51,6 +51,8 @@ int8_t abs_fun_int8_t( int8_t );
 int16_t abs_fun_int16_t( int16_t );
 int32_t abs_fun_int32_t( int32_t );
 int64_t abs_fun_int64_t( int64_t );
+float abs_fun_float( float );
+double abs_fun_double( double );
 
 int8_t signum_fun_int8_t( int8_t );
 int16_t signum_fun_int16_t( int16_t );
