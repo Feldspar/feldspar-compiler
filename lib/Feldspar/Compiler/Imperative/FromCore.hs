@@ -166,8 +166,12 @@ compileExprLoc env loc e = do
 -- | Compiles code into a fresh variable.
 compileProgFresh :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
 compileProgFresh env e = do
+    f <- gets stash
+    when (f == Just e) $ error $ unwords ["compile:","Looping expression:",show e]
+    modify (\s -> s { stash = Just e })
     loc <- freshVar (opts env) "e" (typeof e)
     compileProg env (Just loc) e
+    modify (\s -> s { stash = Nothing })
     return loc
 
 -- | Compile an expression and make sure that the result is stored in a variable

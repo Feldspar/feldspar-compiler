@@ -91,10 +91,11 @@ instance Monoid Writers
                           }
 
 data States = States { fresh :: Integer -- ^ The first fresh variable id
+                     , stash :: Maybe Ut.UntypedFeld -- ^ Loop canary
                      }
 
 initState :: States
-initState = States 0
+initState = States 0 Nothing
 
 -- | Where to place the program result
 type Location = Maybe (Expression ())
