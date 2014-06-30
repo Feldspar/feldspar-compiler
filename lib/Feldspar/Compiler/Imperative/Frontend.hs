@@ -44,16 +44,6 @@ toProg :: Block () -> Program ()
 toProg (Block [] p) = p
 toProg e = BlockProgram e
 
--- | Copies expressions into a destination. If the destination is
--- a non-scalar the arguments are appended to the destination.
-copyProg :: Maybe (Expression ())-> [Expression ()] -> Program ()
-copyProg _ [] = error "copyProg: missing source parameter."
-copyProg Nothing _ = Empty
-copyProg (Just outExp) inExp
-    | outExp == head inExp
-      && null (tail inExp) = Empty
-    | otherwise            = call "copy" (map ValueParameter (outExp:inExp))
-
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
 mkInitialize name loc@(Just arr) len

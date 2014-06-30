@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -41,7 +42,8 @@ module Feldspar.Compiler.Imperative.FromCore (
 
 import Data.Char (toLower)
 import Data.List (nub, partition)
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (isJust, fromJust, catMaybes)
+import Data.Tree
 
 import Control.Monad.RWS
 import Control.Applicative
@@ -116,12 +118,12 @@ compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
-  withAlias v arge $
+  withAlias v (mkLoc arge) $
      compileProgTop opt body
 compileProgTop opt (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
   | representableType l
   = do tellDef [ValueDef var c]
-       withAlias v (varToExpr var) $
+       withAlias v (mkLoc $ varToExpr var) $
          compileProgTop opt body
   where
     var = mkVariable (typeof c) v -- Note [Precise size information]
@@ -132,7 +134,7 @@ compileProgTop opt a = do
        | useNativeReturns opt = (outType',             varToExpr outParam)
        | otherwise            = (Rep.Pointer outType', Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
-  compileProg (cenv0 opt) (Just outLoc) a
+  compileProg (cenv0 opt) (mkLoc outLoc) a
   return outParam
 
 {-
@@ -149,7 +151,7 @@ for insanely large array literals, so don't do that.
 -}
 
 data CompileEnv = CEnv
-    { opts :: Options
+    { opts   :: Options
     , inTask :: Bool
     }
 
@@ -164,48 +166,50 @@ compileExprLoc env loc e = do
     assign loc expr
 
 -- | Compiles code into a fresh variable.
-compileProgFresh :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
+compileProgFresh :: CompileEnv -> Ut.UntypedFeld -> CodeWriter MultiExpr
 compileProgFresh env e = do
     f <- gets stash
     when (f == Just e) $ error $ unwords ["compile:","Looping expression:",show e]
     modify (\s -> s { stash = Just e })
     loc <- freshVar (opts env) "e" (typeof e)
-    compileProg env (Just loc) e
+    compileProg env loc e
     modify (\s -> s { stash = Nothing })
     return loc
 
 -- | Compile an expression and make sure that the result is stored in a variable
-compileExprVar :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
+compileExprVar :: CompileEnv -> Ut.UntypedFeld -> CodeWriter MultiExpr
 compileExprVar env e = do
     e' <- compileExpr env e
     case e' of
         _ | isNearlyVar e' -> return e'
         _         -> do
             varId <- freshId
-            let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
+            let Just t = typeof <$> leaf e'
+            let loc = varToExpr $ mkNamedVar "e" t varId
             declare loc
-            assign (Just loc) e'
-            return loc
-  where isNearlyVar VarExpr{}  = True
-        isNearlyVar (Deref e)  = isNearlyVar e
-        isNearlyVar (AddrOf e) = isNearlyVar e
-        isNearlyVar _          = False
+            assign (mkLoc loc) e'
+            return $ mkLoc loc
+  where isNearlyVar (Node (Just (VarExpr{})) []) = True
+        isNearlyVar (Node (Just (Deref e)) [])   = isNearlyVar $ mkLoc e
+        isNearlyVar (Node (Just (AddrOf e)) [])  = isNearlyVar $ mkLoc e
+        isNearlyVar _                            = False
 
--- | Compile a function bound by a LetFun.
-compileFunction :: CompileEnv -> Expression () -> (String, Fork, Ut.UntypedFeld)
+compileFunction :: CompileEnv -> Location -> (String, Fork, Ut.UntypedFeld)
                 -> CodeWriter ()
 compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
-  es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
-  let args = nub $ map exprToVar es' ++ fv loc
+  es' <- mapM (compileExpr env . In . Ut.Variable) bs
+  let fvars = concat $ catMaybes $ flatten $ fmap (fmap fv) loc
+  let args = nub $ map (\(Node (Just e) []) -> exprToVar e) es' ++ fvars
   -- Task core:
   ((_, ws), Block ds bl)  <- confiscateBigBlock $
     case kind of
       Future -> do
-        p' <- compileExprVar env {inTask = True } e'
-        tellProg [iVarPut loc p']
-      Par -> compileProg env {inTask = True} (Just loc) e'
-      Loop | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
-      None -> compileProg env (Just loc) e'
+        Just p' <- leaf <$> compileExprVar env {inTask = True } e'
+        let Just l' = leaf loc
+        tellProg [iVarPut l' p']
+      Par -> compileProg env {inTask = True} loc e'
+      Loop | (ix:_) <- es' -> compileProg env (loc `index` ix) e'
+      None -> compileProg env loc e'
   tellDef [Proc coreName args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
   let taskName = "task" ++ drop 9 coreName
@@ -216,33 +220,40 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
    _    -> tellDef [Proc taskName [] (Left outs) runTask]
 
 -- | Create a variable of the right type for storing a length.
-mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
+mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter MultiExpr
 mkLength env a t
   | isVariableOrLiteral a = compileExpr env a
   | otherwise             = do
       lenvar <- freshVar (opts env) "len" t
-      compileProg env (Just lenvar) a
+      compileProg env lenvar a
       return lenvar
 
 mkBranch :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
          -> Maybe Ut.UntypedFeld -> CodeWriter ()
 mkBranch env loc c th el = do
-    ce <- compileExpr env c
+    Just ce <- leaf <$> compileExpr env c
     (_, tb) <- confiscateBlock $ compileProg env loc th
     (_, eb) <- if isJust el
                   then confiscateBlock $ compileProg env loc (fromJust el)
                   else return (undefined, toBlock Empty)
     tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
 
+index :: Location -> MultiExpr -> Location
+index l (leaf -> Just ix) = fmap (fmap (flip ArrayElem ix)) l
+index l ix = error $ unwords ["index:", "needs a simple expression",show l, show ix]
+
+field :: Location -> String -> Location
+field l f = fmap (fmap (flip StructField f)) l
+
 compileProg :: CompileEnv -> Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
-   len' <- mkLength env len ta
-   (_, b) <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
-   tellProg [initArray loc len']
+   Just len' <- leaf <$> mkLength env len ta
+   (_, b) <- confiscateBlock $ compileProg env (loc `index` mkLoc ix) ixf
+   tellProg [initArray (Just locExpr) len']
    tellProg [for True (lName ix) len' (litI32 1) b]
-compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
    , not $ null bs
@@ -253,31 +264,32 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
         blocks <- mapM (confiscateBlock . compileBind env) (init bs)
         let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
         let ix = mkVar (compileTypeRep (opts env) tix) v
-        len' <- mkLength env len tix
+        Just len' <- leaf <$> mkLength env len tix
         st1 <- freshVar (opts env) "st" tst
+        let Just st1' = leaf st1
         let st = mkRef (compileTypeRep (opts env) tst) s
             st_val = Deref st
         declareAlias st
-        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg env (ArrayElem <$> loc <*> pure ix) step
-        withAlias s st_val $ compileProg env (Just st1) init'
-        tellProg [ Assign (Just st) (AddrOf st1)
-                 , initArray loc len']
+        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (mkLoc st_val) $ compileProg env (loc `index` mkLoc ix) step
+        withAlias s (mkLoc st_val) $ compileProg env st1 init'
+        tellProg [ Assign (Just st) (AddrOf st1')
+                 , initArray (Just locExpr) len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for False (lName ix) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just st) $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
+                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just st) $ AddrOf (ArrayElem arr ix)]) (Just locExpr))]
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        let tr' = typeof step
        let ix = mkVar (compileTypeRep (opts env) t) v
-       len' <- mkLength env len t
+       Just len' <- leaf <$> mkLength env len t
        tmp  <- freshVar (opts env) "seq" tr'
-       (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg env (Just tmp) step
-       tellProg [initArray loc len']
-       compileProg env (Just $ StructField tmp "member2") st
+       (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (tmp `field` "member2") $ compileProg env tmp step
+       tellProg [initArray (Just locExpr) len']
+       compileProg env (tmp `field` "member2") st
        tellProg [toProg $ Block ds $
                  for False (lName ix) len' (litI32 1) $ toBlock $
                    Sequence $ body ++
-                     [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
+                     [copyProg (loc `index` mkLoc ix) [tmp `field` "member1"]
                      ]]
 compileProg env loc (In (App Ut.Append _ [a, b])) = do
    a' <- compileExpr env a
@@ -286,18 +298,21 @@ compileProg env loc (In (App Ut.Append _ [a, b])) = do
 compileProg env loc (In (App Ut.SetIx _ [arr, i, a])) = do
    compileProg env loc arr
    i' <- compileExpr env i
-   compileProg env (ArrayElem <$> loc <*> pure i') a
-compileProg env (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
+   compileProg env (loc `index` i') a
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
-   let el = ArrayElem a' i'
-   tellProg $ if isArray $ typeof el
-                then [Assign (Just loc) el]
-                else [copyProg (Just loc) [el]]
-compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
-   len' <- compileExpr env len
+   let el = a' `index` i'
+       Just el' = leaf el
+   -- TODO why do we need to distinguish these cases?
+   let Just t = typeof <$> leaf el
+   if isArray t
+     then tellProg [Assign (leaf loc) el']
+     else tellProg [copyProg loc [el]]
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.SetLength _ [len, arr])) = do
+   Just len' <- leaf <$> compileExpr env len
    compileProg env loc arr
-   tellProg [setLength loc len']
+   tellProg [setLength (Just locExpr) len']
 -- Binding
 compileProg _   _   e@(In Ut.Lambda{})
   = error ("Can only compile top-level lambda: " ++ show e)
@@ -313,13 +328,13 @@ compileProg env loc (In (App Ut.ConditionM _ [cond, tHEN, eLSE])) =
    mkBranch env loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg env loc (In (App Ut.EMaterialize t [len, arr])) = do
-   len' <- mkLength env len t
-   tellProg [initArray loc len']
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.EMaterialize t [len, arr])) = do
+   Just len' <- leaf <$> mkLength env len t
+   tellProg [initArray (Just locExpr) len']
    compileProg env loc arr
-compileProg env (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
+compileProg env loc (In (App Ut.EWrite _ [ix, e])) = do
    dst <- compileExpr env ix
-   compileProg env (Just $ ArrayElem loc dst) e
+   compileProg env (loc `index` dst) e
 compileProg _   _   (In (App Ut.ESkip _ _)) = return ()
 compileProg env loc (In (App Ut.EPar _ [p1, p2])) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg env loc p1
@@ -327,7 +342,7 @@ compileProg env loc (In (App Ut.EPar _ [p1, p2])) = do
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
 compileProg env loc (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
-   len' <- mkLength env len ta
+   Just len' <- leaf <$> mkLength env len ta
    (_, ixf') <- confiscateBlock $ compileProg env loc ixf
    tellProg [for True (lName ix) len' (litI32 1) ixf']
 -- Error
@@ -338,47 +353,46 @@ compileProg env loc (In (App (Ut.Assert msg) _ [cond, a])) = do
 -- Future
 compileProg _  _ e@(In (App Ut.MkFuture _ _))
   = error ("Unexpected MkFuture:" ++ show e)
-compileProg env (Just loc) (In (LetFun f e)) = do
+compileProg env loc (In (LetFun f e)) = do
    compileFunction env loc f
-   compileProg env (Just loc) e
+   compileProg env loc e
 compileProg env loc (In (App Ut.Await _ [a])) = do
-   fut <- compileExprVar env a
-   tellProg [iVarGet (inTask env) l fut | Just l <- [loc]]
+   Just fut <- leaf <$> compileExprVar env a
+   tellProg [iVarGet (inTask env) l fut | Just l <- map leaf [loc]]
 -- Literal
-compileProg env loc (In (Ut.Literal a)) = case loc of
+compileProg env loc (In (Ut.Literal a)) = case leaf loc of
      Just l -> literalLoc env l a
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg env (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
+compileProg env (leaf -> Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
   = do
       let ix' = mkVar (compileTypeRep (opts env) ta) ix
-      len' <- mkLength env len ta
+      Just len' <- leaf <$> mkLength env len ta
       (lstate, stvar) <- mkDoubleBufferState loc st
-      compileProg env (Just lstate) init'
-      (_, Block ds body) <- withAlias st lstate $ confiscateBlock
-                          $ compileProg env (Just stvar) ixf
-                          >> shallowCopyWithRefSwap lstate stvar
+      compileProg env (mkLoc lstate) init'
+      (_, Block ds body) <- withAlias st (mkLoc lstate) $ confiscateBlock
+                          $ compileProg env (mkLoc stvar) ixf >> shallowCopyWithRefSwap lstate stvar
       tellProg [toProg $ Block ds (for False (lName ix') len' (litI32 1) (toBlock body))]
-      shallowAssign (Just loc) lstate
-compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
+      shallowAssign (mkLoc loc) lstate
+compileProg env (leaf -> Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
     let condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
     (lstate,stvar) <- mkDoubleBufferState loc bv
-    compileProg env (Just lstate) init'
-    (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg env (Just condv) cond
-    (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg env (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
+    compileProg env (mkLoc lstate) init'
+    (_, cond') <- confiscateBlock $ withAlias cv (mkLoc lstate) $ compileProg env (mkLoc condv) cond
+    (_, body') <- withAlias bv (mkLoc lstate) $ confiscateBlock $ compileProg env (mkLoc stvar) body >> shallowCopyWithRefSwap lstate stvar
     declare condv
     tellProg [while cond' condv body']
-    shallowAssign (Just loc) lstate
+    shallowAssign (mkLoc loc) lstate
 -- LoopM
 compileProg env loc (In (App Ut.While _ [In (Ut.Lambda _ cond), step])) = do
-   condv <- freshVar (opts env) "cond" (typeof cond)
-   (_, cond') <- confiscateBlock $ compileProg env (Just condv) cond
+   Just condv <- leaf <$> freshVar (opts env) "cond" (typeof cond)
+   (_, cond') <- confiscateBlock $ compileProg env (mkLoc condv) cond
    (_, step') <- confiscateBlock $ compileProg env loc step
    tellProg [while cond' condv step']
 compileProg env loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
-   len' <- mkLength env len ta
+   Just len' <- leaf <$> mkLength env len ta
    (_, Block ds body) <- confiscateBlock $ compileProg env loc ixf
    tellProg [toProg $ Block ds (for False (lName ix) len' (litI32 1) (toBlock body))]
 -- Mutable
@@ -396,53 +410,53 @@ compileProg env loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | otherwise = do
    let var  = mkVar (compileTypeRep (opts env) ta) v
    declare var
-   compileProg env (Just var) ma
+   compileProg env (mkLoc var) ma
    compileProg env loc body
 compileProg env loc (In (App Ut.Then _ [ma, mb])) = do
-   compileProg env Nothing ma
+   compileProg env (Node Nothing []) ma
    compileProg env loc mb
 compileProg env loc (In (App Ut.When _ [c, action])) =
    mkBranch env loc c action Nothing
 -- MutableArray
-compileProg env loc (In (App Ut.NewArr _ [len, a])) = do
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
    let ix = varToExpr $ mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
    a' <- compileExpr env a
-   l  <- compileExpr env len
-   tellProg [initArray loc l]
-   tellProg [for False "i" l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
-compileProg env loc (In (App Ut.NewArr_ _ [len])) = do
-   l <- compileExpr env len
-   tellProg [initArray loc l]
+   Just l  <- leaf <$> compileExpr env len
+   tellProg [initArray (Just locExpr) l]
+   tellProg [for False "i" l (litI32 1) $ toBlock (Sequence [copyProg (loc `index` mkLoc ix) [a']])]
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.NewArr_ _ [len])) = do
+   Just l <- leaf <$> compileExpr env len
+   tellProg [initArray (Just locExpr) l]
 compileProg env loc (In (App Ut.GetArr _ [arr, i])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
-   assign loc (ArrayElem arr' i')
+   assign loc (arr' `index` i')
 compileProg env _ (In (App Ut.SetArr _ [arr, i, a])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    a'   <- compileExpr env a
-   assign (Just $ ArrayElem arr' i') a'
+   assign (arr' `index` i') a'
 -- MutableReference
 compileProg env loc (In (App Ut.NewRef _ [a])) = compileProg env loc a
 compileProg env loc (In (App Ut.GetRef _ [r])) = compileProg env loc r
 compileProg env _ (In (App Ut.SetRef _ [r, a])) = do
    var  <- compileExpr env r
-   compileProg env (Just var) a
+   compileProg env var a
 compileProg env _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _) body)])) = do
    var <- compileExpr env r
-   withAlias v var $ compileProg env (Just var) body
+   withAlias v var $ compileProg env var body
        -- Since the modifier function is pure it is safe to alias
        -- v with var here
 -- MutableToPure
-compileProg env (Just loc) (In (App Ut.RunMutableArray _ [marr]))
+compileProg env loc@(leaf -> Just locExpr) (In (App Ut.RunMutableArray _ [marr]))
  | (In (App Ut.Bind _ [In (App Ut.NewArr_ _ [l]), In (Ut.Lambda (Ut.Var v _) body)])) <- marr
  , (In (App Ut.Return _ [In (Ut.Variable (Ut.Var r _))])) <- chaseBind body
  , v == r
  = do
-     len <- compileExpr env l
-     tellProg [setLength (Just loc) len]
-     withAlias v loc $ compileProg env (Just loc) body
+     Just len <- leaf <$> compileExpr env l
+     tellProg [setLength (Just locExpr) len]
+     withAlias v loc $ compileProg env loc body
 compileProg env loc (In (App Ut.RunMutableArray _ [marr])) = compileProg env loc marr
 compileProg env loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _) body)])) = do
     e <- compileExpr env marr
@@ -452,25 +466,26 @@ compileProg env loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lam
 compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     let var = mkVar (compileTypeRep (opts env) ta) v
     declare var
-    compileProg env (Just var) marr
+    compileProg env (mkLoc var) marr
     e <- compileExpr env body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg _ (Just _) (In (App Ut.NoInline _ [e]))
+compileProg env loc@(leaf -> Just _) (In (App Ut.NoInline _ [e]))
   = error ("Unexpected NoInline:" ++ show e)
 -- Par
 compileProg env loc (In (App Ut.ParRun _ [p])) = compileProg env loc p
 compileProg _   _   (In (App Ut.ParNew _ _)) = return ()
 compileProg env loc (In (App Ut.ParGet _ [r])) = do
-    iv <- compileExpr env r
-    tellProg [iVarGet (inTask env) l iv | Just l <- [loc]]
+    Just iv <- leaf <$> compileExpr env r
+    tellProg [iVarGet (inTask env) l iv | Just l <- map leaf [loc]]
 compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
-    iv  <- compileExpr env r
+    Just iv  <- leaf <$> compileExpr env r
     val <- compileExpr env a
     i   <- freshId
-    let var = varToExpr $ mkNamedVar "msg" (typeof val) i
+    let Just t = typeof <$> leaf val
+    let var = varToExpr $ mkNamedVar "msg" t i
     declare var
-    assign (Just var) val
+    assign (mkLoc var) val
     tellProg [iVarPut iv var]
 compileProg _ _ (In (App Ut.ParFork _ [e]))
   = error ("Unexpected ParFork:" ++ show e)
@@ -483,176 +498,61 @@ compileProg env loc (In (App (Ut.SourceInfo info) _ [a])) = do
     compileProg env loc a
 -- Switch
 compileProg env loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.Equal _ [_, s]), _, _]))])) = do
-    scrutinee <- compileExpr env s
+    Just scrutinee <- leaf <$> compileExpr env s
     alts      <- chaseTree env loc s tree
     tellProg [Switch{..}]
 compileProg env loc (In (App Ut.Switch _ [tree])) = compileProg env loc tree
 -- Tuple
-compileProg env loc (In (App Ut.Tup2 _ [m1, m2])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-compileProg env loc (In (App Ut.Tup3 _ [m1, m2, m3])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-compileProg env loc (In (App Ut.Tup4 _ [m1, m2, m3, m4])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-compileProg env loc (In (App Ut.Tup5 _ [m1, m2, m3, m4, m5])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-compileProg env loc (In (App Ut.Tup6 _ [m1, m2, m3, m4, m5, m6])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-compileProg env loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-compileProg env loc (In (App Ut.Tup8 _ [m1, m2, m3, m4, m5, m6, m7, m8])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-compileProg env loc (In (App Ut.Tup9 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-compileProg env loc (In (App Ut.Tup10 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-compileProg env loc (In (App Ut.Tup11 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-compileProg env loc (In (App Ut.Tup12 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-compileProg env loc (In (App Ut.Tup13 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-    compileProg env (StructField <$> loc <*> pure "member13") m13
-compileProg env loc (In (App Ut.Tup14 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-    compileProg env (StructField <$> loc <*> pure "member13") m13
-    compileProg env (StructField <$> loc <*> pure "member14") m14
-compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-    compileProg env (StructField <$> loc <*> pure "member13") m13
-    compileProg env (StructField <$> loc <*> pure "member14") m14
-    compileProg env (StructField <$> loc <*> pure "member15") m15
+compileProg env loc (In (App Ut.Tup2 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup3 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup4 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup5 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup6 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup7 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup8 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup9 _ ms))  = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup10 _ ms)) = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup11 _ ms)) = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup12 _ ms)) = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup13 _ ms)) = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup14 _ ms)) = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
+compileProg env loc (In (App Ut.Tup15 _ ms)) = zipWithM_ (\m f -> compileProg env (loc `field` f) m) ms fields
 -- Special case foreign imports since they can be of void type and just have effects.
-compileProg env loc (In (App p@Ut.ForeignImport{} t es)) = do
+compileProg env loc@(leaf -> Just locExpr) (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM (compileExpr env) es
-    tellProg [Assign loc $ fun' (compileTypeRep (opts env) t) (compileOp p) es']
+    let Just es'' = mapM leaf es'
+    tellProg [Assign (Just locExpr) $ fun' (compileTypeRep (opts env) t) (compileOp p) es'']
 -- Common nodes
-compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
+compileProg env loc@(leaf -> Just locExpr) (In (App (Ut.Call f name) _ es)) = do
   es' <- mapM (compileExpr env) es
-  let args = nub $ map exprToVar es' ++ fv loc
-  tellProg [iVarInitCond f (AddrOf loc)]
+  let Just es'' = mapM leaf es'
+      fvars = concat $ catMaybes $ flatten $ fmap (fmap fv) loc
+  let args = nub $ map exprToVar es'' ++ fvars
+  tellProg [iVarInitCond f (AddrOf locExpr)]
   tellProg [spawn f name args]
 compileProg env loc e = compileExprLoc env loc e
 
+fields = [ "member"++show i | i <- [1..]]
 
-compileExpr :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
+compileExpr :: CompileEnv -> Ut.UntypedFeld -> CodeWriter MultiExpr
 -- Array
 compileExpr env (In (App Ut.GetLength _ [a])) = do
    aExpr <- compileExpr env a
-   return $ arrayLength aExpr
+   return $ fmap (fmap arrayLength) aExpr
 compileExpr env (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr env arr
    i' <- compileExpr env i
-   return $ ArrayElem a' i'
+   return $ a' `index` i'
 -- Bits
 compileExpr env (In (App Ut.Bit t [arr])) = do
-   a' <- compileExpr env arr
+   Just a' <- leaf <$> compileExpr env arr
    let t' = compileTypeRep (opts env) t
-   return $ binop t' "<<" (litI t' 1) a'
+   return $ mkLoc $ binop t' "<<" (litI t' 1) a'
 -- Binding
 compileExpr env (In (Ut.Variable (Ut.Var v t))) = do
         env' <- ask
         case lookup v (alias env') of
-          Nothing -> return $ mkVar (compileTypeRep (opts env) t) v
+          Nothing -> return $ mkLoc $ mkVar (compileTypeRep (opts env) t) v
           Just e  -> return e
 compileExpr env (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     e <- compileLet env a ta v
@@ -662,33 +562,37 @@ compileExpr env (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = 
 -- Conversion
 compileExpr env (In (App Ut.F2I t es)) = do
     es' <- mapM (compileExpr env) es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
+    let Just es'' = sequence $ map leaf es'
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es''
+    return $ mkLoc $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (App Ut.I2N t1 [e]))
  | (Rep.MachineVector 1 (Rep.ComplexType t)) <- t'
  = do
-    e' <- compileExpr env e
+    Just e' <- leaf <$> compileExpr env e
     let args = [Cast t e', litF 0]
-    return $ fun t' (extend c99 "complex" t) args
+    return $ mkLoc $ fun t' (extend c99 "complex" t) args
  | otherwise = do
-    e' <- compileExpr env e
-    return $ Cast t' e'
+    Just e' <- leaf <$> compileExpr env e
+    return $ mkLoc $ Cast t' e'
   where t' = compileTypeRep (opts env) t1
 compileExpr env (In (App Ut.B2I t [e])) = do
-    e' <- compileExpr env e
-    return $ Cast (compileTypeRep (opts env) t) e'
+    Just e' <- leaf <$> compileExpr env e
+    return $ mkLoc $ Cast (compileTypeRep (opts env) t) e'
 compileExpr env (In (App Ut.Round t es)) = do
     es' <- mapM (compileExpr env) es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
+    let Just es'' = mapM leaf es' 
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es''
+    return $ mkLoc $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (App Ut.Ceiling t es)) = do
     es' <- mapM (compileExpr env) es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
+    let Just es'' = mapM leaf es'
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es''
+    return $ mkLoc $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (App Ut.Floor t es)) = do
     es' <- mapM (compileExpr env) es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
+    let Just es'' = mapM leaf es'
+    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es''
+    return $ mkLoc $ Cast (compileTypeRep (opts env) t) $ f'
 -- Error
 compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
     compileAssert env cond msg
@@ -700,15 +604,15 @@ compileExpr _ (In (App Ut.Pi t [])) = error "No pi ready"
 -- Fractional
 -- Future
 -- Literal
-compileExpr env (In (Ut.Literal l)) = literal env l
+compileExpr env (In (Ut.Literal l)) = mkLoc <$> literal env l
 -- Loop
 -- Logic
 -- Mutable
 compileExpr env (In (App Ut.Run _ [ma])) = compileExpr env ma
 -- MutableArray
 compileExpr env (In (App Ut.ArrLength _ [arr])) = do
-    a' <- compileExpr env arr
-    return $ arrayLength a'
+    Just a' <- leaf <$> compileExpr env arr
+    return $ mkLoc $ arrayLength a'
 -- MutableReference
 compileExpr env (In (App Ut.GetRef _ [r])) = compileExpr env r
 -- NoInline
@@ -726,7 +630,7 @@ compileExpr env (In (App p _ [tup]))
              , Ut.Sel8, Ut.Sel9, Ut.Sel10, Ut.Sel11, Ut.Sel12, Ut.Sel13
              , Ut.Sel14, Ut.Sel15] = do
     tupExpr <- compileExpr env tup
-    return $ StructField tupExpr ("member" ++ drop 3 (show p))
+    return $ tupExpr `field` ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.Sequential, Ut.Condition, Ut.ConditionM
             , Ut.MkFuture, Ut.Await, Ut.Then, Ut.For, Ut.SetArr
@@ -737,20 +641,21 @@ compileExpr env e@(In (App p _ _))
  = compileProgFresh env e
 compileExpr env (In (App p t es)) = do
     es' <- mapM (compileExpr env) es
-    return $ fun' (compileTypeRep (opts env) t) (compileOp p) es'
+    let Just es'' = mapM leaf es'
+    return $ mkLoc $ fun' (compileTypeRep (opts env) t) (compileOp p) es''
 compileExpr env e = compileProgFresh env e
 
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
-              CodeWriter (Expression ())
+              CodeWriter MultiExpr
 compileLet env a ta v = do
    let var = mkVar (compileTypeRep (opts env) ta) v
    declare var
-   compileProg env (Just var) a
-   return var
+   compileProg env (mkLoc var) a
+   return $ mkLoc var
 
 compileAssert :: CompileEnv -> Ut.UntypedFeld -> String -> CodeWriter ()
 compileAssert env cond msg = do
-    condExpr <- compileExpr env cond
+    Just condExpr <- leaf <$> compileExpr env cond
     tellProg [call "assert" [ValueParameter condExpr]]
     unless (null msg) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
 
@@ -762,7 +667,7 @@ literal _   t@LFloat{}    = return (ConstExpr $ literalConst t)
 literal _   t@LDouble{}   = return (ConstExpr $ literalConst t)
 literal _   t@LComplex{}  = return (ConstExpr $ literalConst t)
 literal _   t@LArray{}    = return (ConstExpr $ literalConst t)
-literal env t = do loc <- freshVar (opts env) "x" (typeof t)
+literal env t = do Just loc <- leaf <$> freshVar (opts env) "x" (typeof t)
                    literalLoc env loc t
                    return loc
 
@@ -788,7 +693,7 @@ literalConst (LComplex r i) = ComplexConst (literalConst r) (literalConst i)
 
 literalLoc :: CompileEnv -> Expression () -> Ut.Lit -> CodeWriter ()
 literalLoc _ loc arr@Ut.LArray{}
-    = tellProg [copyProg (Just loc) [ConstExpr $ literalConst arr]]
+    = tellProg [copyProg (mkLoc loc) [mkLoc $ ConstExpr $ literalConst arr]]
 
 literalLoc env loc (Ut.LTup2 ta tb) =
     do literalLoc env (StructField loc "member1") ta
@@ -939,14 +844,14 @@ literalLoc env loc (Ut.LTup15 ta tb tc td te tf tg th ti tj tk tl tm tn to) =
 
 literalLoc env loc t =
     do rhs <- literal env t
-       assign (Just loc) rhs
+       assign (mkLoc loc) (mkLoc rhs)
 
 chaseTree :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
 chaseTree env loc _s (In (App Ut.Condition _ [In (App Ut.Equal _ [c, a]), t, f]))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
-         e <- compileExpr env c
+         Just e <- leaf <$> compileExpr env c
          (_,body) <- confiscateBlock $ compileProg env loc t
          cases <- chaseTree env loc _s f
          return $ (Pat e, body) : cases
@@ -976,7 +881,7 @@ compileBind :: CompileEnv -> (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
 compileBind env (Ut.Var v t, e) = do
    let var = mkVar (compileTypeRep (opts env) t) v
    declare var
-   compileProg env (Just var) e
+   compileProg env (mkLoc var) e
 
 -- | Translates Op names to strings.
 compileOp :: Ut.Op -> String

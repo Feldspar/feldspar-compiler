@@ -43,6 +43,8 @@ import Control.Applicative
 
 import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix, nub)
+import Data.Tree
+import Data.Maybe
 
 import Feldspar.Range (upperBound, fullRange)
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -54,6 +56,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
                                                     Expression(..), ScalarType(..),
                                                     Declaration(..),
                                                     Program(..),
+                                                    ActualParameter(..),
                                                     Entity(..), StructMember(..))
 
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
@@ -61,7 +64,7 @@ import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
 
-data Readers = Readers { alias :: [(Integer, Expression ())] -- ^ variable aliasing
+data Readers = Readers { alias :: [(Integer, MultiExpr)] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
                        }
 
@@ -98,7 +101,15 @@ initState :: States
 initState = States 0 Nothing
 
 -- | Where to place the program result
-type Location = Maybe (Expression ())
+type MultiExpr = Tree (Maybe (Expression ()))
+type Location  = MultiExpr
+
+mkLoc :: Expression () -> Location
+mkLoc e = Node (Just e) []
+
+leaf :: Location -> Maybe (Expression ())
+leaf (Node e []) = e
+leaf _           = Nothing
 
 --------------------------------------------------------------------------------
 -- * Utility functions
@@ -201,23 +212,23 @@ freshId = do
   put (s {fresh = v + 1})
   return v
 
-freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
+freshVar :: Options -> String -> Ut.Type -> CodeWriter MultiExpr
 freshVar opt base t = do
   v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
   declare v
-  return v
+  return $ mkLoc v
 
-freshAlias :: Expression () -> CodeWriter (Expression ())
+freshAlias :: Expression () -> CodeWriter MultiExpr
 freshAlias e = do i <- freshId
                   let vexp = varToExpr $ mkNamedVar "e" (typeof e) i
                   declareAlias vexp
-                  return vexp
+                  return $ mkLoc vexp
 
 -- | Create a fresh variable aliasing some other variable and
 -- initialize it to the parameter.
-freshAliasInit :: Expression () -> CodeWriter (Expression ())
+freshAliasInit :: Expression () -> CodeWriter MultiExpr
 freshAliasInit e = do vexp <- freshAlias e
-                      tellProg [Assign (Just vexp) e]
+                      tellProg [Assign (leaf vexp) e]
                       return vexp
 
 declare :: Expression () -> CodeWriter ()
@@ -355,13 +366,25 @@ getTypes defs = nub $ concatMap mkDef comps
     mkDef (Pointer typ)     = mkDef typ
     mkDef _                 = []
 
-assign :: Location -> Expression () -> CodeWriter ()
-assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just tgt) [src]]
-assign _          _   = return ()
+assign :: Location -> MultiExpr -> CodeWriter ()
+assign lhs@(Node _ []) rhs@(Node _ [])                  = tellProg [copyProg lhs [rhs]]
+assign (Node _ ls) (Node _ rs) | length ls == length rs = zipWithM_ assign ls rs
+assign lhs rhs = error $ unwords ["assign:","malformed trees",show lhs,show rhs]
+
+-- | Copies expressions into a destination. If the destination is
+-- a non-scalar the arguments are appended to the destination.
+copyProg :: Location -> [MultiExpr] -> Program ()
+copyProg _ [] = error "copyProg: missing source parameter."
+copyProg (leaf -> Nothing) _ = Empty
+copyProg outExp [inExp]
+    | outExp == inExp = Empty
+copyProg (leaf -> Just outExp) inExps =
+    call "copy" (map ValueParameter (outExp:(mapMaybe leaf inExps)))
+
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
-shallowAssign loc@(Just dst) src | dst /= src = tellProg [Assign loc src]
-shallowAssign _          _                    = return ()
+shallowAssign loc@(leaf -> Just dst) src | dst /= src = tellProg [Assign (Just dst) src]
+shallowAssign _                      _                = return ()
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyWithRefSwap dst src
@@ -370,7 +393,7 @@ shallowCopyWithRefSwap dst src
       [] -> tellProg [Assign (Just dst) src]
       arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF, _) <- arrs]
                  tellProg [Assign (Just dst) src]
-                 tellProg [Assign (Just $ accF src) tmp | (tmp, (accF, _)) <- zip temps arrs]
+                 tellProg [Assign (Just $ accF src) tmp | (Just tmp, (accF, _)) <- zip (map leaf temps) arrs]
   | otherwise = return ()
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
@@ -411,7 +434,7 @@ mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Ex
 mkDoubleBufferState loc stvar
    = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc)
                      then return loc
-                     else do vexp <- freshAlias loc
+                     else do Just vexp <- leaf <$> freshAlias loc
                              shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc
@@ -438,7 +461,7 @@ confiscateBigBlock m
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
-withAlias :: Integer -> Expression () -> CodeWriter a -> CodeWriter a
+withAlias :: Integer -> MultiExpr -> CodeWriter a -> CodeWriter a
 withAlias v0 expr = local (\e -> e {alias = (v0,expr) : alias e})
 
 isVariableOrLiteral :: Ut.UntypedFeld -> Bool
