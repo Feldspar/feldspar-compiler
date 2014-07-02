@@ -580,7 +580,7 @@ compileExpr env (In (App Ut.B2I t [e])) = do
     return $ mkLoc $ Cast (compileTypeRep (opts env) t) e'
 compileExpr env (In (App Ut.Round t es)) = do
     es' <- mapM (compileExpr env) es
-    let Just es'' = mapM leaf es' 
+    let Just es'' = mapM leaf es'
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es''
     return $ mkLoc $ Cast (compileTypeRep (opts env) t) $ f'
 compileExpr env (In (App Ut.Ceiling t es)) = do

@@ -64,8 +64,8 @@ import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
 
-data Readers = Readers { alias :: [(Integer, MultiExpr)] -- ^ variable aliasing
-                       , backendOpts :: Options -- ^ Options for the backend.
+data Readers = Readers { alias       :: [(Integer, MultiExpr)] -- ^ variable aliasing
+                       , backendOpts :: Options                -- ^ Options for the backend.
                        }
 
 initReader :: Options -> Readers
@@ -93,7 +93,7 @@ instance Monoid Writers
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
-data States = States { fresh :: Integer -- ^ The first fresh variable id
+data States = States { fresh :: Integer              -- ^ The first fresh variable id
                      , stash :: Maybe Ut.UntypedFeld -- ^ Loop canary
                      }
 
