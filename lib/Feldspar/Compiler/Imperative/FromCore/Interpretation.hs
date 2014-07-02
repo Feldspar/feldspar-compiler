@@ -38,7 +38,7 @@ module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
 
 import Control.Arrow
-import Control.Monad.RWS
+import Control.Monad.RWS.Strict
 import Control.Applicative
 
 import Data.Char (toLower)

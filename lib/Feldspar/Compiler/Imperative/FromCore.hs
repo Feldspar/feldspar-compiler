@@ -45,7 +45,7 @@ import Data.List (nub, partition)
 import Data.Maybe (isJust, fromJust, catMaybes)
 import Data.Tree
 
-import Control.Monad.RWS
+import Control.Monad.RWS.Strict
 import Control.Applicative
 
 import Feldspar.Core.Types
