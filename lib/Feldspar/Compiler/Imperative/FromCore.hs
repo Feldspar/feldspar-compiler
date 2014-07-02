@@ -532,8 +532,6 @@ compileProg env loc@(leaf -> Just locExpr) (In (App (Ut.Call f name) _ es)) = do
   tellProg [spawn f name args]
 compileProg env loc e = compileExprLoc env loc e
 
-fields = [ "member"++show i | i <- [1..]]
-
 compileExpr :: CompileEnv -> Ut.UntypedFeld -> CodeWriter MultiExpr
 -- Array
 compileExpr env (In (App Ut.GetLength _ [a])) = do

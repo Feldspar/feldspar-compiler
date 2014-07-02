@@ -115,75 +115,47 @@ leaf _           = Nothing
 -- * Utility functions
 --------------------------------------------------------------------------------
 
-mkStructType :: [(String, Type)] -> Type
-mkStructType trs = StructType n trs
+mkStructType :: [Type] -> Type
+mkStructType ts = StructType n $ zip fields ts
   where
-    n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
+    n = "s_" ++ intercalate "_" (show (length ts) : map encodeType ts)
+
+fields :: [String]
+fields = [ "member" ++ show i | i <- [1..] ]
 
 compileTypeRep :: Options -> Ut.Type -> Type
-compileTypeRep _   Ut.UnitType            = VoidType
-compileTypeRep _   Ut.BoolType            = MachineVector 1 BoolType
-compileTypeRep _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileTypeRep _   Ut.FloatType           = MachineVector 1 FloatType
-compileTypeRep _   Ut.DoubleType          = MachineVector 1 DoubleType
-compileTypeRep opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileTypeRep opt t)
-compileTypeRep opt (Ut.Tup2Type a b)           = mkStructType
-        [ ("member1", compileTypeRep opt a)
-        , ("member2", compileTypeRep opt b)
-        ]
-compileTypeRep opt (Ut.Tup3Type a b c)         = mkStructType
-        [ ("member1", compileTypeRep opt a)
-        , ("member2", compileTypeRep opt b)
-        , ("member3", compileTypeRep opt c)
-        ]
-compileTypeRep opt (Ut.Tup4Type a b c d)       = mkStructType
-        [ ("member1", compileTypeRep opt a)
-        , ("member2", compileTypeRep opt b)
-        , ("member3", compileTypeRep opt c)
-        , ("member4", compileTypeRep opt d)
-        ]
-compileTypeRep opt (Ut.Tup5Type a b c d e)     = mkStructType
-        [ ("member1", compileTypeRep opt a)
-        , ("member2", compileTypeRep opt b)
-        , ("member3", compileTypeRep opt c)
-        , ("member4", compileTypeRep opt d)
-        , ("member5", compileTypeRep opt e)
-        ]
-compileTypeRep opt (Ut.Tup6Type a b c d e f)   = mkStructType
-        [ ("member1", compileTypeRep opt a)
-        , ("member2", compileTypeRep opt b)
-        , ("member3", compileTypeRep opt c)
-        , ("member4", compileTypeRep opt d)
-        , ("member5", compileTypeRep opt e)
-        , ("member6", compileTypeRep opt f)
-        ]
-compileTypeRep opt (Ut.Tup7Type a b c d e f g) = mkStructType
-        [ ("member1", compileTypeRep opt a)
-        , ("member2", compileTypeRep opt b)
-        , ("member3", compileTypeRep opt c)
-        , ("member4", compileTypeRep opt d)
-        , ("member5", compileTypeRep opt e)
-        , ("member6", compileTypeRep opt f)
-        , ("member7", compileTypeRep opt g)
-        ]
-compileTypeRep opt (Ut.MutType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.RefType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.ArrayType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
- | otherwise           = ArrayType rs $ compileTypeRep opt a
-compileTypeRep opt (Ut.MArrType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
- | otherwise           = ArrayType rs $ compileTypeRep opt a
-compileTypeRep opt (Ut.ParType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.ElementsType a)
- | useNativeArrays opt = NativeArray Nothing $ compileTypeRep opt a
- | otherwise           = ArrayType fullRange $ compileTypeRep opt a
-compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
-compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
-compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
-compileTypeRep _   typ                      = error $ "compileTypeRep: missing " ++ show typ  -- TODO
+compileTypeRep opt = go
+  where
+    go Ut.UnitType                 = VoidType
+    go Ut.BoolType                 = MachineVector 1 BoolType
+    go (Ut.IntType s n)            = MachineVector 1 (NumType s n)
+    go Ut.FloatType                = MachineVector 1 FloatType
+    go Ut.DoubleType               = MachineVector 1 DoubleType
+    go (Ut.ComplexType t)          = MachineVector 1 $ ComplexType $ go t
+    go (Ut.Tup2Type a b)           = mkStructType $ map go [a, b]
+    go (Ut.Tup3Type a b c)         = mkStructType $ map go [a,b,c]
+    go (Ut.Tup4Type a b c d)       = mkStructType $ map go [a,b,c,d]
+    go (Ut.Tup5Type a b c d e)     = mkStructType $ map go [a,b,c,d,e]
+    go (Ut.Tup6Type a b c d e f)   = mkStructType $ map go [a,b,c,d,e,f]
+    go (Ut.Tup7Type a b c d e f g) = mkStructType $ map go [a,b,c,d,e,f,g]
+    go (Ut.MutType a)              = go a
+    go (Ut.RefType a)              = go a
+    go (Ut.ArrayType rs a)
+       | useNativeArrays opt       = NativeArray (Just $ upperBound rs) $ go a
+       | otherwise                 = ArrayType rs $ go a
+    go (Ut.MArrType rs a)
+       | useNativeArrays opt       = NativeArray (Just $ upperBound rs) $ go a
+       | otherwise                 = ArrayType rs $ go a
+    go (Ut.ParType a)              = go a
+    go (Ut.ElementsType a)
+       | useNativeArrays opt       = NativeArray Nothing $ go a
+       | otherwise                 = ArrayType fullRange $ go a
+    go (Ut.IVarType a)             = IVarType $ go a
+    go (Ut.FunType _ b)            = go b
+    go (Ut.FValType a)             = IVarType $ go a
+    go typ                         = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
--- | Construct a variable.
+-- | Construct a variable expression.
 mkVar :: Type -> Integer -> Expression ()
 mkVar t i = varToExpr $ mkNamedVar "v" t i
 
