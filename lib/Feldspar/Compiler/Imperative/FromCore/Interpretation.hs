@@ -157,7 +157,17 @@ compileTypeRep opt = go
 
 -- | Construct a variable expression.
 mkVar :: Type -> Integer -> Expression ()
-mkVar t i = varToExpr $ mkNamedVar "v" t i
+mkVar t i = varToExpr $ mkVariable t i
+
+-- | Construct a pointer.
+mkRef :: Type -> Integer -> Expression ()
+mkRef t i = varToExpr $ mkPointer t i
+
+mkVariable :: Type -> Integer -> Variable ()
+mkVariable = mkNamedVar "v"
+
+mkPointer :: Type -> Integer -> Variable ()
+mkPointer = mkNamedRef "v"
 
 -- | Construct a named variable.
 mkNamedVar :: String -> Type -> Integer -> Variable ()
@@ -167,41 +177,32 @@ mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 mkNamedRef :: String -> Type -> Integer -> Variable ()
 mkNamedRef base t i = Variable (Pointer t) $ base ++ if i < 0 then "" else show i
 
--- | Construct a pointer.
-mkRef :: Type -> Integer -> Expression ()
-mkRef t i = varToExpr $ mkNamedRef "v" t i
-
-mkVariable :: Type -> Integer -> Variable ()
-mkVariable = mkNamedVar "v"
-
-mkPointer :: Type -> Integer -> Variable ()
-mkPointer = mkNamedRef "v"
-
 freshId :: CodeWriter Integer
 freshId = do
-  s <- get
-  let v = fresh s
-  put (s {fresh = v + 1})
-  return v
+    s <- get
+    let v = fresh s
+    put (s {fresh = v + 1})
+    return v
 
 freshVar :: Options -> String -> Ut.Type -> CodeWriter MultiExpr
 freshVar opt base t = do
-  v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
-  declare v
-  return $ mkLoc v
+    v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
+    declare v
+    return $ mkLoc v
 
 freshAlias :: Expression () -> CodeWriter MultiExpr
-freshAlias e = do i <- freshId
-                  let vexp = varToExpr $ mkNamedVar "e" (typeof e) i
-                  declareAlias vexp
-                  return $ mkLoc vexp
+freshAlias e = do
+    vexp <- varToExpr . mkNamedVar "e" (typeof e) <$> freshId
+    declareAlias vexp
+    return $ mkLoc vexp
 
 -- | Create a fresh variable aliasing some other variable and
 -- initialize it to the parameter.
 freshAliasInit :: Expression () -> CodeWriter MultiExpr
-freshAliasInit e = do vexp <- freshAlias e
-                      tellProg [Assign (leaf vexp) e]
-                      return vexp
+freshAliasInit e = do
+    vexp <- freshAlias e
+    tellProg [Assign (leaf vexp) e]
+    return vexp
 
 declare :: Expression () -> CodeWriter ()
 declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
@@ -218,21 +219,21 @@ initialize expr      _ = error $ "initialize: cannot declare expression: " ++ sh
 tellDef :: [Entity ()] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
+tellEpilogue :: [Program ()] -> CodeWriter ()
+tellEpilogue es = tell $ mempty { epilogue = es }
+
 tellProg :: [Program ()] -> CodeWriter ()
 tellProg [BlockProgram b@(Block [] _)] = tell $ mempty {block = b}
 tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
 tellDeclWith :: Bool -> [Declaration ()] -> CodeWriter ()
 tellDeclWith free ds = do
-    rs <- ask
-    let frees | free = freeArrays ds ++ freeIVars ds
-              | otherwise = []
-        opts = backendOpts rs
-        defs = getTypes ds
-        code | varFloating $ platform opts = mempty {decl=ds, epilogue = frees, def = defs}
-             | otherwise = mempty {block = Block ds Empty,
-                                   epilogue = frees, def = defs}
-    tell code
+    tellDef $ getTypes ds
+    when free $ tellEpilogue $ freeArrays ds ++ freeIVars ds
+    opts <- asks backendOpts
+    tell $ if varFloating $ platform opts
+             then mempty{ decl  = ds }
+             else mempty{ block = Block ds Empty }
 
 {-
 Encoded format is:
