@@ -468,8 +468,6 @@ compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
 compileProg env loc (In (App Ut.ParFork _ [e]))
   = error ("Unexpected ParFork:" ++ show e)
 compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
--- Save
-compileProg env loc (In (App Ut.Save _ [e])) = compileProg env loc e
 -- SizeProp
 compileProg env loc (In (App Ut.PropSize _ [e])) = compileProg env loc e
 -- SourceInfo
@@ -709,8 +707,6 @@ compileExpr env (In (App Ut.GetRef _ [r])) = compileExpr env r
 -- NoInline
 -- Num
 -- Ord
--- Save
-compileExpr env (In (App Ut.Save _ [e])) = compileExpr env e
 -- SizeProp
 compileExpr env (In (App Ut.PropSize _ [e])) = compileExpr env e
 -- SourceInfo
