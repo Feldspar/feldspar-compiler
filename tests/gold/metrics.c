@@ -4,7 +4,6 @@
 void metrics(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsignedS32_arr_signedS32 * v1, struct s_2_arr_unsignedS32_arr_s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32 * v2, struct s_2_arr_unsignedS32_arr_s_2_arr_unsignedS32_arr_signedS32 * out)
 {
   uint32_t v66;
-  uint32_t v65;
   struct array * v71 = NULL;
   uint32_t v67;
   uint32_t len0;
@@ -14,8 +13,7 @@ void metrics(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsig
   struct s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32 v69 = { .member1 = NULL, .member2 = NULL };
   uint32_t v72;
   
-  v65 = at(uint32_t,(*v2).member1,0);
-  v66 = v65;
+  v66 = at(uint32_t,(*v2).member1,0);
   v67 = at(uint32_t,(*v0).member1,0);
   len0 = at(uint32_t,(*v2).member1,0);
   (st1).member1 = initArray((st1).member1, sizeof(uint32_t), 1);
