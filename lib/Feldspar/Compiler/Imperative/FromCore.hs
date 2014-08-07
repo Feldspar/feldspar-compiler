@@ -31,6 +31,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+-- | Module that translates from the UntypedFeld program from the middleend to
+--   the module format in the backend.
 module Feldspar.Compiler.Imperative.FromCore (
     fromCore
   , getCore'
@@ -64,9 +66,6 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
-
--- Module that translates from the Syntactic program from the frontend to the
--- module format in the backend.
 
 {-
 
@@ -170,7 +169,7 @@ compileProgFresh env e = do
     compileProg env (Just loc) e
     return loc
 
--- Compile an expression and make sure that the result is stored in a variable
+-- | Compile an expression and make sure that the result is stored in a variable
 compileExprVar :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
 compileExprVar env e = do
     e' <- compileExpr env e
@@ -187,13 +186,14 @@ compileExprVar env e = do
         isNearlyVar (AddrOf e) = isNearlyVar e
         isNearlyVar _          = False
 
+-- | Compile a function bound by a LetFun.
 compileFunction :: CompileEnv -> Expression () -> (String, Fork, Ut.UntypedFeld)
                 -> CodeWriter ()
 compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
   es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
-  let args = nub $ (map exprToVar es') ++ fv loc
+  let args = nub $ map exprToVar es' ++ fv loc
   -- Task core:
-  ((_, ws), Block ds bl)  <- confiscateBigBlock $ do
+  ((_, ws), Block ds bl)  <- confiscateBigBlock $
     case kind of
       Future -> do
         p' <- compileExprVar env {inTask = True } e'
@@ -203,13 +203,14 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
       None -> compileProg env (Just loc) e'
   tellDef [Proc coreName args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
-  let taskName = "task" ++ (drop 9 coreName)
+  let taskName = "task" ++ drop 9 coreName
       runTask  = Just $ toBlock $ run coreName args
       outs     = [mkNamedRef "params" Rep.VoidType (-1)]
   case kind of
    _ | kind `elem` [None, Loop] -> return ()
    _    -> tellDef [Proc taskName [] (Left outs) runTask]
 
+-- | Create a variable of the right type for storing a length.
 mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
 mkLength env a t
   | isVariableOrLiteral a = compileExpr env a
@@ -219,7 +220,7 @@ mkLength env a t
       return lenvar
 
 mkBranch :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
-         -> Maybe (Ut.UntypedFeld) -> CodeWriter ()
+         -> Maybe Ut.UntypedFeld -> CodeWriter ()
 mkBranch env loc c th el = do
     ce <- compileExpr env c
     (_, tb) <- confiscateBlock $ compileProg env loc th
@@ -244,7 +245,7 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
    , t1 == e
    , t2 == e
    = do
-        blocks <- mapM (confiscateBlock . (compileBind env)) (init bs)
+        blocks <- mapM (confiscateBlock . compileBind env) (init bs)
         let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
         let ix = mkVar (compileTypeRep (opts env) tix) v
         len' <- mkLength env len tix
@@ -351,7 +352,8 @@ compileProg env (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.
       (lstate, stvar) <- mkDoubleBufferState loc st
       compileProg env (Just lstate) init'
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
-                          $ compileProg env (Just stvar) ixf >> (shallowCopyWithRefSwap lstate stvar)
+                          $ compileProg env (Just stvar) ixf
+                          >> shallowCopyWithRefSwap lstate stvar
       tellProg [toProg $ Block ds (for False (lName ix') len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
 compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
@@ -430,7 +432,7 @@ compileProg env _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _) body)])) =
 -- MutableToPure
 compileProg env (Just loc) (In (App Ut.RunMutableArray _ [marr]))
  | (In (App Ut.Bind _ [In (App Ut.NewArr_ _ [l]), In (Ut.Lambda (Ut.Var v _) body)])) <- marr
- , (In (App Ut.Return _ [(In (Ut.Variable (Ut.Var r _)))])) <- chaseBind body
+ , (In (App Ut.Return _ [In (Ut.Variable (Ut.Var r _))])) <- chaseBind body
  , v == r
  = do
      len <- compileExpr env l
@@ -449,7 +451,7 @@ compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) b
     e <- compileExpr env body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg env (Just loc) (In (App Ut.NoInline _ [e]))
+compileProg _ (Just _) (In (App Ut.NoInline _ [e]))
   = error ("Unexpected NoInline:" ++ show e)
 -- Par
 compileProg env loc (In (App Ut.ParRun _ [p])) = compileProg env loc p
@@ -465,7 +467,7 @@ compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
     declare var
     assign (Just var) val
     tellProg [iVarPut iv var]
-compileProg env loc (In (App Ut.ParFork _ [e]))
+compileProg _ _ (In (App Ut.ParFork _ [e]))
   = error ("Unexpected ParFork:" ++ show e)
 compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
 -- SizeProp
@@ -656,7 +658,7 @@ compileExpr env (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = 
 compileExpr env (In (App Ut.F2I t es)) = do
     es' <- mapM (compileExpr env) es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es'
-    return $ Cast (compileTypeRep (opts env) t) $ f'
+    return $ Cast (compileTypeRep (opts env) t) f'
 compileExpr env (In (App Ut.I2N t1 [e]))
  | (Rep.MachineVector 1 (Rep.ComplexType t)) <- t'
  = do
@@ -673,15 +675,15 @@ compileExpr env (In (App Ut.B2I t [e])) = do
 compileExpr env (In (App Ut.Round t es)) = do
     es' <- mapM (compileExpr env) es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es'
-    return $ Cast (compileTypeRep (opts env) t) $ f'
+    return $ Cast (compileTypeRep (opts env) t) f'
 compileExpr env (In (App Ut.Ceiling t es)) = do
     es' <- mapM (compileExpr env) es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es'
-    return $ Cast (compileTypeRep (opts env) t) $ f'
+    return $ Cast (compileTypeRep (opts env) t) f'
 compileExpr env (In (App Ut.Floor t es)) = do
     es' <- mapM (compileExpr env) es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
-    return $ Cast (compileTypeRep (opts env) t) $ f'
+    return $ Cast (compileTypeRep (opts env) t) f'
 -- Error
 compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
     compileAssert env cond msg
@@ -689,7 +691,7 @@ compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
 -- Eq
 -- FFI
 -- Floating
-compileExpr env (In (App Ut.Pi t [])) = error "No pi ready"
+compileExpr _ (In (App Ut.Pi t [])) = error "No pi ready"
 -- Fractional
 -- Future
 -- Literal

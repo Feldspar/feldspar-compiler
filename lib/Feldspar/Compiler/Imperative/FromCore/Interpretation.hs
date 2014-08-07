@@ -1,4 +1,3 @@
-{-# LANGUAGE ViewPatterns #-}
 --
 -- Copyright (c) 2009-2011, ERICSSON AB
 -- All rights reserved.
@@ -285,10 +284,10 @@ encodeType = go
 -- Almost the inverse of encodeType. Some type encodings are lossy so
 -- they are impossible to recover.
 decodeType :: String -> [Type]
-decodeType s = goL s []
+decodeType = goL []
   where
-    goL [] acc = reverse acc
-    goL s acc = goL rest' (out:acc)
+    goL acc [] = reverse acc
+    goL acc s  = goL (out:acc) rest'
        where (out, rest) = go s
              rest' = case rest of
                       '_':t -> t
@@ -308,7 +307,7 @@ decodeType s = goL s []
     go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
      where (tt, t') = go t
     go (stripPrefix "a_"       -> Just t) = (AliasType tt s', t'')
-     where Just (n, ('_':t')) = decodeLen t
+     where Just (n, '_':t') = decodeLen t
            s' = take n t'
            (tt, t'') = go $ drop n t'
     go (stripPrefix "i_"       -> Just t) = (IVarType tt, t')

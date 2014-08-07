@@ -13,7 +13,7 @@ module Feldspar.Compiler.CallConv
 
 import Language.Haskell.TH
 
-import System.Plugins.MultiStage
+import System.Plugins.MultiStage hiding (ref)
 
 import Foreign.Ptr (Ptr)
 
