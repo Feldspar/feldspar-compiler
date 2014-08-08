@@ -5,12 +5,11 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation (decodeType)
 import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
-  Deref, AddrOf, Unsigned, Signed)
+  Deref, AddrOf, Unsigned, Signed, inParams)
 import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun', call)
 
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
-import qualified Language.C.Parser.Tokens as T
 import Language.C.Syntax
 import Data.List (intersperse, mapAccumL)
 import Data.Loc
@@ -32,12 +31,12 @@ import Debug.Trace
 -- that bugs do occur.
 
 parseFile :: FilePath -> B.ByteString -> [Entity ()] -> Maybe (Module ())
-parseFile filename s headerDefs = do
+parseFile filename s hDefs =
   case P.parse [C99] builtin_types P.parseUnit s' (startPos filename) of
       Left err -> Nothing
-      Right defs -> Just (Module $ fhDefs ++ toProgram headerDefs defs)
+      Right defs -> Just (Module $ fhDefs ++ toProgram hDefs defs)
    where s' = massageInput s
-         fhDefs = filter isStructDef headerDefs
+         fhDefs = filter isStructDef hDefs
          isStructDef StructDef{} = True
          isStructDef _           = False
 
@@ -58,11 +57,11 @@ toProgram hDefs defs = rest' ++ reverse funcs'
         isFunc _         = False
 
 defsToProgram :: TPEnv -> [Definition] -> (TPEnv, [Entity ()])
-defsToProgram env defs = mapAccumL defToProgram env defs
+defsToProgram = mapAccumL defToProgram
 
 defToProgram :: TPEnv -> Definition -> (TPEnv, Entity ())
 defToProgram env (FuncDef func _) = funcToProgram env func
-defToProgram env (DecDef (InitGroup ds attr is@[(Init n Array{} Nothing (Just (CompoundInitializer ins _)) _ _)] _) _)
+defToProgram env (DecDef (InitGroup ds attr is@[Init n Array{} Nothing (Just (CompoundInitializer ins _)) _ _] _) _)
   = valueToProgram env ds is n ins'
    where ins' = map snd ins
 defToProgram env (DecDef ig _) = initGroupToDeclaration env ig
@@ -109,7 +108,7 @@ blockDeclToDecl env (BlockDecl ig) = (env', dv)
         dv = map (\(_, v) -> Declaration v Nothing) igv -- Program decl
 
 blockItemsToProgram :: TPEnv -> [BlockItem] -> (TPEnv, [Program ()])
-blockItemsToProgram env is = mapAccumL blockItemToProgram env is
+blockItemsToProgram = mapAccumL blockItemToProgram
 
 blockItemToProgram :: TPEnv -> BlockItem -> (TPEnv, Program ())
 blockItemToProgram _ b@BlockDecl{}
@@ -124,46 +123,46 @@ blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_get_nontask
     where (FunctionCall (Function "ivar_get_nontask" _) es) = expToExpression env e
           tp = TypeParameter $ typeof (R.Deref (head es))
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "ivar_put" _) _) _ _)) _))
-  = (env, ProcedureCall s (tp:(map ValueParameter es)))
+  = (env, ProcedureCall s (tp:map ValueParameter es))
    where (FunctionCall (Function s _) es) = expToExpression env e
          tp = TypeParameter (typeof (R.Deref (last es)))
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run2" _) _) _ _)) _))
-  = (env, ProcedureCall s ((FunParameter e1):tp))
+  = (env, ProcedureCall s (FunParameter e1:tp))
    where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run3" _) _) _ _)) _))
-  = (env, ProcedureCall s ((FunParameter e1):tp))
+  = (env, ProcedureCall s (FunParameter e1:tp))
    where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run4" _) _) _ _)) _))
-  = (env, ProcedureCall s ((FunParameter e1):tp))
+  = (env, ProcedureCall s (FunParameter e1:tp))
    where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "run5" _) _) _ _)) _))
-  = (env, ProcedureCall s ((FunParameter e1):tp))
+  = (env, ProcedureCall s (FunParameter e1:tp))
    where (FunctionCall (Function s _) [VarExpr (Variable _ e1)]) = expToExpression env e
          tp = map TypeParameter $ lookup3 e1 (headerDefs env)
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn2" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)),e2,e3]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1),e2,e3]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3]
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn3" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)),e2,e3,e4]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1),e2,e3,e4]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4]
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn4" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1), e2, e3, e4, e5]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4
               , TypeParameter (typeof e5), ValueParameter e5]
 blockItemToProgram env (BlockStm (Exp (Just e@(FnCall (Var (Id "spawn5" _) _) _ _)) _))
   = (env, ProcedureCall s es)
-   where (FunctionCall (Function s _) [(VarExpr (Variable _ e1)), e2, e3, e4, e5, e6]) = expToExpression env e
+   where (FunctionCall (Function s _) [VarExpr (Variable _ e1), e2, e3, e4, e5, e6]) = expToExpression env e
          es = [ FunParameter e1, TypeParameter (typeof e2), ValueParameter e2
               , TypeParameter (typeof e3), ValueParameter e3
               , TypeParameter (typeof e4), ValueParameter e4
@@ -219,7 +218,7 @@ stmToProgram env (Switch e (Block alts _) _)
 stmToProgram env (While e s _) = SeqLoop cond (toBlock Empty) (toBlock p)
   where cond = expToExpression env e
         p = stmToProgram env s
-stmToProgram env (DoWhile s e _) = error "stmToProgram: No support for Do."
+stmToProgram _ (DoWhile s e _) = error "stmToProgram: No support for Do."
 stmToProgram env (For (Left es) (Just (BinOp Lt name@Var{} v2 _))
                       (Just (Assign lhs AddAssign rhs _)) s _)
   = ParLoop False v' (expToExpression env' v2) (expToExpression env' rhs) body
@@ -231,7 +230,7 @@ stmToProgram _ Continue{} = error "stmToProgram: No support for continue."
 stmToProgram _ Break{} = error "stmToProgram: Unexpected break."
 stmToProgram env (Return (Just e) _)
   = call "return" [ValueParameter $ expToExpression env e]
-stmToProgram env (Pragma s _) = error "Pragma not supported yet."
+stmToProgram _ (Pragma _ _) = error "Pragma not supported yet."
 stmToProgram _ a@Asm{} = error ("stmToProgram: unexpected asm: " ++ show a)
 stmToProgram _ e = error ("stmToProgram: Unhandled construct: " ++ show e)
 
@@ -239,12 +238,12 @@ impureExpToProgram :: TPEnv -> Exp -> (TPEnv, Program ())
 -- Hook for padding incomplete struct array * type info.
 impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "initArray" _) _)
-                                         [e1', (SizeofType e2' _), e3'] _) _)
+                                         [e1', SizeofType e2' _, e3'] _) _)
   = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
    where env' = fixupEnv env e $ typToType env e2'
 impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "setLength" _) _)
-                                         [e1', (SizeofType e2' _), e3'] _) _)
+                                         [e1', SizeofType e2' _, e3'] _) _)
   = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
    where env' = fixupEnv env e $ typToType env e2'
 impureExpToProgram env (Assign e1 JustAssign e2 _)
@@ -281,7 +280,7 @@ expToExpression _ SizeofExp{} = error "expToExpression: No support for sizeof ex
 expToExpression env (SizeofType t _) = R.SizeOf $ typToType env t
 expToExpression env (Cast t e _)
   = R.Cast (typToType env t) (expToExpression env e)
-expToExpression env (Cond c e1 e2 _) = error "expToExpression: No support for conditional statements."
+expToExpression _ (Cond c e1 e2 _) = error "expToExpression: No support for conditional statements."
 expToExpression env (Member e name _)
   = StructField (expToExpression env e) (unId name)
 expToExpression _ PtrMember{} = error "expToExpression: No support for ptrmember."
@@ -328,7 +327,7 @@ opToString Lsh = Right "<<"
 opToString Rsh = Right ">>"
 
 expToFunctionCall :: TPEnv -> [Expression ()] -> Exp -> Expression ()
-expToFunctionCall env es (Var name _)
+expToFunctionCall _ es (Var name _)
   | Just v <- lookup (unId name) builtins
   = fun (varType v) (varName v) es
   | otherwise = fun fakeType (unId name) es
@@ -340,16 +339,16 @@ castConstant (MachineVector 1 t) (R.IntConst i _) = R.IntConst i t
 castConstant _ c = error ("castConstant: Unexpected argument: " ++ show c)
 
 constToConstant :: Const -> Constant ()
-constToConstant (IntConst s sgn i _)
+constToConstant (IntConst _ sgn i _)
   = R.IntConst i (NumType (signToSign sgn) S32)
-constToConstant (LongIntConst s sgn i _)
+constToConstant (LongIntConst _ sgn i _)
   = R.IntConst i (NumType (signToSign sgn) S64)
-constToConstant (LongLongIntConst s sgn i _)
+constToConstant (LongLongIntConst _ sgn i _)
   = R.IntConst i (NumType (signToSign sgn) S64)
-constToConstant (FloatConst s r _) = R.FloatConst (fromRational r)
-constToConstant (DoubleConst s r _) = R.DoubleConst (fromRational r)
-constToConstant (LongDoubleConst s r _) = R.DoubleConst (fromRational r)
-constToConstant (CharConst s c _)
+constToConstant (FloatConst _ r _) = R.FloatConst (fromRational r)
+constToConstant (DoubleConst _ r _) = R.DoubleConst (fromRational r)
+constToConstant (LongDoubleConst _ r _) = R.DoubleConst (fromRational r)
+constToConstant (CharConst _ c _)
   = error "constToConstant: No support for character constants."
 constToConstant (StringConst ss s _)
   = error "constToConstant: No support for string constants."
@@ -444,9 +443,9 @@ declToType t (Ptr tqs dcl _)  = declToType (Pointer t) dcl
 declToType t BlockPtr{} = error "Blocks?"
 declToType t (Array tqs (NoArraySize _) dcl _) = NativeArray Nothing t
 declToType t (Array tqs sz dcl _)
-  = error ("declToType: No support for sized native arrays yet.")
+  = error "declToType: No support for sized native arrays yet."
 declToType t (Proto dcl params _)
-  = trace ("DEBUG: Proto: " ++ show params) $ t
+  = trace ("DEBUG: Proto: " ++ show params) t
 declToType t (OldProto dcl ids _) = error "OldProto"
 declToType _ d = error ("declToType: Unhandled construct: " ++ show d)
 
@@ -473,8 +472,6 @@ unId (Id n _) = n
 unId i = error ("unId: Unhandled construct: " ++ show i)
 
 -- Some place holders.
-fakeVar :: R.Variable ()
-fakeVar = Variable fakeType "FAKE"
 fakeType :: R.Type
 fakeType = VoidType
 
@@ -485,7 +482,7 @@ builtins =
   ]
 
 findBuiltinDeclaration :: TPEnv -> String -> Maybe R.Type
-findBuiltinDeclaration env s = go (headerDefs env) s
+findBuiltinDeclaration env = go (headerDefs env)
   where go [] s = Nothing
         go ((_, _, StructDef n fs):t) s
          | n == s = Just (StructType n (map toType fs))
@@ -494,13 +491,13 @@ findBuiltinDeclaration env s = go (headerDefs env) s
         toType (StructMember n t) = (n, t)
 
 findLocalDeclaration :: TPEnv -> String -> Maybe R.Type
-findLocalDeclaration env s = go (typedefs env) s
+findLocalDeclaration env = go (typedefs env)
   where go [] s = Nothing
         go (tp@(StructType n _):t) s | n == s = Just tp
                                      | otherwise = go t s
         go e s = error ("findLocalDeclaration: Non-Struct found: " ++ show e)
 
--- Environments.
+-- | Environments.
 data TPEnv = TPEnv
     { vars :: [(String, Variable ())]
     , typedefs :: [R.Type]
@@ -508,7 +505,7 @@ data TPEnv = TPEnv
     } deriving Show
 
 emptyEnv :: [(String, [R.Type], Entity ())] -> TPEnv
-emptyEnv hDefs = TPEnv [] [] hDefs
+emptyEnv = TPEnv [] []
 
 updateEnv :: TPEnv -> [R.Variable ()] -> TPEnv
 updateEnv env ns = env { vars = nt ++ vars env }
@@ -528,28 +525,28 @@ plusEnv (TPEnv vs1 tdefs1 hdefs) (TPEnv vs2 tdefs2 _ )
 fixupEnv :: TPEnv -> Exp -> R.Type -> TPEnv
 fixupEnv env (Var (Id s _) _) tp = env { vars = goVar (vars env) }
   where goVar [] = []
-        goVar (p@(n,(Variable (ArrayType r _) n')):t)
-         | s == n = (n, (Variable (ArrayType r tp) n')):goVar t
+        goVar (p@(n, Variable (ArrayType r _) n'):t)
+         | s == n = (n, Variable (ArrayType r tp) n'):goVar t
         goVar (p:t) = p:goVar t
 fixupEnv env (Member (Var (Id s _) _) (Id name _) _) tp = env { vars = goStruct (vars env) }
   where goStruct [] = []
-        goStruct (p@(n,(Variable (StructType s' ns) n')):t)
+        goStruct (p@(n, Variable (StructType s' ns) n'):t)
          | s == n
          , Just v <- lookup name ns
-         = (n, (Variable (StructType s' ns') n')):goStruct t
+         = (n, Variable (StructType s' ns') n'):goStruct t
            where ns' = map structFixup ns
-                 structFixup e@(mem, ArrayType r _)
+                 structFixup (mem, ArrayType r _)
                   | mem == name = (mem, ArrayType r tp)
-                 structFixup e@(mem, othertype)
+                 structFixup (mem, othertype)
                   | mem == name = (mem, tp)
                  structFixup e = e
         goStruct (p:t) = p:goStruct t
 fixupEnv env (Member (FnCall (Var (Id "at" _) _) [Var (Id s _) _, _] _) (Id name _) _) tp = env { vars = goStructAt (vars env) }
   where goStructAt [] = []
-        goStructAt (p@(n,(Variable (StructType s' ns) n')):t)
+        goStructAt (p@(n, Variable (StructType s' ns) n'):t)
          | s == n
          , Just v <- lookup name ns
-         = (n, (Variable (StructType s' ns') n')):goStructAt t
+         = (n, Variable (StructType s' ns') n'):goStructAt t
            where ns' = map structFixup ns
                  structFixup e@(mem, ArrayType r _)
                   | mem == name = (mem, ArrayType r tp)
@@ -561,15 +558,15 @@ fixupEnv env e tp = env
 
 patchHdefs :: [Entity ()] -> [(String, [R.Type], Entity ())]
 patchHdefs [] = []
-patchHdefs (d@(StructDef s members):t)
+patchHdefs (StructDef s members:t)
   = (s, map snd ts, StructDef s $ map toDef ts):patchHdefs t
-  where [(StructType _ ts)] = decodeType s
+  where [StructType _ ts] = decodeType s
         toDef (n,t') = StructMember n t'
 patchHdefs (p@(Proc n ins outs Nothing):t)
-  = (n, (map typeof ins) ++ etypeof outs, p):patchHdefs t
+  = (n, map typeof ins ++ etypeof outs, p):patchHdefs t
    where etypeof (Left es) = map typeof es
          etypeof (Right e) = [typeof e]
-patchHdefs (e:t) = patchHdefs t
+patchHdefs (_:t) = patchHdefs t
 
 mkDef :: R.Type -> [Entity ()]
 mkDef (StructType n fields)
