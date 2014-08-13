@@ -133,6 +133,7 @@ getDB = unsafePerformIO $ do
       pd <- readPackageDescription verbose =<< defaultPackageDesc verbose
       let f a = return $ includeDirs $ libBuildInfo a
       maybe (return []) f (maybeHasLibs $ flattenPackageDescription pd)
+{-# NOINLINE getDB #-}
 
 maybeHasLibs :: PackageDescription -> Maybe Library
 maybeHasLibs p =
