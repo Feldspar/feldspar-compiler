@@ -49,7 +49,7 @@ import Control.Applicative
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
          ( Term(..), Lit(..), collectLetBinders, collectBinders
-         , UntypedFeldF(App, LetFun), Fork(..)
+         , UntypedFeldF(App, LetFun), Fork(..), typeof
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
@@ -119,6 +119,7 @@ compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
   withAlias v arge $
      compileProgTop opt body
 compileProgTop opt (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
+  | representableType l
   = do tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
          compileProgTop opt body
@@ -760,6 +761,17 @@ literal _   t@LArray{}    = return (ConstExpr $ literalConst t)
 literal env t = do loc <- freshVar (opts env) "x" (typeof t)
                    literalLoc env loc t
                    return loc
+
+-- | Returns true if we can represent the literal in Program.
+representableType :: Ut.Lit -> Bool
+representableType l
+  | Ut.ArrayType{} <- t = True
+  -- Simple types.
+  | Ut.IntType{} <- t = True
+  | Ut.ComplexType{} <- t = True
+  | otherwise
+  = t `elem` [Ut.UnitType, Ut.DoubleType, Ut.FloatType, Ut.BoolType]
+      where t = typeof l
 
 literalConst :: Ut.Lit -> Constant ()
 literalConst LUnit          = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
