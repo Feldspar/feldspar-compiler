@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ForeignFunctionInterface #-}
 
 module Main where
 
@@ -11,6 +12,10 @@ import GHC.Ptr
 
 import Control.Monad (forM)
 import Foreign.Marshal (with)
+-- Terrible error messages if constructors are not imported. See
+-- https://ghc.haskell.org/trac/ghc/ticket/5610 for more information.
+import Foreign.C.Types (CInt(..), CDouble(..))
+import Foreign.Ptr (Ptr(..))
 import Data.Default
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
@@ -21,10 +26,13 @@ import Criterion.Main
 testdata :: [WordN]
 testdata = cycle [1,2,3,4]
 
+-- foreign import ccall unsafe "MatMulC.h MatMulC" matMulC :: CInt -> CInt -> Ptr CDouble -> Ptr CDouble -> IO (Ptr CDouble)
+
 matmul :: Pull DIM2 (Data WordN) -> Pull DIM2 (Data WordN) -> Pull DIM2 (Data WordN)
 matmul = mmMult True
 
 loadFunOpts ["-optc=-O2"] 'matmul
+-- loadFunOpts ["-optc=-O2"] 'matMulC
 
 len :: Length
 len = 64
