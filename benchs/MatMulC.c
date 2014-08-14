@@ -1,11 +1,9 @@
 #include <stdlib.h>
 #include "MatMulC.h"
 
-double * MatMulC(int rows, int len, double *a, double *b)
+void MatMulC(int rows, int len, double *a, double *b, double *c)
 {
   int i,j,k;
-
-  double *c = malloc( len*sizeof(double) );
 
   for( i = 0; i < rows; i++ ) {
     for( j = 0; j < rows; j+=2 ) {
@@ -19,6 +17,4 @@ double * MatMulC(int rows, int len, double *a, double *b)
       c[i*rows + j+1] = sum1;
     }
   }
-
-  return c;
 }

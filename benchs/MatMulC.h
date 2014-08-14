@@ -1,6 +1,6 @@
 #ifndef _MATMULC_
 #define _MATMULC_
 
-double *MatMulC(int, int, double *, double *);
+void MatMulC(int, int, double *, double *, double *);
 
 #endif
