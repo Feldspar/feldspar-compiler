@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE PatternGuards #-}
-module Feldspar.Compiler.Backend.C.MachineLowering (rename) where
+module Feldspar.Compiler.Backend.C.MachineLowering  where
 
 import qualified Data.Map as M
 
@@ -18,7 +18,8 @@ import Feldspar.Compiler.Backend.C.RuntimeLibrary
 
 -- | External interface for renaming.
 rename :: Options -> Bool -> Module () -> Module ()
-rename opts addRuntimeLib m = rename' opts addRuntimeLib x m
+rename opts addRuntimeLib m = rename' opts addRuntimeLib M.empty m
+-- rename opts addRuntimeLib m = rename' opts addRuntimeLib x m
   where x = getPlatformRenames (name $ platform opts)
 
 -- | Internal interface for renaming.

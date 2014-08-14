@@ -60,11 +60,11 @@ mkInitialize name loc@(Just arr) len
     go (ArrayType _ e) = e
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
-initArray :: Maybe (Expression ()) -> Expression () -> Program ()
-initArray = mkInitialize "initArray"
+mkInitArray :: Maybe (Expression ()) -> Expression () -> Program ()
+mkInitArray = mkInitialize "initArray"
 
-setLength :: Maybe (Expression ()) -> Expression () -> Program ()
-setLength = mkInitialize "setLength"
+mkSetLength :: Maybe (Expression ()) -> Expression () -> Program ()
+mkSetLength = mkInitialize "setLength"
 
 freeArray :: Variable () -> Program ()
 freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]

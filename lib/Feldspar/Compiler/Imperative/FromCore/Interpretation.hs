@@ -27,6 +27,7 @@
 --
 
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -36,15 +37,18 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
-
+import Prelude hiding (sequence,mapM)
 import Control.Arrow
-import Control.Monad.RWS.Strict
+import Control.Monad (liftM,zipWithM_,when,void)
+import Control.Monad.RWS.Strict (RWS(..),get,put,censor,listen,tell,asks,local)
 import Control.Applicative
 
 import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix, nub)
 import Data.Tree
 import Data.Maybe
+import Data.Monoid
+import Data.Traversable
 
 import Feldspar.Range (upperBound, fullRange)
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -86,12 +90,12 @@ instance Monoid Writers
                           , params   = mempty
                           , epilogue = mempty
                           }
-    mappend a b = Writers { block    = mappend (block    a) (block    b)
-                          , def      = mappend (def      a) (def      b)
-                          , decl     = mappend (decl     a) (decl     b)
-                          , params   = mappend (params   a) (params   b)
-                          , epilogue = mappend (epilogue a) (epilogue b)
-                          }
+    mappend !a !b = Writers { block    = mappend (block    a) (block    b)
+                            , def      = mappend (def      a) (def      b)
+                            , decl     = mappend (decl     a) (decl     b)
+                            , params   = mappend (params   a) (params   b)
+                            , epilogue = mappend (epilogue a) (epilogue b)
+                            }
 
 data States = States { fresh :: Integer              -- ^ The first fresh variable id
                      , stash :: Maybe Ut.UntypedFeld -- ^ Loop canary
@@ -184,11 +188,57 @@ freshId = do
     put (s {fresh = v + 1})
     return v
 
+compileTRep :: Options -> Ut.Type -> Tree (Maybe Type)
+compileTRep opt = go
+  where
+    go Ut.UnitType = return $ Just VoidType
+    go Ut.BoolType                 = return $ Just $ MachineVector 1 BoolType
+    go (Ut.IntType s n)            = return $ Just $ MachineVector 1 (NumType s n)
+    go Ut.FloatType                = return $ Just $ MachineVector 1 FloatType
+    go Ut.DoubleType               = return $ Just $ MachineVector 1 DoubleType
+    go (Ut.ComplexType t)          = fmap (MachineVector 1 . ComplexType) <$> go t
+    go (Ut.Tup2Type a b)           = Node Nothing $ map go [a, b]
+    go (Ut.Tup3Type a b c)         = Node Nothing $ map go [a,b,c]
+    go (Ut.Tup4Type a b c d)       = Node Nothing $ map go [a,b,c,d]
+    go (Ut.Tup5Type a b c d e)     = Node Nothing $ map go [a,b,c,d,e]
+    go (Ut.Tup6Type a b c d e f)   = Node Nothing $ map go [a,b,c,d,e,f]
+    go (Ut.Tup7Type a b c d e f g) = Node Nothing $ map go [a,b,c,d,e,f,g]
+    go (Ut.MutType a)              = go a
+    go (Ut.RefType a)              = go a
+    go (Ut.ArrayType rs a)
+       | useNativeArrays opt       = fmap (NativeArray (Just $ upperBound rs)) <$> go a
+       | otherwise                 = fmap (ArrayType rs) <$> go a
+    go (Ut.MArrType rs a)
+       | useNativeArrays opt       = fmap (NativeArray (Just $ upperBound rs)) <$> go a
+       | otherwise                 = fmap (ArrayType rs) <$> go a
+    go (Ut.ParType a)              = go a
+    go (Ut.ElementsType a)
+       | useNativeArrays opt       = fmap (NativeArray Nothing) <$> go a
+       | otherwise                 = fmap (ArrayType fullRange) <$> go a
+    go (Ut.IVarType a)             = fmap IVarType <$> go a
+    go (Ut.FunType _ b)            = go b
+    go (Ut.FValType a)             = fmap IVarType <$> go a
+    go typ                         = error $ "compileTRep: missing " ++ show typ  -- TODO
+
+mkV :: Options -> String -> Ut.Type -> Integer -> CodeWriter MultiExpr
+mkV opt base typ i = do
+    let e = mapTree mk (base++show i) $ compileTRep opt typ
+    mapM (maybe (return ()) declare) e
+    return e
+  where
+    mk b (Just t) = Just $ varToExpr $ Variable t b
+    mk _ Nothing  = Nothing
+    
 freshVar :: Options -> String -> Ut.Type -> CodeWriter MultiExpr
-freshVar opt base t = do
-    v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
-    declare v
-    return $ mkLoc v
+freshVar opt base typ = mkV opt base typ =<< freshId
+
+mapTree :: (String -> a -> b) -> String -> Tree a -> Tree b
+mapTree = mapTree' (\b j -> b++"_"++show j)
+
+mapTree' :: (c -> Int -> c) -> (c -> a -> b) -> c -> Tree a -> Tree b
+mapTree' g f = go
+  where
+    go c (Node x ns) = Node (f c x) $ zipWith (\j y -> go (g c j) y) [1..] ns
 
 freshAlias :: Expression () -> CodeWriter MultiExpr
 freshAlias e = do
@@ -340,9 +390,14 @@ getTypes defs = nub $ concatMap mkDef comps
     mkDef _                 = []
 
 assign :: Location -> MultiExpr -> CodeWriter ()
-assign lhs@(Node _ []) rhs@(Node _ [])                  = tellProg [copyProg lhs [rhs]]
-assign (Node _ ls) (Node _ rs) | length ls == length rs = zipWithM_ assign ls rs
-assign lhs rhs = error $ unwords ["assign:","malformed trees",show lhs,show rhs]
+assign lhs rhs
+    | lhs `sameShape` rhs
+    = zipWithM_ cpy (flatten lhs) (flatten rhs)
+    | otherwise = error $ unlines ["assign: expression shape mismatch", show lhs, show rhs]
+  where
+    sameShape a b = void a == void b
+    cpy (Just a) (Just b) = tellProg [call "copy" $ map ValueParameter [a,b]]
+    cpy _ _ = return ()
 
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
@@ -355,19 +410,32 @@ copyProg (leaf -> Just outExp) inExps =
     call "copy" (map ValueParameter (outExp:(mapMaybe leaf inExps)))
 
 
-shallowAssign :: Location -> Expression () -> CodeWriter ()
-shallowAssign loc@(leaf -> Just dst) src | dst /= src = tellProg [Assign (Just dst) src]
-shallowAssign _                      _                = return ()
+shallowAssign :: Location -> MultiExpr -> CodeWriter ()
+shallowAssign dst src
+    | dst `sameShape` src
+    = zipWithM_ cpy (flatten dst) (flatten src)
+    | otherwise = error $ unlines ["shallowAssign: expression shape mismatch", show dst, show src] 
+  where
+    sameShape a b = void a == void b
+    cpy (Just d) (Just s) | d /= s = tellProg [Assign (Just d) s]
+    cpy _ _ = return ()
 
-shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
+shallowCopyWithRefSwap :: MultiExpr -> MultiExpr -> CodeWriter ()
 shallowCopyWithRefSwap dst src
-  | dst /= src
-  = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
-      [] -> tellProg [Assign (Just dst) src]
-      arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF, _) <- arrs]
-                 tellProg [Assign (Just dst) src]
-                 tellProg [Assign (Just $ accF src) tmp | (Just tmp, (accF, _)) <- zip (map leaf temps) arrs]
-  | otherwise = return ()
+    | dst `sameShape` src
+    = zipWithM_ cpy (flatten dst) (flatten src)
+    | otherwise = error $ unlines ["shallowCopyWithRefSwap: expression shape mismatch", show dst, show src]
+  where
+    sameShape a b = void a == void b
+    cpy (Just d) (Just s) = tellProg [Assign (Just d) s]
+    cpy _ _ = return ()
+  -- TODO
+  -- | dst /= src
+  -- = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
+  --     [] -> tellProg [Assign (Just dst) src]
+  --     arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF, _) <- arrs]
+  --                tellProg [Assign (Just dst) src]
+  --                tellProg [Assign (Just $ accF src) tmp | (Just tmp, (accF, _)) <- zip (map leaf temps) arrs]
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyReferences dst src
@@ -403,20 +471,25 @@ The strategy implemented a compromise between different design constraints:
     - Avoid memory leaks of arrays and ivars
 -}
 
-mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Expression ())
-mkDoubleBufferState loc stvar
-   = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc)
-                     then return loc
-                     else do Just vexp <- leaf <$> freshAlias loc
-                             shallowCopyReferences vexp loc
-                             return vexp
-        stvar2 <- if isComposite $ typeof loc
-                     then do let vexp2 = mkVar (typeof loc) stvar
-                             declare vexp2
-                             return vexp2
-                     else return stvar1
-        return (stvar1, stvar2)
-
+mkDoubleBufferState :: MultiExpr -> Integer -> CodeWriter (MultiExpr, MultiExpr)
+mkDoubleBufferState loc stvar = do
+    ps <- sequence $ mapTree go ('v':show stvar) loc
+    return (fmap fst ps,fmap snd ps)
+  where
+    go :: String -> Maybe (Expression ()) -> CodeWriter (Maybe (Expression ()),Maybe (Expression ()))
+    go _ Nothing  = return (Nothing,Nothing)
+    go b (Just l) = do
+      stvar1 <- if isVarExpr l || containsNativeArray (typeof l)
+                  then return l
+                  else do Just vexp <- leaf <$> freshAlias l
+                          shallowCopyReferences vexp l
+                          return vexp
+      stvar2 <- if isComposite $ typeof l
+                  then do let vexp2 = varToExpr $ Variable (typeof l) b
+                          declare vexp2
+                          return vexp2
+                  else return stvar1
+      return (Just stvar1, Just stvar2)
 
 -- | Like 'listen', but also prevents the program from being written in the
 -- monad.
