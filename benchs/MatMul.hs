@@ -23,12 +23,12 @@ import Control.Exception (evaluate)
 import BenchmarkUtils
 import Criterion.Main
 
-testdata :: [WordN]
-testdata = cycle [1,2,3,4]
+testdata :: [Double]
+testdata = cycle [1.1,2.2,3.3,4.4]
 
 foreign import ccall unsafe "MatMulC.h MatMulC" matMulC :: CInt -> CInt -> Ptr CDouble -> Ptr CDouble -> IO (Ptr CDouble)
 
-matmul :: Pull DIM2 (Data WordN) -> Pull DIM2 (Data WordN) -> Pull DIM2 (Data WordN)
+matmul :: Pull DIM2 (Data Double) -> Pull DIM2 (Data Double) -> Pull DIM2 (Data Double)
 matmul = mmMult True
 
 loadFunOpts ["-optc=-O2"] 'matmul
@@ -39,7 +39,7 @@ len = 64
 
 main :: IO ()
 main = with def $ \out -> do
-  td <- evaluate $ take (512*512) (map fromIntegral testdata :: [CDouble])
+  td <- evaluate $ take (512*512) (map realToFrac testdata :: [CDouble])
   withArray td $ \d' -> do
     let lss = map (map (*len)) [[1,1],[2,2],[4,4],[8,8]]
     bs <- forM lss $ \ls -> do
