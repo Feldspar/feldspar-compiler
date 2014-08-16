@@ -32,7 +32,6 @@ matmul :: Pull DIM2 (Data Double) -> Pull DIM2 (Data Double) -> Pull DIM2 (Data 
 matmul = mmMult True
 
 loadFunOpts ["-optc=-O2"] 'matmul
--- loadFunOpts ["-optc=-O2"] 'matMulC
 
 len :: Length
 len = 64
