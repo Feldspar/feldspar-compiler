@@ -1,7 +1,7 @@
 Feldspar Compiler
 =================
 
-[![Build Status](https://travis-ci.org/Feldspar/feldspar-compiler.png)](https://travis-ci.org/Feldspar/feldspar-compiler)
+[![Build Status](https://travis-ci.org/Feldspar/feldspar-compiler.svg?branch=master)](https://travis-ci.org/Feldspar/feldspar-compiler)
 
 This is the compiler for the Feldspar Language.
 
