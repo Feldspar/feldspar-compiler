@@ -1,4 +1,7 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Main where
 
@@ -12,6 +15,7 @@ import Test.Tasty.QuickCheck
 
 import qualified Prelude
 import Feldspar
+import Feldspar.Core.Constructs
 import Feldspar.Compiler
 import Feldspar.Compiler.Plugin
 import Feldspar.Compiler.ExternalProgram (compileFile)
@@ -222,7 +226,7 @@ nativeOpts = defaultOptions{useNativeArrays=True}
 nativeRetOpts :: Options
 nativeRetOpts = defaultOptions{useNativeReturns=True}
 
-writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
+writeGoldFile :: SyntacticFeld a => a -> Prelude.FilePath -> Options -> IO ()
 writeGoldFile fun n = compile fun (goldDir <> n) n
 
 mkGoldTest fun n opts = do
