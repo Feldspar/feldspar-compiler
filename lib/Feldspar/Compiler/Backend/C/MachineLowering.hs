@@ -18,8 +18,7 @@ import Feldspar.Compiler.Backend.C.RuntimeLibrary
 
 -- | External interface for renaming.
 rename :: Options -> Bool -> Module () -> Module ()
-rename opts addRuntimeLib m = rename' opts addRuntimeLib M.empty m
--- rename opts addRuntimeLib m = rename' opts addRuntimeLib x m
+rename opts addRuntimeLib m = rename' opts addRuntimeLib x m
   where x = getPlatformRenames (name $ platform opts)
 
 -- | Internal interface for renaming.
@@ -73,7 +72,7 @@ renameExp m (ArrayElem e1 e2)   = ArrayElem (renameExp m e1) (renameExp m e2)
 renameExp m (StructField e s)   = StructField (renameExp m e) s
 renameExp _ c@ConstExpr{}       = c
 renameExp m (FunctionCall f es) = res
-  where f'@(Function new t) = (renameFun m (typeof $ head es) f)
+  where f'@(Function new t) = renameFun m (typeof $ head es) f
         es' = map (renameExp m) es
         res | new /= "div"      = FunctionCall f' es'
             | [arg1,arg2] <- es
