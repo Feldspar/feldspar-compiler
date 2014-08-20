@@ -13,12 +13,6 @@
 #include <complex.h>
 
 
-struct s_2_unsignedS32_arr_unsignedS32
-{
-  uint32_t member1;
-  struct array * member2;
-};
-
 void arrayInStruct(struct array * v0, struct array * * out);
 
 #endif // TESTS_ARRAYINSTRUCT_H

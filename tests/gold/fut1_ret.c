@@ -24,6 +24,7 @@ void fut1__ret(struct ivar v0, struct ivar * out)
   {
     ivar_init(&e0);
     spawn1(task0, struct ivar, e0);
+    e0 = e0;
   }
   *out = e0;
 }
