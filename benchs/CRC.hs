@@ -39,7 +39,7 @@ main = with def $ \out -> do
     pd <- pack ([len],d) >>= evaluate
     _  <- evaluate c_naive_builder
     _  <- evaluate c_normal_builder
-    defaultMainWith (mkConfig "report_crc.html") (return ())
+    defaultMainWith (mkConfig "report_crc.html")
       [
         bgroup "evaluated"
           [ bench "h_naive"  $ nf h_naive  ([1024],Prelude.take 1024 d)
@@ -47,12 +47,12 @@ main = with def $ \out -> do
           ]
       , bgroup "compiled"
           [ bgroup "marshal"
-              [ bench "c_naive"  $ c_naive_worker ([len],d)
-              , bench "c_normal" $ c_normal_worker ([len],d)
+              [ bench "c_naive"  $ whnfIO $ c_naive_worker ([len],d)
+              , bench "c_normal" $ whnfIO $ c_normal_worker ([len],d)
               ]
           , bgroup "raw"
-              [ bench "c_naive"  $ c_naive_raw pd out
-              , bench "c_normal" $ c_normal_raw pd out
+              [ bench "c_naive"  $ whnfIO $ c_naive_raw pd out
+              , bench "c_normal" $ whnfIO $ c_normal_raw pd out
               ]
           ]
       ]

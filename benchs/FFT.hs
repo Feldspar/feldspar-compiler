@@ -30,8 +30,8 @@ main = with def $ \out -> do
     let lss = map (map (*len)) [[1],[2],[4],[8]]
     bs <- forM lss $ \ls -> do
             d <- mkData testdata ls
-            mkBench "c_fft" ls (c_fft_raw d out)
+            mkBench "c_fft" ls (whnfIO $ c_fft_raw d out)
     _  <- evaluate c_fft_builder
-    defaultMainWith (mkConfig "report_fft.html") (return ())
+    defaultMainWith (mkConfig "report_fft.html")
       [ bgroup "compiled" bs
       ]

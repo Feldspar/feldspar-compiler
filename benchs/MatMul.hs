@@ -44,11 +44,11 @@ main = with def $ \out -> do
       let lss = map (map (*len)) [[1,1],[2,2],[4,4],[8,8]]
       bs <- forM lss $ \ls -> do
               d <- mkData testdata ls
-              mkBench "c_matmul" ls (c_matmul_raw d d out)
+              mkBench "c_matmul" ls (whnfIO $ c_matmul_raw d d out)
       rs <- forM lss $ \ls -> do
-              mkBench "matMulC" ls (matMulC (fromIntegral $ head ls) (fromIntegral $ product ls) d' d' out')
+              mkBench "matMulC" ls (whnfIO $ matMulC (fromIntegral $ head ls) (fromIntegral $ product ls) d' d' out')
       _ <- evaluate c_matmul_builder
-      defaultMainWith (mkConfig "report_matmul.html") (return ())
+      defaultMainWith (mkConfig "report_matmul.html")
         [ bgroup "reference" rs
         , bgroup "compiled" bs
         ]
