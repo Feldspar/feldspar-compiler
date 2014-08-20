@@ -42,14 +42,17 @@ module Feldspar.Compiler.Imperative.FromCore (
   )
   where
 
-import Debug.Trace
+import Prelude hiding (concat,elem,mapM_)
 
 import Data.Char (toLower)
 import Data.List (nub, partition, elemIndex)
 import Data.Maybe (isJust, fromJust, catMaybes)
 import Data.Tree
+import Data.Monoid
+import Data.Foldable
 
-import Control.Monad.RWS.Strict
+import Control.Monad (when,void,unless,zipWithM_)
+import Control.Monad.RWS.Strict (RWS(..),ask,evalRWS,gets,modify,tell)
 import Control.Applicative
 
 import Feldspar.Core.Types
@@ -119,7 +122,7 @@ getCore' opts = fromCore opts "test"
 unpack :: Options -> Ut.Type -> Expression () -> MultiExpr
 unpack opt typ src = mapTree' descend access src $ compileTRep opt typ
   where
-    descend !e !ix = let f = StructField e (fields !! (ix-1)) in f -- trace ("descend: "++show f) f
+    descend !e !ix = let f = StructField e (fields !! (ix-1)) in f
     access !e (Just t) = Just e
     access _ _         = Nothing
 
@@ -127,7 +130,7 @@ compileProgTop :: Options -> Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
 compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
   let typ = compileTypeRep opt ta
       cpy p (af,_) (Just d) = tellProg [call "copy" $ map ValueParameter [d,af p]]
-      cpy p (af,_) _        = trace ("Skipping "++show (af p)) $ return ()
+      cpy p (af,_) _        = return ()
   case typ of
     Rep.StructType{} -> do
       let arg = mkPointer typ v
@@ -188,9 +191,7 @@ cenv0 opts = CEnv opts False
 compileExprLoc :: CompileEnv -> Location  -> Ut.UntypedFeld  -> CodeWriter ()
 compileExprLoc env loc e = do
     expr <- compileExpr env e
-    trace "hepp12" $ return ()
     assign loc expr
-    trace "hepp13" $ return ()
 
 -- | Compiles code into a fresh variable.
 compileProgFresh :: CompileEnv -> Ut.UntypedFeld -> CodeWriter MultiExpr
@@ -211,9 +212,7 @@ compileExprVar env e = do
       then return e'
       else do
         loc <- freshVar (opts env) "e" (typeof e)
-        trace "hepp1" $ return ()
         assign loc e'
-        trace "hepp2" $ return ()
         return loc
   where isNearlyVar (Node (Just (VarExpr{})) []) = True
         isNearlyVar (Node (Just (Deref e)) [])   = isNearlyVar $ mkLoc e
@@ -286,11 +285,12 @@ field l f = fmap (fmap (flip StructField f)) l
 compileProg :: CompileEnv -> Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
 compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
-   let ix = mkVar (compileTypeRep (opts env) ta) v
+   let ix = mkV (opts env) "v" ta v
+   let Just ix' = leaf ix
    Just len' <- leaf <$> mkLength env len ta
-   (_, b) <- confiscateBlock $ compileProg env (loc `index` mkLoc ix) ixf
+   (_, b) <- confiscateBlock $ compileProg env (loc `index` ix) ixf
    initArray loc len'
-   tellProg [for True (lName ix) len' (litI32 1) b]
+   tellProg [for True (lName ix') len' (litI32 1) b]
 -- TODO
 -- compileProg env loc@(leaf -> Just locExpr) (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
 --    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
@@ -305,7 +305,6 @@ compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf
 --         let ix = mkVar (compileTypeRep (opts env) tix) v
 --         Just len' <- leaf <$> mkLength env len tix
 --         st1 <- freshVar (opts env) "st" tst
---         trace (show st1) $ return ()
 --         let Just st1' = leaf st1
 --         let st = mkRef (compileTypeRep (opts env) tst) s
 --             st_val = Deref st
@@ -382,6 +381,7 @@ compileProg env loc (In (App Ut.EPar _ [p1, p2])) = do
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
 compileProg env loc (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
+   declare ix
    Just len' <- leaf <$> mkLength env len ta
    (_, ixf') <- confiscateBlock $ compileProg env loc ixf
    tellProg [for True (lName ix) len' (litI32 1) ixf']
@@ -414,9 +414,7 @@ compileProg env loc (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix 
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
                           $ compileProg env stvar ixf >> shallowCopyWithRefSwap lstate stvar
       tellProg [toProg $ Block ds (for False (lName ix') len' (litI32 1) (toBlock body))]
-      trace "hepp3" $ return ()
       shallowAssign loc lstate
-      trace "hepp4" $ return ()
 compileProg env loc (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
     let condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
     (lstate,stvar) <- mkDoubleBufferState loc bv
@@ -425,9 +423,7 @@ compileProg env loc (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct)
     (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg env stvar body >> shallowCopyWithRefSwap lstate stvar
     declare condv
     tellProg [while cond' condv body']
-    trace "hepp5" $ return ()
     shallowAssign loc lstate
-    trace "hepp6" $ return ()
 -- LoopM
 compileProg env loc (In (App Ut.While _ [In (Ut.Lambda _ cond), step])) = do
    Just condv <- leaf <$> freshVar (opts env) "cond" (typeof cond)
@@ -447,11 +443,11 @@ compileProg env loc (In (App Ut.Return t [a]))
   | otherwise = compileProg env loc a
 compileProg env loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
-    var <- mkV (opts env) "v" ta v
+    var <- newVar (opts env) "v" ta v
     ivarInit var
     compileProg env loc body
   | otherwise = do
-    var <- mkV (opts env) "v" ta v
+    var <- newVar (opts env) "v" ta v
     compileProg env var ma
     compileProg env loc body
 compileProg env loc (In (App Ut.Then _ [ma, mb])) = do
@@ -473,16 +469,12 @@ compileProg env loc (In (App Ut.NewArr_ _ [len])) = do
 compileProg env loc (In (App Ut.GetArr _ [arr, i])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
-   trace "hepp6" $ return ()
    assign loc (arr' `index` i')
-   trace "hepp7" $ return ()
 compileProg env _ (In (App Ut.SetArr _ [arr, i, a])) = do
    arr' <- compileExpr env arr
    i'   <- compileExpr env i
    a'   <- compileExpr env a
-   trace "hepp8" $ return ()
    assign (arr' `index` i') a'
-   trace "hepp9" $ return ()
 -- MutableReference
 compileProg env loc (In (App Ut.NewRef _ [a])) = compileProg env loc a
 compileProg env loc (In (App Ut.GetRef _ [r])) = compileProg env loc r
@@ -510,7 +502,7 @@ compileProg env loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lam
       b <- compileExpr env body
       tellProg [copyProg loc [b]]
 compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
-    var <- mkV (opts env) "v" ta v
+    var <- newVar (opts env) "v" ta v
     compileProg env var marr
     e <- compileExpr env body
     tellProg [copyProg loc [e]]
@@ -593,11 +585,7 @@ compileExpr env (In (App Ut.Bit t [arr])) = do
     let t' = compileTypeRep (opts env) t
     return $ mkLoc $ binop t' "<<" (litI t' 1) a'
 -- Binding
-compileExpr env (In (Ut.Variable (Ut.Var v t))) = do
-    env' <- ask
-    case lookup v (alias env') of
-      Nothing -> mkV (opts env) "v" t v
-      Just e  -> return e
+compileExpr env (In (Ut.Variable (Ut.Var v t))) = getVar (opts env) "v" t v
 compileExpr env (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     e <- compileLet env a ta v
     withAlias v e $ compileExpr env body
@@ -712,7 +700,7 @@ compileSelect env tup ix = compileExpr env tup >>= go
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
               CodeWriter MultiExpr
 compileLet env a ta v = do
-   var <- mkV (opts env) "v" ta v
+   var <- newVar (opts env) "v" ta v
    compileProg env var a
    return var
 
@@ -907,9 +895,7 @@ literalLoc env loc (Ut.LTup15 ta tb tc td te tf tg th ti tj tk tl tm tn to) =
 
 literalLoc env loc t =
     do rhs <- literal env t
-       trace "hepp10" $ return ()
        assign (mkLoc loc) (mkLoc rhs)
-       trace "hepp11" $ return ()
 
 chaseTree :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
             -> CodeWriter [(Pattern (), Block ())]
@@ -944,7 +930,7 @@ result and then the copyProg is harmless.
 
 compileBind :: CompileEnv -> (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
 compileBind env (Ut.Var v t, e) = do
-   var <- mkV (opts env) "v" t v
+   var <- newVar (opts env) "v" t v
    compileProg env var e
 
 -- | Translates Op names to strings.

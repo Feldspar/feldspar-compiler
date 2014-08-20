@@ -37,7 +37,7 @@
 
 module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
-import Prelude hiding (sequence,mapM)
+import Prelude hiding (concatMap,elem,sequence,mapM,mapM_)
 import Control.Arrow
 import Control.Monad (liftM,zipWithM_,when,void)
 import Control.Monad.RWS.Strict (RWS(..),get,put,censor,listen,tell,asks,local)
@@ -48,6 +48,7 @@ import Data.List (intercalate, stripPrefix, nub)
 import Data.Tree
 import Data.Maybe
 import Data.Monoid
+import Data.Foldable
 import Data.Traversable
 
 import Feldspar.Range (upperBound, fullRange)
@@ -220,17 +221,27 @@ compileTRep opt = go
     go (Ut.FValType a)             = fmap IVarType <$> go a
     go typ                         = error $ "compileTRep: missing " ++ show typ  -- TODO
 
-mkV :: Options -> String -> Ut.Type -> Integer -> CodeWriter MultiExpr
-mkV opt base typ i = do
-    let e = mapTree mk (base++show i) $ compileTRep opt typ
-    mapM (maybe (return ()) declare) e
-    return e
+mkV :: Options -> String -> Ut.Type -> Integer -> MultiExpr
+mkV opt base typ i = mapTree mk (base++show i) $ compileTRep opt typ
   where
     mk b (Just t) = Just $ varToExpr $ Variable t b
     mk _ Nothing  = Nothing
-    
+
+newVar :: Options -> String -> Ut.Type -> Integer -> CodeWriter MultiExpr
+newVar opt base typ i = do
+    let e = mkV opt base typ i
+    mapM_ (maybe (return ()) declare) e
+    return e
+
 freshVar :: Options -> String -> Ut.Type -> CodeWriter MultiExpr
-freshVar opt base typ = mkV opt base typ =<< freshId
+freshVar opt base typ = newVar opt base typ =<< freshId
+
+getVar :: Options -> String -> Ut.Type -> Integer -> CodeWriter MultiExpr
+getVar opt base typ i = do
+    as <- asks alias
+    case lookup i as of
+      Just e  -> return e
+      Nothing -> return $ mkV opt base typ i
 
 mapTree :: (String -> a -> b) -> String -> Tree a -> Tree b
 mapTree = mapTree' (\b j -> b++"_"++show j)
@@ -267,6 +278,7 @@ initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
 tellDef :: [Entity ()] -> CodeWriter ()
+tellDef [] = return ()
 tellDef es = tell $ mempty {def = es}
 
 tellEpilogue :: [Program ()] -> CodeWriter ()
@@ -407,14 +419,14 @@ copyProg (leaf -> Nothing) _ = Empty
 copyProg outExp [inExp]
     | outExp == inExp = Empty
 copyProg (leaf -> Just outExp) inExps =
-    call "copy" (map ValueParameter (outExp:(mapMaybe leaf inExps)))
+    call "copy" (map ValueParameter (outExp:mapMaybe leaf inExps))
 
 
 shallowAssign :: Location -> MultiExpr -> CodeWriter ()
 shallowAssign dst src
     | dst `sameShape` src
     = zipWithM_ cpy (flatten dst) (flatten src)
-    | otherwise = error $ unlines ["shallowAssign: expression shape mismatch", show dst, show src] 
+    | otherwise = error $ unlines ["shallowAssign: expression shape mismatch", show dst, show src]
   where
     sameShape a b = void a == void b
     cpy (Just d) (Just s) | d /= s = tellProg [Assign (Just d) s]
@@ -439,8 +451,8 @@ shallowCopyWithRefSwap dst src
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyReferences dst src
-  = tellProg [Assign (Just $ accF dst) (accF src)
-                 | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
+    = tellProg [Assign (Just $ accF dst) (accF src)
+               | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
 
 {-
 This function implements double buffering of state for imnmutable
