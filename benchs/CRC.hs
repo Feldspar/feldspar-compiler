@@ -1,13 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-import Feldspar hiding (force)
+import Feldspar
 import Feldspar.Vector
 import Feldspar.Compiler.Plugin
+import Feldspar.Compiler.Marshal (SA(..))
 import Feldspar.Algorithm.CRC
 
-import Foreign.Marshal (with)
-import Data.Default
-import Control.DeepSeq (force)
+import Foreign.Ptr
+import Foreign.Marshal (malloc)
+import Control.DeepSeq (NFData(..),force)
 import Control.Exception (evaluate)
 
 import BenchmarkUtils
@@ -33,26 +34,41 @@ h_normal :: ([Length],[Word8]) -> Word16
 h_normal = eval normal
 loadFun 'normal
 
-main :: IO ()
-main = with def $ \out -> do
-    d  <- evaluate $ force testdata
-    pd <- pack ([len],d) >>= evaluate
+instance NFData (Ptr a) where
+
+setupPlugins :: IO ()
+setupPlugins = do
+    putStrLn "Compiling plugins"
     _  <- evaluate c_naive_builder
     _  <- evaluate c_normal_builder
+    return ()
+
+setupData :: Length -> IO ([Length],[Word8])
+setupData l = return ([l],Prelude.take (fromIntegral l) testdata)
+
+setupRaw :: Length -> IO (Ptr Word16, Ptr (Ptr (SA Length), Ptr (SA Word8)))
+setupRaw l = do
+    o  <- malloc
+    pd <- pack ([l],Prelude.take (fromIntegral l) testdata)
+    return (o,pd)
+
+main :: IO ()
+main =
     defaultMainWith (mkConfig "report_crc.html")
       [
-        bgroup "evaluated"
-          [ bench "h_naive"  $ nf h_naive  ([1024],Prelude.take 1024 d)
-          , bench "h_normal" $ nf h_normal ([1024],Prelude.take 1024 d)
-          ]
-      , bgroup "compiled"
-          [ bgroup "marshal"
-              [ bench "c_naive"  $ whnfIO $ c_naive_worker ([len],d)
-              , bench "c_normal" $ whnfIO $ c_normal_worker ([len],d)
+        env (setupData 1024) $ \ ~d ->
+          bgroup "evaluated"
+            [ bench "h_naive"  $ nf h_naive  d
+            , bench "h_normal" $ nf h_normal d
+            ]
+      , env setupPlugins $ \_ -> bgroup "compiled"
+          [ env (setupData len) $ \ ~d -> bgroup "marshal"
+              [ bench "c_naive"  $ whnfIO $ c_naive_worker d
+              , bench "c_normal" $ whnfIO $ c_normal_worker d
               ]
-          , bgroup "raw"
-              [ bench "c_naive"  $ whnfIO $ c_naive_raw pd out
-              , bench "c_normal" $ whnfIO $ c_normal_raw pd out
+          , env (setupRaw len) $ \ ~(o,pd) -> bgroup "raw"
+              [ bench "c_naive"  $ whnfIO $ c_naive_raw pd o
+              , bench "c_normal" $ whnfIO $ c_normal_raw pd o
               ]
           ]
       ]

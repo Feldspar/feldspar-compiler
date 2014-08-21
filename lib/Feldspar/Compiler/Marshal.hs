@@ -8,6 +8,8 @@
 --
 module Feldspar.Compiler.Marshal
   ( SA(..)
+  , allocSA
+  , Marshal(..)
   )
   where
 
@@ -21,7 +23,7 @@ import Data.Default
 import Control.Applicative
 
 import Foreign.Ptr
-import Foreign.Marshal (free, new, newArray, peekArray)
+import Foreign.Marshal (free, new, newArray, peekArray,mallocBytes)
 import Foreign.Storable (Storable(..))
 import Foreign.Storable.Tuple ()
 import qualified Foreign.Storable.Record as Store
@@ -63,6 +65,13 @@ data SA a = SA { buf   :: Ptr a
 
 instance Default (SA a) where
     def = SA nullPtr def def def
+
+allocSA :: forall a. Storable a => Int -> IO (Ptr (SA a))
+allocSA len = do
+    let size  = fromIntegral $ sizeOf (undefined :: a)
+    let bytes = len * size
+    buffer <- mallocBytes bytes
+    new $ SA buffer (fromIntegral len) (fromIntegral size) (fromIntegral bytes)
 
 storeSA :: Storable a => Store.Dictionary (SA a)
 storeSA = Store.run $ SA

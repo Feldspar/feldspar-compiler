@@ -6,11 +6,11 @@ import Feldspar (Length,Complex)
 import Feldspar.Algorithm.FFT
 import Feldspar.Compiler
 import Feldspar.Compiler.Plugin
+import Feldspar.Compiler.Marshal
 
-import Control.Monad (forM)
-import Foreign.Marshal (with)
-import Data.Default
-import Control.DeepSeq (force)
+import Foreign.Ptr
+import Foreign.Marshal (new)
+import Control.DeepSeq (NFData(..))
 import Control.Exception (evaluate)
 
 import BenchmarkUtils
@@ -25,13 +25,28 @@ loadFunOpts ["-optc=-O2"] 'ifft
 len :: Length
 len = 4096
 
+sizes :: [[Length]]
+sizes = map (map (*len)) [[1],[2],[4],[8]]
+
+instance NFData (Ptr a) where
+
+setupPlugins :: IO ()
+setupPlugins = do
+    _ <- evaluate c_fft_builder
+    return ()
+
+setupData lengths = do
+    d <- mkData testdata lengths
+    ls <- pack lengths
+    ds <- allocSA $ fromIntegral $ product lengths :: IO (Ptr (SA (Complex Float)))
+    o  <- new (ls,ds)
+    return (o,d)
+
+mkComp :: [Length] -> Benchmark
+mkComp ls = env (setupData ls) $ \ ~(o,d) ->
+    mkBench "c_fft" ls (whnfIO $ c_fft_raw d o)
+
 main :: IO ()
-main = with def $ \out -> do
-    let lss = map (map (*len)) [[1],[2],[4],[8]]
-    bs <- forM lss $ \ls -> do
-            d <- mkData testdata ls
-            mkBench "c_fft" ls (whnfIO $ c_fft_raw d out)
-    _  <- evaluate c_fft_builder
-    defaultMainWith (mkConfig "report_fft.html")
-      [ bgroup "compiled" bs
-      ]
+main = defaultMainWith (mkConfig "report_fft.html")
+    [ env setupPlugins $ \_ -> bgroup "compiled" $ map mkComp sizes
+    ]
