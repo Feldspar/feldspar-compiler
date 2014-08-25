@@ -25,6 +25,8 @@ testdata = cycle [1.1,2.2,3.3,4.4]
 
 foreign import ccall unsafe "MatMulC.h MatMulC" matMulC :: CInt -> CInt -> Ptr CDouble -> Ptr CDouble -> Ptr CDouble -> IO ()
 
+foreign import ccall unsafe "MatMulC.h MatMulCopt" matMulCopt :: CInt -> CInt -> Ptr CDouble -> Ptr CDouble -> Ptr CDouble -> IO ()
+
 matmul :: Pull DIM2 (Data Double) -> Pull DIM2 (Data Double) -> Pull DIM2 (Data Double)
 matmul = mmMult True
 
@@ -61,16 +63,25 @@ setupCompEnv ls = do
     d <- mkData testdata ls
     return (o,d)
 
-mkRef :: [Length] -> Benchmark
-mkRef ls = env (setupRefEnv ls) $ \ ~(o,d) ->
-    mkBench "matMulC" ls (whnfIO $ matMulC (fromIntegral $ head ls) (fromIntegral $ product ls) d d o)
+mkReferenceBench :: [Length] -> [Benchmark]
+mkReferenceBench ls =
+  [ env (setupRefEnv ls) $ \ ~(o,d) ->
+    bench "C/matmul" (whnfIO $ matMulC (fromIntegral $ head ls) (fromIntegral $ product ls) d d o)
+  , env (setupRefEnv ls) $ \ ~(o,d) ->
+    bench "C/matmul_opt" (whnfIO $ matMulCopt (fromIntegral $ head ls) (fromIntegral $ product ls) d d o)
+  ]
 
-mkComp :: [Length] -> Benchmark
-mkComp ls = env (setupCompEnv ls) $ \ ~(o,d) ->
-    mkBench "c_matmul" ls (whnfIO $ c_matmul_raw d d o)
+mkCompiledBench :: [Length] -> Benchmark
+mkCompiledBench ls = env (setupCompEnv ls) $ \ ~(o,d) ->
+    bench "Feldspar_C/matmul" (whnfIO $ c_matmul_raw d d o)
+
+-- | Create a benchmark that compares references and Feldspar for a specific
+--   input.
+mkComparison :: [Length] -> Benchmark
+mkComparison ls = bgroup (dimToString ls) $
+                    mkReferenceBench ls ++ [mkCompiledBench ls]
 
 main :: IO ()
-main = defaultMainWith (mkConfig "report_matmul.html")
-    [ bgroup "reference" $ map mkRef sizes
-    , env setupPlugins $ \_ -> bgroup "compiled" $ map mkComp sizes
-    ]
+main = do
+    setupPlugins
+    defaultMainWith (mkConfig "report_matmul.html") $ map mkComparison sizes

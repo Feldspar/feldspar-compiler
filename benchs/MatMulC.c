@@ -12,6 +12,33 @@ void MatMulC(int rows, int len, double *a, double *bin, double *c)
   }
 
   for( i = 0; i < rows; i++ ) {
+    for( j = 0; j < rows; j++ ) {
+      double sum = 0.0;
+      for( k = 0; k < rows; k++ ) {
+        sum += a[i*rows+k] * b[j*rows + k];
+      }
+      c[i*rows + j] = sum;
+    }
+  }
+
+  free(b);
+}
+
+/**
+ * Same code as above with middle loop unrolled once to improve the balance
+ * between computation and memory reads.
+ */
+void MatMulCopt(int rows, int len, double *a, double *bin, double *c)
+{
+  int i,j,k;
+  double *b = malloc(len * sizeof(double));
+
+  // Transpose bin with result in b.
+  for(int n = 0; n < len; n++ ) {
+    b[n] = bin[rows * (n % rows) + (n / rows)];
+  }
+
+  for( i = 0; i < rows; i++ ) {
     for( j = 0; j < rows; j+=2 ) {
       double sum0 = 0.0;
       double sum1 = 0.0;

@@ -3,4 +3,6 @@
 
 void MatMulC(int, int, double *, double *, double *);
 
+void MatMulCopt(int, int, double *, double *, double *);
+
 #endif
