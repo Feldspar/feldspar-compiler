@@ -6,7 +6,7 @@ module Main where
 import Feldspar (Data(..),Length,WordN)
 import Feldspar.Vector (mmMult, Pull(..), DIM2)
 import Feldspar.Compiler
-import Feldspar.Compiler.Plugin (loadFunOpts,pack)
+import Feldspar.Compiler.Plugin (loadFunOpts,loadFunOptsWith,pack)
 import Feldspar.Compiler.Marshal (Marshal(..),SA(..),allocSA)
 
 import Foreign.Marshal (new,newArray,mallocArray)
@@ -31,6 +31,7 @@ matmul :: Pull DIM2 (Data Double) -> Pull DIM2 (Data Double) -> Pull DIM2 (Data 
 matmul = mmMult True
 
 loadFunOpts ["-optc=-O2"] 'matmul
+loadFunOptsWith "_sics" sicsOptions ["-optc=-O2"] 'matmul
 
 len :: Length
 len = 64
@@ -71,15 +72,22 @@ mkReferenceBench ls =
     bench "C/matmul_opt" (whnfIO $ matMulCopt (fromIntegral $ head ls) (fromIntegral $ product ls) d d o)
   ]
 
-mkCompiledBench :: [Length] -> Benchmark
-mkCompiledBench ls = env (setupCompEnv ls) $ \ ~(o,d) ->
+mkCompiledBench :: [Length] -> [Benchmark]
+mkCompiledBench ls =
+  [ env (setupCompEnv ls) $ \ ~(o,d) ->
     bench "Feldspar_C/matmul" (whnfIO $ c_matmul_raw d d o)
+    -- _sicsmatmul_raw is a terrible name, but we can only configure the
+    -- function prefix in multistage plugins. Luckily this does not leak to
+    -- the outside world.
+  , env (setupCompEnv ls) $ \ ~(o,d) ->
+    bench "Feldspar_C/sics_matmul" (whnfIO $ _sicsmatmul_raw d d o)
+  ]
 
 -- | Create a benchmark that compares references and Feldspar for a specific
 --   input.
 mkComparison :: [Length] -> Benchmark
 mkComparison ls = bgroup (dimToString ls) $
-                    mkReferenceBench ls ++ [mkCompiledBench ls]
+                    mkReferenceBench ls ++ mkCompiledBench ls
 
 main :: IO ()
 main = do
