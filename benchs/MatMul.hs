@@ -44,6 +44,7 @@ instance NFData (Ptr a) where
 setupPlugins = do
     putStrLn "Compiling c_matmul plugin"
     evaluate c_matmul_builder
+    evaluate _sicsmatmul_builder
 
 setupRefEnv :: [Length] -> IO (Ptr CDouble, Ptr CDouble)
 setupRefEnv ls = do
