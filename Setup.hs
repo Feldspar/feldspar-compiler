@@ -27,5 +27,55 @@
 --
 
 import Distribution.Simple
+import Distribution.PackageDescription
+import Distribution.Simple.LocalBuildInfo
+import Distribution.Simple.Setup
 
-main = defaultMain
+import GHC.Paths ( ghc )
+
+import System.Process ( readProcessWithExitCode )
+import System.FilePath ( replaceExtension )
+import Control.Monad ( unless )
+
+main = defaultMainWithHooks simpleUserHooks{ buildHook = buildH }
+
+-- | Custom build hook that builds C-sources for benchmarks with x-cc-name set.
+buildH :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
+buildH pd lbi user_hooks flags = do
+    benchmarks' <- mapM (checkIfAndCompile (buildDir lbi)) $ benchmarks pd
+    -- Build the remaining things the regular way.
+    buildHook simpleUserHooks pd{ benchmarks = benchmarks' } lbi user_hooks flags
+    return ()
+
+-- | Checks if x-cc-name is set, and compiles c-sources with that compiler name.
+checkIfAndCompile :: String -> Benchmark -> IO Benchmark
+checkIfAndCompile bld_dir bench = do
+    let bench_bi  = benchmarkBuildInfo bench
+    case lookup "x-cc-name" $ customFieldsBI bench_bi of
+        Nothing -> return bench
+        Just cc_name  -> do
+            let c_srcs    = cSources bench_bi
+                cc_opts   = ccOptions bench_bi
+                inc_dirs  = includeDirs bench_bi
+                lib_dirs  = extraLibDirs bench_bi
+            -- Compile C/C++ sources
+            putStrLn "invoking icc compiler"
+            mapM_ (compile cc_name cc_opts inc_dirs bld_dir) c_srcs
+            -- Remove C source code from the hooked build (don't change libs)
+            return $ bench{ benchmarkBuildInfo = bench_bi{ cSources = [] } }
+
+-- | Compiles a C file with the given options.
+compile :: String -> [String] -> [String] -> String -> FilePath -> IO ()
+compile cc_name opts inc_dirs bld_dir srcfile = do
+    let args = [ "-optc -std=c99"
+               , "-optc -Wall"
+               , "-w"
+               , "-c"
+               , "-pgmc " ++ cc_name
+               ] ++ map ("-optc " ++) opts
+        objfile = replaceExtension srcfile "o"
+        fullargs = args ++ ["-o", objfile, srcfile]
+    print $  "Calling: " ++ ghc ++ unwords fullargs
+    (_, stdout, stderr) <- readProcessWithExitCode ghc fullargs ""
+    let output = stdout ++ stderr
+    unless (null output) $ putStrLn output

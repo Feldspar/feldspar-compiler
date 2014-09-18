@@ -1,7 +1,7 @@
 name:           feldspar-compiler
 version:        0.6.1.0
 cabal-version:  >= 1.14
-build-type:     Simple
+build-type:     Custom
 license:        BSD3
 license-file:   LICENSE
 copyright:      Copyright (c) 2013 Emil Axelsson, Peter Jonsson,
@@ -29,6 +29,10 @@ tested-with:    GHC==7.8, GHC==7.6, GHC==7.4
 source-repository head
   type:     git
   location: git://github.com/Feldspar/feldspar-compiler.git
+
+Flag UseICC
+  Description:         Use ICC for compiling benchmarks.
+  Default:             False
 
 library
   hs-source-dirs: lib
@@ -235,7 +239,10 @@ benchmark matmul
   default-language: Haskell2010
 
   ghc-options: -O2
+
   CC-Options: -O2 -fno-vectorize
+  if flag(UseICC)
+    x-cc-name: icc
 
   build-depends:
     feldspar-language,
