@@ -94,7 +94,7 @@ library
    lib/Feldspar/C/taskpool.c
    lib/Feldspar/C/ivar.c
 
-  cc-options: -std=c99 -Wall
+  cc-options: -std=c99 -Wall -fPIC
 
   if os(linux)
     extra-libraries: gcc_s
