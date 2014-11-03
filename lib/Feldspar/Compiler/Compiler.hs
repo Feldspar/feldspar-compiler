@@ -153,4 +153,4 @@ sicsOptions2 :: Options
 sicsOptions2 = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS] }}
 
 sicsOptions3 :: Options
-sicsOptions3 = defaultOptions { frontendOpts = defaultFeldOpts { targets = [SICS,CSE,Wool] }}
+sicsOptions3 = defaultOptions { platform = c99 {varFloating = False}, frontendOpts = defaultFeldOpts { targets = [SICS,CSE,Wool] }}
