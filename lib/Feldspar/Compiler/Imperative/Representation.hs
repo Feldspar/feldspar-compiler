@@ -43,6 +43,7 @@ module Feldspar.Compiler.Imperative.Representation (
   , Variable(..)
   , StructMember(..)
   , Pattern(..)
+  , ParType(..)
   , Type(..)
   , ScalarType(..)
   , Constant(..)
@@ -136,7 +137,7 @@ data Program t
         , sLoopBlock                :: Block t
         }
     | ParLoop
-        { pParallel                 :: Bool
+        { pParallelType             :: ParType
         , pLoopCounter              :: Variable t
         , pLoopBound                :: Expression t
         , pLoopStep                 :: Expression t
@@ -151,6 +152,12 @@ data Pattern t
    = PatDefault
    | Pat (Expression t)
      deriving (Typeable, Show, Eq)
+
+data ParType
+   = Sequential
+   | Parallel
+   | TaskParallel
+     deriving (Show, Eq)
 
 data ActualParameter t
     = ValueParameter

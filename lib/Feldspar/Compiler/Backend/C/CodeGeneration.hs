@@ -134,7 +134,8 @@ instance CodeGen (Program ())
                         $$ text "while" <+> parens (cgen env sLoopCond)
                         $$ block env (cgen env sLoopBlock $+$ cgen env sLoopCondCalc)
     cgen env ParLoop{..}
-     | pParallel && (name . platform . options $ env) == "c99OpenMp"
+     | Parallel <- pParallelType
+     , (name . platform . options $ env) == "c99OpenMp"
      , parNestLevel env <= 1   -- OpenMP 4 has nested data parallelism,
                                -- but it does not work well in practice.
      = text "#pragma omp parallel for" $$ forL
@@ -147,7 +148,7 @@ instance CodeGen (Program ())
         ini   = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> cgen env pLoopBound
         next  = ixv <+> text "+=" <+> cgen env pLoopStep
-        env1 | pParallel = env { parNestLevel = parNestLevel env + 1}
+        env1 | Parallel <- pParallelType = env { parNestLevel = parNestLevel env + 1}
              | otherwise = env
 
     cgen env BlockProgram{..} = block env (cgen env blockProgram)
