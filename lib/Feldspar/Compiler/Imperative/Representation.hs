@@ -84,6 +84,8 @@ data Entity t
         }
     | Proc
         { procName                  :: String
+        , loopBody                  :: Bool
+        -- Is this a loopbody in disguise.
         , inParams                  :: [Variable t]
         -- Left is regular return, right is fast return.
         , outParams                 :: Either [Variable t] (Variable t)

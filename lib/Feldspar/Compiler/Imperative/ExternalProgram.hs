@@ -70,7 +70,7 @@ defToProgram _ e = error ("defToProgram: Unhandled construct: " ++ show e)
 
 funcToProgram :: TPEnv -> Func -> (TPEnv, Entity ())
 funcToProgram env (Func ds name decl (Params parms _ _) bis _)
-  = (env'', Proc (unId name) inParams outParams (Just bs))
+  = (env'', Proc (unId name) False inParams outParams (Just bs))
    where (env', vs) = mapAccumL paramToVariable env parms
          (env'', bs) = blockToBlock env' bis
          (inParams, outParams)
@@ -359,7 +359,7 @@ declSpecToType env ds@(DeclSpec st tq ts _) = typSpecToType env ts
 declSpecToType _ e = error ("declSpecToType: Unhandled construct: " ++ show e)
 
 initToFunDecl :: TPEnv -> DeclSpec -> Init -> [Param] -> (TPEnv, Entity ())
-initToFunDecl env ds is ps = (env', Proc iv ps' (Left []) Nothing)
+initToFunDecl env ds is ps = (env', Proc iv False ps' (Left []) Nothing)
  where iv = fst $ initToName env (declSpecToType env' ds) is
        (env', ps') = mapAccumL paramToVariable env ps
 
@@ -562,7 +562,7 @@ patchHdefs (StructDef s members:t)
   = (s, map snd ts, StructDef s $ map toDef ts):patchHdefs t
   where [StructType _ ts] = decodeType s
         toDef (n,t') = StructMember n t'
-patchHdefs (p@(Proc n ins outs Nothing):t)
+patchHdefs (p@(Proc n _ ins outs Nothing):t)
   = (n, map typeof ins ++ etypeof outs, p):patchHdefs t
    where etypeof (Left es) = map typeof es
          etypeof (Right e) = [typeof e]

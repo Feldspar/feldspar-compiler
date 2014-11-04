@@ -104,7 +104,7 @@ fromCore opt funname prog = Module defs
      | fastRet   = ( Right outParam,  outDecl:ds ++ decls
                    , [call "return" [ValueParameter $ varToExpr outParam]])
      | otherwise = ( Left [outParam],         ds ++ decls, [])
-    topProc    = [Proc funname ins outs $ Just (Block ds' (Sequence (p:post)))]
+    topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence (p:post)))]
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
@@ -202,14 +202,14 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
       Par -> compileProg env {inTask = True} (Just loc) e'
       Loop | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
       None -> compileProg env (Just loc) e'
-  tellDef [Proc coreName args (Left []) $ Just $ Block (decl ws ++ ds) bl]
+  tellDef [Proc coreName False args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
   let taskName = "task" ++ drop 9 coreName
       runTask  = Just $ toBlock $ run coreName args
       outs     = [mkNamedRef "params" Rep.VoidType (-1)]
   case kind of
    _ | kind `elem` [None, Loop] -> return ()
-   _    -> tellDef [Proc taskName [] (Left outs) runTask]
+   _    -> tellDef [Proc taskName False [] (Left outs) runTask]
 
 -- | Create a variable of the right type for storing a length.
 mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())

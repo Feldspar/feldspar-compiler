@@ -50,7 +50,7 @@ int8_t abs_fun_int8_t( int8_t a ) {
 -}
 
 abs_fun :: Options -> Type -> Entity ()
-abs_fun opts typ = Proc name [inVar] (Right outVar) (Just body)
+abs_fun opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "abs_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "a"
        inVar' = varToExpr inVar
@@ -87,7 +87,7 @@ int8_t pow_fun_int8_t( int8_t a, int8_t b ) {
 -}
 
 pow_fun :: Options -> Type -> Entity ()
-pow_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+pow_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "pow_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1 = Variable typ "a"
        inVar1'= varToExpr inVar1
@@ -116,7 +116,7 @@ int8_t signum_fun_int8_t( int8_t a ) {
 -}
 
 signum_fun_s :: Options -> Type -> Entity ()
-signum_fun_s opts typ = Proc name [inVar] (Right outVar) (Just body)
+signum_fun_s opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "signum_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "a"
        inVar' = varToExpr inVar
@@ -136,7 +136,7 @@ uint8_t signum_fun_uint8_t( uint8_t a ) {
 -}
 
 signum_fun_u :: Options -> Type -> Entity ()
-signum_fun_u opts typ = Proc name [inVar] (Right outVar) (Just body)
+signum_fun_u opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "signum_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "a"
        inVar' = varToExpr inVar
@@ -153,7 +153,7 @@ float signum_fun_float( float a ) {
 -}
 
 signum_fun_f :: Options -> Type -> Entity ()
-signum_fun_f opts typ = Proc name [inVar] (Right outVar) (Just body)
+signum_fun_f opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "signum_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "a"
        inVar' = varToExpr inVar
@@ -172,7 +172,7 @@ float logBase_fun_float( float a, float b ) {
 }
 -}
 logbase_fun_f :: Options -> Type -> Entity ()
-logbase_fun_f opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+logbase_fun_f opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "logbase_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "a"
        inVar1' = varToExpr inVar1
@@ -193,7 +193,7 @@ int8_t setBit_fun_int8_t( int8_t x, uint32_t i ) {
 }
 -}
 setBit_fun :: Options -> Type -> Entity ()
-setBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+setBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "setBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
@@ -211,7 +211,7 @@ int8_t clearBit_fun_int8_t( int8_t x, uint32_t i ) {
 }
 -}
 clearBit_fun :: Options -> Type -> Entity ()
-clearBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+clearBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "clearBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
@@ -229,7 +229,7 @@ int8_t complementBit_fun_int8_t( int8_t x, uint32_t i ) {
 }
 -}
 complementBit_fun :: Options -> Type -> Entity ()
-complementBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+complementBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "complementBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
@@ -248,7 +248,7 @@ bool testBit_fun_int8_t( int8_t x, uint32_t i )
 }
 -}
 testBit_fun :: Options -> Type -> Entity ()
-testBit_fun opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+testBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "testBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
@@ -270,7 +270,7 @@ uint8_t rotateL_fun_uint8_t( uint8_t x, int32_t i ) {
 }
 -}
 rotateL_fun_u :: Options -> Type -> Entity ()
-rotateL_fun_u opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+rotateL_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "rotateL_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
@@ -299,7 +299,7 @@ uint8_t rotateR_fun_uint8_t( uint8_t x, int32_t i ) {
 }
 -}
 rotateR_fun_u :: Options -> Type -> Entity ()
-rotateR_fun_u opts typ = Proc name [inVar1, inVar2] (Right outVar) (Just body)
+rotateR_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
  where name   = "rotateR_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
@@ -335,7 +335,7 @@ uint8_t reverseBits_fun_uint8_t( uint8_t x ) {
 -}
 
 reverseBits_fun_u :: Options -> Type -> Entity ()
-reverseBits_fun_u opts typ = Proc name [inVar] (Right outVar) (Just body)
+reverseBits_fun_u opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "reverseBits_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "x"
        inVar' = varToExpr inVar
@@ -369,7 +369,7 @@ uint32_t bitScan_fun_uint8_t( uint8_t x ) {
 }
 -}
 bitScan_fun_u :: Options -> Type -> Entity ()
-bitScan_fun_u opts typ = Proc name [inVar] (Right outVar) (Just body)
+bitScan_fun_u opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "bitScan_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "x"
        inVar' = varToExpr inVar

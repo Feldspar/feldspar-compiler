@@ -84,7 +84,7 @@ splitModule m = (Module (hdr ++ createProcDecls (entities m)), Module body)
     createProcDecls :: [Entity ()] -> [Entity ()]
     createProcDecls = concatMap defToDecl
     defToDecl :: Entity () -> [Entity ()]
-    defToDecl (Proc n inp outp _) = [Proc n inp outp Nothing]
+    defToDecl (Proc n lb inp outp _) = [Proc n lb inp outp Nothing]
     defToDecl _ = []
 
 compileSplitModule :: Options -> (Module (), Module ()) -> SplitModule
