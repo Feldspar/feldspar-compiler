@@ -202,7 +202,7 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
       Par -> compileProg env {inTask = True} (Just loc) e'
       Loop | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
       None -> compileProg env (Just loc) e'
-  tellDef [Proc coreName False args (Left []) $ Just $ Block (decl ws ++ ds) bl]
+  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
   let taskName = "task" ++ drop 9 coreName
       runTask  = Just $ toBlock $ run coreName args
@@ -235,9 +235,16 @@ compileProg :: CompileEnv -> Location -> Ut.UntypedFeld -> CodeWriter ()
 compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
-   (_, b) <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
+   (ptyp, b) <- case ixf of
+          In (App (Ut.Call Loop n) _ vs) -> do
+            vs' <- mapM (compileExpr env) vs
+            let args = map ValueParameter vs'
+            return $ (TaskParallel, toBlock $ ProcedureCall n args)
+          _                              -> do
+            b' <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
+            return (Parallel, snd b')
    tellProg [initArray loc len']
-   tellProg [for Parallel (lName ix) len' (litI32 1) b]
+   tellProg [for ptyp (lName ix) len' (litI32 1) b]
 compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l

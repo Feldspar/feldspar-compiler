@@ -70,10 +70,15 @@ instance CodeGen (Entity ())
       | Just body <- procBody = start $$ block env (cgen env body)
       | otherwise = start <> semi
         where
-         start = rtype <+> text procName <> parens (pvars env $ inParams ++ outs)
+         start
+           | loopBody  = text ("LOOP_BODY_" ++ show (length inParams + length outs - 1))
+                          <> parens (sep $ punctuate comma loopH)
+           | otherwise = rtype <+> text procName <> parens (pvars env $ inParams ++ outs)
          (outs, rtype)
            | Left params <- outParams = (params, text "void")
            | Right param <- outParams = ([], cgen env (typeof param))
+         loopH = [text procName, text "LARGE_BODY"] ++
+                  concatMap (\v ->  [cgen env (typeof v), cgen env v]) (inParams ++ outs)
     cgen env ValueDef{..}
       | isNativeArray $ typeof valVar
       = cgen env (typeof valVar) <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi
@@ -139,14 +144,20 @@ instance CodeGen (Program ())
      , parNestLevel env <= 1   -- OpenMP 4 has nested data parallelism,
                                -- but it does not work well in practice.
      = text "#pragma omp parallel for" $$ forL
+     | TaskParallel <- pParallelType
+     , Block _ (ProcedureCall n vs) <- pLoopBlock
+     = text "FOR" <> parens (sep $ punctuate comma ([text n, int 0, loopB] ++
+                                       map (cgen env) vs)) <> semi
      | otherwise = forL
       where
         forL  = text "for" <+> parens (sep $ map (nest 4) $ punctuate semi [ini, guard, next])
-              $$ block env1 (cgen env1 pLoopBlock)
+              $$ block env1 forB
+        forB  = cgen env1 pLoopBlock
         ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
         ini   = ixd <+> equals    <+> int 0
-        guard = ixv <+> char '<'  <+> cgen env pLoopBound
+        guard = ixv <+> char '<'  <+> loopB
+        loopB = cgen env pLoopBound
         next  = ixv <+> text "+=" <+> cgen env pLoopStep
         env1 | Parallel <- pParallelType = env { parNestLevel = parNestLevel env + 1}
              | otherwise = env
