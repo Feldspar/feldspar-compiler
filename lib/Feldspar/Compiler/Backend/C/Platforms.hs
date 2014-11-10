@@ -32,6 +32,7 @@ module Feldspar.Compiler.Backend.C.Platforms
     ( availablePlatforms
     , c99
     , c99OpenMp
+    , c99Wool
     , tic64x
     , extend
     , deepCopy
@@ -44,7 +45,7 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
-availablePlatforms = [ c99, c99OpenMp, tic64x ]
+availablePlatforms = [ c99, c99OpenMp, c99Wool, tic64x ]
 
 c99 :: Platform
 c99 = Platform {
@@ -87,6 +88,12 @@ c99OpenMp :: Platform
 c99OpenMp = c99 { name = "c99OpenMp"
                 , varFloating = False
                 }
+
+c99Wool :: Platform
+c99Wool = c99 { name = "c99Wool"
+              , includes = "wool.h":includes c99
+              , varFloating = False
+              }
 
 tic64x :: Platform
 tic64x = Platform {
