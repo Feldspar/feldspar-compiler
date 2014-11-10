@@ -238,7 +238,8 @@ compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM (compileExpr env) vs
-            let args = map ValueParameter vs'
+            let mkV v = ValueParameter . varToExpr $ Rep.Variable (typeof v) (lName v)
+                args  = map mkV vs'
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
             b' <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
