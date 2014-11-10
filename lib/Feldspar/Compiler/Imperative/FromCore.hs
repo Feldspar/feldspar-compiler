@@ -232,19 +232,19 @@ mkBranch env loc c th el = do
 
 compileProg :: CompileEnv -> Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg env loc (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+compileProg env (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM (compileExpr env) vs
-            let mkV v = ValueParameter . varToExpr $ Rep.Variable (typeof v) (lName v)
-                args  = map mkV vs'
+            let mkV v = Rep.Variable (typeof v) (lName v)
+                args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
-            b' <- confiscateBlock $ compileProg env (ArrayElem <$> loc <*> pure ix) ixf
+            b' <- confiscateBlock $ compileProg env (Just $ ArrayElem loc ix) ixf
             return (Parallel, snd b')
-   tellProg [initArray loc len']
+   tellProg [initArray (Just loc) len']
    tellProg [for ptyp (lName ix) len' (litI32 1) b]
 compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
