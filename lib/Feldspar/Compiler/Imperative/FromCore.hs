@@ -200,7 +200,9 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
         p' <- compileExprVar env {inTask = True } e'
         tellProg [iVarPut loc p']
       Par -> compileProg env {inTask = True} (Just loc) e'
-      Loop | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
+      Loop | (ix:_) <- es'
+           , Ut.ArrayType{} <- typeof e -> compileProg env (Just $ ArrayElem loc ix) e'
+           | otherwise -> compileProg env (Just loc) e'
       None -> compileProg env (Just loc) e'
   tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
@@ -329,11 +331,19 @@ compileProg env loc (In (App Ut.EPar _ [p1, p2])) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg env loc p1
    (_, Block ds2 b2) <- confiscateBlock $ compileProg env loc p2
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
-compileProg env loc (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+compileProg env (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
-   (_, ixf') <- confiscateBlock $ compileProg env loc ixf
-   tellProg [for Parallel (lName ix) len' (litI32 1) ixf']
+   (ptyp, b) <- case ixf of
+          In (App (Ut.Call Loop n) _ vs) -> do
+            vs' <- mapM (compileExpr env) vs
+            let mkV v = Rep.Variable (typeof v) (lName v)
+                args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
+            return $ (TaskParallel, toBlock $ ProcedureCall n args)
+          _                              -> do
+            b' <- confiscateBlock $ compileProg env (Just loc) ixf
+            return (Parallel, snd b')
+   tellProg [for ptyp (lName ix) len' (litI32 1) b]
 -- Error
 compileProg _   _   (In (App Ut.Undefined _ _)) = return ()
 compileProg env loc (In (App (Ut.Assert msg) _ [cond, a])) = do
