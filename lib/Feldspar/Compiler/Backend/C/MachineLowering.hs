@@ -212,7 +212,7 @@ mkTic64xComplexRule s = (s, [ (Only Complex, Extend ArgType tic64x) ] )
 getPlatformRenames :: String -> M.Map String [(Which, Destination)]
 getPlatformRenames "tic64x"       = M.fromList (tic64xlist ++ c99list)
 getPlatformRenames s
-  | s `elem` ["c99", "c99OpenMp"] = M.fromList c99list
+  | s `elem` ["c99", "c99OpenMp", "c99Wool"] = M.fromList c99list
   | otherwise                     = M.fromList []
 
 flattenProgram :: [Program ()] -> Program ()

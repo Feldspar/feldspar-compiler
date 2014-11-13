@@ -1012,8 +1012,6 @@ compileOp Ut.Exp               = "exp"
   -- Fractional
 compileOp Ut.DivFrac           = "/"
   -- Integral
-compileOp Ut.Quot              = "/"
-compileOp Ut.Rem               = "%"
 compileOp Ut.IExp              = "pow"
   -- Logic
 compileOp Ut.And               = "&&"
