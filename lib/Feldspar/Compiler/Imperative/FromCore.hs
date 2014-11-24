@@ -48,7 +48,7 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
-         ( Term(..), Lit(..), collectLetBinders, collectBinders
+         ( Term(..), Lit(..), collectLetBinders, collectBinders, mkLam
          , UntypedFeldF(App, LetFun), Fork(..), typeof
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -200,9 +200,7 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
         p' <- compileExprVar env {inTask = True } e'
         tellProg [iVarPut loc p']
       Par -> compileProg env {inTask = True} (Just loc) e'
-      Loop | (ix:_) <- es'
-           , Ut.ArrayType{} <- typeof e -> compileProg env (Just $ ArrayElem loc ix) e'
-           | otherwise -> compileProg env (Just loc) e'
+      Loop | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) (mkLam (tail bs) e')
       None -> compileProg env (Just loc) e'
   tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
