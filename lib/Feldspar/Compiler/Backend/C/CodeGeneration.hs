@@ -146,7 +146,7 @@ instance CodeGen (Program ())
      = text "#pragma omp parallel for" $$ forL
      | TaskParallel <- pParallelType
      , Block _ (ProcedureCall n vs) <- pLoopBlock
-     = text "FOR" <> parens (sep $ punctuate comma ([text n, int 0, loopB] ++
+     = text "FOR" <> parens (sep $ punctuate comma ([text n, lstrt, loopB] ++
                                        map (cgen env) vs)) <> semi
      | otherwise = forL
       where
@@ -155,7 +155,8 @@ instance CodeGen (Program ())
         forB  = cgen env1 pLoopBlock
         ixd   = pvar env pLoopCounter
         ixv   = cgen env  pLoopCounter
-        ini   = ixd <+> equals    <+> int 0
+        lstrt = cgen env pLoopStart
+        ini   = ixd <+> equals    <+> lstrt
         guard = ixv <+> char '<'  <+> loopB
         loopB = cgen env pLoopEnd
         next  = ixv <+> text "+=" <+> cgen env pLoopStep

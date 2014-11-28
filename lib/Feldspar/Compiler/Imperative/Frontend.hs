@@ -289,9 +289,9 @@ if' ce tb (Just eb) = Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
-for :: ParType -> String -> Expression () -> Expression () -> Block () -> Program ()
-for _ _ _ _ (Block [] (Sequence [Empty])) = Empty
-for p s e i b = ParLoop p (Variable (MachineVector 1 $ NumType Unsigned S32) s) e i b
+for :: ParType -> String -> Expression () -> Expression () -> Expression () -> Block () -> Program ()
+for _ _ _ _ _ (Block [] (Sequence [Empty])) = Empty
+for p n s e i b = ParLoop p (Variable (MachineVector 1 $ NumType Unsigned S32) n) s e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e = SeqLoop e p

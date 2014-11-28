@@ -54,8 +54,8 @@ adaptTic64xProg (Switch scrut alts)
    = Switch (adaptTic64xExp scrut) (map adaptTic64xAlt alts)
 adaptTic64xProg (SeqLoop cond calc block)
   = SeqLoop (adaptTic64xExp cond) (adaptTic64xBlock calc) (adaptTic64xBlock block)
-adaptTic64xProg (ParLoop p v e1 e2 b)
-  = ParLoop p v (adaptTic64xExp e1) (adaptTic64xExp e2) (adaptTic64xBlock b)
+adaptTic64xProg (ParLoop p v e0 e1 e2 b)
+  = ParLoop p v (adaptTic64xExp e0) (adaptTic64xExp e1) (adaptTic64xExp e2) (adaptTic64xBlock b)
 adaptTic64xProg (BlockProgram b)     = BlockProgram $ adaptTic64xBlock b
 
 -- | Adapts expressions.

@@ -247,7 +247,7 @@ compileProg env (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v 
             b' <- confiscateBlock $ compileProg env (Just $ ArrayElem loc ix) ixf
             return (Parallel, snd b')
    tellProg [initArray (Just loc) len']
-   tellProg [for ptyp (lName ix) len' (litI32 1) b]
+   tellProg [for ptyp (lName ix) (litI32 0) len' (litI32 1) b]
 compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
@@ -269,7 +269,7 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
         tellProg [ Assign (Just st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
-                  for Sequential (lName ix) len' (litI32 1) $
+                  for Sequential (lName ix) (litI32 0) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just st) $ AddrOf (ArrayElem arr ix)]) loc)]
 compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
@@ -281,7 +281,7 @@ compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t
        tellProg [initArray loc len']
        compileProg env (Just $ StructField tmp "member2") st
        tellProg [toProg $ Block ds $
-                 for Sequential (lName ix) len' (litI32 1) $ toBlock $
+                 for Sequential (lName ix) (litI32 0) len' (litI32 1) $ toBlock $
                    Sequence $ body ++
                      [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                      ]]
@@ -343,7 +343,7 @@ compileProg env (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v t
           _                              -> do
             b' <- confiscateBlock $ compileProg env (Just loc) ixf
             return (Parallel, snd b')
-   tellProg [for ptyp (lName ix) len' (litI32 1) b]
+   tellProg [for ptyp (lName ix) (litI32 0) len' (litI32 1) b]
 -- Error
 compileProg _   _   (In (App Ut.Undefined _ _)) = return ()
 compileProg env loc (In (App (Ut.Assert msg) _ [cond, a])) = do
@@ -373,7 +373,7 @@ compileProg env (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
                           $ compileProg env (Just stvar) ixf
                           >> shallowCopyWithRefSwap lstate stvar
-      tellProg [toProg $ Block ds (for Sequential (lName ix') len' (litI32 1) (toBlock body))]
+      tellProg [toProg $ Block ds (for Sequential (lName ix') (litI32 0) len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
 compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
     let condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
@@ -394,7 +394,7 @@ compileProg env loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) 
    let ix = mkVar (compileTypeRep (opts env) ta) v
    len' <- mkLength env len ta
    (_, Block ds body) <- confiscateBlock $ compileProg env loc ixf
-   tellProg [toProg $ Block ds (for Sequential (lName ix) len' (litI32 1) (toBlock body))]
+   tellProg [toProg $ Block ds (for Sequential (lName ix) (litI32 0) len' (litI32 1) (toBlock body))]
 -- Mutable
 compileProg env loc (In (App Ut.Run _ [ma])) = compileProg env loc ma
 compileProg env loc (In (App Ut.Return t [a]))
@@ -424,7 +424,7 @@ compileProg env loc (In (App Ut.NewArr _ [len, a])) = do
    a' <- compileExpr env a
    l  <- compileExpr env len
    tellProg [initArray loc l]
-   tellProg [for Sequential "i" l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
+   tellProg [for Sequential "i" (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
 compileProg env loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr env len
    tellProg [initArray loc l]

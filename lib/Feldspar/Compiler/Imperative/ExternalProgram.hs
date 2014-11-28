@@ -219,9 +219,10 @@ stmToProgram env (While e s _) = SeqLoop cond (toBlock Empty) (toBlock p)
   where cond = expToExpression env e
         p = stmToProgram env s
 stmToProgram _ (DoWhile s e _) = error "stmToProgram: No support for Do."
-stmToProgram env (For (Left es) (Just (BinOp Lt name@Var{} v2 _))
+stmToProgram env (For (Left es@(InitGroup ds attr [Init n _ Nothing (Just (ExpInitializer e0 _)) _ _] _))
+                      (Just (BinOp Lt name@Var{} v2 _))
                       (Just (Assign lhs AddAssign rhs _)) s _)
-  = ParLoop Sequential v' (expToExpression env' v2) (expToExpression env' rhs) body
+  = ParLoop Sequential v' (expToExpression env' e0) (expToExpression env' v2) (expToExpression env' rhs) body
     where env' = initGroupToProgram env es
           v' = varToVariable env' name
           body = toBlock $ stmToProgram env' s

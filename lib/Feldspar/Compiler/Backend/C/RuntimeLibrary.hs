@@ -98,7 +98,7 @@ pow_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
        lvars  = [Declaration outVar $ Just (litI typ 1)]
        body   = Block lvars prg
        prg    = Sequence [ guard
-                         , for Sequential "i" inVar2' (litI32 1) (Block [] body')
+                         , for Sequential "i" (litI32 0) inVar2' (litI32 1) (Block [] body')
                          , call "return" [ValueParameter $ outVar']]
        body'  = Assign (Just outVar') (binop typ "*" outVar' inVar1')
        guard

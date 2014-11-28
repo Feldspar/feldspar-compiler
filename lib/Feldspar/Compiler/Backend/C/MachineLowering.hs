@@ -61,8 +61,8 @@ renameProg opts m (Switch scrut alts)
    = Switch (renameExp m scrut) (map (renameAlt opts m) alts)
 renameProg opts m (SeqLoop cond calc block)
   = SeqLoop (renameExp m cond) (renameBlock opts m calc) (renameBlock opts m block)
-renameProg opts m (ParLoop p v e1 e2 b)
-  = ParLoop p v (renameExp m e1) (renameExp m e2) (renameBlock opts m b)
+renameProg opts m (ParLoop p v e0 e1 e2 b)
+  = ParLoop p v (renameExp m e0) (renameExp m e1) (renameExp m e2) (renameBlock opts m b)
 renameProg opts m (BlockProgram b)     = BlockProgram $ renameBlock opts m b
 
 -- | Rename expressions.
