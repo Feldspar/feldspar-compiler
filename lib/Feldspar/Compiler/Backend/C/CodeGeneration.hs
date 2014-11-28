@@ -157,7 +157,7 @@ instance CodeGen (Program ())
         ixv   = cgen env  pLoopCounter
         ini   = ixd <+> equals    <+> int 0
         guard = ixv <+> char '<'  <+> loopB
-        loopB = cgen env pLoopBound
+        loopB = cgen env pLoopEnd
         next  = ixv <+> text "+=" <+> cgen env pLoopStep
         env1 | Parallel <- pParallelType = env { parNestLevel = parNestLevel env + 1}
              | otherwise = env

@@ -141,7 +141,7 @@ data Program t
     | ParLoop
         { pParallelType             :: ParType
         , pLoopCounter              :: Variable t
-        , pLoopBound                :: Expression t
+        , pLoopEnd                  :: Expression t
         , pLoopStep                 :: Expression t
         , pLoopBlock                :: Block t
         }
