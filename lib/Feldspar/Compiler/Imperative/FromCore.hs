@@ -202,7 +202,7 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
       Par -> compileProg env {inTask = True} (Just loc) e'
       Loop | (ix:_) <- es'
            , Ut.ElementsType{} <- typeof e' -> compileProg env (Just loc) e'
-           | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) (mkLam (tail bs) e')
+           | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
       None -> compileProg env (Just loc) e'
   tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decl ws ++ ds) bl]
   -- Task:
