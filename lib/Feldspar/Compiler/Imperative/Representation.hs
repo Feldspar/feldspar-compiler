@@ -276,6 +276,7 @@ data ScalarType =
     | DoubleType
     | NumType Signedness Size
     | ComplexType Type
+    | Pointer Type -- Used for scatter/gather.
     deriving (Eq,Show)
 
 data Type =
@@ -285,7 +286,6 @@ data Type =
     | ArrayType (Range Length) Type
     | NativeArray (Maybe Length) Type
     | StructType String [(String, Type)]
-    | Pointer Type
     | IVarType Type
     deriving (Show)
 
@@ -298,7 +298,6 @@ instance Eq Type where
    (ArrayType _ t1)      == (ArrayType _ t2)      = t1 == t2
    (NativeArray l1 t1)   == (NativeArray l2 t2)   = l1 == l2 && t1 == t2
    (StructType _ l1)     == (StructType _ l2)     = l1 == l2
-   (Pointer t1)          == (Pointer t2)          = t1 == t2
    (IVarType t1)         == (IVarType t2)         = t1 == t2
    _                     == _                     = False
 
@@ -329,24 +328,22 @@ instance HasType (Expression t) where
         decrArrayDepth :: Type -> Type
         decrArrayDepth (ArrayType _ t)   = t
         decrArrayDepth (NativeArray _ t) = t
-        decrArrayDepth (Pointer t)       = decrArrayDepth t
         decrArrayDepth t                 = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
         getStructFieldType :: String -> Type -> Type
         getStructFieldType f (StructType _ l) = fromMaybe (structFieldNotFound f) $ lookup f l
         getStructFieldType f (AliasType t _)  = getStructFieldType f t
-        getStructFieldType f (Pointer t)      = getStructFieldType f t
         getStructFieldType f t                = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
         structFieldNotFound f = reprError InternalError $ "Not found struct field with this name: " ++ f
     typeof ConstExpr{..}    = typeof constExpr
     typeof FunctionCall{..} = returnType function
     typeof Cast{..}         = castType
-    typeof AddrOf{..}       = Pointer $ typeof addrExpr
+    typeof AddrOf{..}       = MachineVector 1 $ Pointer $ typeof addrExpr
     typeof SizeOf{..}       = MachineVector 1 $ NumType Signed S32
     typeof Deref{..}        = case typeof ptrExpr of
-                                Pointer btype -> btype
+                                MachineVector 1 (Pointer btype) -> btype
                                 wtype         -> reprError InternalError $ "Type of dereferenced expression " ++ show ptrExpr ++ " has type " ++ show wtype
 
 instance HasType (ActualParameter t) where

@@ -200,22 +200,22 @@ isFloat (MachineVector _ FloatType{}) = True
 isFloat _                             = False
 
 isArray :: Type -> Bool
-isArray ArrayType{} = True
-isArray (Pointer t) = isArray t
-isArray _ = False
+isArray ArrayType{}                   = True
+isArray (MachineVector _ (Pointer t)) = isArray t
+isArray _                             = False
 
 isNativeArray :: Type -> Bool
-isNativeArray NativeArray{} = True
-isNativeArray (Pointer t)   = isNativeArray t
-isNativeArray _             = False
+isNativeArray NativeArray{}                   = True
+isNativeArray (MachineVector _ (Pointer t))   = isNativeArray t
+isNativeArray _                               = False
 
 isIVar :: Type -> Bool
 isIVar IVarType{} = True
 isIVar _              = False
 
 isPointer :: Type -> Bool
-isPointer Pointer{} = True
-isPointer _         = False
+isPointer (MachineVector _ Pointer{}) = True
+isPointer _                           = False
 
 isVarExpr :: Expression () -> Bool
 isVarExpr VarExpr{} = True
@@ -244,12 +244,12 @@ flattenStructs (StructType _ fts) = [(\ e -> af $ StructField e fname, t') | (fn
 flattenStructs t = [(id, t)]
 
 hasReference :: Type -> Bool
-hasReference ArrayType{}       = True
-hasReference NativeArray{}     = True -- TODO: Reconsider this safe approximation if we start using native arrays for performance
-hasReference Pointer{}         = True
-hasReference IVarType{}        = True
-hasReference (StructType _ fs) = any (hasReference . snd) fs
-hasReference _                 = False
+hasReference ArrayType{}                 = True
+hasReference NativeArray{}               = True -- TODO: Reconsider this safe approximation if we start using native arrays for performance
+hasReference (MachineVector _ Pointer{}) = True
+hasReference IVarType{}                  = True
+hasReference (StructType _ fs)           = any (hasReference . snd) fs
+hasReference _                           = False
 
 dVar :: Declaration () -> Variable ()
 dVar (Declaration v _)    = v

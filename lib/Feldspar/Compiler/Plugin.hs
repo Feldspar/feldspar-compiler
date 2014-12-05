@@ -236,7 +236,6 @@ instance Lift Type where
     lift (ArrayType r t)      = [| ArrayType r t |]
     lift (NativeArray l t)    = [| NativeArray l t |]
     lift (StructType s es)    = [| StructType s es |]
-    lift (Pointer t)          = [| Pointer t |]
     lift (IVarType t)         = [| IVarType t |]
 
 instance Lift Signedness where

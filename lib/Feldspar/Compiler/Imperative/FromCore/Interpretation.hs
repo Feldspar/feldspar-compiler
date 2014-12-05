@@ -181,7 +181,7 @@ mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 
 -- | Construct a named pointer.
 mkNamedRef :: String -> Type -> Integer -> Variable ()
-mkNamedRef base t i = Variable (Pointer t) $ base ++ if i < 0 then "" else show i
+mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
 
 -- | Construct a pointer.
 mkRef :: Type -> Integer -> Expression ()
@@ -268,7 +268,6 @@ encodeType = go
     go VoidType              = "void"
     -- Machine vectors do not change memory layout, so keep internal.
     go (MachineVector _ t)   = goScalar t
-    go (Pointer t)           = "ptr_" ++ go t
     go (AliasType t s)       = "a_" ++ show (length s) ++ "_" ++ s ++ "_" ++ go t
     go (IVarType t)          = "i_" ++ go t
     go (NativeArray _ t)     = "narr_" ++ go t
@@ -280,6 +279,7 @@ encodeType = go
     goScalar DoubleType      = "double"
     goScalar (NumType s w)   = map toLower (show s) ++ show w
     goScalar (ComplexType t) = "complex_" ++ go t
+    goScalar (Pointer t)     = "ptr_" ++ go t
 
 -- Almost the inverse of encodeType. Some type encodings are lossy so
 -- they are impossible to recover.
@@ -304,7 +304,7 @@ decodeType = goL []
      where (w, t') = decodeSize t
     go (stripPrefix "complex"  -> Just t) = (MachineVector 1 (ComplexType tn), t')
      where (tn, t') = go t
-    go (stripPrefix "ptr_"     -> Just t) = (Pointer tt, t')
+    go (stripPrefix "ptr_"     -> Just t) = (MachineVector 1 (Pointer tt), t')
      where (tt, t') = go t
     go (stripPrefix "a_"       -> Just t) = (AliasType tt s', t'')
      where Just (n, '_':t') = decodeLen t
@@ -344,15 +344,15 @@ getTypes defs = nub $ concatMap mkDef comps
     -- There are other composite types that are not flagged as such by this
     -- version of isComposite, so keep it private.
     isComposite' :: Type -> Bool
-    isComposite' (StructType {}) = True
-    isComposite' (Pointer t)     = isComposite' t
-    isComposite' e               = isArray e
+    isComposite' (StructType {})               = True
+    isComposite' (MachineVector _ (Pointer t)) = isComposite' t
+    isComposite' e                             = isArray e
     mkDef (StructType n members)
       =  concatMap (mkDef . snd) members
       ++ [StructDef n (map (uncurry StructMember) members)]
-    mkDef (ArrayType _ typ) = mkDef typ
-    mkDef (Pointer typ)     = mkDef typ
-    mkDef _                 = []
+    mkDef (ArrayType _ typ)               = mkDef typ
+    mkDef (MachineVector _ (Pointer typ)) = mkDef typ
+    mkDef _                               = []
 
 assign :: Location -> Expression () -> CodeWriter ()
 assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just tgt) [src]]

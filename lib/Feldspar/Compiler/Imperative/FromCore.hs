@@ -130,7 +130,7 @@ compileProgTop opt a = do
   let outType' = compileTypeRep opt (typeof a)
       (outType, outLoc)
        | useNativeReturns opt = (outType',             varToExpr outParam)
-       | otherwise            = (Rep.Pointer outType', Deref $ varToExpr outParam)
+       | otherwise            = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
   compileProg (cenv0 opt) (Just outLoc) a
   return outParam

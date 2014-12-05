@@ -440,7 +440,7 @@ declToType :: R.Type -> Decl -> R.Type
 declToType t DeclRoot{} = t
 -- Truncate one level of pointers on array types.
 declToType t (Ptr tqs DeclRoot{} _) | pointedArray t = t
-declToType t (Ptr tqs dcl _)  = declToType (Pointer t) dcl
+declToType t (Ptr tqs dcl _)  = declToType (MachineVector 1 (Pointer t)) dcl
 declToType t BlockPtr{} = error "Blocks?"
 declToType t (Array tqs (NoArraySize _) dcl _) = NativeArray Nothing t
 declToType t (Array tqs sz dcl _)
@@ -451,9 +451,9 @@ declToType t (OldProto dcl ids _) = error "OldProto"
 declToType _ d = error ("declToType: Unhandled construct: " ++ show d)
 
 pointedArray :: R.Type -> Bool
-pointedArray (ArrayType{}) = True
-pointedArray (Pointer t)   = pointedArray t
-pointedArray _             = False
+pointedArray (ArrayType{})                 = True
+pointedArray (MachineVector _ (Pointer t)) = pointedArray t
+pointedArray _                             = False
 
 fieldGroupToType :: TPEnv -> FieldGroup -> (String, R.Type)
 fieldGroupToType env (FieldGroup dss [fs] _)

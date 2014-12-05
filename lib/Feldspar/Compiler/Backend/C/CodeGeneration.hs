@@ -235,13 +235,13 @@ instance CodeGen Type
   where
     cgen env = toC
       where
-        toC VoidType                   = text "void"
-        toC ArrayType{}                = text "struct array *"
-        toC IVarType{}                 = text "struct ivar"
-        toC (StructType n _)           = text "struct" <+> text n
-        toC (NativeArray _ t)          = toC t
-        toC (Pointer t)                = toC t <+> text "*"
-        toC t | Just s <- lookup t pts = text s
+        toC VoidType                      = text "void"
+        toC ArrayType{}                   = text "struct array *"
+        toC IVarType{}                    = text "struct ivar"
+        toC (StructType n _)              = text "struct" <+> text n
+        toC (NativeArray _ t)             = toC t
+        toC (MachineVector 1 (Pointer t)) = toC t <+> text "*"
+        toC t | Just s <- lookup t pts    = text s
         toC t = codeGenerationError InternalError
               $ unwords ["Unhandled type in platform ", name pfm,  ": ", show t]
         pfm = platform $ options env
@@ -259,7 +259,7 @@ call fn args = fn <> parens (hsep $ punctuate comma args)
 -- inside a compound type.
 initialize :: Bool -> Type -> Doc
 -- Compound/Special types.
-initialize _     Pointer{}         = equals <+> text "NULL"
+initialize _     (MachineVector 1 Pointer{}) = equals <+> text "NULL"
 initialize _     ArrayType{}       = equals <+> text "NULL"
 initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
   where inits = hsep $ punctuate comma $ map initField fs
