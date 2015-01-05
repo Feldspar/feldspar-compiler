@@ -17,6 +17,7 @@ import Feldspar.Compiler.Plugin
 import Feldspar.Compiler.ExternalProgram (compileFile)
 import Feldspar.Vector
 
+import Control.Applicative hiding (empty)
 import Control.Monad
 import Control.Monad.Error (liftIO)
 import Data.Monoid ((<>))
@@ -69,6 +70,8 @@ copyPush v = let pv = toPush v in pv ++ pv
 
 concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
 concatV xs = fromZero $ fold (++) empty xs
+
+loadFun 'concatV
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
@@ -129,9 +132,16 @@ noinline1 x = noInline $ not x
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
+buildVector :: [a] -> ([WordN],[a])
+buildVector as = ([Prelude.fromIntegral $ Prelude.length as],as)
+
+prop_concatV ls = forAll (mapM (\(Positive (Small l)) -> vectorOf l arbitrary) ls) $ \xss ->
+  buildVector (Prelude.concat xss) === c_concatV (buildVector . fmap buildVector $ xss)
+
 compilerTests :: TestTree
 compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
+    , testProperty "concatV (plugin)" prop_concatV
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam "pairParam_ret" nativeRetOpts
