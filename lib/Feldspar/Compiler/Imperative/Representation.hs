@@ -241,6 +241,7 @@ data Constant t
         }
     | ArrayConst
         { arrayValues               :: [Constant t]
+        , arrayType                 :: Type
         }
     deriving (Typeable, Show, Eq)
 
@@ -316,8 +317,7 @@ instance HasType (Constant t) where
     typeof DoubleConst{}     = MachineVector 1 DoubleType
     typeof FloatConst{}      = MachineVector 1 FloatType
     typeof BoolConst{}       = MachineVector 1 BoolType
-    typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) t
-      where t = typeof $ head arrayValues
+    typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) arrayType
     typeof ComplexConst{..}  = MachineVector 1 (ComplexType $ typeof realPartComplexValue)
 
 instance HasType (Expression t) where

@@ -92,7 +92,7 @@ arrayLength arr
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray = go []  -- TODO: Extend to handle x.member1.member2
   where go :: [String] -> Expression t -> Maybe (Range Length)
-        go []    (ConstExpr (ArrayConst l)) = Just (singletonRange $ fromIntegral $ length l)
+        go []    (ConstExpr (ArrayConst l _)) = Just (singletonRange $ fromIntegral $ length l)
         go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just r
         go []    (VarExpr (Variable (NativeArray (Just r) _) _)) = Just (singletonRange r)
         go []    (Deref e) = go [] e -- TODO: this is questionable; we now look at an expression for the address of the array

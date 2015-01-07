@@ -125,7 +125,7 @@ compileProgTop opt (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Va
          compileProgTop opt body
   where
     var = mkVariable (typeof c) v -- Note [Precise size information]
-    c   = literalConst l
+    c   = literalConst opt l
 compileProgTop opt a = do
   let outType' = compileTypeRep opt (typeof a)
       (outType, outLoc)
@@ -360,7 +360,7 @@ compileProg env loc (In (App Ut.Await _ [a])) = do
    tellProg [iVarGet (inTask env) l fut | Just l <- [loc]]
 -- Literal
 compileProg env loc (In (Ut.Literal a)) = case loc of
-     Just l -> literalLoc env l a
+     Just l -> literalLoc (opts env) l a
      Nothing -> return ()
 -- Logic
 -- Loop
@@ -714,7 +714,7 @@ compileExpr _ (In (App Ut.Pi t [])) = error "No pi ready"
 -- Fractional
 -- Future
 -- Literal
-compileExpr env (In (Ut.Literal l)) = literal env l
+compileExpr env (In (Ut.Literal l)) = literal (opts env) l
 -- Loop
 -- Logic
 -- Mutable
@@ -768,16 +768,16 @@ compileAssert env cond msg = do
     tellProg [call "assert" [ValueParameter condExpr]]
     unless (null msg) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
 
-literal :: CompileEnv -> Ut.Lit -> CodeWriter (Expression ())
-literal _   t@LUnit       = return (ConstExpr $ literalConst t)
-literal _   t@LBool{}     = return (ConstExpr $ literalConst t)
-literal _   t@LInt{}      = return (ConstExpr $ literalConst t)
-literal _   t@LFloat{}    = return (ConstExpr $ literalConst t)
-literal _   t@LDouble{}   = return (ConstExpr $ literalConst t)
-literal _   t@LComplex{}  = return (ConstExpr $ literalConst t)
-literal _   t@LArray{}    = return (ConstExpr $ literalConst t)
-literal env t = do loc <- freshVar (opts env) "x" (typeof t)
-                   literalLoc env loc t
+literal :: Options -> Ut.Lit -> CodeWriter (Expression ())
+literal opt t@LUnit       = return (ConstExpr $ literalConst opt t)
+literal opt t@LBool{}     = return (ConstExpr $ literalConst opt t)
+literal opt t@LInt{}      = return (ConstExpr $ literalConst opt t)
+literal opt t@LFloat{}    = return (ConstExpr $ literalConst opt t)
+literal opt t@LDouble{}   = return (ConstExpr $ literalConst opt t)
+literal opt t@LComplex{}  = return (ConstExpr $ literalConst opt t)
+literal opt t@LArray{}    = return (ConstExpr $ literalConst opt t)
+literal opt t = do loc <- freshVar opt "x" (typeof t)
+                   literalLoc opt loc t
                    return loc
 
 -- | Returns true if we can represent the literal in Program.
@@ -791,18 +791,18 @@ representableType l
   = t `elem` [Ut.UnitType, Ut.DoubleType, Ut.FloatType, Ut.BoolType]
       where t = typeof l
 
-literalConst :: Ut.Lit -> Constant ()
-literalConst LUnit          = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
-literalConst (LBool a)      = BoolConst a
-literalConst (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
-literalConst (LFloat a)     = FloatConst a
-literalConst (LDouble a)    = DoubleConst a
-literalConst (LArray _ es)  = ArrayConst $ map literalConst es
-literalConst (LComplex r i) = ComplexConst (literalConst r) (literalConst i)
+literalConst :: Options -> Ut.Lit -> Constant ()
+literalConst opt LUnit          = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
+literalConst opt (LBool a)      = BoolConst a
+literalConst opt (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
+literalConst opt (LFloat a)     = FloatConst a
+literalConst opt (LDouble a)    = DoubleConst a
+literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileTypeRep opt t
+literalConst opt (LComplex r i) = ComplexConst (literalConst opt r) (literalConst opt i)
 
-literalLoc :: CompileEnv -> Expression () -> Ut.Lit -> CodeWriter ()
-literalLoc _ loc arr@Ut.LArray{}
-    = tellProg [copyProg (Just loc) [ConstExpr $ literalConst arr]]
+literalLoc :: Options -> Expression () -> Ut.Lit -> CodeWriter ()
+literalLoc opt loc arr@Ut.LArray{}
+    = tellProg [copyProg (Just loc) [ConstExpr $ literalConst opt arr]]
 
 literalLoc env loc (Ut.LTup2 ta tb) =
     do literalLoc env (StructField loc "member1") ta
