@@ -85,7 +85,7 @@ pmap f = map await . force . map (future . f)
 
 segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
 segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
-  where clen = length xs `div` l
+  where clen = 1 + length xs `div` l
 -- End one test.
 
 -- | We rewrite `return x >>= \_ -> return y` into `return x >> return y`
