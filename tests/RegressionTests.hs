@@ -31,7 +31,7 @@ example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
 
 -- Compile and load example9 as c_example9 (using plugins)
-loadFun 'example9
+loadFun ['example9]
 
 topLevelConsts :: Data Index -> Data Index -> Data Index
 topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
@@ -71,7 +71,7 @@ copyPush v = let pv = toPush v in pv ++ pv
 concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
 concatV xs = fromZero $ fold (++) empty xs
 
-loadFun 'concatV
+loadFun ['concatV]
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
@@ -132,11 +132,9 @@ noinline1 x = noInline $ not x
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
-buildVector :: [a] -> ([WordN],[a])
-buildVector as = ([Prelude.fromIntegral $ Prelude.length as],as)
-
-prop_concatV ls = forAll (mapM (\(Positive (Small l)) -> vectorOf l arbitrary) ls) $ \xss ->
-  buildVector (Prelude.concat xss) === c_concatV (buildVector . fmap buildVector $ xss)
+prop_concatV = forAll (vectorOf 3 (choose (0,5))) $ \ls ->
+                 forAll (mapM (\l -> vectorOf l arbitrary) ls) $ \xss ->
+                   Prelude.concat xss === c_concatV xss
 
 compilerTests :: TestTree
 compilerTests = testGroup "Compiler-RegressionTests"

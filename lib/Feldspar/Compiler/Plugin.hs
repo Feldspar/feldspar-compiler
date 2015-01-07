@@ -91,20 +91,20 @@ feldsparPluginConfig =
 --
 -- > c_prog1 :: Index -> [Index]
 --
-loadFun :: Name -> Q [Dec]
+loadFun :: [Name] -> Q [Dec]
 loadFun = loadFunWithConfig feldsparPluginConfig
 
 -- | @loadFun@ with a function suffix to avoid collisions and different
 --  feldspar-compiler options.
-loadFunWith :: String -> Options -> Name -> Q [Dec]
+loadFunWith :: String -> Options -> [Name] -> Q [Dec]
 loadFunWith s o = loadFunWithConfig (feldsparPluginConfigWith s o)
 
 -- | Call @loadFun@ with C compiler options
-loadFunOpts :: [String] -> Name -> Q [Dec]
+loadFunOpts :: [String] -> [Name] -> Q [Dec]
 loadFunOpts o = loadFunWithConfig feldsparPluginConfig{opts = o}
 
 -- | Call @loadFunWith@ with C compiler options
-loadFunOptsWith :: String -> Options -> [String] -> Name -> Q [Dec]
+loadFunOptsWith :: String -> Options -> [String] -> [Name] -> Q [Dec]
 loadFunOptsWith s fopt o =
     loadFunWithConfig (feldsparPluginConfigWith s fopt){opts = o}
 

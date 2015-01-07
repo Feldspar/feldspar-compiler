@@ -19,8 +19,8 @@ import Feldspar.Compiler.Plugin
 
 import Control.Applicative
 
-vector1D :: Length -> Gen a -> Gen ([WordN],[a])
-vector1D l ga = (,) <$> pure [l] <*> vectorOf (Prelude.fromIntegral l) ga
+vector1D :: Length -> Gen a -> Gen [a]
+vector1D l = vectorOf (Prelude.fromIntegral l)
 
 pairArg :: (Data Word8,Data IntN) -> Data IntN
 pairArg (a,b) = i2n a + b
@@ -40,12 +40,7 @@ vectorInVector v = fromZero $ sum $ map (fromZero . sum) v
 vectorInPairInVector :: Data WordN -> Pull DIM1 (Data WordN, Pull1 WordN)
 vectorInPairInVector l = indexed1 l $ \i -> (i, indexed1 i id)
 
-loadFun 'pairArg
-loadFun 'pairRes
-loadFun 'vecId
-loadFun 'vectorInPair
-loadFun 'vectorInVector
-loadFun 'vectorInPairInVector
+loadFun ['pairArg, 'pairRes, 'vecId, 'vectorInPair, 'vectorInVector, 'vectorInPairInVector]
 
 prop_pairArg = eval pairArg ==== c_pairArg
 prop_pairRes = eval pairRes ==== c_pairRes
