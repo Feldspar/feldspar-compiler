@@ -47,6 +47,7 @@ instance (Storable (Rep a), Marshal a) => Marshal [a]
         ys <- mapM to xs
         buffer <- newArray ys
         new $ SA buffer len size (fromIntegral (len * size))
+    from p | p == nullPtr = return []
     from p = peek p >>= go
       where
         go SA{..} = do
