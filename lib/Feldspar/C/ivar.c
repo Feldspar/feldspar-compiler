@@ -87,8 +87,7 @@ void ivar_put_array( struct ivar iv, struct array *d )
     struct ivar_internals *ivi = iv.internals;
     log_2("ivar_put_array %p %p - enter\n", &iv, d);
     pthread_mutex_lock( &(ivi->mutex) );
-    ivi->data = (void*)malloc( sizeof(struct array) );
-    initArray( ivi->data, d->elemSize, d->length );
+    ivi->data = initArray( NULL, d->elemSize, d->length );
     copyArray( ivi->data, d );
     ivi->full = 1;
     pthread_cond_broadcast( &(ivi->cond) );
@@ -146,16 +145,17 @@ void ivar_get_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-void ivar_get_array( struct array *var, struct ivar iv )
+struct array * ivar_get_array( struct array *var, struct ivar iv )
 {
     struct array *ptr;
     log_2("ivar_get_array %p %p - enter\n", var, &iv);
     ivar_get_helper(iv.internals);
     ptr = (struct array*)iv.internals->data;
     assert(ptr);
-    initArray( var, ptr->elemSize, ptr->length );
+    var = initArray( var, ptr->elemSize, ptr->length );
     copyArray( var, ptr );
     log_2("ivar_get_array %p %p - leave\n", var, &iv);
+    return var;
 }
 
 void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
@@ -177,7 +177,7 @@ void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_nontask_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-void ivar_get_array_nontask( struct array *var, struct ivar iv )
+struct array * ivar_get_array_nontask( struct array *var, struct ivar iv )
 {
     struct ivar_internals *ivi = iv.internals;
     struct array *ptr;
@@ -199,9 +199,10 @@ void ivar_get_array_nontask( struct array *var, struct ivar iv )
     else
     {
         ptr = (struct array*)ivi->data;
-        initArray( var, ptr->elemSize, ptr->length );
+        var = initArray( var, ptr->elemSize, ptr->length );
         copyArray( var, ptr );
     }
     log_2("ivar_get_array_nontask %p %p - leave\n", var, &iv);
+    return var;
 }
 

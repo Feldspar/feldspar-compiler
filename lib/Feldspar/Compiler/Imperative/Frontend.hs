@@ -114,8 +114,8 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Bool -> Expression () -> Expression () -> Program ()
 iVarGet inTask loc ivar
-    | isArray typ   = call (mangle inTask "ivar_get_array") [ ValueParameter loc
-                                                             , ValueParameter ivar]
+    | isArray typ   = Assign (Just loc)
+                    $ fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar ]
     | otherwise     = call (mangle inTask "ivar_get") [ TypeParameter typ
                                                        , ValueParameter (AddrOf loc)
                                                        , ValueParameter ivar]
