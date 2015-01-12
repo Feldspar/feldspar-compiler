@@ -19,7 +19,7 @@ module Feldspar.Compiler.Plugin
 
 import GHC.Paths (ghc)
 import GHC.Word (Word32(..))
-import System.Plugins (initLinker, loadRawObject, resolveObjs)
+import System.Plugins (initLinker, loadPackage, loadRawObject, resolveObjs)
 import System.Plugins.MultiStage
 import Data.List (isPrefixOf)
 import Distribution.Verbosity (silent,verbose)
@@ -178,6 +178,7 @@ compileAndLoad name opts = do
     compileC cname oname opts
     initLinker
     _ <- loadRawObject oname
+    loadPackage "feldspar-compiler"
     resolveObjs $ error $ "Symbols in " ++ oname ++ " could not be resolved"
 
 compileC :: String -> String -> [String] -> IO ()
