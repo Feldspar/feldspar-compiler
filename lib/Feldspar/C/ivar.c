@@ -57,15 +57,17 @@ void ivar_init( struct ivar *iv )
 void ivar_destroy( struct ivar *iv )    // TODO: Think about ivars escaping from their scope...
 {
     log_1("ivar_destroy %p - enter\n", iv);
-    // if( iv->self == iv )    // This is true iff this iVar is not a copy.
-    // {
-        // struct ivar_internals *ivi = iv->internals;
-        // pthread_mutex_destroy( &(ivi->mutex) );
-        // pthread_cond_destroy( &(ivi->cond) );
-        // if( ivi->full )
-            // free( ivi->data );
-        // free( ivi );
-    // }
+    if( iv->self == iv )    // This is true iff this iVar is not a copy.
+    {
+        struct ivar_internals *ivi = iv->internals;
+        pthread_mutex_destroy( &(ivi->mutex) );
+        pthread_cond_destroy( &(ivi->cond) );
+        if( ivi->full )
+        {
+            free( ivi->data ); // TODO: Destroy deep?
+        }
+        free( ivi );
+    }
     log_1("ivar_destroy %p - leave\n", iv);
 }
 
