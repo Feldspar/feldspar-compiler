@@ -30,13 +30,9 @@
 #define IVAR_H
 
 #include <pthread.h>
-#include "taskpool.h"
 #include "feldspar_array.h"
 
 int feldspar_ivar_hook(void);
-
-/* Declaration of the Feldspar application's global taskpool. */
-extern struct taskpool feldspar_taskpool;
 
 struct ivar_internals
 {

@@ -27,6 +27,7 @@
 //
 
 #include "ivar.h"
+#include "taskpool.h"
 #include <stdlib.h>
 #include <string.h>
 //#define LOG
@@ -104,36 +105,10 @@ void ivar_get_helper( struct ivar_internals *iv )
     if( !iv->full )
     {
         log_1("ivar_get_helper %p - ivar is empty\n", iv);
-        int create = 0;
-        pthread_mutex_lock( &(feldspar_taskpool.mutex) );
-        if( !feldspar_taskpool.shutdown && (feldspar_taskpool.num_threads <= feldspar_taskpool.min_threads) )
-        {
-            create = 1;
-            ++feldspar_taskpool.num_threads;
-            log_3("ivar_get_helper %p - will create a new thread; "
-                  "active: %d, all: %d\n"
-                 , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        }
-        else
-        {
-            --feldspar_taskpool.act_threads;
-            log_3("ivar_get_helper %p - will NOT create a new thread; "
-                  "active: %d, all: %d\n"
-                 , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        }
-        pthread_mutex_unlock( &(feldspar_taskpool.mutex) );
-        if( create )
-        {
-            pthread_t th;
-            pthread_create( &th, NULL, &worker, (void*)&feldspar_taskpool );
-        }
+        taskpool_spawn_worker();
         log_1("ivar_get_helper %p - blocking while waiting for data\n", iv);
         pthread_cond_wait( &(iv->cond), &(iv->mutex) );
-        pthread_mutex_lock( &(feldspar_taskpool.mutex) );
-        ++feldspar_taskpool.act_threads;
-        log_3("ivar_get_helper %p - data arrived; active: %d, all: %d\n"
-             , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        pthread_mutex_unlock( &(feldspar_taskpool.mutex) );        
+        log_1("ivar_get_helper %p - data arrived\n" , iv);
     }
     pthread_mutex_unlock( &(iv->mutex) );
     log_1("ivar_get_helper %p - leave\n", iv);
