@@ -40,7 +40,7 @@ module Feldspar.Compiler.Imperative.FromCore (
   where
 
 import Data.Char (toLower)
-import Data.List (nub, partition)
+import Data.List (nub, partition, find, isPrefixOf)
 import Data.Maybe (isJust, fromJust)
 
 import Control.Monad.RWS
@@ -104,7 +104,14 @@ fromCore opt funname prog = Module defs
      | fastRet   = ( Right outParam,  outDecl:ds ++ decls
                    , [call "return" [ValueParameter $ varToExpr outParam]])
      | otherwise = ( Left [outParam],         ds ++ decls, [])
-    topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence (p:post)))]
+    topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence mainProg))]
+    mainProg
+     | Just _ <- find isTask $ def results
+     = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
+     | otherwise = p:post
+    isTask (Proc{..}) = isPrefixOf "task_core" procName
+    isTask _          = False
+    four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
