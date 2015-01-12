@@ -75,11 +75,11 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
     if( arr->buffer )
     {
         // Re-initialization
-        log_1("initArray %p - reinitialize\n",arr);
+        log_3("initArray %p %d %d - reinitialize\n",arr,size,len);
         if( arr->bytes < newBytes )
         {
-            log_3("initArray %p - realloc since %d < %d\n"
-                 , arr, arr->bytes, newBytes);
+            log_5("initArray %p %d %d - realloc since %d < %d\n"
+                 , arr, size, len, arr->bytes, newBytes);
             // Not enough space: reallocation needed
             arr->bytes  = newBytes;
             arr->buffer = realloc(arr->buffer, newBytes);
@@ -87,8 +87,8 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
         else
         {
             // Otherwise: space is enough, nothing to do
-            log_3("initArray %p - large enough %d >= %d\n"
-                 , arr, arr->bytes, newBytes);
+            log_5("initArray %p %d %d - large enough %d >= %d\n"
+                 , arr, size, len, arr->bytes, newBytes);
         }
     }
     else
