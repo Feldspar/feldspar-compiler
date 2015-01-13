@@ -156,7 +156,8 @@ test-suite regression
 
   main-is: RegressionTests.hs
 
-  ghc-options: -dynamic
+  if os(linux)
+    ghc-options: -dynamic
 
   default-language: Haskell2010
 
@@ -181,7 +182,8 @@ test-suite callconv
 
   main-is: CallingConvention.hs
 
-  ghc-options: -dynamic
+  if os(linux)
+    ghc-options: -dynamic
 
   default-language: Haskell2010
 
@@ -200,7 +202,8 @@ benchmark crc
 
   main-is: CRC.hs
 
-  ghc-options: -dynamic
+  if os(linux)
+    ghc-options: -dynamic
 
   default-language: Haskell2010
 
@@ -221,7 +224,8 @@ benchmark fft
 
   main-is: FFT.hs
 
-  ghc-options: -dynamic
+  if os(linux)
+    ghc-options: -dynamic
 
   default-language: Haskell2010
 
@@ -242,7 +246,8 @@ benchmark matmul
 
   main-is: MatMul.hs
 
-  ghc-options: -dynamic
+  if os(linux)
+    ghc-options: -dynamic
 
   c-sources: benchs/MatMulC.c
 
