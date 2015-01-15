@@ -19,9 +19,10 @@ void ivartest(uint32_t v0, uint32_t * out)
   struct ivar v1;
   uint32_t e1;
   
+  taskpool_init(4, 4, 4);
   ivar_init(&v1);
   spawn2(task0, uint32_t, v0, struct ivar, v1);
   ivar_get_nontask(uint32_t, &e1, v1);
   *out = (e1 << 1);
-  ivar_destroy(&v1);
+  taskpool_shutdown();
 }

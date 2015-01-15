@@ -13,18 +13,6 @@
 #include <complex.h>
 
 
-struct s_2_arr_unsignedS32_arr_signedS32
-{
-  struct array * member1;
-  struct array * member2;
-};
-
-struct s_2_arr_unsignedS32_arr_s_2_arr_unsignedS32_arr_signedS32
-{
-  struct array * member1;
-  struct array * member2;
-};
-
-void concatV(struct s_2_arr_unsignedS32_arr_s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsignedS32_arr_signedS32 * out);
+void concatV(struct array * v0, struct array * * out);
 
 #endif // TESTS_CONCATV_H

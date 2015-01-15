@@ -18,6 +18,7 @@ void fut1(struct ivar v0, struct ivar * out)
 {
   struct ivar e0;
   
+  taskpool_init(4, 4, 4);
   e0 = *out;
   e0 = v0;
   for (uint32_t v1 = 0; v1 < 20; v1 += 1)
@@ -26,4 +27,5 @@ void fut1(struct ivar v0, struct ivar * out)
     spawn1(task0, struct ivar, e0);
   }
   *out = e0;
+  taskpool_shutdown();
 }

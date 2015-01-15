@@ -1,64 +1,39 @@
 #include "metrics.h"
 
 
-void metrics(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsignedS32_arr_signedS32 * v1, struct s_2_arr_unsignedS32_arr_s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32 * v2, struct s_2_arr_unsignedS32_arr_s_2_arr_unsignedS32_arr_signedS32 * out)
+void metrics(struct array * v0, struct array * v1, struct array * v2, struct array * * out)
 {
-  uint32_t v78;
-  uint32_t v72;
-  struct array * v73 = NULL;
-  struct s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32 v65 = { .member1 = NULL, .member2 = NULL };
-  uint32_t v68;
-  struct s_2_arr_unsignedS32_arr_signedS32 st0 = { .member1 = NULL, .member2 = NULL };
-  struct s_2_arr_unsignedS32_arr_signedS32 * v43 = NULL;
-  struct s_2_arr_unsignedS32_arr_signedS32 v74 = { .member1 = NULL, .member2 = NULL };
-  uint32_t v75;
+  uint32_t v28;
+  uint32_t v29;
+  struct array * st0 = NULL;
+  struct array * * v16 = NULL;
+  struct array * v30 = NULL;
+  uint32_t len1;
   
-  v78 = at(uint32_t,(*v0).member1,0);
-  v72 = at(uint32_t,(*v2).member1,0);
-  (st0).member1 = initArray((st0).member1, sizeof(uint32_t), 1);
-  at(uint32_t,(st0).member1,0) = 8;
-  (st0).member2 = initArray((st0).member2, sizeof(int32_t), 8);
-  at(int32_t,(st0).member2,0) = -32678;
-  at(int32_t,(st0).member2,1) = -32678;
-  at(int32_t,(st0).member2,2) = -32678;
-  at(int32_t,(st0).member2,3) = -32678;
-  at(int32_t,(st0).member2,4) = -32678;
-  at(int32_t,(st0).member2,5) = -32678;
-  at(int32_t,(st0).member2,6) = -32678;
-  at(int32_t,(st0).member2,7) = -32678;
-  v43 = &st0;
-  v73 = initArray(v73, sizeof(struct s_2_arr_unsignedS32_arr_signedS32), v72);
-  for (uint32_t v42 = 0; v42 < v72; v42 += 1)
+  v28 = getLength(v2);
+  v29 = getLength(v0);
+  st0 = initArray(st0, sizeof(int32_t), 8);
+  at(int32_t,st0,0) = -32678;
+  at(int32_t,st0,1) = -32678;
+  at(int32_t,st0,2) = -32678;
+  at(int32_t,st0,3) = -32678;
+  at(int32_t,st0,4) = -32678;
+  at(int32_t,st0,5) = -32678;
+  at(int32_t,st0,6) = -32678;
+  at(int32_t,st0,7) = -32678;
+  v16 = &st0;
+  *out = initArray(*out, (0 - sizeof(struct array *)), v28);
+  for (uint32_t v15 = 0; v15 < v28; v15 += 1)
   {
-    (v65).member1 = initArray((v65).member1, sizeof(uint32_t), getLength((at(struct s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32,(*v2).member2,v42)).member1));
-    copyArray((v65).member1, (at(struct s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32,(*v2).member2,v42)).member1);
-    (v65).member2 = initArray((v65).member2, sizeof(struct s_2_unsignedS32_unsignedS32), getLength((at(struct s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32,(*v2).member2,v42)).member2));
-    copyArray((v65).member2, (at(struct s_2_arr_unsignedS32_arr_s_2_unsignedS32_unsignedS32,(*v2).member2,v42)).member2);
-    v68 = min(at(uint32_t,(v65).member1,0), v78);
-    (at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42)).member1 = setLength((at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42)).member1, sizeof(uint32_t), 1);
-    at(uint32_t,(at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42)).member1,0) = v68;
-    (at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42)).member2 = initArray((at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42)).member2, sizeof(int32_t), v68);
-    for (uint32_t v49 = 0; v49 < v68; v49 += 1)
+    v30 = at(struct array *,v2,v15);
+    len1 = min(getLength(v30), v29);
+    at(struct array *,*out,v15) = initArray(at(struct array *,*out,v15), sizeof(int32_t), len1);
+    for (uint32_t v17 = 0; v17 < len1; v17 += 1)
     {
-      at(int32_t,(at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42)).member2,v49) = at(int32_t,(*v43).member2,(at(struct s_2_unsignedS32_unsignedS32,(v65).member2,v49)).member1);
+      at(int32_t,at(struct array *,*out,v15),v17) = at(int32_t,*v16,(at(struct s_2_unsignedS32_unsignedS32,v30,v17)).member1);
     }
-    v43 = &at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v42);
+    v16 = &at(struct array *,*out,v15);
   }
-  (*out).member1 = setLength((*out).member1, sizeof(uint32_t), 1);
-  at(uint32_t,(*out).member1,0) = v72;
-  (*out).member2 = initArray((*out).member2, sizeof(struct s_2_arr_unsignedS32_arr_signedS32), v72);
-  for (uint32_t v9 = 0; v9 < v72; v9 += 1)
-  {
-    (v74).member1 = initArray((v74).member1, sizeof(uint32_t), getLength((at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v9)).member1));
-    copyArray((v74).member1, (at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v9)).member1);
-    (v74).member2 = initArray((v74).member2, sizeof(int32_t), getLength((at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v9)).member2));
-    copyArray((v74).member2, (at(struct s_2_arr_unsignedS32_arr_signedS32,v73,v9)).member2);
-    v75 = at(uint32_t,(v74).member1,0);
-    (at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member1 = setLength((at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member1, sizeof(uint32_t), 1);
-    at(uint32_t,(at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member1,0) = v75;
-    (at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member2 = initArray((at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member2, sizeof(int32_t), getLength((v74).member2));
-    copyArray((at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member2, (v74).member2);
-    (at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member2 = setLength((at(struct s_2_arr_unsignedS32_arr_signedS32,(*out).member2,v9)).member2, sizeof(int32_t), v75);
-  }
-  freeArray(v73);
+  *out = setLength(*out, (0 - sizeof(struct array *)), v28);
+  freeArray(st0);
 }
