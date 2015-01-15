@@ -13,23 +13,23 @@
 #include <complex.h>
 
 
-struct s_2_arr_unsignedS32_arr_signedS32
-{
-  struct array * member1;
-  struct array * member2;
-};
-
 struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32
 {
   struct array * member1;
   struct array * member2;
 };
 
-void task_core0(uint32_t v501, uint32_t v631, struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct array * v963);
+struct s_2_arr_unsignedS32_arr_signedS32
+{
+  struct array * member1;
+  struct array * member2;
+};
+
+void task_core0(uint32_t v632, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v651, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v634, uint32_t v4);
 
 void task0(void * params);
 
-void task_core1(uint32_t v690, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v686, struct array * v968, uint32_t v448);
+void task_core1(uint32_t v641, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v654, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v643, uint32_t v423);
 
 void task1(void * params);
 
