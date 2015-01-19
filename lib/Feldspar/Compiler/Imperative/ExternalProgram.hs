@@ -247,6 +247,10 @@ impureExpToProgram env (Assign e JustAssign
                                          [e1', SizeofType e2' _, e3'] _) _)
   = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
    where env' = fixupEnv env e $ typToType env e2'
+impureExpToProgram env (Assign e@Var{} JustAssign
+                               f@(FnCall (Var (Id "at" _) _) [e1, e2] _) _)
+  = (env', R.Assign (Just $ expToExpression env e) (expToExpression env' f))
+   where env' = fixupEnv env e1 $ varType (varToVariable env e)
 impureExpToProgram env (Assign e1 JustAssign e2 _)
   = (env, R.Assign (Just $ expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
