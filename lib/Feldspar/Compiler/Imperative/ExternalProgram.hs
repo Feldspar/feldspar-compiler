@@ -238,15 +238,14 @@ stmToProgram _ e = error ("stmToProgram: Unhandled construct: " ++ show e)
 impureExpToProgram :: TPEnv -> Exp -> (TPEnv, Program ())
 -- Hook for padding incomplete struct array * type info.
 impureExpToProgram env (Assign e JustAssign
-                               f@(FnCall (Var (Id "initArray" _) _)
-                                         [e1', SizeofType e2' _, e3'] _) _)
+                               f@(FnCall (Var (Id fn _) _)
+                                         [e1', e2', e3'] _) _)
+  | fn == "initArray" || fn == "setLength"
   = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
-   where env' = fixupEnv env e $ typToType env e2'
-impureExpToProgram env (Assign e JustAssign
-                               f@(FnCall (Var (Id "setLength" _) _)
-                                         [e1', SizeofType e2' _, e3'] _) _)
-  = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
-   where env' = fixupEnv env e $ typToType env e2'
+   where env' = fixupEnv env e $ typToType env (getTyp e2')
+         getTyp (SizeofType e _) = e
+         getTyp (BinOp Sub _ e _) = getTyp e
+         getTyp e = error ("Unexpected parameter to initArray/setLength:" ++ show e)
 impureExpToProgram env (Assign e@Var{} JustAssign
                                f@(FnCall (Var (Id "at" _) _) [e1, e2] _) _)
   = (env', R.Assign (Just $ expToExpression env e) (expToExpression env' f))
