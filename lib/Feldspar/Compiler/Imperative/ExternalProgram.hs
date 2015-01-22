@@ -239,15 +239,24 @@ stmToProgram _ e = error ("stmToProgram: Unhandled construct: " ++ show e)
 impureExpToProgram :: TPEnv -> Exp -> (TPEnv, Program ())
 -- Hook for padding incomplete struct array * type info.
 impureExpToProgram env (Assign e JustAssign
-                               f@(FnCall (Var (Id "initArray" _) _)
-                                         [e1', SizeofType e2' _, e3'] _) _)
+                               f@(FnCall (Var (Id fn _) _)
+                                         [e1', e2', e3'] _) _)
+  | fn == "initArray" || fn == "setLength"
   = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
-   where env' = fixupEnv env e $ typToType env e2'
-impureExpToProgram env (Assign e JustAssign
-                               f@(FnCall (Var (Id "setLength" _) _)
-                                         [e1', SizeofType e2' _, e3'] _) _)
-  = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
-   where env' = fixupEnv env e $ typToType env e2'
+   where env' = fixupEnv env e $ typToType env (getTyp e2')
+         getTyp (SizeofType e _) = e
+         getTyp (BinOp Sub _ e _) = getTyp e
+         getTyp e = error ("Unexpected parameter to initArray/setLength:" ++ show e)
+impureExpToProgram env (Assign e@Var{} JustAssign
+                               f@(FnCall (Var (Id "at" _) _) [e1, e2] _) _)
+  = (env', R.Assign (Just $ expToExpression env e) (expToExpression env' f))
+   where env' = fixupEnv env e1 $ varType (varToVariable env e)
+impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAssign
+                               f@(FnCall (Var (Id "at" _) _) [e1', e2'] _) _)
+  = (env'', R.Assign (Just $ expToExpression env'' e) (expToExpression env'' f))
+   -- Hope LHS or RHS has proper types. Propagate to the other side.
+   where env'' = fixupEnv env' e1 $ typeof (expToExpression env' f)
+         env'  = fixupEnv env e1' $ typeof (expToExpression env e)
 impureExpToProgram env (Assign e1 JustAssign e2 _)
   = (env, R.Assign (Just $ expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
@@ -525,6 +534,13 @@ plusEnv (TPEnv vs1 tdefs1 hdefs) (TPEnv vs2 tdefs2 _ )
 
 -- Patch the type information in the environment when we learn more.
 fixupEnv :: TPEnv -> Exp -> R.Type -> TPEnv
+fixupEnv env _ VoidType = env -- No new type information.
+fixupEnv env (UnOp Deref (Var (Id s _) _) _) tp = env { vars = goVar (vars env) }
+  where goVar [] = []
+        goVar (p@(n, Variable (MachineVector l (Pointer (ArrayType r _))) n'):t)
+         | s == n = (n, Variable (MachineVector l (Pointer (ArrayType r tp))) n'):goVar t
+        goVar (p:t) = p:goVar t
+fixupEnv _ (UnOp Deref e _) _ = error ("fixupEnv: No support for " ++ show e)
 fixupEnv env (Var (Id s _) _) tp = env { vars = goVar (vars env) }
   where goVar [] = []
         goVar (p@(n, Variable (ArrayType r _) n'):t)
