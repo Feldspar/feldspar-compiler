@@ -258,22 +258,22 @@ impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAss
          env'  = fixupEnv env e1' $ typeof (expToExpression env e)
 impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAssign
                                f _)
-  | e' <- expToExpression env e
-  , VoidType <- typeof e'
-  = (env', R.Assign (Just e'') f')
+  = (env', R.Assign (Just $ expToExpression env' e) f')
    -- Propagate type of RHS to LHS.
-   where env' = fixupEnv env e1 $ typeof f'
-         f'   = expToExpression env' f
-         e''  = expToExpression env' e
+   where env' | VoidType <- typeof e' = fixupEnv env e1 $ typeof f'
+              | otherwise = env
+         e'   = expToExpression env e
+         f' | VoidType <- typeof e' = expToExpression env f
+            | otherwise = expToExpression' env' (Just $ typeof e') f
 impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "at" _) _) [e1', e2'] _) _)
-  | f' <- expToExpression env f
-  , VoidType <- typeof f'
-  = (env', R.Assign (Just e') f'')
+  = (env', R.Assign (Just e') (expToExpression env' f))
    -- Propagate type of LHS to RHS.
-   where env' = fixupEnv env e1' $ typeof e'
-         e'   = expToExpression env' e
-         f''  = expToExpression env' f
+   where env' | VoidType <- typeof f' = fixupEnv env e1' $ typeof e'
+              | otherwise = env
+         e' | VoidType <- typeof f' = expToExpression env e
+            | otherwise = expToExpression' env' (Just $ typeof f') e
+         f' = expToExpression env f
 impureExpToProgram env (Assign e1 JustAssign e2 _)
   = (env, R.Assign (Just $ expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
