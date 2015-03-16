@@ -319,8 +319,8 @@ compileProg env loc (In (App Ut.ConditionM _ [cond, tHEN, eLSE])) =
    mkBranch env loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg env loc (In (App Ut.EMaterialize t [len, arr])) = do
-   len' <- mkLength env len t
+compileProg env loc (In (App Ut.EMaterialize _ [len, arr])) = do
+   len' <- mkLength env len (Ut.typeof len)
    tellProg [initArray loc len']
    compileProg env loc arr
 compileProg env (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
