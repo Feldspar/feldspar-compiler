@@ -326,8 +326,8 @@ compileProg env loc (In (App Ut.ConditionM _ [cond, tHEN, eLSE])) =
    mkBranch env loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg env loc (In (App Ut.EMaterialize t [len, arr])) = do
-   len' <- mkLength env len t
+compileProg env loc (In (App Ut.EMaterialize _ [len, arr])) = do
+   len' <- mkLength env len (Ut.typeof len)
    tellProg [initArray loc len']
    compileProg env loc arr
 compileProg env (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
@@ -750,7 +750,7 @@ compileExpr env (In (App p _ [tup]))
     return $ StructField tupExpr ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.Sequential, Ut.Condition, Ut.ConditionM
-            , Ut.MkFuture, Ut.Await, Ut.Then, Ut.For, Ut.SetArr, Ut.EMaterialize
+            , Ut.MkFuture, Ut.Await, Ut.Then, Ut.Return, Ut.For, Ut.SetArr, Ut.EMaterialize
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
             , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11

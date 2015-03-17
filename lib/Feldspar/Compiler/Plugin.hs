@@ -66,7 +66,6 @@ import Feldspar.Compiler.Marshal ()
 feldsparPluginConfigWith :: String -> Options -> Config
 feldsparPluginConfigWith suff fopts =
     feldsparPluginConfig { builder = feldsparBuilder suff fopts
-                         , prefix = suff
                          }
 
 -- | Default configuration for the loader

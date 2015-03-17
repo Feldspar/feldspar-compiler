@@ -257,6 +257,24 @@ impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAss
    -- Hope LHS or RHS has proper types. Propagate to the other side.
    where env'' = fixupEnv env' e1 $ typeof (expToExpression env' f)
          env'  = fixupEnv env e1' $ typeof (expToExpression env e)
+impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAssign
+                               f _)
+  = (env', R.Assign (Just $ expToExpression env' e) f')
+   -- Propagate type of RHS to LHS.
+   where env' | VoidType <- typeof e' = fixupEnv env e1 $ typeof f'
+              | otherwise = env
+         e'   = expToExpression env e
+         f' | VoidType <- typeof e' = expToExpression env f
+            | otherwise = expToExpression' env' (Just $ typeof e') f
+impureExpToProgram env (Assign e JustAssign
+                               f@(FnCall (Var (Id "at" _) _) [e1', e2'] _) _)
+  = (env', R.Assign (Just e') (expToExpression env' f))
+   -- Propagate type of LHS to RHS.
+   where env' | VoidType <- typeof f' = fixupEnv env e1' $ typeof e'
+              | otherwise = env
+         e' | VoidType <- typeof f' = expToExpression env e
+            | otherwise = expToExpression' env' (Just $ typeof f') e
+         f' = expToExpression env f
 impureExpToProgram env (Assign e1 JustAssign e2 _)
   = (env, R.Assign (Just $ expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
@@ -270,46 +288,54 @@ nameToVariable env name
  | take 4 (unId name) == "task" = Variable fakeType (unId name) -- fake tasks
  | otherwise = error ("varToVariable: Could not find: " ++ show name)
 
+expToExpression :: TPEnv -> Exp -> Expression ()
+expToExpression env = expToExpression' env Nothing
+
 -- No concept of Bool constants in the C parser. They appear at expresion
 -- positions in our context.
-expToExpression :: TPEnv -> Exp -> Expression ()
-expToExpression _ (Var n _)
+expToExpression' :: TPEnv -> Maybe R.Type -> Exp -> Expression ()
+expToExpression' _ _ (Var n _)
   | unId n == "true" = litB True
   | unId n == "false" = litB False
-expToExpression env v@Var{} = VarExpr $ varToVariable env v
-expToExpression _ (Const c _) = ConstExpr (constToConstant c)
-expToExpression env (BinOp op e1 e2 _) = opToFunctionCall parms op
-  where parms = map (expToExpression env) [e1, e2]
-expToExpression env (UnOp op e _) = unOpToExp (expToExpression env e) op
-expToExpression _ (Assign e1 JustAssign e2 _) = error "Assign unimplemented"
-expToExpression _ a@Assign{} = error ("AssignOp unhandled: " ++ show a)
-expToExpression _ PreInc{} = error "expToExpression: No support for preinc."
-expToExpression _ PostInc{} = error "expToExpression: No support for postinc."
-expToExpression _ PreDec{} = error "expToExpression: No support for predec."
-expToExpression _ PostDec{} = error "expToExpression: No support for postdec."
-expToExpression _ SizeofExp{} = error "expToExpression: No support for sizeof exp"
-expToExpression env (SizeofType t _) = R.SizeOf $ typToType env t
-expToExpression env (Cast t e _)
+expToExpression' env _ v@Var{} = VarExpr $ varToVariable env v
+expToExpression' _ _ (Const c _) = ConstExpr (constToConstant c)
+expToExpression' env t (BinOp op e1 e2 _) = opToFunctionCall parms op
+  where parms = map (expToExpression' env t) [e1, e2]
+expToExpression' env t (UnOp op e _) = unOpToExp (expToExpression' env t e) op
+expToExpression' _ _ (Assign e1 JustAssign e2 _) = error "Assign unimplemented"
+expToExpression' _ _ a@Assign{} = error ("AssignOp unhandled: " ++ show a)
+expToExpression' _ _ PreInc{} = error "expToExpression: No support for preinc."
+expToExpression' _ _ PostInc{} = error "expToExpression: No support for postinc."
+expToExpression' _ _ PreDec{} = error "expToExpression: No support for predec."
+expToExpression' _ _ PostDec{} = error "expToExpression: No support for postdec."
+expToExpression' _ _ SizeofExp{} = error "expToExpression: No support for sizeof exp"
+expToExpression' env _ (SizeofType t _) = R.SizeOf $ typToType env t
+expToExpression' env _ (Cast t e _)
   = R.Cast (typToType env t) (expToExpression env e)
-expToExpression _ (Cond c e1 e2 _) = error "expToExpression: No support for conditional statements."
-expToExpression env (Member e name _)
+expToExpression' _ _ (Cond c e1 e2 _) = error "expToExpression: No support for conditional statements."
+expToExpression' env _ (Member e name _)
   = StructField (expToExpression env e) (unId name)
-expToExpression _ PtrMember{} = error "expToExpression: No support for ptrmember."
-expToExpression env (Index e1 e2 _)
+expToExpression' _ _ PtrMember{} = error "expToExpression: No support for ptrmember."
+expToExpression' env _ (Index e1 e2 _)
   = ArrayElem (expToExpression env e1) (expToExpression env e2)
-expToExpression env (FnCall (Var (Id "at" _) _) [e1, e2] _)
-  = ArrayElem (expToExpression env e1) (expToExpression env e2)
-expToExpression env (FnCall e es _)
+expToExpression' env tcontext (FnCall (Var (Id "at" _) _) [e1, e2] _)
+  = ArrayElem (expToExpression env' e1) (expToExpression env' e2)
+   where env' | (Var name _) <- e1
+              , Just t <- tcontext
+              , Just (Variable (ArrayType _ fakeType) _) <- lookup (unId name) (vars env)
+              = fixupEnv env e1 t
+              | otherwise = env
+expToExpression' env _ (FnCall e es _)
   = expToFunctionCall env (map (expToExpression env) es) e
-expToExpression _ CudaCall{} = error "expToExpression: No support for CUDA."
-expToExpression _ Seq{} = error "expToExpression: No support for seq."
-expToExpression env (CompoundLit t ls _) = ConstExpr $ ArrayConst cs' $ typToType env t
+expToExpression' _ _ CudaCall{} = error "expToExpression: No support for CUDA."
+expToExpression' _ _ Seq{} = error "expToExpression: No support for seq."
+expToExpression' env _ (CompoundLit t ls _) = ConstExpr $ ArrayConst cs' $ typToType env t
   where cs = map (\(_, ExpInitializer (Const c _) _) -> constToConstant c) ls
         cs' = map (castConstant (typToType env t)) cs
-expToExpression _ StmExpr{} = error "expToExpression: No support for Stmexpr."
-expToExpression _ BuiltinVaArg{} = error "expToExpression: varargs not supported."
-expToExpression _ BlockLit{} = error "expToExpression: No support for blocklit."
-expToExpression _ e = error ("expToExpression: Unhandled construct: " ++ show e)
+expToExpression' _ _ StmExpr{} = error "expToExpression: No support for Stmexpr."
+expToExpression' _ _ BuiltinVaArg{} = error "expToExpression: varargs not supported."
+expToExpression' _ _ BlockLit{} = error "expToExpression: No support for blocklit."
+expToExpression' _ _ e = error ("expToExpression: Unhandled construct: " ++ show e)
 
 opToFunctionCall :: [Expression ()] -> BinOp -> Expression ()
 opToFunctionCall es op = case opToString op of
