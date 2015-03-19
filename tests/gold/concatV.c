@@ -4,17 +4,17 @@
 void concatV(struct array * v0, struct array * * out)
 {
   struct array * v64 = NULL;
-  uint32_t len0;
+  uint32_t len65;
   struct array * v3 = NULL;
   struct array * v63 = NULL;
   uint32_t v55;
   uint32_t v56;
-  struct array * e1 = NULL;
+  struct array * e66 = NULL;
   uint32_t v58;
   
-  len0 = getLength(v0);
+  len65 = getLength(v0);
   v64 = initArray(v64, sizeof(int32_t), 0);
-  for (uint32_t v2 = 0; v2 < len0; v2 += 1)
+  for (uint32_t v2 = 0; v2 < len65; v2 += 1)
   {
     v63 = at(struct array *,v0,v2);
     v55 = getLength(v64);
@@ -28,9 +28,9 @@ void concatV(struct array * v0, struct array * * out)
     {
       at(int32_t,v3,(v8 + v55)) = at(int32_t,v63,v8);
     }
-    e1 = v64;
+    e66 = v64;
     v64 = v3;
-    v3 = e1;
+    v3 = e66;
   }
   v58 = getLength(v64);
   *out = setLength(*out, sizeof(int32_t), v58);

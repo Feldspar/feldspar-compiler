@@ -35,6 +35,7 @@
 --   the module format in the backend.
 module Feldspar.Compiler.Imperative.FromCore (
     fromCore
+  , fromCoreM
   , getCore'
   )
   where
@@ -44,6 +45,7 @@ import Data.List (nub, partition, find, isPrefixOf)
 import Data.Maybe (isJust, fromJust)
 
 import Control.Monad.RWS
+import Control.Monad.State
 import Control.Applicative
 
 import Feldspar.Core.Types
@@ -55,7 +57,7 @@ import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
 import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
 import Feldspar.Core.Constructs (SyntacticFeld)
-import Feldspar.Core.Frontend (reifyFeld)
+import Feldspar.Core.Frontend (reifyFeldM)
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..), ScalarType(..))
 import Feldspar.Compiler.Imperative.Representation
@@ -84,34 +86,43 @@ For those cases we flip the option before generating code.
 
 -- | Get the generated core for a program with a specified output name.
 fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
-fromCore opt funname prog = Module defs
-  where
-    (outParam,results) = evalRWS (compileProgTop opt' ast) (initReader opt) initState
-    opt' | useNativeReturns opt
-         , not $ canFastReturn $ compileTypeRep opt (typeof ast)
-         = opt { useNativeReturns = False } -- Note [Fast returns]
-         | otherwise = opt
-    fastRet    = useNativeReturns opt'
-    ast        = untype (frontendOpts opt) $ reifyFeld (frontendOpts opt) N32 prog
-    decls      = decl results
-    ins        = params results
-    post       = epilogue results ++ returns
-    Block ds p = block results
-    outDecl    = Declaration outParam Nothing
-    paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
-    defs       = nub (def results ++ paramTypes) ++ topProc
-    (outs, ds', returns)
-     | fastRet   = ( Right outParam,  outDecl:ds ++ decls
-                   , [call "return" [ValueParameter $ varToExpr outParam]])
-     | otherwise = ( Left [outParam],         ds ++ decls, [])
-    topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence mainProg))]
-    mainProg
-     | Just _ <- find isTask $ def results
-     = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
-     | otherwise = p:post
-    isTask (Proc{..}) = isPrefixOf "task_core" procName
-    isTask _          = False
-    four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
+fromCore opt funname prog = flip evalState 0 $ fromCoreM opt funname prog
+
+-- | Get the generated core for a program with a specified output name.
+fromCoreM :: (MonadState Integer m)
+          => SyntacticFeld a => Options -> String -> a -> m (Module ())
+fromCoreM opt funname prog = do
+    s <- get
+    let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
+        uast = untype (frontendOpts opt) ast
+    let opt' | useNativeReturns opt
+             , not $ canFastReturn $ compileTypeRep opt (typeof uast)
+             = opt { useNativeReturns = False } -- Note [Fast returns]
+             | otherwise = opt
+        fastRet    = useNativeReturns opt'
+    let (outParam,States s'',results) =
+          runRWS (compileProgTop opt' uast) (initReader opt) $ States $ toInteger s'
+    put s''
+    let decls      = decl results
+        ins        = params results
+        post       = epilogue results ++ returns
+        Block ds p = block results
+        outDecl    = Declaration outParam Nothing
+        paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
+        defs       = nub (def results ++ paramTypes) ++ topProc
+        (outs, ds', returns)
+         | fastRet   = ( Right outParam,  outDecl:ds ++ decls
+                       , [call "return" [ValueParameter $ varToExpr outParam]])
+         | otherwise = ( Left [outParam],         ds ++ decls, [])
+        topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence mainProg))]
+        mainProg
+         | Just _ <- find isTask $ def results
+         = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
+         | otherwise = p:post
+        isTask (Proc{..}) = isPrefixOf "task_core" procName
+        isTask _          = False
+        four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
+    return $ Module defs
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
