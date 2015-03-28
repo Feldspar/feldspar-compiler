@@ -760,7 +760,7 @@ compileExpr env (In (App p _ [tup]))
     tupExpr <- compileExpr env tup
     return $ StructField tupExpr ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
- | p `elem` [ Ut.Parallel, Ut.Sequential, Ut.Condition, Ut.ConditionM
+ | p `elem` [ Ut.Parallel, Ut.SetLength, Ut.Sequential, Ut.Condition, Ut.ConditionM
             , Ut.MkFuture, Ut.Await, Ut.Then, Ut.Return, Ut.For, Ut.SetArr, Ut.EMaterialize
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
