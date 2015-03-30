@@ -261,6 +261,7 @@ initialize :: Bool -> Type -> Doc
 -- Compound/Special types.
 initialize _     (MachineVector 1 Pointer{}) = equals <+> text "NULL"
 initialize _     ArrayType{}       = equals <+> text "NULL"
+initialize _     (NativeArray _ t) = equals <+> lbrace <+> initialize False t <+> rbrace
 initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
   where inits = hsep $ punctuate comma $ map initField fs
         initField (n, t) = char '.' <> text n <+> initialize True t
