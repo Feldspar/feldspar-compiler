@@ -271,8 +271,8 @@ filterEp :: LB.ByteString -> LB.ByteString
 filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
   where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
 
-vgReadFiles :: String -> ValueGetter r LB.ByteString
-vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]
+vgReadFiles :: String -> IO LB.ByteString
+vgReadFiles base = liftM LB.concat $ mapM (LB.readFile . (base<>)) [".h",".c"]
 
 mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"
