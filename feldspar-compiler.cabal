@@ -99,7 +99,7 @@ library
 
   if os(linux)
     extra-libraries: gcc_s
-    ghc-options: --dynamic-too
+    ghc-options: -dynamic-too
 
   install-includes:
     feldspar_array.h
