@@ -24,7 +24,7 @@ import Control.Applicative
 
 import Foreign.Ptr
 import Foreign.Marshal (free, new, newArray, peekArray,mallocBytes)
-import Foreign.Storable (Storable(..))
+import Foreign.Storable.Compat (Storable(..))
 import Foreign.Storable.Tuple ()
 import qualified Foreign.Storable.Record as Store
 
@@ -98,19 +98,6 @@ instance (Storable a) => Reference (SA a)
     type Ref (SA a) = Ptr (SA a)
     ref   = new
     deref = peek
-
-storeComplex :: (RealFloat a, Storable a)
-             => Store.Dictionary (Complex a)
-storeComplex = Store.run $ (:+)
-    <$> Store.element realPart
-    <*> Store.element imagPart
-
-instance (RealFloat a, Storable a) => Storable (Complex a)
-  where
-    sizeOf    = Store.sizeOf    storeComplex
-    alignment = Store.alignment storeComplex
-    peek      = Store.peek      storeComplex
-    poke      = Store.poke      storeComplex
 
 instance (Storable (a,b)) => Reference (a,b)
   where

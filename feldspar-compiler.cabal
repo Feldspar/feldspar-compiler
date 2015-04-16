@@ -65,9 +65,11 @@ library
 
   build-depends:
     base              == 4.*,
+    base-compat,
     Cabal,
+    ghc,
     ghc-paths,
-    plugins-multistage >= 0.4   && < 0.5,
+    plugins-multistage >= 0.5   && < 0.6,
     feldspar-language  >= 0.6.1 && < 0.7,
     language-c-quote   >= 0.7.7 && < 1.0,
     bytestring         >= 0.9   && < 0.11,
@@ -79,7 +81,6 @@ library
     process,
     directory >= 1.1,
     template-haskell,
-    plugins >= 1.5.4,
     data-default >= 0.5,
     storable-tuple  >= 0.0.2,
     storable-record >= 0.0.2.5
@@ -168,7 +169,7 @@ test-suite regression
     bytestring       >= 0.9 && < 0.11,
     stringsearch     >= 0.3,
     tasty            >= 0.3,
-    tasty-golden     >= 2.0,
+    tasty-golden     >= 2.0 && < 2.3 || >= 2.3.0.1,
     tasty-quickcheck >= 0.3,
     QuickCheck       >= 2.7.1 && < 3.0
 

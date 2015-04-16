@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module BenchmarkUtils where
 
 import Feldspar.Compiler.Plugin (pack)
