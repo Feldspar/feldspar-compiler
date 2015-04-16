@@ -65,7 +65,9 @@ library
 
   build-depends:
     base              == 4.*,
+    base-compat,
     Cabal,
+    ghc,
     ghc-paths,
     plugins-multistage >= 0.5.1 && < 0.6,
     feldspar-language  >= 0.6.1 && < 0.7,
@@ -79,7 +81,6 @@ library
     process,
     directory >= 1.1,
     template-haskell,
-    plugins >= 1.5.4,
     data-default >= 0.5,
     storable-tuple  >= 0.0.2,
     storable-record >= 0.0.2.5

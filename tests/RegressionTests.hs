@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Main where
@@ -28,19 +28,11 @@ import qualified Data.ByteString.Lazy.Search as LB
 import System.Process
 import Text.Printf
 
-#if MIN_VERSION_tasty_golden(2,3,0)
-vgReadFiles :: String -> IO LB.ByteString
-vgReadFiles base = liftM LB.concat $ mapM (LB.readFile . (base<>)) [".h",".c"]
-#else
-vgReadFiles :: String -> ValueGetter r LB.ByteString
-vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]
-#endif
-
 example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
 
 -- Compile and load example9 as c_example9 (using plugins)
-loadFun ['example9]
+loadFun 'example9
 
 topLevelConsts :: Data Index -> Data Index -> Data Index
 topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
@@ -80,7 +72,7 @@ copyPush v = let pv = toPush v in pv ++ pv
 concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
 concatV xs = fromZero $ fold (++) empty xs
 
-loadFun ['concatV]
+loadFun 'concatV
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
@@ -97,7 +89,7 @@ segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
 segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
 
-loadFun ['divConq3]
+loadFun 'divConq3
 
 -- End one test.
 
@@ -221,7 +213,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "topLevelConsts_native" nativeOpts
     , mkParseTest "topLevelConsts_sics" sicsOptions
     -- TODO: Enable when encodeType does not include sizes in struct names.
-    , mkParseTest "metrics" defaultOptions
+    -- , mkParseTest "metrics" defaultOptions
 --    , mkParseTest "scanlPush" defaultOptions
     -- Still incomplete reconstruction of futures.
     , mkParseTest "divConq3" defaultOptions
@@ -279,6 +271,9 @@ fuzzyCmp e x y =
 filterEp :: LB.ByteString -> LB.ByteString
 filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
   where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
+
+vgReadFiles :: String -> IO LB.ByteString
+vgReadFiles base = liftM LB.concat $ mapM (LB.readFile . (base<>)) [".h",".c"]
 
 mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"

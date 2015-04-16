@@ -1,3 +1,5 @@
+{-# LANGUAGE GADTs #-}
+
 module Feldspar.Compiler.Imperative.ExternalProgram (parseFile, massageInput) where
 
 import Feldspar.Lattice (universal)

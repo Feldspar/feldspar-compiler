@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -17,9 +18,10 @@ module Feldspar.Compiler.Plugin
   )
   where
 
+import BasicTypes (failed)
+import ObjLink (initObjLinker,loadObj,resolveObjs)
 import GHC.Paths (ghc)
 import GHC.Word (Word32(..))
-import System.Plugins (initLinker, loadPackage, loadRawObject, resolveObjs)
 import System.Plugins.MultiStage
 import Data.List (isPrefixOf)
 import Distribution.Verbosity (silent,verbose)
@@ -90,22 +92,22 @@ feldsparPluginConfig =
 --
 -- > c_prog1 :: Index -> [Index]
 --
-loadFun :: [Name] -> Q [Dec]
-loadFun = loadFunWithConfig feldsparPluginConfig
+loadFun :: Name -> Q [Dec]
+loadFun n = loadFunWithConfig feldsparPluginConfig [n]
 
 -- | @loadFun@ with a function suffix to avoid collisions and different
 --  feldspar-compiler options.
-loadFunWith :: String -> Options -> [Name] -> Q [Dec]
-loadFunWith s o = loadFunWithConfig (feldsparPluginConfigWith s o)
+loadFunWith :: String -> Options -> Name -> Q [Dec]
+loadFunWith s o n = loadFunWithConfig (feldsparPluginConfigWith s o) [n]
 
 -- | Call @loadFun@ with C compiler options
-loadFunOpts :: [String] -> [Name] -> Q [Dec]
-loadFunOpts o = loadFunWithConfig feldsparPluginConfig{opts = o}
+loadFunOpts :: [String] -> Name -> Q [Dec]
+loadFunOpts o n = loadFunWithConfig feldsparPluginConfig{opts = o} [n]
 
 -- | Call @loadFunWith@ with C compiler options
-loadFunOptsWith :: String -> Options -> [String] -> [Name] -> Q [Dec]
-loadFunOptsWith s fopt o =
-    loadFunWithConfig (feldsparPluginConfigWith s fopt){opts = o}
+loadFunOptsWith :: String -> Options -> [String] -> Name -> Q [Dec]
+loadFunOptsWith s fopt o n =
+    loadFunWithConfig (feldsparPluginConfigWith s fopt){opts = o} [n]
 
 feldsparWorker :: Name -> [Name] -> Q Body
 feldsparWorker fun as = normalB
@@ -175,10 +177,10 @@ compileAndLoad name opts = do
     exists <- doesFileExist oname
     when exists $ removeFile oname
     compileC cname oname opts
-    initLinker
-    _ <- loadRawObject oname
-    loadPackage "feldspar-compiler"
-    resolveObjs $ error $ "Symbols in " ++ oname ++ " could not be resolved"
+    initObjLinker
+    _ <- loadObj oname
+    res <- resolveObjs
+    when (failed res) $ error $ "Symbols in " ++ oname ++ " could not be resolved"
 
 compileC :: String -> String -> [String] -> IO ()
 compileC srcfile objfile opts = do
@@ -255,6 +257,7 @@ instance Lift a => Lift (Range a) where
 instance Lift WordN where
     lift (WordN w) = [| WordN w |]
 
+#if ! MIN_VERSION_template_haskell(2,10,0)
 instance Lift Word32 where
     lift x = [| fromInteger $(lift $ toInteger x) :: Word32 |]
 
@@ -263,6 +266,7 @@ instance Lift Float where
 
 instance Lift Double where
   lift x = [| $(litE $ rationalL $ toRational x) :: Double |]
+#endif
 
 instance Lift t => Lift (Constant t) where
     lift (IntConst v t)       = [| IntConst v t |]
