@@ -149,7 +149,7 @@ compilerTests :: TestTree
 compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , testProperty "concatV (plugin)" prop_concatV
-    , testProperty "divConq3 (plugin)" prop_divConq3
+    -- , testProperty "divConq3 (plugin)" prop_divConq3
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam "pairParam_ret" nativeRetOpts
