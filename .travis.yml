@@ -20,6 +20,7 @@ matrix:
     - env: CABALVER=head GHCVER=head
 
 before_install:
+  - env
   # Fetch the latest feldspar-language from github
   # Note that we will fetch a branch with the same name as the current
   # branch in feldspar-compiler. This is to support CI of new features
