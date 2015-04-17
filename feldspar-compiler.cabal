@@ -99,7 +99,6 @@ library
 
   if os(linux)
     extra-libraries: gcc_s
-    ghc-options: -dynamic-too
 
   install-includes:
     feldspar_array.h
@@ -158,9 +157,6 @@ test-suite regression
 
   main-is: RegressionTests.hs
 
-  if os(linux)
-    ghc-options: -dynamic
-
   default-language: Haskell2010
 
   build-depends:
@@ -184,9 +180,6 @@ test-suite callconv
 
   main-is: CallingConvention.hs
 
-  if os(linux)
-    ghc-options: -dynamic
-
   default-language: Haskell2010
 
   build-depends:
@@ -203,9 +196,6 @@ benchmark crc
   hs-source-dirs: benchs
 
   main-is: CRC.hs
-
-  if os(linux)
-    ghc-options: -dynamic
 
   default-language: Haskell2010
 
@@ -226,9 +216,6 @@ benchmark fft
 
   main-is: FFT.hs
 
-  if os(linux)
-    ghc-options: -dynamic
-
   default-language: Haskell2010
 
   ghc-options: -O2
@@ -247,9 +234,6 @@ benchmark matmul
   hs-source-dirs: benchs
 
   main-is: MatMul.hs
-
-  if os(linux)
-    ghc-options: -dynamic
 
   c-sources: benchs/MatMulC.c
 
