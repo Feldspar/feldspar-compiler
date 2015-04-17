@@ -21,7 +21,7 @@ import Feldspar (Syntactic(..))
 
 -- | Normalize the type (expand type synonyms and type families)
 rewriteType :: Type -> Q Type
-rewriteType t = applyTF ''Internal t >>= expandTF
+rewriteType t = applyTF ''Internal t
 
 haskellCC :: CallConv
 haskellCC = CallConv { arg  = return
