@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -44,6 +43,7 @@ import Control.Applicative
 
 import Language.Haskell.TH hiding (Type, Range)
 import Language.Haskell.TH.Syntax (Lift(..))
+import Language.Haskell.TH.Instances ()
 
 import System.Directory (doesFileExist, removeFile, createDirectoryIfMissing)
 import System.Process (readProcessWithExitCode)
@@ -256,17 +256,6 @@ instance Lift a => Lift (Range a) where
 
 instance Lift WordN where
     lift (WordN w) = [| WordN w |]
-
-#if ! MIN_VERSION_template_haskell(2,10,0)
-instance Lift Word32 where
-    lift x = [| fromInteger $(lift $ toInteger x) :: Word32 |]
-
-instance Lift Float where
-  lift x = [| $(litE $ rationalL $ toRational x) :: Float |]
-
-instance Lift Double where
-  lift x = [| $(litE $ rationalL $ toRational x) :: Double |]
-#endif
 
 instance Lift t => Lift (Constant t) where
     lift (IntConst v t)       = [| IntConst v t |]
