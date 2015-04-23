@@ -65,7 +65,8 @@ library
 
   build-depends:
     base              == 4.*,
-    base-compat,
+    base-compat       >= 0.8,
+    base-orphans,
     Cabal,
     ghc,
     ghc-paths,
