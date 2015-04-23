@@ -13,6 +13,10 @@ module Feldspar.Compiler.Marshal
   )
   where
 
+-- For compatibility with older GHC's
+-- instance (Storable a, RealFloat a) => Storable (Complex a)
+import Data.Orphans
+
 import System.Plugins.MultiStage
 import Feldspar.Core.Types (IntN(..), WordN(..))
 
@@ -24,7 +28,7 @@ import Control.Applicative
 
 import Foreign.Ptr
 import Foreign.Marshal (free, new, newArray, peekArray,mallocBytes)
-import Foreign.Storable.Compat (Storable(..))
+import Foreign.Storable (Storable(..))
 import Foreign.Storable.Tuple ()
 import qualified Foreign.Storable.Record as Store
 
