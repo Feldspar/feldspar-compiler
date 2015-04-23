@@ -25,4 +25,5 @@ void ivartest(uint32_t v0, uint32_t * out)
   ivar_get_nontask(uint32_t, &e3, v1);
   *out = (e3 << 1);
   taskpool_shutdown();
+  ivar_destroy(&v1);
 }

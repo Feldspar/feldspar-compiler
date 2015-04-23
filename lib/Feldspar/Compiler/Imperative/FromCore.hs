@@ -776,7 +776,7 @@ compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
               CodeWriter (Expression ())
 compileLet env a ta v = do
    let var = mkVar (compileTypeRep (opts env) ta) v
-   declareAlias var
+   declare var
    compileProg env (Just var) a
    return var
 

@@ -36,4 +36,5 @@ void metrics(struct array * v0, struct array * v1, struct array * v2, struct arr
   }
   *out = setLength(*out, (0 - sizeof(struct array *)), v28);
   freeArray(st32);
+  freeArray(v30);
 }

@@ -38,5 +38,7 @@ void concatV(struct array * v0, struct array * * out)
   {
     at(int32_t,*out,v22) = at(int32_t,v64,v22);
   }
+  freeArray(v64);
   freeArray(v3);
+  freeArray(v63);
 }

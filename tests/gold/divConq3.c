@@ -137,9 +137,15 @@ void divConq3(struct array * v0, struct array * * out)
     at(int32_t,*out,v74) = at(int32_t,v198,v74);
   }
   taskpool_shutdown();
+  freeArray(v200);
+  freeArray(v187);
   freeArray(e206);
   freeArray(v5);
+  freeArray(v201);
   ivar_destroy(&e208);
+  freeArray(v198);
+  freeArray(v194);
   freeArray(v115);
+  freeArray(v202);
   ivar_destroy(&e214);
 }
