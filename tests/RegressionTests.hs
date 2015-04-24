@@ -84,9 +84,13 @@ divConq3 xs = concatV $ pmap (map (+1)) (segment 1024 xs)
 pmap :: (Syntax a, Syntax b) => (a -> b) -> Pull DIM1 a -> Pull DIM1 b
 pmap f = map await . force . map (future . f)
 
+-- Note. @segment@ expects the length of @xs@ to be a multiple of @l@
 segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
 segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
+
+loadFun 'divConq3
+
 -- End one test.
 
 -- | We rewrite `return x >>= \_ -> return y` into `return x >> return y`
@@ -133,16 +137,19 @@ noinline1 x = noInline $ not x
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
-buildVector :: [a] -> ([WordN],[a])
-buildVector as = ([Prelude.fromIntegral $ Prelude.length as],as)
+prop_concatV = forAll (vectorOf 3 (choose (0,5))) $ \ls ->
+                 forAll (mapM (\l -> vectorOf l arbitrary) ls) $ \xss ->
+                   Prelude.concat xss === c_concatV xss
 
-prop_concatV ls = forAll (mapM (\(Positive (Small l)) -> vectorOf l arbitrary) ls) $ \xss ->
-  buildVector (Prelude.concat xss) === c_concatV (buildVector . fmap buildVector $ xss)
+prop_divConq3 = forAll (choose (1,3)) $ \l ->
+                  forAll (vectorOf (l*1024) arbitrary) $ \xs ->
+                    map (+1) xs === c_divConq3 xs
 
 compilerTests :: TestTree
 compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , testProperty "concatV (plugin)" prop_concatV
+    -- , testProperty "divConq3 (plugin)" prop_divConq3
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam "pairParam_ret" nativeRetOpts
@@ -206,7 +213,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "topLevelConsts_native" nativeOpts
     , mkParseTest "topLevelConsts_sics" sicsOptions
     -- TODO: Enable when encodeType does not include sizes in struct names.
-    , mkParseTest "metrics" defaultOptions
+    -- , mkParseTest "metrics" defaultOptions
 --    , mkParseTest "scanlPush" defaultOptions
     -- Still incomplete reconstruction of futures.
     , mkParseTest "divConq3" defaultOptions

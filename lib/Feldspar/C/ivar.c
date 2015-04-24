@@ -27,6 +27,7 @@
 //
 
 #include "ivar.h"
+#include "taskpool.h"
 #include <stdlib.h>
 #include <string.h>
 //#define LOG
@@ -57,15 +58,17 @@ void ivar_init( struct ivar *iv )
 void ivar_destroy( struct ivar *iv )    // TODO: Think about ivars escaping from their scope...
 {
     log_1("ivar_destroy %p - enter\n", iv);
-    // if( iv->self == iv )    // This is true iff this iVar is not a copy.
-    // {
-        // struct ivar_internals *ivi = iv->internals;
-        // pthread_mutex_destroy( &(ivi->mutex) );
-        // pthread_cond_destroy( &(ivi->cond) );
-        // if( ivi->full )
-            // free( ivi->data );
-        // free( ivi );
-    // }
+    if( iv->self == iv )    // This is true iff this iVar is not a copy.
+    {
+        struct ivar_internals *ivi = iv->internals;
+        pthread_mutex_destroy( &(ivi->mutex) );
+        pthread_cond_destroy( &(ivi->cond) );
+        if( ivi->full )
+        {
+            free( ivi->data ); // TODO: Destroy deep?
+        }
+        free( ivi );
+    }
     log_1("ivar_destroy %p - leave\n", iv);
 }
 
@@ -87,8 +90,7 @@ void ivar_put_array( struct ivar iv, struct array *d )
     struct ivar_internals *ivi = iv.internals;
     log_2("ivar_put_array %p %p - enter\n", &iv, d);
     pthread_mutex_lock( &(ivi->mutex) );
-    ivi->data = (void*)malloc( sizeof(struct array) );
-    initArray( ivi->data, d->elemSize, d->length );
+    ivi->data = initArray( NULL, d->elemSize, d->length );
     copyArray( ivi->data, d );
     ivi->full = 1;
     pthread_cond_broadcast( &(ivi->cond) );
@@ -103,36 +105,10 @@ void ivar_get_helper( struct ivar_internals *iv )
     if( !iv->full )
     {
         log_1("ivar_get_helper %p - ivar is empty\n", iv);
-        int create = 0;
-        pthread_mutex_lock( &(feldspar_taskpool.mutex) );
-        if( !feldspar_taskpool.shutdown && (feldspar_taskpool.num_threads <= feldspar_taskpool.min_threads) )
-        {
-            create = 1;
-            ++feldspar_taskpool.num_threads;
-            log_3("ivar_get_helper %p - will create a new thread; "
-                  "active: %d, all: %d\n"
-                 , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        }
-        else
-        {
-            --feldspar_taskpool.act_threads;
-            log_3("ivar_get_helper %p - will NOT create a new thread; "
-                  "active: %d, all: %d\n"
-                 , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        }
-        pthread_mutex_unlock( &(feldspar_taskpool.mutex) );
-        if( create )
-        {
-            pthread_t th;
-            pthread_create( &th, NULL, &worker, (void*)&feldspar_taskpool );
-        }
+        taskpool_spawn_worker();
         log_1("ivar_get_helper %p - blocking while waiting for data\n", iv);
         pthread_cond_wait( &(iv->cond), &(iv->mutex) );
-        pthread_mutex_lock( &(feldspar_taskpool.mutex) );
-        ++feldspar_taskpool.act_threads;
-        log_3("ivar_get_helper %p - data arrived; active: %d, all: %d\n"
-             , iv, feldspar_taskpool.act_threads, feldspar_taskpool.num_threads);
-        pthread_mutex_unlock( &(feldspar_taskpool.mutex) );        
+        log_1("ivar_get_helper %p - data arrived\n" , iv);
     }
     pthread_mutex_unlock( &(iv->mutex) );
     log_1("ivar_get_helper %p - leave\n", iv);
@@ -146,16 +122,17 @@ void ivar_get_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-void ivar_get_array( struct array *var, struct ivar iv )
+struct array * ivar_get_array( struct array *var, struct ivar iv )
 {
     struct array *ptr;
     log_2("ivar_get_array %p %p - enter\n", var, &iv);
     ivar_get_helper(iv.internals);
     ptr = (struct array*)iv.internals->data;
     assert(ptr);
-    initArray( var, ptr->elemSize, ptr->length );
+    var = initArray( var, ptr->elemSize, ptr->length );
     copyArray( var, ptr );
     log_2("ivar_get_array %p %p - leave\n", var, &iv);
+    return var;
 }
 
 void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
@@ -177,7 +154,7 @@ void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_nontask_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-void ivar_get_array_nontask( struct array *var, struct ivar iv )
+struct array * ivar_get_array_nontask( struct array *var, struct ivar iv )
 {
     struct ivar_internals *ivi = iv.internals;
     struct array *ptr;
@@ -199,9 +176,10 @@ void ivar_get_array_nontask( struct array *var, struct ivar iv )
     else
     {
         ptr = (struct array*)ivi->data;
-        initArray( var, ptr->elemSize, ptr->length );
+        var = initArray( var, ptr->elemSize, ptr->length );
         copyArray( var, ptr );
     }
     log_2("ivar_get_array_nontask %p %p - leave\n", var, &iv);
+    return var;
 }
 

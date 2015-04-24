@@ -47,12 +47,12 @@ toProg e = BlockProgram e
 -- | Copies expressions into a destination. If the destination is
 -- a non-scalar the arguments are appended to the destination.
 copyProg :: Maybe (Expression ())-> [Expression ()] -> Program ()
-copyProg _ [] = error "copyProg: missing source parameter."
+copyProg _ []      = error "copyProg: missing source parameter."
 copyProg Nothing _ = Empty
-copyProg (Just outExp) inExp
-    | outExp == head inExp
-      && null (tail inExp) = Empty
-    | otherwise            = call "copy" (map ValueParameter (outExp:inExp))
+copyProg (Just outExp) inExp =
+  case inExp of
+    [x] | outExp == x -> Empty
+    _                 -> call "copy" (map ValueParameter (outExp:inExp))
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
@@ -92,7 +92,7 @@ arrayLength arr
 chaseArray :: Expression t-> Maybe (Range Length)
 chaseArray = go []  -- TODO: Extend to handle x.member1.member2
   where go :: [String] -> Expression t -> Maybe (Range Length)
-        go []    (ConstExpr (ArrayConst l)) = Just (singletonRange $ fromIntegral $ length l)
+        go []    (ConstExpr (ArrayConst l _)) = Just (singletonRange $ fromIntegral $ length l)
         go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just r
         go []    (VarExpr (Variable (NativeArray (Just r) _) _)) = Just (singletonRange r)
         go []    (Deref e) = go [] e -- TODO: this is questionable; we now look at an expression for the address of the array
@@ -114,8 +114,8 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Bool -> Expression () -> Expression () -> Program ()
 iVarGet inTask loc ivar
-    | isArray typ   = call (mangle inTask "ivar_get_array") [ ValueParameter loc
-                                                             , ValueParameter ivar]
+    | isArray typ   = Assign (Just loc)
+                    $ fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar ]
     | otherwise     = call (mangle inTask "ivar_get") [ TypeParameter typ
                                                        , ValueParameter (AddrOf loc)
                                                        , ValueParameter ivar]

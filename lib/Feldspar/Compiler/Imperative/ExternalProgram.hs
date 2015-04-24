@@ -86,7 +86,8 @@ valueToProgram :: TPEnv -> DeclSpec -> [Init] -> Id -> [Initializer]
 valueToProgram env ds is n ins = (env', ValueDef (nameToVariable env' n) cs')
   where env' = initToNames env ds is
         cs = map (\(ExpInitializer (Const c _) _) -> constToConstant c) ins
-        cs' = ArrayConst $ map (castConstant (declSpecToType env ds)) cs
+        cs' = ArrayConst (map (castConstant t) cs) t
+        t = declSpecToType env ds
 
 paramToVariable :: TPEnv -> Param -> (TPEnv, R.Variable ())
 paramToVariable env (Param (Just id) t p _)
@@ -330,7 +331,7 @@ expToExpression' env _ (FnCall e es _)
   = expToFunctionCall env (map (expToExpression env) es) e
 expToExpression' _ _ CudaCall{} = error "expToExpression: No support for CUDA."
 expToExpression' _ _ Seq{} = error "expToExpression: No support for seq."
-expToExpression' env _ (CompoundLit t ls _) = ConstExpr $ ArrayConst cs'
+expToExpression' env _ (CompoundLit t ls _) = ConstExpr $ ArrayConst cs' $ typToType env t
   where cs = map (\(_, ExpInitializer (Const c _) _) -> constToConstant c) ls
         cs' = map (castConstant (typToType env t)) cs
 expToExpression' _ _ StmExpr{} = error "expToExpression: No support for Stmexpr."

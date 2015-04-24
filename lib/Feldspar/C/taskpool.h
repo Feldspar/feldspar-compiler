@@ -33,19 +33,11 @@
 
 int feldspar_taskpool_hook(void);
 
-struct taskpool
-{
-    int capacity;
-    int num_threads, act_threads, min_threads, max_threads;
-    int head, tail;
-    void **closures;
-    int shutdown;
-    pthread_mutex_t mutex;
-};
-
 void taskpool_init( int c, int num, int min );
 
 void taskpool_shutdown();
+
+void taskpool_spawn_worker();
 
 void spawn( void *closure );
 

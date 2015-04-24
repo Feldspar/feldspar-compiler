@@ -75,11 +75,11 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
     if( arr->buffer )
     {
         // Re-initialization
-        log_1("initArray %p - reinitialize\n",arr);
+        log_3("initArray %p %d %d - reinitialize\n",arr,size,len);
         if( arr->bytes < newBytes )
         {
-            log_3("initArray %p - realloc since %d < %d\n"
-                 , arr, arr->bytes, newBytes);
+            log_5("initArray %p %d %d - realloc since %d < %d\n"
+                 , arr, size, len, arr->bytes, newBytes);
             // Not enough space: reallocation needed
             arr->bytes  = newBytes;
             arr->buffer = realloc(arr->buffer, newBytes);
@@ -87,8 +87,8 @@ static inline struct array *initArray(struct array *arr, int32_t size, int32_t l
         else
         {
             // Otherwise: space is enough, nothing to do
-            log_3("initArray %p - large enough %d >= %d\n"
-                 , arr, arr->bytes, newBytes);
+            log_5("initArray %p %d %d - large enough %d >= %d\n"
+                 , arr, size, len, arr->bytes, newBytes);
         }
     }
     else
@@ -129,30 +129,31 @@ static inline void freeArray(struct array *arr)
 /* Deep array copy */
 static inline void copyArray(struct array *to, struct array *from)
 {
-    assert(to);
-    assert(from);
     log_2("copyArray %p %p - enter\n", to, from);
-    if( from->elemSize < 0 )
+    if( from && to )
     {
-        log_2("copyArray %p %p - nested enter\n", to, from);
-        unsigned i;
-        for( i = 0; i < from->length; ++i )
-        {
-            struct array *to_row   = &at(struct array, to, i);
-            struct array *from_row = &at(struct array, from, i);
-            if( to_row == NULL )
-                to_row = initArray( to_row, from_row->elemSize, from_row->length );
-            copyArray( to_row, from_row );
-        }
-        log_2("copyArray %p %p - nested leave\n", to, from);
-    }
-    else
-    {
-        assert(to->buffer);
-        assert(from->buffer);
-        log_3("copyArray %p %p - memcpy %d bytes\n", to, from
-            , from->length * from->elemSize);
-        memcpy( to->buffer, from->buffer, from->length * from->elemSize );
+      if ( from->elemSize < 0 )
+      {
+          log_2("copyArray %p %p - nested enter\n", to, from);
+          unsigned i;
+          for( i = 0; i < from->length; ++i )
+          {
+              struct array *to_row   = &at(struct array, to, i);
+              struct array *from_row = &at(struct array, from, i);
+              if( to_row == NULL )
+                  to_row = initArray( to_row, from_row->elemSize, from_row->length );
+              copyArray( to_row, from_row );
+          }
+          log_2("copyArray %p %p - nested leave\n", to, from);
+      }
+      else
+      {
+          assert(to->buffer);
+          assert(from->buffer);
+          log_3("copyArray %p %p - memcpy %d bytes\n", to, from
+              , from->length * from->elemSize);
+          memcpy( to->buffer, from->buffer, from->length * from->elemSize );
+      }
     }
     log_2("copyArray %p %p - leave\n", to, from);
 }
@@ -160,20 +161,23 @@ static inline void copyArray(struct array *to, struct array *from)
 /* Deep array copy to a given position */
 static inline void copyArrayPos(struct array *to, unsigned pos, struct array *from)
 {
-    assert(to);
-    assert(from);
     log_3("copyArrayPos %p %d %p - enter\n", to, pos, from);
-    if( from->elemSize < 0 )
+    if ( from && to )
     {
-        unsigned i;
-        for( i = 0; i < from->length; ++i )
-            copyArray( &at(struct array, to, i + pos), &at(struct array, from, i) );
-    }
-    else
-    {
-        assert(to->buffer);
-        assert(from->buffer);
-        memcpy( (char*)(to->buffer) + pos * to->elemSize, from->buffer, from->length * from->elemSize );
+      if( from->elemSize < 0 )
+      {
+          unsigned i;
+          for( i = 0; i < from->length; ++i )
+              copyArray( &at(struct array, to, i + pos), &at(struct array, from, i) );
+      }
+      else
+      {
+          assert(to->buffer);
+          assert(from->buffer);
+          log_4("copyArrayPos %p %d %p - memcpy %d bytes\n", to, pos, from
+              , from->length * from->elemSize);
+          memcpy( (char*)(to->buffer) + pos * to->elemSize, from->buffer, from->length * from->elemSize );
+      }
     }
     log_3("copyArrayPos %p %d %p - leave\n", to, pos, from);
 }

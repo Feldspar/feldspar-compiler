@@ -30,13 +30,9 @@
 #define IVAR_H
 
 #include <pthread.h>
-#include "taskpool.h"
 #include "feldspar_array.h"
 
 int feldspar_ivar_hook(void);
-
-/* Declaration of the Feldspar application's global taskpool. */
-extern struct taskpool feldspar_taskpool;
 
 struct ivar_internals
 {
@@ -78,7 +74,7 @@ void ivar_get_with_size( void *var, struct ivar iv, int size );
 #define ivar_get(typ,var,iv) ivar_get_with_size(var,iv,sizeof(typ))
 
 /* Specialized version for arrays. */
-void ivar_get_array( struct array *var, struct ivar iv );
+struct array * ivar_get_array( struct array *var, struct ivar iv );
 
 /* Copies the data of size 'size' of the ivar 'iv' to 'var'. Ivars are
  * allowed to be read any number of times. Reading an empty ivar blocks
@@ -90,6 +86,6 @@ void ivar_get_nontask_with_size( void *var, struct ivar iv, int size );
 #define ivar_get_nontask(typ,var,iv) ivar_get_nontask_with_size(var,iv,sizeof(typ))
 
 /* Specialized version for arrays. */
-void ivar_get_array_nontask( struct array *var, struct ivar iv );
+struct array * ivar_get_array_nontask( struct array *var, struct ivar iv );
 
 #endif /* IVAR_H */

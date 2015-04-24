@@ -15,8 +15,10 @@ void ivartest2(struct s_2_unsignedS32_unsignedS32 * v0, struct s_2_unsignedS32_u
 {
   struct ivar v3;
   
+  taskpool_init(4, 4, 4);
   ivar_init(&v3);
   spawn2(task0, struct s_2_unsignedS32_unsignedS32 *, v0, struct ivar, v3);
   ivar_get_nontask(struct s_2_unsignedS32_unsignedS32, &*out, v3);
+  taskpool_shutdown();
   ivar_destroy(&v3);
 }

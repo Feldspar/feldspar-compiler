@@ -13,26 +13,14 @@
 #include <complex.h>
 
 
-struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32
-{
-  struct array * member1;
-  struct array * member2;
-};
-
-struct s_2_arr_unsignedS32_arr_signedS32
-{
-  struct array * member1;
-  struct array * member2;
-};
-
-void task_core0(uint32_t v632, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v651, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v634, uint32_t v4);
+void task_core0(uint32_t v199, uint32_t v186, struct array * v0, struct array * v187, uint32_t v1);
 
 void task0(void * params);
 
-void task_core1(uint32_t v641, struct s_2_arr_unsignedS32_arr_signedS32 * v0, uint32_t v654, struct s_2_arr_unsignedS32_arr_i_s_2_arr_unsignedS32_arr_signedS32 v643, uint32_t v423);
+void task_core1(uint32_t v199, uint32_t v193, struct array * v0, struct array * v194, uint32_t v111);
 
 void task1(void * params);
 
-void divConq3(struct s_2_arr_unsignedS32_arr_signedS32 * v0, struct s_2_arr_unsignedS32_arr_signedS32 * out);
+void divConq3(struct array * v0, struct array * * out);
 
 #endif // TESTS_DIVCONQ3_H

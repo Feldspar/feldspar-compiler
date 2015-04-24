@@ -19,8 +19,8 @@ import Feldspar.Compiler.Plugin
 
 import Control.Applicative
 
-vector1D :: Length -> Gen a -> Gen ([WordN],[a])
-vector1D l ga = (,) <$> pure [l] <*> vectorOf (Prelude.fromIntegral l) ga
+vector1D :: Length -> Gen a -> Gen [a]
+vector1D l = vectorOf (Prelude.fromIntegral l)
 
 pairArg :: (Data Word8,Data IntN) -> Data IntN
 pairArg (a,b) = i2n a + b

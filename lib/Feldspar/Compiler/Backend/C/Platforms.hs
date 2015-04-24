@@ -147,8 +147,7 @@ deepCopy opts [ValueParameter arg1, ValueParameter arg2]
   , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
   = if n < safetyLimit opts
       then initArray (Just arg1) l:map (\i -> Assign (Just $ ArrayElem arg1 (litI32 i)) (ArrayElem arg2 (litI32 i))) [0..(n-1)]
-      else error ("Internal compiler error: array size (" ++ show n ++
-                  ") too large for deepcopy")
+      else error $ unlines ["Internal compiler error: array size (" ++ show n ++ ") too large for deepcopy", show arg1, show arg2]
 
   | StructType _ fts <- typeof arg2
   = concatMap (deepCopyField . fst) fts

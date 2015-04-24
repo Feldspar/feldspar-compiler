@@ -220,7 +220,7 @@ instance CodeGen (Constant ())
     cgen env cnst@(FloatConst c)    = maybe (float c)   text $ transformConst env cnst
     cgen env cnst@(BoolConst False) = maybe (int 0)     text $ transformConst env cnst
     cgen env cnst@(BoolConst True)  = maybe (int 1)     text $ transformConst env cnst
-    cgen env      (ArrayConst cs)   = braces (cgenList env cs)
+    cgen env      (ArrayConst cs _) = braces (cgenList env cs)
     cgen env cnst@ComplexConst{..}  = maybe cmplxCnst   text $ transformConst env cnst
       where
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])
@@ -261,6 +261,7 @@ initialize :: Bool -> Type -> Doc
 -- Compound/Special types.
 initialize _     (MachineVector 1 Pointer{}) = equals <+> text "NULL"
 initialize _     ArrayType{}       = equals <+> text "NULL"
+initialize _     (NativeArray _ t) = equals <+> lbrace <+> initialize False t <+> rbrace
 initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
   where inits = hsep $ punctuate comma $ map initField fs
         initField (n, t) = char '.' <> text n <+> initialize True t
