@@ -36,6 +36,7 @@
 module Feldspar.Compiler.Imperative.FromCore (
     fromCore
   , fromCoreM
+  , fromCoreExp
   , getCore'
   )
   where
@@ -123,6 +124,23 @@ fromCoreM opt funname prog = do
         isTask _          = False
         four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
     return $ Module defs
+
+-- | Get the generated core for a program with a specified output name.
+fromCoreExp :: (MonadState Integer m)
+            => SyntacticFeld a
+            => Options
+            -> a
+            -> m ([Entity ()], [Declaration ()], Program (), Expression ())
+fromCoreExp opt prog = do
+    s <- get
+    let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
+        uast = untype (frontendOpts opt) ast
+    let (exp,States s'',results) =
+          runRWS (compileExpr (CEnv opt False) uast) (initReader opt) $ States $ toInteger s'
+    put s''
+--     unless (null (params results) && null (epilogue results)) $
+--         error "fromCoreExp: unexpected leftovers"
+    return (def results, decl results, BlockProgram $ block results, exp)
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
