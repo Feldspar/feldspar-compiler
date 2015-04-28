@@ -403,7 +403,7 @@ compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var
     tellProg [while cond' condv body']
     shallowAssign (Just loc) lstate
 -- LoopM
-compileProg env loc (In (App Ut.While _ [In (Ut.Lambda _ cond), step])) = do
+compileProg env loc (In (App Ut.While _ [cond,step])) = do
    condv <- freshVar (opts env) "cond" (typeof cond)
    (_, cond') <- confiscateBlock $ compileProg env (Just condv) cond
    (_, step') <- confiscateBlock $ compileProg env loc step
@@ -761,7 +761,7 @@ compileExpr env (In (App p _ [tup]))
     return $ StructField tupExpr ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.SetLength, Ut.Sequential, Ut.Condition, Ut.ConditionM
-            , Ut.MkFuture, Ut.Await, Ut.Then, Ut.Return, Ut.For, Ut.SetArr, Ut.EMaterialize
+            , Ut.MkFuture, Ut.Await, Ut.Then, Ut.Return, Ut.While, Ut.For, Ut.SetArr, Ut.EMaterialize
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
             , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11
