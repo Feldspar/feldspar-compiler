@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE PatternGuards #-}
-module Feldspar.Compiler.Backend.C.MachineLowering (rename) where
+module Feldspar.Compiler.Backend.C.MachineLowering where
 
 import qualified Data.Map as M
 
@@ -18,8 +18,8 @@ import Feldspar.Compiler.Backend.C.RuntimeLibrary
 
 -- | External interface for renaming.
 rename :: Options -> Bool -> Module () -> Module ()
-rename opts addRuntimeLib m = rename' opts addRuntimeLib x m
-  where x = getPlatformRenames (name $ platform opts)
+rename opts addRuntimeLib = rename' opts addRuntimeLib x
+  where x = getPlatformRenames opts
 
 -- | Internal interface for renaming.
 rename' :: Options -> Bool -> M.Map String [(Which, Destination)] -> Module ()
@@ -53,7 +53,7 @@ renameProg _    m (Assign Nothing rhs) = Assign Nothing (renameExp m rhs)
 renameProg _    m (Assign (Just lhs) rhs)
   = Assign (Just $ renameExp m lhs) (renameExp m rhs)
 renameProg opts m (ProcedureCall "copy" ps)
-  | "tic64x" /= (name $ platform opts) = flattenProgram $ deepCopy opts ps'
+  | "tic64x" /= name (platform opts) = flattenProgram $ deepCopy opts ps'
     where ps' = map (renameParam m) ps
 renameProg _    m (ProcedureCall n ps) = ProcedureCall n (map (renameParam m) ps)
 renameProg opts m (Sequence ps)        = Sequence $ map (renameProg opts m) ps
@@ -72,7 +72,7 @@ renameExp m (ArrayElem e1 e2)   = ArrayElem (renameExp m e1) (renameExp m e2)
 renameExp m (StructField e s)   = StructField (renameExp m e) s
 renameExp _ c@ConstExpr{}       = c
 renameExp m (FunctionCall f es) = res
-  where f'@(Function new t) = (renameFun m (typeof $ head es) f)
+  where f'@(Function new t) = renameFun m (typeof $ head es) f
         es' = map (renameExp m) es
         res | new /= "div"      = FunctionCall f' es'
             | [arg1,arg2] <- es
@@ -209,11 +209,12 @@ mkTic64xComplexRule :: String -> Rename
 mkTic64xComplexRule s = (s, [ (Only Complex, Extend ArgType tic64x) ] )
 
 -- | Returns the platform renames based on the platform name.
-getPlatformRenames :: String -> M.Map String [(Which, Destination)]
-getPlatformRenames "tic64x"       = M.fromList (tic64xlist ++ c99list)
-getPlatformRenames s
-  | s `elem` ["c99", "c99OpenMp", "c99Wool"] = M.fromList c99list
-  | otherwise                     = M.fromList []
+getPlatformRenames :: Options -> M.Map String [(Which, Destination)]
+getPlatformRenames opt =
+  case name $ platform opt of
+    "tic64x"                                     -> M.fromList (tic64xlist ++ c99list)
+    s | s `elem` ["c99", "c99OpenMp", "c99Wool"] -> M.fromList c99list
+      | otherwise                                -> M.fromList []
 
 flattenProgram :: [Program ()] -> Program ()
 flattenProgram ss = if null ss then Empty else Sequence ss

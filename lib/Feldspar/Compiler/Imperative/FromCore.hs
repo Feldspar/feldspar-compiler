@@ -69,6 +69,7 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
+import Feldspar.Compiler.Backend.C.MachineLowering
 
 {-
 
@@ -140,7 +141,12 @@ fromCoreExp opt prog = do
     put s''
 --     unless (null (params results) && null (epilogue results)) $
 --         error "fromCoreExp: unexpected leftovers"
-    return (def results, decl results, BlockProgram $ block results, exp)
+    let x = getPlatformRenames opt
+    return ( renameEnt  opt x <$> def results
+           , renameDecl     x <$> decl results
+           , renameProg opt x  $  BlockProgram $ block results
+           , renameExp  x exp
+           )
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
