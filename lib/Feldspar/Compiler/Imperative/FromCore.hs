@@ -155,10 +155,6 @@ fromCoreExp opt prog = do
            , renameExp x exp
            , renameProg opt x <$> epilogue results
            )
-  where
-    mkProg blk
-        | blk == mempty = Empty
-        | otherwise     = BlockProgram blk
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
