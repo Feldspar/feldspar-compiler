@@ -144,9 +144,13 @@ fromCoreExp opt prog = do
     let x = getPlatformRenames opt
     return ( renameEnt  opt x <$> def results
            , renameDecl     x <$> decl results
-           , renameProg opt x  $  BlockProgram $ block results
+           , renameProg opt x  $  mkProg (block results)
            , renameExp  x exp
            )
+  where
+    mkProg blk
+        | blk == mempty = Empty
+        | otherwise     = BlockProgram blk
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
