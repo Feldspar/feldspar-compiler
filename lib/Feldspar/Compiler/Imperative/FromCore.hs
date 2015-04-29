@@ -126,7 +126,14 @@ fromCoreM opt funname prog = do
         four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
     return $ Module defs
 
--- | Get the generated core for a program with a specified output name.
+-- | Get the generated core for a program and an expression that contains the output. The components
+-- of the result are as follows, in order:
+--
+-- * A list of extra entities needed by the program
+-- * A list of declarations needed by the program
+-- * The actual program
+-- * An expression that contains the result
+-- * A list of epilogue programs, for freeing memory, etc.
 fromCoreExp :: (MonadState Integer m)
             => SyntacticFeld a
             => Options
