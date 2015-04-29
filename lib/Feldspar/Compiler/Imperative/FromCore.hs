@@ -131,7 +131,7 @@ fromCoreExp :: (MonadState Integer m)
             => SyntacticFeld a
             => Options
             -> a
-            -> m ([Entity ()], [Declaration ()], Program (), Expression ())
+            -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
 fromCoreExp opt prog = do
     s <- get
     let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
@@ -139,13 +139,13 @@ fromCoreExp opt prog = do
     let (exp,States s'',results) =
           runRWS (compileExpr (CEnv opt False) uast) (initReader opt) $ States $ toInteger s'
     put s''
---     unless (null (params results) && null (epilogue results)) $
---         error "fromCoreExp: unexpected leftovers"
+    unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
     return ( renameEnt  opt x <$> def results
            , renameDecl     x <$> decl results
            , renameProg opt x  $  mkProg (block results)
-           , renameExp  x exp
+           , renameExp x exp
+           , renameProg opt x <$> epilogue results
            )
   where
     mkProg blk
