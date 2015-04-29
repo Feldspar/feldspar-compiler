@@ -148,9 +148,10 @@ fromCoreExp opt prog = do
     put s''
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
+        Block ls p = block results
     return ( renameEnt  opt x <$> def results
-           , renameDecl     x <$> decl results
-           , renameProg opt x  $  mkProg (block results)
+           , renameDecl     x <$> (ls ++ decl results)
+           , renameProg opt x p
            , renameExp x exp
            , renameProg opt x <$> epilogue results
            )
