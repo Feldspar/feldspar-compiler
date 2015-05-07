@@ -36,6 +36,7 @@
 module Feldspar.Compiler.Imperative.FromCore (
     fromCore
   , fromCoreM
+  , fromCoreExp
   , getCore'
   )
   where
@@ -68,6 +69,7 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
+import Feldspar.Compiler.Backend.C.MachineLowering
 
 {-
 
@@ -123,6 +125,36 @@ fromCoreM opt funname prog = do
         isTask _          = False
         four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
     return $ Module defs
+
+-- | Get the generated core for a program and an expression that contains the output. The components
+-- of the result are as follows, in order:
+--
+-- * A list of extra entities needed by the program
+-- * A list of declarations needed by the program
+-- * The actual program
+-- * An expression that contains the result
+-- * A list of epilogue programs, for freeing memory, etc.
+fromCoreExp :: (MonadState Integer m)
+            => SyntacticFeld a
+            => Options
+            -> a
+            -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
+fromCoreExp opt prog = do
+    s <- get
+    let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
+        uast = untype (frontendOpts opt) ast
+    let (exp,States s'',results) =
+          runRWS (compileExpr (CEnv opt False) uast) (initReader opt) $ States $ toInteger s'
+    put s''
+    unless (null (params results)) $ error "fromCoreExp: unexpected params"
+    let x = getPlatformRenames opt
+        Block ls p = block results
+    return ( renameEnt  opt x <$> def results
+           , renameDecl     x <$> (ls ++ decl results)
+           , renameProg opt x p
+           , renameExp x exp
+           , renameProg opt x <$> epilogue results
+           )
 
 -- | Get the generated core for a program.
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
@@ -761,7 +793,7 @@ compileExpr env (In (App p _ [tup]))
     return $ StructField tupExpr ("member" ++ drop 3 (show p))
 compileExpr env e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.SetLength, Ut.Sequential, Ut.Condition, Ut.ConditionM
-            , Ut.MkFuture, Ut.Await, Ut.Then, Ut.Return, Ut.While, Ut.For, Ut.SetArr, Ut.EMaterialize
+            , Ut.MkFuture, Ut.Await, Ut.Bind, Ut.Then, Ut.Return, Ut.While, Ut.For, Ut.SetArr, Ut.EMaterialize
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
             , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11
