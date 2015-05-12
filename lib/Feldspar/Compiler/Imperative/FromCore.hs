@@ -41,9 +41,10 @@ module Feldspar.Compiler.Imperative.FromCore (
   )
   where
 
+import qualified Data.Map as Map
 import Data.Char (toLower)
 import Data.List (nub, partition, find, isPrefixOf)
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (isJust, fromJust, mapMaybe)
 
 import Control.Monad.RWS
 import Control.Monad.State
@@ -137,14 +138,19 @@ fromCoreM opt funname prog = do
 fromCoreExp :: (MonadState Integer m)
             => SyntacticFeld a
             => Options
+            -> Map.Map Integer String
             -> a
             -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
-fromCoreExp opt prog = do
+fromCoreExp opt aliases prog = do
     s <- get
     let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
         uast = untype (frontendOpts opt) ast
+        mkAlias (Ut.Var i t) = do
+          n <- Map.lookup i aliases
+          return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
+        as = mapMaybe mkAlias $ Ut.fv uast
     let (exp,States s'',results) =
-          runRWS (compileExpr (CEnv opt False) uast) (initReader opt) $ States $ toInteger s'
+          runRWS (compileExpr (CEnv opt False) uast) (Readers as opt) $ States $ toInteger s'
     put s''
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
