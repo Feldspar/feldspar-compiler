@@ -66,14 +66,15 @@ import Feldspar.Compiler.Marshal ()
 
 -- | Configurable configuration for the loader.
 feldsparPluginConfigWith :: String -> Options -> Config
-feldsparPluginConfigWith suff fopts =
-    feldsparPluginConfig { builder = feldsparBuilder suff fopts
+feldsparPluginConfigWith pref fopts =
+    feldsparPluginConfig { builder = feldsparBuilder fopts
+                         , prefix  = pref
                          }
 
 -- | Default configuration for the loader
 feldsparPluginConfig :: Config
 feldsparPluginConfig =
-    defaultConfig { builder      = feldsparBuilder "" defaultOptions
+    defaultConfig { builder      = feldsparBuilder defaultOptions
                   , worker       = feldsparWorker
                   , typeFromName = loadFunType >=> rewriteType
                   , mkHSig       = buildHaskellType
@@ -106,8 +107,8 @@ loadFunOpts o n = loadFunWithConfig feldsparPluginConfig{opts = o} [n]
 
 -- | Call @loadFunWith@ with C compiler options
 loadFunOptsWith :: String -> Options -> [String] -> Name -> Q [Dec]
-loadFunOptsWith s fopt o n =
-    loadFunWithConfig (feldsparPluginConfigWith s fopt){opts = o} [n]
+loadFunOptsWith pref fopt o n =
+    loadFunWithConfig (feldsparPluginConfigWith pref fopt){opts = o} [n]
 
 feldsparWorker :: Name -> [Name] -> Q Body
 feldsparWorker fun as = normalB
@@ -123,8 +124,8 @@ feldsparWorker fun as = normalB
     apply [x] = x
     apply (x:y:zs) = apply (infixApp x [|(<*>)|] y : zs)
 
-feldsparBuilder :: String -> Options -> Config -> Name -> Q Body
-feldsparBuilder suffix fopts Config{..} fun = do
+feldsparBuilder :: Options -> Config -> Name -> Q Body
+feldsparBuilder fopts Config{..} fun = do
     let db    = getDB
     let opts' = opts ++ map ("-I"++) db
     normalB [|unsafeLocalState $ do
@@ -134,7 +135,7 @@ feldsparBuilder suffix fopts Config{..} fun = do
                 lookupSymbol symbol
             |]
   where
-    base     = nameBase fun ++ suffix
+    base     = nameBase fun
     basename = wdir ++ "/" ++ base
     symbol   = ldprefix ++ encodeFunctionName base
     ldprefix = case os of

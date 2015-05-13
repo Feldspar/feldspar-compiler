@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
@@ -39,7 +40,7 @@ len = 64
 sizes :: [[Length]]
 sizes = map (map (*len)) [[1,1],[2,2],[4,4],[8,8]]
 
-instance NFData (Ptr a) where
+instance NFData (Ptr a) where rnf !_ = ()
 
 setupPlugins = do
     putStrLn "Compiling c_matmul plugin"
@@ -62,7 +63,7 @@ allocOut lengths = do
 
 setupCompEnv ls = do
     o <- allocOut ls
-    d <- mkData testdata ls
+    d <- mkData2 testdata ls
     return (o,d)
 
 mkReferenceBench :: [Length] -> [Benchmark]

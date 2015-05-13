@@ -27,11 +27,14 @@
 --
 
 import Distribution.Simple
-import Distribution.PackageDescription
-import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
-
-import GHC.Paths ( ghc )
+import Distribution.Simple.LocalBuildInfo
+import Distribution.Simple.Program.Db
+import Distribution.Simple.Program.GHC
+import Distribution.Simple.Program.Builtin
+import Distribution.Simple.Program.Types
+import Distribution.Verbosity (verbose)
+import Distribution.PackageDescription
 
 import System.Process ( readProcessWithExitCode )
 import System.FilePath ( replaceExtension )
@@ -42,14 +45,14 @@ main = defaultMainWithHooks simpleUserHooks{ buildHook = buildH }
 -- | Custom build hook that builds C-sources for benchmarks with x-cc-name set.
 buildH :: PackageDescription -> LocalBuildInfo -> UserHooks -> BuildFlags -> IO ()
 buildH pd lbi user_hooks flags = do
-    benchmarks' <- mapM (checkIfAndCompile (buildDir lbi)) $ benchmarks pd
+    benchmarks' <- mapM (checkIfAndCompile lbi) $ benchmarks pd
     -- Build the remaining things the regular way.
     buildHook simpleUserHooks pd{ benchmarks = benchmarks' } lbi user_hooks flags
     return ()
 
 -- | Checks if x-cc-name is set, and compiles c-sources with that compiler name.
-checkIfAndCompile :: String -> Benchmark -> IO Benchmark
-checkIfAndCompile bld_dir bench = do
+checkIfAndCompile :: LocalBuildInfo -> Benchmark -> IO Benchmark
+checkIfAndCompile lbi bench = do
     let bench_bi  = benchmarkBuildInfo bench
     case lookup "x-cc-name" $ customFieldsBI bench_bi of
         Nothing -> return bench
@@ -57,16 +60,15 @@ checkIfAndCompile bld_dir bench = do
             let c_srcs    = cSources bench_bi
                 cc_opts   = ccOptions bench_bi
                 inc_dirs  = includeDirs bench_bi
-                lib_dirs  = extraLibDirs bench_bi
             -- Compile C/C++ sources
-            putStrLn "invoking icc compiler"
-            mapM_ (compile cc_name cc_opts inc_dirs bld_dir) c_srcs
+            putStrLn "Invoking icc compiler"
+            mapM_ (compile lbi bench cc_name cc_opts inc_dirs) c_srcs
             -- Remove C source code from the hooked build (don't change libs)
             return $ bench{ benchmarkBuildInfo = bench_bi{ cSources = [] } }
 
 -- | Compiles a C file with the given options.
-compile :: String -> [String] -> [String] -> String -> FilePath -> IO ()
-compile cc_name opts inc_dirs bld_dir srcfile = do
+compile :: LocalBuildInfo -> Benchmark -> String -> [String] -> [String] -> FilePath -> IO ()
+compile lbi bench cc_name opts inc_dirs srcfile = do
     let args = [ "-optc -std=c99"
                , "-optc -Wall"
                , "-w"
@@ -75,7 +77,9 @@ compile cc_name opts inc_dirs bld_dir srcfile = do
                ] ++ map ("-optc " ++) opts
         objfile = replaceExtension srcfile "o"
         fullargs = args ++ ["-o", objfile, srcfile]
-    print $  "Calling: " ++ ghc ++ unwords fullargs
+    (ghcProg,_) <- requireProgram verbose ghcProgram (withPrograms lbi)
+    let ghc = programPath ghcProg
+    print $ unwords $ ["Calling:",ghc] ++ fullargs
     (_, stdout, stderr) <- readProcessWithExitCode ghc fullargs ""
     let output = stdout ++ stderr
     unless (null output) $ putStrLn output
