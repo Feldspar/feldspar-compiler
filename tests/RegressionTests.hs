@@ -13,10 +13,11 @@ import Test.Tasty.QuickCheck
 
 import qualified Prelude
 import Feldspar
+import Feldspar.Mutable
+import Feldspar.Vector
 import Feldspar.Compiler
 import Feldspar.Compiler.Plugin
 import Feldspar.Compiler.ExternalProgram (compileFile)
-import Feldspar.Vector
 
 import Control.Applicative hiding (empty)
 import Control.Monad

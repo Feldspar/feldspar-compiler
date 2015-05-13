@@ -79,7 +79,7 @@ void divConq3(struct array * v0, struct array * * out)
     spawn5(task0, uint32_t, v199, uint32_t, v186, struct array *, v0, struct array *, v187, uint32_t, v1);
   }
   len207 = getLength(v187);
-  e206 = initArray(e206, sizeof(int32_t), getLength(v200));
+  e206 = initArray(e206, sizeof(int32_t), 0);
   copyArray(e206, v200);
   for (uint32_t v4 = 0; v4 < len207; v4 += 1)
   {
@@ -110,7 +110,7 @@ void divConq3(struct array * v0, struct array * * out)
     spawn5(task1, uint32_t, v199, uint32_t, v193, struct array *, v0, struct array *, v194, uint32_t, v111);
   }
   len213 = getLength(v194);
-  v198 = initArray(v198, sizeof(int32_t), getLength(v200));
+  v198 = initArray(v198, sizeof(int32_t), 0);
   copyArray(v198, v200);
   for (uint32_t v114 = 0; v114 < len213; v114 += 1)
   {
