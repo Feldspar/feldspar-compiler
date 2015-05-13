@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 import Feldspar
@@ -26,15 +27,15 @@ naive = crcNaive 0x8005 0
 normal :: Pull1 Word8 -> Data Word16
 normal v = share (makeCrcTable 0x8005) $ \t -> crcNormal t 0 v
 
-h_naive :: ([Length],[Word8]) -> Word16
+h_naive :: [Word8] -> Word16
 h_naive = eval naive
 loadFun 'naive
 
-h_normal :: ([Length],[Word8]) -> Word16
+h_normal :: [Word8] -> Word16
 h_normal = eval normal
 loadFun 'normal
 
-instance NFData (Ptr a) where
+instance NFData (Ptr a) where rnf !_ = ()
 
 setupPlugins :: IO ()
 setupPlugins = do
@@ -43,13 +44,13 @@ setupPlugins = do
     _  <- evaluate c_normal_builder
     return ()
 
-setupData :: Length -> IO ([Length],[Word8])
-setupData l = return ([l],Prelude.take (fromIntegral l) testdata)
+setupData :: Length -> IO [Word8]
+setupData l = return $ Prelude.take (fromIntegral l) testdata
 
-setupRaw :: Length -> IO (Ptr Word16, Ptr (Ptr (SA Length), Ptr (SA Word8)))
+setupRaw :: Length -> IO (Ptr Word16, Ptr (SA Word8))
 setupRaw l = do
     o  <- malloc
-    pd <- pack ([l],Prelude.take (fromIntegral l) testdata)
+    pd <- pack (Prelude.take (fromIntegral l) testdata)
     return (o,pd)
 
 main :: IO ()

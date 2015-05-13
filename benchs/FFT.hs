@@ -1,4 +1,6 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Main where
 
@@ -28,18 +30,19 @@ len = 4096
 sizes :: [[Length]]
 sizes = map (map (*len)) [[1],[2],[4],[8]]
 
-instance NFData (Ptr a) where
+instance NFData (Ptr a) where rnf !_ = ()
 
 setupPlugins :: IO ()
 setupPlugins = do
     _ <- evaluate c_fft_builder
     return ()
 
+-- setupData :: [Length] -> IO (Ptr (SA Length), Ptr (SA (Complex Float)))
 setupData lengths = do
     d <- mkData testdata lengths
     ls <- pack lengths
     ds <- allocSA $ fromIntegral $ product lengths :: IO (Ptr (SA (Complex Float)))
-    o  <- new (ls,ds)
+    o  <- new ds
     return (o,d)
 
 mkComp :: [Length] -> Benchmark
