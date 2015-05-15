@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -28,6 +29,14 @@ import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Lazy.Search as LB
 import System.Process
 import Text.Printf
+
+#if MIN_VERSION_tasty_golden(2,3,0)
+vgReadFiles :: String -> IO LB.ByteString
+vgReadFiles base = liftM LB.concat $ mapM (LB.readFile . (base<>)) [".h",".c"]
+#else
+vgReadFiles :: String -> ValueGetter r LB.ByteString
+vgReadFiles base = liftM LB.concat $ mapM (vgReadFile . (base<>)) [".h",".c"]
+#endif
 
 example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
@@ -272,9 +281,6 @@ fuzzyCmp e x y =
 filterEp :: LB.ByteString -> LB.ByteString
 filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
   where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
-
-vgReadFiles :: String -> IO LB.ByteString
-vgReadFiles base = liftM LB.concat $ mapM (LB.readFile . (base<>)) [".h",".c"]
 
 mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"
