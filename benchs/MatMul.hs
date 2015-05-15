@@ -45,7 +45,7 @@ instance NFData (Ptr a) where rnf !_ = ()
 setupPlugins = do
     putStrLn "Compiling c_matmul plugin"
     evaluate c_matmul_builder
-    evaluate _sicsmatmul_builder
+    evaluate c_matmul_sics_builder
 
 setupRefEnv :: [Length] -> IO (Ptr CDouble, Ptr CDouble)
 setupRefEnv ls = do
@@ -78,11 +78,8 @@ mkCompiledBench :: [Length] -> [Benchmark]
 mkCompiledBench ls =
   [ env (setupCompEnv ls) $ \ ~(o,d) ->
     bench "Feldspar_C/matmul" (whnfIO $ c_matmul_raw d d o)
-    -- _sicsmatmul_raw is a terrible name, but we can only configure the
-    -- function prefix in multistage plugins. Luckily this does not leak to
-    -- the outside world.
   , env (setupCompEnv ls) $ \ ~(o,d) ->
-    bench "Feldspar_C/sics_matmul" (whnfIO $ _sicsmatmul_raw d d o)
+    bench "Feldspar_C/matmul_sics" (whnfIO $ c_matmul_sics_raw d d o)
   ]
 
 -- | Create a benchmark that compares references and Feldspar for a specific

@@ -66,9 +66,9 @@ import Feldspar.Compiler.Marshal ()
 
 -- | Configurable configuration for the loader.
 feldsparPluginConfigWith :: String -> Options -> Config
-feldsparPluginConfigWith pref fopts =
+feldsparPluginConfigWith suff fopts =
     feldsparPluginConfig { builder = feldsparBuilder fopts
-                         , prefix  = pref
+                         , suffix  = suff
                          }
 
 -- | Default configuration for the loader
@@ -135,7 +135,7 @@ feldsparBuilder fopts Config{..} fun = do
                 lookupSymbol symbol
             |]
   where
-    base     = nameBase fun
+    base     = nameBase fun ++ suffix
     basename = wdir ++ "/" ++ base
     symbol   = ldprefix ++ encodeFunctionName base
     ldprefix = case os of
