@@ -42,7 +42,7 @@ example9 :: Data Int32 -> Data Int32
 example9 a = condition (a<5) (3*(a+20)) (30*(a+20))
 
 -- Compile and load example9 as c_example9 (using plugins)
-loadFun 'example9
+loadFun ['example9]
 
 topLevelConsts :: Data Index -> Data Index -> Data Index
 topLevelConsts a b = condition (a<5) (d ! (b+5)) (c ! (b+5))
@@ -82,7 +82,7 @@ copyPush v = let pv = toPush v in pv ++ pv
 concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
 concatV xs = fromZero $ fold (++) empty xs
 
-loadFun 'concatV
+loadFun ['concatV]
 
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
@@ -99,7 +99,7 @@ segment :: Syntax a => Data Length -> Pull DIM1 a -> Pull DIM1 (Pull DIM1 a)
 segment l xs = indexed1 clen (\ix -> take l $ drop (ix*l) xs)
   where clen = length xs `div` l
 
-loadFun 'divConq3
+loadFun ['divConq3]
 
 -- End one test.
 

@@ -40,12 +40,12 @@ vectorInVector v = fromZero $ sum $ map (fromZero . sum) v
 vectorInPairInVector :: Data WordN -> Pull DIM1 (Data WordN, Pull1 WordN)
 vectorInPairInVector l = indexed1 l $ \i -> (i, indexed1 i id)
 
-loadFun 'pairArg
-loadFun 'pairRes
-loadFun 'vecId
-loadFun 'vectorInPair
-loadFun 'vectorInVector
-loadFun 'vectorInPairInVector
+loadFun ['pairArg]
+loadFun ['pairRes]
+loadFun ['vecId]
+loadFun ['vectorInPair]
+loadFun ['vectorInVector]
+loadFun ['vectorInPairInVector]
 
 prop_pairArg = eval pairArg ==== c_pairArg
 prop_pairRes = eval pairRes ==== c_pairRes
