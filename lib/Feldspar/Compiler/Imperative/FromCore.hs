@@ -476,11 +476,12 @@ compileProg env loc (In (App Ut.When _ [c, action])) =
 -- MutableArray
 compileProg env loc (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
-   let ix = varToExpr $ mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
+   let var = mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
+       ix  = varToExpr var
    a' <- compileExpr env a
    l  <- compileExpr env len
    tellProg [initArray loc l]
-   tellProg [for Sequential "i" (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
+   tellProg [for Sequential (Rep.varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
 compileProg env loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr env len
    tellProg [initArray loc l]
