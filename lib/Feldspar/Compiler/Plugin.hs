@@ -93,22 +93,22 @@ feldsparPluginConfig =
 --
 -- > c_prog1 :: Index -> [Index]
 --
-loadFun :: Name -> Q [Dec]
-loadFun n = loadFunWithConfig feldsparPluginConfig [n]
+loadFun :: [Name] -> Q [Dec]
+loadFun n = loadFunWithConfig feldsparPluginConfig n
 
 -- | @loadFun@ with a function suffix to avoid collisions and different
 --  feldspar-compiler options.
-loadFunWith :: String -> Options -> Name -> Q [Dec]
-loadFunWith s o n = loadFunWithConfig (feldsparPluginConfigWith s o) [n]
+loadFunWith :: String -> Options -> [Name] -> Q [Dec]
+loadFunWith s o n = loadFunWithConfig (feldsparPluginConfigWith s o) n
 
 -- | Call @loadFun@ with C compiler options
-loadFunOpts :: [String] -> Name -> Q [Dec]
-loadFunOpts o n = loadFunWithConfig feldsparPluginConfig{opts = o} [n]
+loadFunOpts :: [String] -> [Name] -> Q [Dec]
+loadFunOpts o n = loadFunWithConfig feldsparPluginConfig{opts = o} n
 
 -- | Call @loadFunWith@ with C compiler options
-loadFunOptsWith :: String -> Options -> [String] -> Name -> Q [Dec]
+loadFunOptsWith :: String -> Options -> [String] -> [Name] -> Q [Dec]
 loadFunOptsWith pref fopt o n =
-    loadFunWithConfig (feldsparPluginConfigWith pref fopt){opts = o} [n]
+    loadFunWithConfig (feldsparPluginConfigWith pref fopt){opts = o} n
 
 feldsparWorker :: Name -> [Name] -> Q Body
 feldsparWorker fun as = normalB
