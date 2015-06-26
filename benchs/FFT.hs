@@ -21,8 +21,8 @@ import Criterion.Main
 testdata :: [Complex Float]
 testdata = cycle [1,2,3,4]
 
-loadFunOpts ["-optc=-O2"] 'fft
-loadFunOpts ["-optc=-O2"] 'ifft
+loadFunOpts ["-optc=-O2"] ['fft]
+loadFunOpts ["-optc=-O2"] ['ifft]
 
 len :: Length
 len = 4096

@@ -29,11 +29,11 @@ normal v = share (makeCrcTable 0x8005) $ \t -> crcNormal t 0 v
 
 h_naive :: [Word8] -> Word16
 h_naive = eval naive
-loadFun 'naive
+loadFun ['naive]
 
 h_normal :: [Word8] -> Word16
 h_normal = eval normal
-loadFun 'normal
+loadFun ['normal]
 
 instance NFData (Ptr a) where rnf !_ = ()
 
@@ -73,4 +73,3 @@ main =
               ]
           ]
       ]
-

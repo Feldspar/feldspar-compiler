@@ -31,8 +31,8 @@ foreign import ccall unsafe "MatMulC.h MatMulCopt" matMulCopt :: CInt -> CInt ->
 matmul :: Pull DIM2 (Data Double) -> Pull DIM2 (Data Double) -> Pull DIM2 (Data Double)
 matmul = mmMult True
 
-loadFunOpts ["-optc=-O2", "-optc=-fno-vectorize"] 'matmul
-loadFunOptsWith "_sics" sicsOptions ["-optc=-O2", "-optc=-fno-vectorize"] 'matmul
+loadFunOpts ["-optc=-O2", "-optc=-fno-vectorize"] ['matmul]
+loadFunOptsWith "_sics" sicsOptions ["-optc=-O2", "-optc=-fno-vectorize"] ['matmul]
 
 len :: Length
 len = 64
