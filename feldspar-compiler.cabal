@@ -72,7 +72,7 @@ library
     ghc-paths,
     plugins-multistage >= 0.6   && < 0.7,
     feldspar-language  >= 0.6.1 && < 0.7,
-    language-c-quote   >= 0.7.7 && < 1.0,
+    language-c-quote   >= 0.7.7 && < 0.12,
     bytestring         >= 0.9   && < 0.11,
     srcloc,
     mtl,
@@ -81,8 +81,7 @@ library
     containers,
     process,
     directory >= 1.1,
-    -- constraint needed for haskell-src-meta
-    th-orphans <= 0.12,
+    th-orphans,
     template-haskell,
     data-default >= 0.5,
     storable-tuple  >= 0.0.2,
