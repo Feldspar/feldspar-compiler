@@ -112,7 +112,7 @@ bindToThen y = runMutable $ do
     getRef ref
 
 switcher :: Data Word8 -> Data Bool -> Data Word8
-switcher i = switch (value 0) [(true,i), (false,2)]
+switcher i = switch (value 0) [(True,i), (False,2)]
 
 ivartest :: Data Index -> Data Index
 ivartest a = share (future (a+1)) $ \a' -> await a' * 2
