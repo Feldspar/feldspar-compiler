@@ -34,7 +34,7 @@ import Debug.Trace
 
 parseFile :: FilePath -> B.ByteString -> [Entity ()] -> Maybe (Module ())
 parseFile filename s hDefs =
-  case P.parse [C99] builtin_types P.parseUnit s' (startPos filename) of
+  case P.parse [C99] builtin_types P.parseUnit s' (Just $ startPos filename) of
       Left err -> Nothing
       Right defs -> Just (Module $ fhDefs ++ toProgram hDefs defs)
    where s' = massageInput s
