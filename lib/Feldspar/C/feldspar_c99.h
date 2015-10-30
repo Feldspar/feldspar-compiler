@@ -151,7 +151,7 @@ uint32_t bitCount_fun_uint16_t( uint16_t );
 uint32_t bitCount_fun_uint32_t( uint32_t );
 uint32_t bitCount_fun_uint64_t( uint64_t );
 
-
+#define mkComplex(d1,d2) ((d1) + (d2) * I)
 
 typedef struct {
     int8_t re;
