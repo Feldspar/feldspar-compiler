@@ -49,7 +49,7 @@ script:
  #####################################################################
  # Hack to make cabal test work (hopefully this is temporary)
  - if [ `ghc --numeric-version` == 7.10.2 ] ;
-   then cabal install Cabal-1.22.2.0 && cabal clean ;
+   then cabal install Cabal-1.22.2.0 && cabal clean && cabal configure --enable-test ;
    fi
  #####################################################################
  - cabal test
