@@ -48,10 +48,11 @@ script:
  # - cabal test
  #####################################################################
  # Hack to make cabal test work (hopefully this is temporary)
- - cabal install Cabal-1.22.2.0
- - cabal clean
- - cabal test
+ - if [ `ghc --numeric-version` == 7.10.2 ] ;
+   then cabal install Cabal-1.22.2.0 && cabal clean ;
+   fi
  #####################################################################
+ - cabal test
  - cabal check
  - cabal sdist   # tests that a source-distribution can be generated
 
