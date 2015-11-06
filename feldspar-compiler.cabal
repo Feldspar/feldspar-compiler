@@ -106,7 +106,7 @@ library
   cc-options: -std=c99 -Wall -fPIC
 
   if os(linux)
-    extra-libraries: gcc_s pthread
+    extra-libraries: gcc_s
 
   install-includes:
     feldspar_array.h
