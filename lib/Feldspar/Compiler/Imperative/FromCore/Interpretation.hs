@@ -299,20 +299,23 @@ mkNamedRef
     -> Variable ()
 mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
 
+-- | Construct a variable.
 mkVariable :: Type -> Integer -> Variable ()
 mkVariable t i | i >= 0 = mkNamedVar "v" t i
 
+-- | Construct a pointer variable.
 mkPointer :: Type -> Integer -> Variable ()
 mkPointer t i | i >= 0 = mkNamedRef "v" t i
 
--- | Construct a variable.
+-- | Construct a variable expression.
 mkVar :: Type -> Integer -> Expression ()
 mkVar t = varToExpr . mkVariable t
 
--- | Construct a pointer.
+-- | Construct a pointer variable expression.
 mkRef :: Type -> Integer -> Expression ()
 mkRef t = varToExpr . mkPointer t
 
+-- | Generate a fresh identifier
 freshId :: CodeWriter Integer
 freshId = do
   s <- get
@@ -320,6 +323,7 @@ freshId = do
   put (s {fresh = v + 1})
   return v
 
+-- | Generate a fresh variable expression
 freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
 freshVar opt base t = do
   v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
