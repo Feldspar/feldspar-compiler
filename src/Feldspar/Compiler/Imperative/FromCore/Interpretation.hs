@@ -311,10 +311,6 @@ mkPointer t i | i >= 0 = mkNamedRef "v" t i
 mkVar :: Type -> Integer -> Expression ()
 mkVar t = varToExpr . mkVariable t
 
--- | Construct a pointer variable expression.
-mkRef :: Type -> Integer -> Expression ()
-mkRef t = varToExpr . mkPointer t
-
 -- | Generate a fresh identifier
 freshId :: CodeWriter Integer
 freshId = do
@@ -332,9 +328,9 @@ freshVar opt base t = do
 
 freshAlias :: Expression () -> CodeWriter (Expression ())
 freshAlias e = do i <- freshId
-                  let vexp = varToExpr $ mkNamedVar "e" (typeof e) i
-                  declareAlias vexp
-                  return vexp
+                  let v = mkNamedVar "e" (typeof e) i
+                  declareAlias v
+                  return $ varToExpr v
 
 -- | Create a fresh variable aliasing some other variable and
 -- initialize it to the parameter.
@@ -347,9 +343,8 @@ declare :: Expression () -> CodeWriter ()
 declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
-declareAlias :: Expression () -> CodeWriter ()
-declareAlias (VarExpr v@(Variable{})) = tellDeclWith False [Declaration v Nothing]
-declareAlias expr      = error $ "declareAlias: cannot declare expression: " ++ show expr
+declareAlias :: Variable () -> CodeWriter ()
+declareAlias v = tellDeclWith False [Declaration v Nothing]
 
 initialize :: Expression () -> Expression () -> CodeWriter ()
 initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e)]

@@ -317,16 +317,16 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
         let ix = mkVar (compileTypeRep (opts env) tix) v
         len' <- mkLength env len tix
         st1 <- freshVar (opts env) "st" tst
-        let st = mkRef (compileTypeRep (opts env) tst) s
-            st_val = Deref st
+        let st = mkPointer (compileTypeRep (opts env) tst) s
+            st_val = Deref $ varToExpr st
         declareAlias st
         (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg env (ArrayElem <$> loc <*> pure ix) step
         withAlias s st_val $ compileProg env (Just st1) init'
-        tellProg [ Assign (Just st) (AddrOf st1)
+        tellProg [ Assign (Just $ varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for Sequential (lName ix) (litI32 0) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just st) $ AddrOf (ArrayElem arr ix)]) loc)]
+                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just $ varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
 compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        let tr' = typeof step
