@@ -43,7 +43,7 @@ module Feldspar.Compiler.Imperative.FromCore (
 
 import qualified Data.Map as Map
 import Data.Char (toLower)
-import Data.List (nub, partition, find, isPrefixOf)
+import Data.List (nub, find, isPrefixOf)
 import Data.Maybe (isJust, fromJust, mapMaybe)
 
 import Control.Monad.RWS
@@ -52,8 +52,8 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
-         ( Term(..), Lit(..), collectLetBinders, collectBinders, mkLam
-         , UntypedFeldF(App, LetFun), Fork(..), typeof
+         ( Term(..), Lit(..), collectLetBinders, collectBinders
+         , UntypedFeldF(App, LetFun), Fork(..)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
