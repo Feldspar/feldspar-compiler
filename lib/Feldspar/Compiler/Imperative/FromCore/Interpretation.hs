@@ -283,12 +283,24 @@ compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
 mkVar :: Type -> Integer -> Expression ()
 mkVar t i = varToExpr $ mkNamedVar "v" t i
 
--- | Construct a named variable.
-mkNamedVar :: String -> Type -> Integer -> Variable ()
+-- | Construct a named variable. The integer is appended to the base name to
+-- allow different variables to have the same base name. Use a negative integer
+-- to just get the base name without the appendix.
+mkNamedVar
+    :: String   -- ^ Base name
+    -> Type     -- ^ Variable type
+    -> Integer  -- ^ Integer appendix
+    -> Variable ()
 mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 
--- | Construct a named pointer.
-mkNamedRef :: String -> Type -> Integer -> Variable ()
+-- | Construct a named pointer. The integer is appended to the base name to
+-- allow different variables to have the same base name. Use a negative integer
+-- to just get the base name without the appendix.
+mkNamedRef
+    :: String   -- ^ Base name
+    -> Type     -- ^ Target type
+    -> Integer  -- ^ Integer appendix
+    -> Variable ()
 mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
 
 -- | Construct a pointer.
