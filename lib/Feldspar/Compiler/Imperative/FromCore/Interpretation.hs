@@ -90,8 +90,8 @@ instance Monoid Writers
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
-data States = States { fresh :: Integer -- ^ The first fresh variable id
-                     }
+newtype States = States { fresh :: Integer -- ^ The first fresh variable id
+                        }
 
 initState :: States
 initState = States 0
