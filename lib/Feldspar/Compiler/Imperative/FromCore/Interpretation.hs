@@ -111,6 +111,7 @@ mkStructType trs = StructType n trs
 compileTypeRep :: Options -> Ut.Type -> Type
 compileTypeRep _   Ut.UnitType            = VoidType
 compileTypeRep _   Ut.BoolType            = MachineVector 1 BoolType
+compileTypeRep _   Ut.BitType             = MachineVector 1 BitType
 compileTypeRep _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
 compileTypeRep _   Ut.FloatType           = MachineVector 1 FloatType
 compileTypeRep _   Ut.DoubleType          = MachineVector 1 DoubleType
@@ -154,6 +155,114 @@ compileTypeRep opt (Ut.Tup7Type a b c d e f g) = mkStructType
         , ("member6", compileTypeRep opt f)
         , ("member7", compileTypeRep opt g)
         ]
+compileTypeRep opt (Ut.Tup8Type a b c d e f g h) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        ]
+compileTypeRep opt (Ut.Tup9Type a b c d e f g h i) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        ]
+compileTypeRep opt (Ut.Tup10Type a b c d e f g h i j) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        , ("member10", compileTypeRep opt j)
+        ]
+compileTypeRep opt (Ut.Tup11Type a b c d e f g h i j k) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        , ("member10", compileTypeRep opt j)
+        , ("member11", compileTypeRep opt k)
+        ]
+compileTypeRep opt (Ut.Tup12Type a b c d e f g h i j k l) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        , ("member10", compileTypeRep opt j)
+        , ("member11", compileTypeRep opt k)
+        , ("member12", compileTypeRep opt l)
+        ]
+compileTypeRep opt (Ut.Tup13Type a b c d e f g h i j k l m) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        , ("member10", compileTypeRep opt j)
+        , ("member11", compileTypeRep opt k)
+        , ("member12", compileTypeRep opt l)
+        , ("member13", compileTypeRep opt m)
+        ]
+compileTypeRep opt (Ut.Tup14Type a b c d e f g h i j k l m n) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        , ("member10", compileTypeRep opt j)
+        , ("member11", compileTypeRep opt k)
+        , ("member12", compileTypeRep opt l)
+        , ("member13", compileTypeRep opt m)
+        , ("member14", compileTypeRep opt n)
+        ]
+compileTypeRep opt (Ut.Tup15Type a b c d e f g h i j k l m n o) = mkStructType
+        [ ("member1", compileTypeRep opt a)
+        , ("member2", compileTypeRep opt b)
+        , ("member3", compileTypeRep opt c)
+        , ("member4", compileTypeRep opt d)
+        , ("member5", compileTypeRep opt e)
+        , ("member6", compileTypeRep opt f)
+        , ("member7", compileTypeRep opt g)
+        , ("member8", compileTypeRep opt h)
+        , ("member9", compileTypeRep opt i)
+        , ("member10", compileTypeRep opt j)
+        , ("member11", compileTypeRep opt k)
+        , ("member12", compileTypeRep opt l)
+        , ("member13", compileTypeRep opt m)
+        , ("member14", compileTypeRep opt n)
+        , ("member15", compileTypeRep opt o)
+        ]
 compileTypeRep opt (Ut.MutType a)           = compileTypeRep opt a
 compileTypeRep opt (Ut.RefType a)           = compileTypeRep opt a
 compileTypeRep opt (Ut.ArrayType rs a)
@@ -169,7 +278,6 @@ compileTypeRep opt (Ut.ElementsType a)
 compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
 compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
 compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
-compileTypeRep _   typ                      = error $ "compileTypeRep: missing " ++ show typ  -- TODO
 
 -- | Construct a variable.
 mkVar :: Type -> Integer -> Expression ()
