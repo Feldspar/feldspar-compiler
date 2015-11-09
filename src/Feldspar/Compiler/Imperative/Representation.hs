@@ -31,7 +31,9 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
+-- | Abstract syntax representation for imperative programs
 module Feldspar.Compiler.Imperative.Representation (
+    -- * Representation of imperative programs
     Module(..)
   , Entity(..)
   , Declaration(..)
@@ -45,6 +47,7 @@ module Feldspar.Compiler.Imperative.Representation (
   , Pattern(..)
   , ParType(..)
   , Type(..)
+    -- * Types
   , ScalarType(..)
   , Constant(..)
   , module Feldspar.Core.UntypedRepresentation
@@ -64,9 +67,9 @@ import Feldspar.Core.Types (Length)
 import Feldspar.Core.UntypedRepresentation ( Signedness(..), Size(..)
                                            , HasType(..))
 
--- =================================================
--- == Data stuctures to store imperative programs ==
--- =================================================
+--------------------------------------------------------------------------------
+-- * Representation of imperative programs
+--------------------------------------------------------------------------------
 
 data Module t = Module
     { entities                      :: [Entity t]
@@ -85,7 +88,7 @@ data Entity t
     | Proc
         { procName                  :: String
         , loopBody                  :: Bool
-        -- Is this a loopbody in disguise.
+        -- Is this a loopbody in disguise?
         , inParams                  :: [Variable t]
         -- Left is regular return, right is fast return.
         , outParams                 :: Either [Variable t] (Variable t)
@@ -266,9 +269,9 @@ instance Monoid (Block t)
     mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
 
 
--- ======================
--- == Basic structures ==
--- ======================
+--------------------------------------------------------------------------------
+-- * Types
+--------------------------------------------------------------------------------
 
 data ScalarType =
       BoolType

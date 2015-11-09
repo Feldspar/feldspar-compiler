@@ -76,9 +76,11 @@ initArray = mkInitialize "initArray"
 setLength :: Maybe (Expression ()) -> Expression () -> Program ()
 setLength = mkInitialize "setLength"
 
+-- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
 freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
 
+-- | Generate 'freeArray' calls for all arrays in a list of declarations
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
   where
@@ -131,9 +133,11 @@ iVarPut ivar msg
       where
         typ = typeof msg
 
+-- | Generate a call to free an IVar represented as a variable
 iVarDestroy :: Variable () -> Program ()
 iVarDestroy v = call "ivar_destroy" [ValueParameter $ AddrOf $ varToExpr v]
 
+-- | Generate 'iVarDestroy' calls for all IVars in a list of declarations
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
   where

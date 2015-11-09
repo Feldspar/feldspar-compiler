@@ -350,21 +350,27 @@ initialize :: Expression () -> Expression () -> CodeWriter ()
 initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e)]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
+-- | Add a definition to the generated program
 tellDef :: [Entity ()] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
+-- | Add a list of sub-programs to the generated program
 tellProg :: [Program ()] -> CodeWriter ()
 tellProg [BlockProgram b@(Block [] _)] = tell $ mempty {block = b}
 tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
-tellDeclWith :: Bool -> [Declaration ()] -> CodeWriter ()
+-- | Add a list of declarations to the generated program
+tellDeclWith
+    :: Bool  -- ^ Should arrays and IVars in the declarations be freed in the epilogue?
+    -> [Declaration ()]
+    -> CodeWriter ()
 tellDeclWith free ds = do
     rs <- ask
     let frees | free = freeArrays ds ++ freeIVars ds
               | otherwise = []
         opts = backendOpts rs
         defs = getTypes ds
-        code | varFloating $ platform opts = mempty {decl=ds, epilogue = frees, def = defs}
+        code | varFloating $ platform opts = mempty {decl = ds, epilogue = frees, def = defs}
              | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
     tell code
