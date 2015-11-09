@@ -257,7 +257,7 @@ mkGoldTest fun n opts = do
     let ref = goldDir <> n
         new = testDir <> n
         act = compile fun new n opts
-        cmp = simpleCmp $ printf "Files '%s' and '%s' differ" ref new
+        cmp = simpleCmp $ printf "Files '%s.{c,h}' and '%s.{c,h}' differ" ref new
         upd = LB.writeFile ref
     goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
 
@@ -269,7 +269,7 @@ mkParseTest n opts = do
     let ref = goldDir <> n
         new = testDir <> "ep-" <> n
         act = compileFile ref new opts
-        cmp = fuzzyCmp $ printf "Files '%s' and '%s' differ" ref new
+        cmp = fuzzyCmp $ printf "Files '%s.{c,h}' and '%s.{c,h}' differ" ref new
         upd = LB.writeFile ref
     goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
 
