@@ -35,7 +35,7 @@ Flag UseICC
   Default:             False
 
 library
-  hs-source-dirs: lib
+  hs-source-dirs: src
 
   exposed-modules:
     Feldspar.Compiler
@@ -95,15 +95,15 @@ library
   default-extensions:
 
   include-dirs:
-    ./lib/Feldspar/C
+    ./clib
 
   cpp-options: -DCABAL_IS_USED
     -- Is there already such a symbol defined?
 
   c-sources:
-   lib/Feldspar/C/feldspar_c99.c
-   lib/Feldspar/C/taskpool.c
-   lib/Feldspar/C/ivar.c
+   clib/feldspar_c99.c
+   clib/taskpool.c
+   clib/ivar.c
 
   cc-options: -std=c99 -Wall -fPIC
 
@@ -126,39 +126,6 @@ library
   ghc-options: -fcontext-stack=100
 
   cpp-options: -DRELEASE
-
--- executable feldspar
---   hs-source-dirs: src
-
---   main-is : Feldspar/Compiler/Frontend/CommandLine/Main.hs
-
---   default-language: Haskell2010
-
---   other-modules:
---     Feldspar.Compiler.Frontend.CommandLine.NameExtractor
---     Feldspar.Compiler.Frontend.CommandLine.API.Library
---     Feldspar.Compiler.Frontend.CommandLine.API.Constants
---     Feldspar.Compiler.Frontend.CommandLine.API.Options
---     Feldspar.Compiler.Frontend.CommandLine.API
-
---   build-depends:
---     feldspar-language,
---     feldspar-compiler,
---     mtl,
---     base,
---     hint,
---     process,
---     filepath,
---     directory,
---     ansi-terminal,
---     MonadCatchIO-mtl,
---     haskell-src-exts >= 1.14
-
---   default-extensions:
-
---   ghc-options: -fcontext-stack=100
-
---   cpp-options: -DRELEASE
 
 test-suite regression
   type: exitcode-stdio-1.0
