@@ -35,7 +35,7 @@ Flag UseICC
   Default:             False
 
 library
-  hs-source-dirs: lib
+  hs-source-dirs: src
 
   exposed-modules:
     Feldspar.Compiler
@@ -95,15 +95,15 @@ library
   default-extensions:
 
   include-dirs:
-    ./lib/Feldspar/C
+    ./clib
 
   cpp-options: -DCABAL_IS_USED
     -- Is there already such a symbol defined?
 
   c-sources:
-   lib/Feldspar/C/feldspar_c99.c
-   lib/Feldspar/C/taskpool.c
-   lib/Feldspar/C/ivar.c
+   clib/feldspar_c99.c
+   clib/taskpool.c
+   clib/ivar.c
 
   cc-options: -std=c99 -Wall -fPIC
 

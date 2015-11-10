@@ -48,7 +48,7 @@ feldsparCIncludes = do
     dir <- getCurrentDirectory
     return $ case splitPath dir of
         [] -> dir
-        ds -> joinPath $ init ds ++ ["feldspar-compiler","lib","Feldspar","C"]
+        ds -> joinPath $ init ds ++ ["feldspar-compiler","clib"]
 
 #endif
 
