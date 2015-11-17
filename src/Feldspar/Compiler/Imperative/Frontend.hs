@@ -56,11 +56,11 @@ copyProg (Just outExp) inExp =
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
-mkInitialize name loc@(Just arr) len
+mkInitialize name (Just arr) len
   | isNativeArray arrType
   = Empty
   | otherwise
-  = Assign loc $ fun arrType name [arr, sz, len]
+  = Assign arr $ fun arrType name [arr, sz, len]
    where
     arrType = typeof arr
     sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
@@ -76,9 +76,11 @@ initArray = mkInitialize "initArray"
 setLength :: Maybe (Expression ()) -> Expression () -> Program ()
 setLength = mkInitialize "setLength"
 
+-- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
 freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
 
+-- | Generate 'freeArray' calls for all arrays in a list of declarations
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
   where
@@ -114,7 +116,7 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Bool -> Expression () -> Expression () -> Program ()
 iVarGet inTask loc ivar
-    | isArray typ   = Assign (Just loc)
+    | isArray typ   = Assign loc
                     $ fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar ]
     | otherwise     = call (mangle inTask "ivar_get") [ TypeParameter typ
                                                        , ValueParameter (AddrOf loc)
@@ -131,9 +133,11 @@ iVarPut ivar msg
       where
         typ = typeof msg
 
+-- | Generate a call to free an IVar represented as a variable
 iVarDestroy :: Variable () -> Program ()
 iVarDestroy v = call "ivar_destroy" [ValueParameter $ AddrOf $ varToExpr v]
 
+-- | Generate 'iVarDestroy' calls for all IVars in a list of declarations
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
   where

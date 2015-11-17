@@ -311,10 +311,6 @@ mkPointer t i | i >= 0 = mkNamedRef "v" t i
 mkVar :: Type -> Integer -> Expression ()
 mkVar t = varToExpr . mkVariable t
 
--- | Construct a pointer variable expression.
-mkRef :: Type -> Integer -> Expression ()
-mkRef t = varToExpr . mkPointer t
-
 -- | Generate a fresh identifier
 freshId :: CodeWriter Integer
 freshId = do
@@ -332,44 +328,49 @@ freshVar opt base t = do
 
 freshAlias :: Expression () -> CodeWriter (Expression ())
 freshAlias e = do i <- freshId
-                  let vexp = varToExpr $ mkNamedVar "e" (typeof e) i
-                  declareAlias vexp
-                  return vexp
+                  let v = mkNamedVar "e" (typeof e) i
+                  declareAlias v
+                  return $ varToExpr v
 
 -- | Create a fresh variable aliasing some other variable and
 -- initialize it to the parameter.
 freshAliasInit :: Expression () -> CodeWriter (Expression ())
 freshAliasInit e = do vexp <- freshAlias e
-                      tellProg [Assign (Just vexp) e]
+                      tellProg [Assign vexp e]
                       return vexp
 
 declare :: Expression () -> CodeWriter ()
 declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
 declare expr      = error $ "declare: cannot declare expression: " ++ show expr
 
-declareAlias :: Expression () -> CodeWriter ()
-declareAlias (VarExpr v@(Variable{})) = tellDeclWith False [Declaration v Nothing]
-declareAlias expr      = error $ "declareAlias: cannot declare expression: " ++ show expr
+declareAlias :: Variable () -> CodeWriter ()
+declareAlias v = tellDeclWith False [Declaration v Nothing]
 
 initialize :: Expression () -> Expression () -> CodeWriter ()
 initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e)]
 initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
 
+-- | Add a definition to the generated program
 tellDef :: [Entity ()] -> CodeWriter ()
 tellDef es = tell $ mempty {def = es}
 
+-- | Add a list of sub-programs to the generated program
 tellProg :: [Program ()] -> CodeWriter ()
 tellProg [BlockProgram b@(Block [] _)] = tell $ mempty {block = b}
 tellProg ps = tell $ mempty {block = toBlock $ Sequence ps}
 
-tellDeclWith :: Bool -> [Declaration ()] -> CodeWriter ()
+-- | Add a list of declarations to the generated program
+tellDeclWith
+    :: Bool  -- ^ Should arrays and IVars in the declarations be freed in the epilogue?
+    -> [Declaration ()]
+    -> CodeWriter ()
 tellDeclWith free ds = do
     rs <- ask
     let frees | free = freeArrays ds ++ freeIVars ds
               | otherwise = []
         opts = backendOpts rs
         defs = getTypes ds
-        code | varFloating $ platform opts = mempty {decl=ds, epilogue = frees, def = defs}
+        code | varFloating $ platform opts = mempty {decl = ds, epilogue = frees, def = defs}
              | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
     tell code
@@ -483,22 +484,22 @@ assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just t
 assign _          _   = return ()
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
-shallowAssign loc@(Just dst) src | dst /= src = tellProg [Assign loc src]
+shallowAssign loc@(Just dst) src | dst /= src = tellProg [Assign dst src]
 shallowAssign _          _                    = return ()
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyWithRefSwap dst src
   | dst /= src
   = case filter (hasReference . snd) $ flattenStructs $ typeof dst of
-      [] -> tellProg [Assign (Just dst) src]
+      [] -> tellProg [Assign dst src]
       arrs -> do temps <- sequence [freshAliasInit $ accF dst | (accF, _) <- arrs]
-                 tellProg [Assign (Just dst) src]
-                 tellProg [Assign (Just $ accF src) tmp | (tmp, (accF, _)) <- zip temps arrs]
+                 tellProg [Assign dst src]
+                 tellProg [Assign (accF src) tmp | (tmp, (accF, _)) <- zip temps arrs]
   | otherwise = return ()
 
 shallowCopyReferences :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyReferences dst src
-  = tellProg [Assign (Just $ accF dst) (accF src)
+  = tellProg [Assign (accF dst) (accF src)
                  | (accF, t) <- flattenStructs $ typeof dst, hasReference t]
 
 {-

@@ -9,7 +9,7 @@ import qualified Data.ByteString.Char8 as B
 import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Imperative.Representation (Module(..))
-import Feldspar.Compiler.Imperative.ExternalProgram (parseFile, massageInput)
+import Feldspar.Compiler.Imperative.ExternalProgram (parseFile)
 import Feldspar.Compiler.Frontend.Interactive.Interface (writeFiles)
 
 icompileFile :: FilePath -> IO ()

@@ -100,7 +100,7 @@ pow_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
        prg    = Sequence [ guard
                          , for Sequential "i" (litI32 0) inVar2' (litI32 1) (Block [] body')
                          , call "return" [ValueParameter $ outVar']]
-       body'  = Assign (Just outVar') (binop typ "*" outVar' inVar1')
+       body'  = Assign outVar' (binop typ "*" outVar' inVar1')
        guard
          | Just True <- intSigned typ
          = Sequence [ call "assert" [ ValueParameter $
@@ -350,8 +350,8 @@ reverseBits_fun_u opts typ = Proc name False [inVar] (Right outVar) (Just body)
        prg    = Sequence [ while empty (binop typ ">>=" inVar' (litI typ 1)) body'
                          , call "return" [ValueParameter $
                                              binop typ "<<" outVar' ivar']]
-       body'   = toBlock $ Sequence [ Assign (Just outVar') shift
-                                    , Assign (Just ivar') (binop typ "-" ivar' (litI typ 1))]
+       body'   = toBlock $ Sequence [ Assign outVar' shift
+                                    , Assign ivar' (binop typ "-" ivar' (litI typ 1))]
        shift   = binop typ "|" (binop typ "<<" outVar' (litI typ 1))
                                (binop typ "&" inVar' (litI typ 1))
        sz      = sizeToNum typ
@@ -381,8 +381,8 @@ bitScan_fun_u opts typ = Proc name False [inVar] (Right outVar) (Just body)
        empty  = toBlock Empty
        prg    = Sequence [ while empty inVar' body'
                          , call "return" [ValueParameter outVar']]
-       body'   = toBlock $ Sequence [ Assign (Just outVar') (binop ot "-" outVar' (litI typ 1))
-                                    , Assign (Just inVar') shift ]
+       body'   = toBlock $ Sequence [ Assign outVar' (binop ot "-" outVar' (litI typ 1))
+                                    , Assign inVar' shift ]
        shift   = binop typ ">>" inVar' (litI typ 1)
        sz      = sizeToNum typ
 

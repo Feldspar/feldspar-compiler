@@ -244,24 +244,24 @@ impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id fn _) _)
                                          [e1', e2', e3'] _) _)
   | fn == "initArray" || fn == "setLength"
-  = (env', R.Assign (Just $ expToExpression env' e) (expToExpression env' f))
+  = (env', R.Assign (expToExpression env' e) (expToExpression env' f))
    where env' = fixupEnv env e $ typToType env (getTyp e2')
          getTyp (SizeofType e _) = e
          getTyp (BinOp Sub _ e _) = getTyp e
          getTyp e = error ("Unexpected parameter to initArray/setLength:" ++ show e)
 impureExpToProgram env (Assign e@Var{} JustAssign
                                f@(FnCall (Var (Id "at" _) _) [e1, e2] _) _)
-  = (env', R.Assign (Just $ expToExpression env e) (expToExpression env' f))
+  = (env', R.Assign (expToExpression env e) (expToExpression env' f))
    where env' = fixupEnv env e1 $ varType (varToVariable env e)
 impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAssign
                                f@(FnCall (Var (Id "at" _) _) [e1', e2'] _) _)
-  = (env'', R.Assign (Just $ expToExpression env'' e) (expToExpression env'' f))
+  = (env'', R.Assign (expToExpression env'' e) (expToExpression env'' f))
    -- Hope LHS or RHS has proper types. Propagate to the other side.
    where env'' = fixupEnv env' e1 $ typeof (expToExpression env' f)
          env'  = fixupEnv env e1' $ typeof (expToExpression env e)
 impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAssign
                                f _)
-  = (env', R.Assign (Just $ expToExpression env' e) f')
+  = (env', R.Assign (expToExpression env' e) f')
    -- Propagate type of RHS to LHS.
    where env' | VoidType <- typeof e' = fixupEnv env e1 $ typeof f'
               | otherwise = env
@@ -270,7 +270,7 @@ impureExpToProgram env (Assign e@(FnCall (Var (Id "at" _) _) [e1, e2] _) JustAss
             | otherwise = expToExpression' env' (Just $ typeof e') f
 impureExpToProgram env (Assign e JustAssign
                                f@(FnCall (Var (Id "at" _) _) [e1', e2'] _) _)
-  = (env', R.Assign (Just e') (expToExpression env' f))
+  = (env', R.Assign e' (expToExpression env' f))
    -- Propagate type of LHS to RHS.
    where env' | VoidType <- typeof f' = fixupEnv env e1' $ typeof e'
               | otherwise = env
@@ -278,7 +278,7 @@ impureExpToProgram env (Assign e JustAssign
             | otherwise = expToExpression' env' (Just $ typeof f') e
          f' = expToExpression env f
 impureExpToProgram env (Assign e1 JustAssign e2 _)
-  = (env, R.Assign (Just $ expToExpression env e1) (expToExpression env e2))
+  = (env, R.Assign (expToExpression env e1) (expToExpression env e2))
 impureExpToProgram _ e = error ("impureExpToProgram: " ++ show e)
 
 varToVariable :: TPEnv -> Exp -> Variable ()
@@ -554,11 +554,6 @@ updateEnv2 :: TPEnv -> [R.Variable ()] -> R.Type -> TPEnv
 updateEnv2 (TPEnv vs tdefs hdefs) ns t
  = TPEnv (nt ++ vs) (t:tdefs) hdefs
      where nt = map (\v@(Variable t name) -> (name, v)) ns
-
--- Add two environments.
-plusEnv :: TPEnv -> TPEnv -> TPEnv
-plusEnv (TPEnv vs1 tdefs1 hdefs) (TPEnv vs2 tdefs2 _ )
-  = TPEnv (vs1 ++ vs2) (tdefs1 ++ tdefs2) hdefs
 
 -- Patch the type information in the environment when we learn more.
 fixupEnv :: TPEnv -> Exp -> R.Type -> TPEnv

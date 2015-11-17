@@ -34,8 +34,8 @@
 -- | Module that translates from the UntypedFeld program from the middleend to
 --   the module format in the backend.
 module Feldspar.Compiler.Imperative.FromCore (
-    fromCore
-  , fromCoreM
+    fromCoreUT
+  , fromCore
   , fromCoreExp
   , getCore'
   )
@@ -52,14 +52,14 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
-         ( Term(..), Lit(..), collectLetBinders, collectBinders
+         ( UntypedFeld, Term(..), Lit(..), collectLetBinders, collectBinders
          , UntypedFeldF(App, LetFun), Fork(..)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
 import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
 import Feldspar.Core.Constructs (SyntacticFeld)
-import Feldspar.Core.Frontend (reifyFeldM)
+import Feldspar.Core.Frontend (reifyFeldM, reifyFeld)
 
 import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..), ScalarType(..))
 import Feldspar.Compiler.Imperative.Representation
@@ -87,45 +87,63 @@ For those cases we flip the option before generating code.
 
 -}
 
--- | Get the generated core for a program with a specified output name.
-fromCore :: SyntacticFeld a => Options -> String -> a -> Module ()
-fromCore opt funname prog = flip evalState 0 $ fromCoreM opt funname prog
+-- | Get the generated core for an 'UntypedFeld' expression. The result is the
+-- generated code and the next available variable identifier.
+fromCoreUT
+    :: Options
+    -> String       -- ^ Name of the generated function
+    -> UntypedFeld  -- ^ Expression to generate code for
+    -> (Module (), Integer)
+fromCoreUT opt funname uast = (Module defs, maxVar')
+  where
+    opt' | useNativeReturns opt
+         , not $ canFastReturn $ compileTypeRep opt (typeof uast)
+         = opt { useNativeReturns = False } -- Note [Fast returns]
+         | otherwise = opt
 
--- | Get the generated core for a program with a specified output name.
-fromCoreM :: (MonadState Integer m)
-          => SyntacticFeld a => Options -> String -> a -> m (Module ())
-fromCoreM opt funname prog = do
-    s <- get
-    let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
-        uast = untype (frontendOpts opt) ast
-    let opt' | useNativeReturns opt
-             , not $ canFastReturn $ compileTypeRep opt (typeof uast)
-             = opt { useNativeReturns = False } -- Note [Fast returns]
-             | otherwise = opt
-        fastRet    = useNativeReturns opt'
-    let (outParam,States s'',results) =
-          runRWS (compileProgTop opt' uast) (initReader opt) $ States $ toInteger s'
-    put s''
-    let decls      = decl results
-        ins        = params results
-        post       = epilogue results ++ returns
-        Block ds p = block results
-        outDecl    = Declaration outParam Nothing
-        paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
-        defs       = nub (def results ++ paramTypes) ++ topProc
-        (outs, ds', returns)
-         | fastRet   = ( Right outParam,  outDecl:ds ++ decls
-                       , [call "return" [ValueParameter $ varToExpr outParam]])
-         | otherwise = ( Left [outParam],         ds ++ decls, [])
-        topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence mainProg))]
-        mainProg
-         | Just _ <- find isTask $ def results
-         = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
-         | otherwise = p:post
-        isTask (Proc{..}) = isPrefixOf "task_core" procName
-        isTask _          = False
+    maxVar = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
+
+    (outParam,States maxVar',results) =
+       runRWS (compileProgTop opt' uast) (initReader opt) $ States maxVar
+
+    fastRet    = useNativeReturns opt'
+    decls      = decl results
+    ins        = params results
+    post       = epilogue results ++ returns
+    Block ds p = block results
+    outDecl    = Declaration outParam Nothing
+    paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
+    defs       = nub (def results ++ paramTypes) ++ topProc
+
+    (outs, ds', returns)
+     | fastRet   = ( Right outParam,  outDecl:ds ++ decls
+                   , [call "return" [ValueParameter $ varToExpr outParam]])
+     | otherwise = ( Left [outParam],         ds ++ decls, [])
+
+    topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence mainProg))]
+
+    mainProg
+     | Just _ <- find isTask $ def results
+     = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
+     | otherwise = p:post
+      where
         four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
-    return $ Module defs
+
+    isTask (Proc{..}) = isPrefixOf "task_core" procName
+    isTask _          = False
+
+-- | Get the generated core for an 'UntypedFeld' expression.
+fromCore :: SyntacticFeld a
+    => Options
+    -> String   -- ^ Name of the generated function
+    -> a        -- ^ Expression to generate code for
+    -> Module ()
+fromCore opt funname prog
+    = fst
+    $ fromCoreUT opt funname
+    $ untype (frontendOpts opt)
+    $ reifyFeld (frontendOpts opt) N32
+    $ prog
 
 -- | Get the generated core for a program and an expression that contains the output. The components
 -- of the result are as follows, in order:
@@ -317,16 +335,16 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
         let ix = mkVar (compileTypeRep (opts env) tix) v
         len' <- mkLength env len tix
         st1 <- freshVar (opts env) "st" tst
-        let st = mkRef (compileTypeRep (opts env) tst) s
-            st_val = Deref st
+        let st = mkPointer (compileTypeRep (opts env) tst) s
+            st_val = Deref $ varToExpr st
         declareAlias st
         (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg env (ArrayElem <$> loc <*> pure ix) step
         withAlias s st_val $ compileProg env (Just st1) init'
-        tellProg [ Assign (Just st) (AddrOf st1)
+        tellProg [ Assign (varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for Sequential (lName ix) (litI32 0) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just st) $ AddrOf (ArrayElem arr ix)]) loc)]
+                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
 compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        let tr' = typeof step
@@ -354,7 +372,7 @@ compileProg env (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
    i' <- compileExpr env i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
-                then [Assign (Just loc) el]
+                then [Assign loc el]
                 else [copyProg (Just loc) [el]]
 compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
    len' <- compileExpr env len
@@ -693,9 +711,12 @@ compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10
     compileProg env (StructField <$> loc <*> pure "member14") m14
     compileProg env (StructField <$> loc <*> pure "member15") m15
 -- Special case foreign imports since they can be of void type and just have effects.
-compileProg env loc (In (App p@Ut.ForeignImport{} t es)) = do
+compileProg env (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM (compileExpr env) es
     tellProg [Assign loc $ fun' (compileTypeRep (opts env) t) (compileOp p) es']
+compileProg env Nothing (In (App p@Ut.ForeignImport{} t es)) = do
+    es' <- mapM (compileExpr env) es
+    tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
 -- Common nodes
 compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
   es' <- mapM (compileExpr env) es

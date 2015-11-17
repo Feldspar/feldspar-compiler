@@ -20,10 +20,8 @@ module Feldspar.Compiler.Plugin
 import BasicTypes (failed)
 import ObjLink (initObjLinker,loadObj,resolveObjs)
 import GHC.Paths (ghc)
-import GHC.Word (Word32(..))
 import System.Plugins.MultiStage
-import Data.List (isPrefixOf)
-import Distribution.Verbosity (silent,verbose)
+import Distribution.Verbosity (verbose)
 import Distribution.Simple.Utils (defaultPackageDesc)
 import Distribution.PackageDescription
 import Distribution.PackageDescription.Parse (readPackageDescription)
@@ -60,7 +58,7 @@ import Feldspar.Core.UntypedRepresentation (Signedness(..), Size(..))
 import Feldspar.Runtime
 import Feldspar.Compiler (compile, defaultOptions)
 import Feldspar.Compiler.Imperative.Representation (Type(..), ScalarType(..), Constant(..))
-import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..), ShowValue(..))
+import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 import Feldspar.Compiler.Backend.C.Library (encodeFunctionName)
 import Feldspar.Compiler.Marshal ()
 

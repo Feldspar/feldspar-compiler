@@ -117,11 +117,7 @@ instance CodeGen (Program ())
     cgen _   Comment{..}
       | isBlockComment = blockComment $ map text $ lines commentValue
       | otherwise      = text "//" <+> text commentValue
-    cgen env Assign{..}
-      | Just lhs' <- lhs
-      = cgen env lhs' <+> equals <+> nest (nestSize $ options env) (cgen env rhs) <> semi
-      -- For effects:
-      | otherwise = cgen env rhs <> semi
+    cgen env Assign{..} = cgen env lhs <+> equals <+> nest (nestSize $ options env) (cgen env rhs) <> semi
     cgen env ProcedureCall{..} = stmt $ call (text procCallName) (map (cgen env) procCallParams)
     cgen env Sequence{..} = cgenList env sequenceProgs
     cgen env (Switch scrut [(Pat (ConstExpr (BoolConst True)), thenBlock)])
