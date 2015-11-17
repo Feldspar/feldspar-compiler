@@ -711,9 +711,12 @@ compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10
     compileProg env (StructField <$> loc <*> pure "member14") m14
     compileProg env (StructField <$> loc <*> pure "member15") m15
 -- Special case foreign imports since they can be of void type and just have effects.
-compileProg env loc (In (App p@Ut.ForeignImport{} t es)) = do
+compileProg env loc@(Just _) (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM (compileExpr env) es
     tellProg [Assign loc $ fun' (compileTypeRep (opts env) t) (compileOp p) es']
+compileProg env Nothing (In (App p@Ut.ForeignImport{} t es)) = do
+    es' <- mapM (compileExpr env) es
+    tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
 -- Common nodes
 compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
   es' <- mapM (compileExpr env) es
