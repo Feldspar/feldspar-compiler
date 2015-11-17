@@ -58,6 +58,7 @@ module Feldspar.Compiler.Imperative.Representation (
 import Data.Typeable
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
+import Data.Monoid -- Needed on GHC < 7.10
 
 import Feldspar.Compiler.Error
 
