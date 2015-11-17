@@ -252,10 +252,11 @@ compileExprVar env e = do
         _ | isNearlyVar e' -> return e'
         _         -> do
             varId <- freshId
-            let loc = varToExpr $ mkNamedVar "e" (typeof e') varId
+            let loc  = mkNamedVar "e" (typeof e') varId
+                locE = varToExpr loc
             declare loc
-            assign (Just loc) e'
-            return loc
+            assign (Just locE) e'
+            return locE
   where isNearlyVar VarExpr{}  = True
         isNearlyVar (Deref e)  = isNearlyVar e
         isNearlyVar (AddrOf e) = isNearlyVar e
@@ -450,13 +451,14 @@ compileProg env (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.
       tellProg [toProg $ Block ds (for Sequential (lName ix') (litI32 0) len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
 compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
-    let condv = mkVar (compileTypeRep (opts env) (typeof cond)) cv
+    let condv  = mkVariable (compileTypeRep (opts env) (typeof cond)) cv
+        condvE = varToExpr condv
     (lstate,stvar) <- mkDoubleBufferState loc bv
     compileProg env (Just lstate) init'
-    (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg env (Just condv) cond
+    (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg env (Just condvE) cond
     (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg env (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
     declare condv
-    tellProg [while cond' condv body']
+    tellProg [while cond' condvE body']
     shallowAssign (Just loc) lstate
 -- LoopM
 compileProg env loc (In (App Ut.While _ [cond,step])) = do
@@ -477,14 +479,14 @@ compileProg env loc (In (App Ut.Return t [a]))
   | otherwise = compileProg env loc a
 compileProg env loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
-   let var = mkVar (compileTypeRep (opts env) ta) v
+   let var = mkVariable (compileTypeRep (opts env) ta) v
    declare var
-   tellProg [iVarInit (AddrOf var)]
+   tellProg [iVarInit $ AddrOf $ varToExpr var]
    compileProg env loc body
   | otherwise = do
-   let var  = mkVar (compileTypeRep (opts env) ta) v
+   let var = mkVariable (compileTypeRep (opts env) ta) v
    declare var
-   compileProg env (Just var) ma
+   compileProg env (Just (varToExpr var)) ma
    compileProg env loc body
 compileProg env loc (In (App Ut.Then _ [ma, mb])) = do
    compileProg env Nothing ma
@@ -539,9 +541,9 @@ compileProg env loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lam
       b <- compileExpr env body
       tellProg [copyProg loc [b]]
 compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
-    let var = mkVar (compileTypeRep (opts env) ta) v
+    let var = mkVariable (compileTypeRep (opts env) ta) v
     declare var
-    compileProg env (Just var) marr
+    compileProg env (Just $ varToExpr var) marr
     e <- compileExpr env body
     tellProg [copyProg loc [e]]
 -- Noinline
@@ -557,10 +559,11 @@ compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
     iv  <- compileExpr env r
     val <- compileExpr env a
     i   <- freshId
-    let var = varToExpr $ mkNamedVar "msg" (typeof val) i
+    let var  = mkNamedVar "msg" (typeof val) i
+        varE = varToExpr var
     declare var
-    assign (Just var) val
-    tellProg [iVarPut iv var]
+    assign (Just varE) val
+    tellProg [iVarPut iv varE]
 compileProg _ _ (In (App Ut.ParFork _ [e]))
   = error ("Unexpected ParFork:" ++ show e)
 compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
@@ -835,10 +838,11 @@ compileExpr env e = compileProgFresh env e
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
               CodeWriter (Expression ())
 compileLet env a ta v = do
-   let var = mkVar (compileTypeRep (opts env) ta) v
+   let var  = mkVariable (compileTypeRep (opts env) ta) v
+       varE = varToExpr var
    declare var
-   compileProg env (Just var) a
-   return var
+   compileProg env (Just varE) a
+   return varE
 
 compileAssert :: CompileEnv -> Ut.UntypedFeld -> String -> CodeWriter ()
 compileAssert env cond msg = do
@@ -1066,9 +1070,9 @@ result and then the copyProg is harmless.
 
 compileBind :: CompileEnv -> (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
 compileBind env (Ut.Var v t, e) = do
-   let var = mkVar (compileTypeRep (opts env) t) v
+   let var = mkVariable (compileTypeRep (opts env) t) v
    declare var
-   compileProg env (Just var) e
+   compileProg env (Just $ varToExpr var) e
 
 -- | Translates Op names to strings.
 compileOp :: Ut.Op -> String

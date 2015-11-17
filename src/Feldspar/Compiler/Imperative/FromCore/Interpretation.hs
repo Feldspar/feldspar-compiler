@@ -322,9 +322,9 @@ freshId = do
 -- | Generate a fresh variable expression
 freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
 freshVar opt base t = do
-  v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
+  v <- mkNamedVar base (compileTypeRep opt t) <$> freshId
   declare v
-  return v
+  return $ varToExpr v
 
 freshAlias :: Expression () -> CodeWriter (Expression ())
 freshAlias e = do i <- freshId
@@ -339,9 +339,8 @@ freshAliasInit e = do vexp <- freshAlias e
                       tellProg [Assign vexp e]
                       return vexp
 
-declare :: Expression () -> CodeWriter ()
-declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
-declare expr      = error $ "declare: cannot declare expression: " ++ show expr
+declare :: Variable () -> CodeWriter ()
+declare v = tellDeclWith True [Declaration v Nothing]
 
 declareAlias :: Variable () -> CodeWriter ()
 declareAlias v = tellDeclWith False [Declaration v Nothing]
@@ -539,9 +538,9 @@ mkDoubleBufferState loc stvar
                              shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc
-                     then do let vexp2 = mkVar (typeof loc) stvar
+                     then do let vexp2 = mkVariable (typeof loc) stvar
                              declare vexp2
-                             return vexp2
+                             return $ varToExpr vexp2
                      else return stvar1
         return (stvar1, stvar2)
 
