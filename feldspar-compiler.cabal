@@ -108,7 +108,8 @@ library
   cc-options: -std=c99 -Wall -fPIC
 
   if os(linux)
-    extra-libraries: gcc_s
+    extra-libraries: gcc_s pthread
+      -- pthread needed on Emil's Ubuntu (15.04), but apparently not on Travis
 
   install-includes:
     feldspar_array.h
