@@ -11,7 +11,8 @@ copyright:      Copyright (c) 2013-2015 Emil Axelsson, Peter Jonsson,
                 Copyright (c) 2009-2011, ERICSSON AB
 author:         Feldspar group,
                 Eotvos Lorand University Faculty of Informatics
-maintainer:     deva@inf.elte.hu
+maintainer:     Emil Axelsson <emax@chalmers.se>,
+                Anders Persson <anders.cj.persson@gmail.com>
 stability:      experimental
 homepage:       http://feldspar.github.com
 bug-reports:    https://github.com/feldspar/feldspar-compiler/issues
