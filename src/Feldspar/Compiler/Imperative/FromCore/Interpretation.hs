@@ -339,12 +339,17 @@ freshAliasInit e = do vexp <- freshAlias e
                       tellProg [Assign vexp e]
                       return vexp
 
+-- | Declare an uninitialized variable that will be freed in the postlude (if
+-- applicable)
 declare :: Variable () -> CodeWriter ()
 declare v = tellDeclWith True [Declaration v Nothing]
 
+-- | Declare an uninitialized variable that will not be freed in the postlude
 declareAlias :: Variable () -> CodeWriter ()
 declareAlias v = tellDeclWith False [Declaration v Nothing]
 
+-- | Declare and initialize a variable that will be freed in the postlude (if
+-- applicable)
 initialize :: Variable () -> Expression () -> CodeWriter ()
 initialize v e = tellDeclWith True [Declaration v (Just e)]
 
@@ -555,6 +560,10 @@ confiscateBlock m
 -- | Move the generated code block, declarations and postlude code from the
 -- 'CodeWriter' effect to the result value. The other fields of 'Writers' remain
 -- in the 'CodeWriter' effect.
+--
+-- Note that the resulting declarations and postlude code most probably need to
+-- be re-emitted in the 'CodeWriter'. Otherwise there is a risk that the
+-- generated code will be incorrect.
 confiscateBigBlock ::
     CodeWriter a -> CodeWriter (a, (Block (), [Declaration ()], [Program ()]))
 confiscateBigBlock m
