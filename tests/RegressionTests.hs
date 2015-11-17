@@ -274,6 +274,8 @@ nativeRetOpts = defaultOptions{useNativeReturns=True}
 writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
 writeGoldFile fun n = compile fun (goldDir <> n) n
 
+-- | Make a golden test for a Feldspar expression
+mkGoldTest :: SyntacticFeld a => a -> Prelude.FilePath -> Options -> TestTree
 mkGoldTest fun n opts = do
     let ref = goldDir <> n
         new = testDir <> n
@@ -282,6 +284,8 @@ mkGoldTest fun n opts = do
         upd = LB.writeFile ref
     goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
 
+-- | Make a golden test for an untyped Feldspar expression
+mkGoldTestUT :: UT.UntypedFeld -> Prelude.FilePath -> Options -> TestTree
 mkGoldTestUT untyped n opts = do
     let ref = goldDir <> n
         new = testDir <> n
@@ -294,6 +298,7 @@ simpleCmp :: Prelude.Eq a => String -> a -> a -> IO (Maybe String)
 simpleCmp e x y =
   return $ if x Prelude.== y then Nothing else Just e
 
+mkParseTest :: Prelude.FilePath -> Options -> TestTree
 mkParseTest n opts = do
     let ref = goldDir <> n
         new = testDir <> "ep-" <> n
@@ -311,6 +316,7 @@ filterEp :: LB.ByteString -> LB.ByteString
 filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
   where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
 
+mkBuildTest :: SyntacticFeld a => a -> Prelude.FilePath -> Options -> TestTree
 mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"
         cfile = new <> ".c"
