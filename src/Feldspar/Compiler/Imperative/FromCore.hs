@@ -713,7 +713,7 @@ compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10
 -- Special case foreign imports since they can be of void type and just have effects.
 compileProg env (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM (compileExpr env) es
-    tellProg [Assign loc $ fun' (compileTypeRep (opts env) t) (compileOp p) es']
+    tellProg [Assign loc $ fun (compileTypeRep (opts env) t) (compileOp p) es']
 compileProg env Nothing (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM (compileExpr env) es
     tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
@@ -829,7 +829,7 @@ compileExpr env e@(In (App p _ _))
  = compileProgFresh env e
 compileExpr env (In (App p t es)) = do
     es' <- mapM (compileExpr env) es
-    return $ fun' (compileTypeRep (opts env) t) (compileOp p) es'
+    return $ fun (compileTypeRep (opts env) t) (compileOp p) es'
 compileExpr env e = compileProgFresh env e
 
 compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
