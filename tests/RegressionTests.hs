@@ -13,11 +13,15 @@ import Test.Tasty.QuickCheck
 
 import qualified Prelude
 import Feldspar
+import qualified Feldspar.Core.UntypedRepresentation as UT
 import Feldspar.Mutable
 import Feldspar.Vector
 import Feldspar.Compiler
+import Feldspar.Compiler.Imperative.FromCore (fromCoreUT)
 import Feldspar.Compiler.Plugin
 import Feldspar.Compiler.ExternalProgram (compileFile)
+import Feldspar.Compiler.Compiler (compileToCCore')
+import Feldspar.Compiler.Frontend.Interactive.Interface (writeFiles)
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -138,6 +142,28 @@ issue128_ex3 a = switch 45 [(1,10)] a + (2==a ? 2 $ a)
 noinline1 :: Data Bool -> Data Bool
 noinline1 x = noInline $ not x
 
+-- Test that foreign imports with result type `M ()` can be used as monadic
+-- actions. This expression cannot be created from the Feldspar front end.
+foreignEffect :: UT.UntypedFeld
+foreignEffect =
+    UT.In $ UT.App UT.Then void
+        [ alert
+        , UT.In $ UT.App UT.Bind void
+            [ getPos
+            , UT.In $ UT.Lambda pos $ UT.In $ UT.App UT.Then void
+                [ launchMissiles
+                , cleanUp
+                ]
+            ]
+        ]
+  where
+    void   = UT.MutType UT.UnitType
+    pos    = UT.Var 77 UT.FloatType
+    alert  = UT.In $ UT.App (UT.ForeignImport "alert") void []
+    getPos = UT.In $ UT.App (UT.ForeignImport "getPos") UT.FloatType []
+    launchMissiles = UT.In $ UT.App (UT.ForeignImport "launchMissiles") void [UT.In $ UT.Variable pos]
+    cleanUp = UT.In $ UT.App (UT.ForeignImport "cleanUp") void []
+
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
@@ -178,6 +204,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest issue128_ex2 "issue128_ex2" defaultOptions
     , mkGoldTest issue128_ex3 "issue128_ex3" defaultOptions
     , mkGoldTest noinline1 "noinline1" defaultOptions
+    , mkGoldTestUT foreignEffect "foreignEffect" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest pairParam "pairParam_ret" nativeRetOpts
@@ -251,6 +278,14 @@ mkGoldTest fun n opts = do
     let ref = goldDir <> n
         new = testDir <> n
         act = compile fun new n opts
+        cmp = simpleCmp $ printf "Files '%s.{c,h}' and '%s.{c,h}' differ" ref new
+        upd = LB.writeFile ref
+    goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
+
+mkGoldTestUT untyped n opts = do
+    let ref = goldDir <> n
+        new = testDir <> n
+        act = writeFiles (compileToCCore' opts $ fst $ fromCoreUT opts n untyped) new
         cmp = simpleCmp $ printf "Files '%s.{c,h}' and '%s.{c,h}' differ" ref new
         upd = LB.writeFile ref
     goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
