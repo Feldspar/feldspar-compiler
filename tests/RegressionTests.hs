@@ -322,7 +322,8 @@ mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"
         cfile = new <> ".c"
         act = do compile fun new n opts
-                 (ex,_,_) <- readProcessWithExitCode "ghc" [cfile, "-c", "-optc -Ilib/Feldspar/C", "-optc -std=c99", "-Wall"] ""
+                 let ghcArgs = [cfile, "-c", "-optc -Iclib", "-optc -std=c99", "-Wall"]
+                 (ex,_,_) <- readProcessWithExitCode "ghc" ghcArgs ""
                  case ex of
                    ExitFailure e -> Prelude.error (show ex)
                    _ -> return ()
