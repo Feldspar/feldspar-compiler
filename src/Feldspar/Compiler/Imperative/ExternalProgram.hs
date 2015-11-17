@@ -555,11 +555,6 @@ updateEnv2 (TPEnv vs tdefs hdefs) ns t
  = TPEnv (nt ++ vs) (t:tdefs) hdefs
      where nt = map (\v@(Variable t name) -> (name, v)) ns
 
--- Add two environments.
-plusEnv :: TPEnv -> TPEnv -> TPEnv
-plusEnv (TPEnv vs1 tdefs1 hdefs) (TPEnv vs2 tdefs2 _ )
-  = TPEnv (vs1 ++ vs2) (tdefs1 ++ tdefs2) hdefs
-
 -- Patch the type information in the environment when we learn more.
 fixupEnv :: TPEnv -> Exp -> R.Type -> TPEnv
 fixupEnv env _ VoidType = env -- No new type information.
