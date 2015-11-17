@@ -278,13 +278,10 @@ exprToVar (Deref e)   = exprToVar e
 exprToVar e           = error $ "Frontend.exprToVar: Unexpected variable:" ++ show e
 
 binop :: Type -> String -> Expression () -> Expression () -> Expression ()
-binop t n e1 e2 = fun' t n [e1, e2]
+binop t n e1 e2 = fun t n [e1, e2]
 
 fun :: Type -> String -> [Expression ()] -> Expression ()
-fun = fun'
-
-fun' :: Type -> String -> [Expression ()] -> Expression ()
-fun' t n = FunctionCall (Function n t)
+fun t n = FunctionCall (Function n t)
 
 if' :: Expression () -> Block () -> Maybe (Block ()) -> Program ()
 if' ce tb Nothing   = Switch ce [(Pat (litB True), tb)]

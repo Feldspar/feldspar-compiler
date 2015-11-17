@@ -322,9 +322,9 @@ freshId = do
 -- | Generate a fresh variable expression
 freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
 freshVar opt base t = do
-  v <- varToExpr . mkNamedVar base (compileTypeRep opt t) <$> freshId
+  v <- mkNamedVar base (compileTypeRep opt t) <$> freshId
   declare v
-  return v
+  return $ varToExpr v
 
 freshAlias :: Expression () -> CodeWriter (Expression ())
 freshAlias e = do i <- freshId
@@ -339,16 +339,14 @@ freshAliasInit e = do vexp <- freshAlias e
                       tellProg [Assign vexp e]
                       return vexp
 
-declare :: Expression () -> CodeWriter ()
-declare (VarExpr v@(Variable{})) = tellDeclWith True [Declaration v Nothing]
-declare expr      = error $ "declare: cannot declare expression: " ++ show expr
+declare :: Variable () -> CodeWriter ()
+declare v = tellDeclWith True [Declaration v Nothing]
 
 declareAlias :: Variable () -> CodeWriter ()
 declareAlias v = tellDeclWith False [Declaration v Nothing]
 
-initialize :: Expression () -> Expression () -> CodeWriter ()
-initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e)]
-initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
+initialize :: Variable () -> Expression () -> CodeWriter ()
+initialize v e = tellDeclWith True [Declaration v (Just e)]
 
 -- | Add a definition to the generated program
 tellDef :: [Entity ()] -> CodeWriter ()
@@ -539,26 +537,28 @@ mkDoubleBufferState loc stvar
                              shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc
-                     then do let vexp2 = mkVar (typeof loc) stvar
+                     then do let vexp2 = mkVariable (typeof loc) stvar
                              declare vexp2
-                             return vexp2
+                             return $ varToExpr vexp2
                      else return stvar1
         return (stvar1, stvar2)
 
 
--- | Like 'listen', but also prevents the program from being written in the
--- monad.
+-- | Move the generated code block from the 'CodeWriter' effect to the result
+-- value. Top-level declarations etc. remain in the 'CodeWriter' effect.
 confiscateBlock :: CodeWriter a -> CodeWriter (a, Block ())
 confiscateBlock m
     = liftM (second block)
     $ censor (\rec -> rec {block = mempty})
     $ listen m
 
--- | Like 'listen', but also catches writer things and prevents the program
--- from being written in the monad.
-confiscateBigBlock :: CodeWriter a -> CodeWriter ((a, Writers), Block ())
+-- | Move the generated code block, declarations and postlude code from the
+-- 'CodeWriter' effect to the result value. The other fields of 'Writers' remain
+-- in the 'CodeWriter' effect.
+confiscateBigBlock ::
+    CodeWriter a -> CodeWriter (a, (Block (), [Declaration ()], [Program ()]))
 confiscateBigBlock m
-    = liftM (\c -> (c, block $ snd c))
+    = liftM (\(a,ws) -> (a, (block ws, decl ws, epilogue ws)))
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 

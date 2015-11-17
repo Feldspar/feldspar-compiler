@@ -8,7 +8,7 @@ import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
   Deref, AddrOf, Unsigned, Signed, inParams)
-import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, fun', call)
+import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, call)
 
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
@@ -341,8 +341,8 @@ expToExpression' _ _ e = error ("expToExpression: Unhandled construct: " ++ show
 
 opToFunctionCall :: [Expression ()] -> BinOp -> Expression ()
 opToFunctionCall es op = case opToString op of
-                      Right s -> fun' t s es
-                      Left s -> fun' (MachineVector 1 BoolType) s es
+                      Right s -> fun t s es
+                      Left s -> fun (MachineVector 1 BoolType) s es
   where t = typeof (head es)
 
 opToString :: BinOp -> Either String String
@@ -419,10 +419,10 @@ unOpToExp (ConstExpr (R.FloatConst  n)) Negate
   = ConstExpr (R.FloatConst (-1*n))
 unOpToExp (ConstExpr (R.DoubleConst n)) Negate
   = ConstExpr (R.DoubleConst (-1*n))
-unOpToExp e Negate = fun' (typeof e) "-" [e]
+unOpToExp e Negate = fun (typeof e) "-" [e]
 unOpToExp e Positive = e
 unOpToExp e Not = error "Not"
-unOpToExp e Lnot = fun' (MachineVector 1 BoolType) "!" [e]
+unOpToExp e Lnot = fun (MachineVector 1 BoolType) "!" [e]
 
 typToType :: TPEnv -> Type -> R.Type
 typToType env (Type ds de _) = declSpecToType env ds
