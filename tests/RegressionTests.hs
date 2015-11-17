@@ -180,6 +180,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , testProperty "concatV (plugin)" prop_concatV
     -- , testProperty "divConq3 (plugin)" prop_divConq3
+    , testProperty "bindToThen" (\y -> eval bindToThen y === y)
     , mkGoldTest example9 "example9" defaultOptions
     , mkGoldTest pairParam "pairParam" defaultOptions
     , mkGoldTest pairParam "pairParam_ret" nativeRetOpts
@@ -192,6 +193,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest metrics "metrics" defaultOptions
 --    , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkGoldTest divConq3 "divConq3" defaultOptions
+    , mkGoldTest switcher "switcher" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
@@ -216,8 +218,6 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest copyPush "copyPush" defaultOptions
 --    , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
-    , testProperty "bindToThen" (\y -> eval bindToThen y === y)
-    , mkGoldTest switcher "switcher" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
     , mkBuildTest arrayInStruct "arrayInStruct" defaultOptions
