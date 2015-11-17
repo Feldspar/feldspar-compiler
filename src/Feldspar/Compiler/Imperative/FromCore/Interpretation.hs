@@ -326,16 +326,18 @@ freshVar opt base t = do
   declare v
   return $ varToExpr v
 
-freshAlias :: Expression () -> CodeWriter (Expression ())
-freshAlias e = do i <- freshId
-                  let v = mkNamedVar "e" (typeof e) i
+-- | Generate and declare a fresh uninitialized variable that will not be freed
+-- in the postlude
+freshAlias :: Type -> CodeWriter (Expression ())
+freshAlias t = do i <- freshId
+                  let v = mkNamedVar "e" t i
                   declareAlias v
                   return $ varToExpr v
 
--- | Create a fresh variable aliasing some other variable and
--- initialize it to the parameter.
+-- | Generate and declare a fresh variable initialized to the given expression.
+-- The variable will not be freed in the postlude.
 freshAliasInit :: Expression () -> CodeWriter (Expression ())
-freshAliasInit e = do vexp <- freshAlias e
+freshAliasInit e = do vexp <- freshAlias (typeof e)
                       tellProg [Assign vexp e]
                       return vexp
 
@@ -538,7 +540,7 @@ mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Ex
 mkDoubleBufferState loc stvar
    = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc)
                      then return loc
-                     else do vexp <- freshAlias loc
+                     else do vexp <- freshAlias (typeof loc)
                              shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc
