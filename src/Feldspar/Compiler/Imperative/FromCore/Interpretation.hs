@@ -345,9 +345,8 @@ declare v = tellDeclWith True [Declaration v Nothing]
 declareAlias :: Variable () -> CodeWriter ()
 declareAlias v = tellDeclWith False [Declaration v Nothing]
 
-initialize :: Expression () -> Expression () -> CodeWriter ()
-initialize (VarExpr v@(Variable{})) e = tellDeclWith True [Declaration v (Just e)]
-initialize expr      _ = error $ "initialize: cannot declare expression: " ++ show expr
+initialize :: Variable () -> Expression () -> CodeWriter ()
+initialize v e = tellDeclWith True [Declaration v (Just e)]
 
 -- | Add a definition to the generated program
 tellDef :: [Entity ()] -> CodeWriter ()
