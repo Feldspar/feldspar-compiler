@@ -269,7 +269,7 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
   es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
   let args = nub $ map exprToVar es' ++ fv loc
   -- Task core:
-  ((_, ws), Block ds bl)  <- confiscateBigBlock $
+  (_, (Block ds bl, decls, _)) <- confiscateBigBlock $
     case kind of
       Future -> do
         p' <- compileExprVar env {inTask = True } e'
@@ -279,7 +279,7 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
            , Ut.ElementsType{} <- typeof e' -> compileProg env (Just loc) e'
            | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
       None -> compileProg env (Just loc) e'
-  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decl ws ++ ds) bl]
+  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
   -- Task:
   let taskName = "task" ++ drop 9 coreName
       runTask  = Just $ toBlock $ run coreName args

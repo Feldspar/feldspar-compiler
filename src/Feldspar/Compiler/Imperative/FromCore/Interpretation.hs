@@ -544,19 +544,21 @@ mkDoubleBufferState loc stvar
         return (stvar1, stvar2)
 
 
--- | Like 'listen', but also prevents the program from being written in the
--- monad.
+-- | Move the generated code block from the 'CodeWriter' effect to the result
+-- value. Top-level declarations etc. remain in the 'CodeWriter' effect.
 confiscateBlock :: CodeWriter a -> CodeWriter (a, Block ())
 confiscateBlock m
     = liftM (second block)
     $ censor (\rec -> rec {block = mempty})
     $ listen m
 
--- | Like 'listen', but also catches writer things and prevents the program
--- from being written in the monad.
-confiscateBigBlock :: CodeWriter a -> CodeWriter ((a, Writers), Block ())
+-- | Move the generated code block, declarations and postlude code from the
+-- 'CodeWriter' effect to the result value. The other fields of 'Writers' remain
+-- in the 'CodeWriter' effect.
+confiscateBigBlock ::
+    CodeWriter a -> CodeWriter (a, (Block (), [Declaration ()], [Program ()]))
 confiscateBigBlock m
-    = liftM (\c -> (c, block $ snd c))
+    = liftM (\(a,ws) -> (a, (block ws, decl ws, epilogue ws)))
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
