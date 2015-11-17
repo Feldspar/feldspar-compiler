@@ -30,6 +30,7 @@ import Data.Monoid ((<>))
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Lazy.Search as LB
+import System.Exit (ExitCode (..))
 import System.Process
 import Text.Printf
 
@@ -321,8 +322,10 @@ mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"
         cfile = new <> ".c"
         act = do compile fun new n opts
-                 (_,so,se) <- readProcessWithExitCode "ghc" [cfile, "-c", "-optc -Ilib/Feldspar/C", "-optc -std=c99", "-Wall"] ""
-                 return $ so <> se
+                 (ex,_,_) <- readProcessWithExitCode "ghc" [cfile, "-c", "-optc -Ilib/Feldspar/C", "-optc -std=c99", "-Wall"] ""
+                 case ex of
+                   ExitFailure e -> Prelude.error (show ex)
+                   _ -> return ()
         cmp _ _ = return Nothing
         upd _ = return ()
     goldenTest n (return "") (liftIO act >> return "") cmp upd
