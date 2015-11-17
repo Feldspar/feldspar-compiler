@@ -45,9 +45,7 @@ adaptTic64xDecl d                        = d
 adaptTic64xProg :: Program () -> Program ()
 adaptTic64xProg e@Empty              = e
 adaptTic64xProg c@Comment{}          = c
-adaptTic64xProg (Assign Nothing rhs) = Assign Nothing (adaptTic64xExp rhs)
-adaptTic64xProg (Assign (Just lhs) rhs)
-  = Assign (Just $ adaptTic64xExp lhs) (adaptTic64xExp rhs)
+adaptTic64xProg (Assign lhs rhs)     = Assign (adaptTic64xExp lhs) (adaptTic64xExp rhs)
 adaptTic64xProg (ProcedureCall n ps) = ProcedureCall n (map adaptTic64xParam ps)
 adaptTic64xProg (Sequence ps)        = Sequence $ map adaptTic64xProg ps
 adaptTic64xProg (Switch scrut alts)

@@ -340,11 +340,11 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
         declareAlias st
         (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg env (ArrayElem <$> loc <*> pure ix) step
         withAlias s st_val $ compileProg env (Just st1) init'
-        tellProg [ Assign (Just $ varToExpr st) (AddrOf st1)
+        tellProg [ Assign (varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for Sequential (lName ix) (litI32 0) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (Just $ varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
+                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
 compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        let tr' = typeof step
@@ -372,7 +372,7 @@ compileProg env (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
    i' <- compileExpr env i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
-                then [Assign (Just loc) el]
+                then [Assign loc el]
                 else [copyProg (Just loc) [el]]
 compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
    len' <- compileExpr env len
@@ -711,7 +711,7 @@ compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10
     compileProg env (StructField <$> loc <*> pure "member14") m14
     compileProg env (StructField <$> loc <*> pure "member15") m15
 -- Special case foreign imports since they can be of void type and just have effects.
-compileProg env loc@(Just _) (In (App p@Ut.ForeignImport{} t es)) = do
+compileProg env (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM (compileExpr env) es
     tellProg [Assign loc $ fun' (compileTypeRep (opts env) t) (compileOp p) es']
 compileProg env Nothing (In (App p@Ut.ForeignImport{} t es)) = do

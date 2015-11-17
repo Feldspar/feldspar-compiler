@@ -56,11 +56,11 @@ copyProg (Just outExp) inExp =
 
 mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
-mkInitialize name loc@(Just arr) len
+mkInitialize name (Just arr) len
   | isNativeArray arrType
   = Empty
   | otherwise
-  = Assign loc $ fun arrType name [arr, sz, len]
+  = Assign arr $ fun arrType name [arr, sz, len]
    where
     arrType = typeof arr
     sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
@@ -116,7 +116,7 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Bool -> Expression () -> Expression () -> Program ()
 iVarGet inTask loc ivar
-    | isArray typ   = Assign (Just loc)
+    | isArray typ   = Assign loc
                     $ fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar ]
     | otherwise     = call (mangle inTask "ivar_get") [ TypeParameter typ
                                                        , ValueParameter (AddrOf loc)
