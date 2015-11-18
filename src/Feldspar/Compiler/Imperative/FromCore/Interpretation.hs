@@ -60,14 +60,14 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
-type CodeWriter = RWS Readers Writers VarId
+type CodeWriter = RWS CodeEnv Writers VarId
 
-data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasing
+data CodeEnv = CodeEnv { alias :: [(VarId, Expression ())] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
                        }
 
-initReader :: Options -> Readers
-initReader = Readers []
+initEnv :: Options -> CodeEnv
+initEnv = CodeEnv []
 
 data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
                        , def      :: [Entity ()]      -- ^ collects top level definitions
