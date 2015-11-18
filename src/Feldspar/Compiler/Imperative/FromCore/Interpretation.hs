@@ -60,7 +60,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
-type CodeWriter = RWS CodeEnv Writers VarId
+type CodeWriter = RWS CodeEnv CodeParts VarId
 
 data CodeEnv = CodeEnv { alias :: [(VarId, Expression ())] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
@@ -69,27 +69,27 @@ data CodeEnv = CodeEnv { alias :: [(VarId, Expression ())] -- ^ variable aliasin
 initEnv :: Options -> CodeEnv
 initEnv = CodeEnv []
 
-data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
-                       , def      :: [Entity ()]      -- ^ collects top level definitions
-                       , decl     :: [Declaration ()] -- ^ collects top level variable declarations
-                       , params   :: [Variable ()]    -- ^ collects top level parameters
-                       , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
-                       }
+data CodeParts = CodeParts { block    :: Block ()         -- ^ collects code within one block
+                           , def      :: [Entity ()]      -- ^ collects top level definitions
+                           , decl     :: [Declaration ()] -- ^ collects top level variable declarations
+                           , params   :: [Variable ()]    -- ^ collects top level parameters
+                           , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
+                           }
 
-instance Monoid Writers
+instance Monoid CodeParts
   where
-    mempty      = Writers { block    = mempty
-                          , def      = mempty
-                          , decl     = mempty
-                          , params   = mempty
-                          , epilogue = mempty
-                          }
-    mappend a b = Writers { block    = mappend (block    a) (block    b)
-                          , def      = mappend (def      a) (def      b)
-                          , decl     = mappend (decl     a) (decl     b)
-                          , params   = mappend (params   a) (params   b)
-                          , epilogue = mappend (epilogue a) (epilogue b)
-                          }
+    mempty      = CodeParts { block    = mempty
+                            , def      = mempty
+                            , decl     = mempty
+                            , params   = mempty
+                            , epilogue = mempty
+                            }
+    mappend a b = CodeParts { block    = mappend (block    a) (block    b)
+                            , def      = mappend (def      a) (def      b)
+                            , decl     = mappend (decl     a) (decl     b)
+                            , params   = mappend (params   a) (params   b)
+                            , epilogue = mappend (epilogue a) (epilogue b)
+                            }
 
 -- | Where to place the program result
 type Location = Maybe (Expression ())
@@ -554,7 +554,7 @@ confiscateBlock m
     $ listen m
 
 -- | Move the generated code block, declarations and postlude code from the
--- 'CodeWriter' effect to the result value. The other fields of 'Writers' remain
+-- 'CodeWriter' effect to the result value. The other fields of 'CodeParts' remain
 -- in the 'CodeWriter' effect.
 --
 -- Note that the resulting declarations and postlude code most probably need to
