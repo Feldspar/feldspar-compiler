@@ -52,7 +52,8 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
-         ( UntypedFeld, Term(..), Lit(..), collectLetBinders, collectBinders
+         ( VarId(..), UntypedFeld, Term(..), Lit(..)
+         , collectLetBinders, collectBinders
          , UntypedFeldF(App, LetFun), Fork(..)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -93,7 +94,7 @@ fromCoreUT
     :: Options
     -> String       -- ^ Name of the generated function
     -> UntypedFeld  -- ^ Expression to generate code for
-    -> (Module (), Integer)
+    -> (Module (), VarId)
 fromCoreUT opt funname uast = (Module defs, maxVar')
   where
     maxVar  = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
@@ -148,22 +149,22 @@ fromCore opt funname prog
 -- * The actual program
 -- * An expression that contains the result
 -- * A list of epilogue programs, for freeing memory, etc.
-fromCoreExp :: (MonadState Integer m)
+fromCoreExp :: (MonadState VarId m)
             => SyntacticFeld a
             => Options
-            -> Map.Map Integer String
+            -> Map.Map VarId String
             -> a
             -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
 fromCoreExp opt aliases prog = do
     s <- get
-    let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
+    let (ast, s') = flip runState s $ reifyFeldM (frontendOpts opt) N32 prog
         uast = untype (frontendOpts opt) ast
         mkAlias (Ut.Var i t) = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
     let (exp,States s'',results) =
-          runRWS (compileExpr (CEnv opt False) uast) (Readers as opt) $ States $ toInteger s'
+          runRWS (compileExpr (CEnv opt False) uast) (Readers as opt) $ States s'
     put s''
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
@@ -833,7 +834,7 @@ compileExpr env (In (App p t es)) = do
     return $ fun (compileTypeRep (opts env) t) (compileOp p) es'
 compileExpr env e = compileProgFresh env e
 
-compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
+compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> VarId ->
               CodeWriter (Expression ())
 compileLet env a ta v = do
    let var  = mkVariable (compileTypeRep (opts env) ta) v

@@ -45,6 +45,7 @@ import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix, nub)
 
 import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Core.UntypedRepresentation (VarId (..))
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 
 import Feldspar.Compiler.Imperative.Frontend
@@ -61,7 +62,7 @@ import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 -- | Code generation monad
 type CodeWriter = RWS Readers Writers States
 
-data Readers = Readers { alias :: [(Integer, Expression ())] -- ^ variable aliasing
+data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
                        }
 
@@ -90,7 +91,7 @@ instance Monoid Writers
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
 
-newtype States = States { fresh :: Integer -- ^ The first fresh variable id
+newtype States = States { fresh :: VarId -- ^ The first fresh variable id
                         }
 
 initState :: States
@@ -279,40 +280,40 @@ compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
 compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
 compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
 
--- | Construct a named variable. The integer is appended to the base name to
--- allow different variables to have the same base name. Use a negative integer
+-- | Construct a named variable. The 'VarId' is appended to the base name to
+-- allow different variables to have the same base name. Use a negative 'VarId'
 -- to just get the base name without the appendix.
 mkNamedVar
     :: String   -- ^ Base name
     -> Type     -- ^ Variable type
-    -> Integer  -- ^ Integer appendix
+    -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
 mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 
--- | Construct a named pointer. The integer is appended to the base name to
--- allow different variables to have the same base name. Use a negative integer
+-- | Construct a named variable. The 'VarId' is appended to the base name to
+-- allow different variables to have the same base name. Use a negative 'VarId'
 -- to just get the base name without the appendix.
 mkNamedRef
     :: String   -- ^ Base name
     -> Type     -- ^ Target type
-    -> Integer  -- ^ Integer appendix
+    -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
 mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
 
 -- | Construct a variable.
-mkVariable :: Type -> Integer -> Variable ()
+mkVariable :: Type -> VarId -> Variable ()
 mkVariable t i | i >= 0 = mkNamedVar "v" t i
 
 -- | Construct a pointer variable.
-mkPointer :: Type -> Integer -> Variable ()
+mkPointer :: Type -> VarId -> Variable ()
 mkPointer t i | i >= 0 = mkNamedRef "v" t i
 
 -- | Construct a variable expression.
-mkVar :: Type -> Integer -> Expression ()
+mkVar :: Type -> VarId -> Expression ()
 mkVar t = varToExpr . mkVariable t
 
 -- | Generate a fresh identifier
-freshId :: CodeWriter Integer
+freshId :: CodeWriter VarId
 freshId = do
   s <- get
   let v = fresh s
@@ -536,7 +537,7 @@ The strategy implemented a compromise between different design constraints:
     - Avoid memory leaks of arrays and ivars
 -}
 
-mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Expression ())
+mkDoubleBufferState :: Expression () -> VarId -> CodeWriter (Expression (), Expression ())
 mkDoubleBufferState loc stvar
    = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc)
                      then return loc
@@ -573,7 +574,7 @@ confiscateBigBlock m
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
-withAlias :: Integer -> Expression () -> CodeWriter a -> CodeWriter a
+withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
 withAlias v0 expr = local (\e -> e {alias = (v0,expr) : alias e})
 
 isVariableOrLiteral :: Ut.UntypedFeld -> Bool
