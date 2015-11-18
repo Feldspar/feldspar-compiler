@@ -60,7 +60,7 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
-type CodeWriter = RWS Readers Writers States
+type CodeWriter = RWS Readers Writers VarId
 
 data Readers = Readers { alias :: [(VarId, Expression ())] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
@@ -90,12 +90,6 @@ instance Monoid Writers
                           , params   = mappend (params   a) (params   b)
                           , epilogue = mappend (epilogue a) (epilogue b)
                           }
-
-newtype States = States { fresh :: VarId -- ^ The first fresh variable id
-                        }
-
-initState :: States
-initState = States 0
 
 -- | Where to place the program result
 type Location = Maybe (Expression ())
@@ -315,9 +309,8 @@ mkVar t = varToExpr . mkVariable t
 -- | Generate a fresh identifier
 freshId :: CodeWriter VarId
 freshId = do
-  s <- get
-  let v = fresh s
-  put (s {fresh = v + 1})
+  v <- get
+  put (v+1)
   return v
 
 -- | Generate a fresh variable expression

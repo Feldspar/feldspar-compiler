@@ -100,8 +100,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
     maxVar  = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
     fastRet = useNativeReturns opt && canFastReturn (compileTypeRep opt (typeof uast))
 
-    (outParam, States maxVar', results) =
-       runRWS (compileProgTop uast) (initReader opt) $ States maxVar
+    (outParam,maxVar',results) = runRWS (compileProgTop uast) (initReader opt) maxVar
 
     decls      = decl results
     ins        = params results
@@ -163,8 +162,7 @@ fromCoreExp opt aliases prog = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
-    let (exp,States s'',results) =
-          runRWS (compileExpr (CEnv opt False) uast) (Readers as opt) $ States s'
+    let (exp,s'',results) = runRWS (compileExpr (CEnv opt False) uast) (Readers as opt) s'
     put s''
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
