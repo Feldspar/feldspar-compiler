@@ -489,8 +489,8 @@ assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just t
 assign _          _   = return ()
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
-shallowAssign loc@(Just dst) src | dst /= src = tellProg [Assign dst src]
-shallowAssign _          _                    = return ()
+shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
+shallowAssign _          _                = return ()
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyWithRefSwap dst src

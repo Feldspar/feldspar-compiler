@@ -78,7 +78,7 @@ Fast returns
 ------------
 
 Fast returns really means single return value and that value fits in a
-register--thus they are platform dependent. This is why we have to
+register--thus they are platform dependent. This is why we have to use
 compileTypeRep since that can make configuration specific choices
 about data layout.
 
@@ -103,7 +103,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
 
     maxVar = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
 
-    (outParam,States maxVar',results) =
+    (outParam, States maxVar', results) =
        runRWS (compileProgTop opt' uast) (initReader opt) $ States maxVar
 
     fastRet    = useNativeReturns opt'
