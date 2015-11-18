@@ -42,10 +42,12 @@ data Options =
     { platform          :: Platform
     , printHeader       :: Bool
     , useNativeArrays   :: Bool
-    , useNativeReturns  :: Bool
-    , frontendOpts      :: FeldOpts
-    , safetyLimit       :: Integer -- ^ Threshold to stop when the size information gets lost.
-    , nestSize          :: Int -- ^ Indentation size for PrettyPrinting
+    , useNativeReturns  :: Bool     -- ^ Should the generated function return by value or by
+                                    --   reference (fast return)? This option will be ignored for
+                                    --   types that can't be fast-returned.
+    , frontendOpts      :: FeldOpts -- ^ Options for the front end optimization chain
+    , safetyLimit       :: Integer  -- ^ Threshold to stop when the size information gets lost.
+    , nestSize          :: Int      -- ^ Indentation size for PrettyPrinting
     }
 
 data Platform = Platform {

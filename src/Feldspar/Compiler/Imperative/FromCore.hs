@@ -82,8 +82,8 @@ register--thus they are platform dependent. This is why we have to use
 compileTypeRep since that can make configuration specific choices
 about data layout.
 
-The user is free to ask for fast returns, but we might not be able to comply.
-For those cases we flip the option before generating code.
+The user is free to ask for fast returns (by setting 'useNativeReturns' to True),
+but we might not be able to comply.
 
 -}
 
@@ -96,17 +96,12 @@ fromCoreUT
     -> (Module (), Integer)
 fromCoreUT opt funname uast = (Module defs, maxVar')
   where
-    opt' | useNativeReturns opt
-         , not $ canFastReturn $ compileTypeRep opt (typeof uast)
-         = opt { useNativeReturns = False } -- Note [Fast returns]
-         | otherwise = opt
-
-    maxVar = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
+    maxVar  = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
+    fastRet = useNativeReturns opt && canFastReturn (compileTypeRep opt (typeof uast))
 
     (outParam, States maxVar', results) =
-       runRWS (compileProgTop opt' uast) (initReader opt) $ States maxVar
+       runRWS (compileProgTop uast) (initReader opt) $ States maxVar
 
-    fastRet    = useNativeReturns opt'
     decls      = decl results
     ins        = params results
     post       = epilogue results ++ returns
@@ -184,27 +179,30 @@ fromCoreExp opt aliases prog = do
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts = fromCore opts "test"
 
-compileProgTop :: Options -> Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
-compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
+compileProgTop :: Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
+compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
+  opt <- asks backendOpts
   let typ = compileTypeRep opt ta
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
-     compileProgTop opt body
-compileProgTop opt (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
+     compileProgTop body
+compileProgTop (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
   | representableType l
-  = do tellDef [ValueDef var c]
+  = do opt <- asks backendOpts
+       let var = mkVariable (typeof c) v -- Note [Precise size information]
+           c   = literalConst opt l
+       tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
-         compileProgTop opt body
-  where
-    var = mkVariable (typeof c) v -- Note [Precise size information]
-    c   = literalConst opt l
-compileProgTop opt a = do
+         compileProgTop body
+compileProgTop a = do
+  opt <- asks backendOpts
   let outType' = compileTypeRep opt (typeof a)
+      fastRet  = useNativeReturns opt && canFastReturn outType'
       (outType, outLoc)
-       | useNativeReturns opt = (outType',             varToExpr outParam)
-       | otherwise            = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
+       | fastRet   = (outType', varToExpr outParam)
+       | otherwise = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
   compileProg (cenv0 opt) (Just outLoc) a
   return outParam
