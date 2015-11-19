@@ -45,6 +45,7 @@ import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix, nub)
 
 import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Core.UntypedRepresentation (VarId (..))
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 
 import Feldspar.Compiler.Imperative.Frontend
@@ -59,42 +60,36 @@ import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
-type CodeWriter = RWS Readers Writers States
+type CodeWriter = RWS CodeEnv CodeParts VarId
 
-data Readers = Readers { alias :: [(Integer, Expression ())] -- ^ variable aliasing
+data CodeEnv = CodeEnv { alias :: [(VarId, Expression ())] -- ^ variable aliasing
                        , backendOpts :: Options -- ^ Options for the backend.
                        }
 
-initReader :: Options -> Readers
-initReader = Readers []
+initEnv :: Options -> CodeEnv
+initEnv = CodeEnv []
 
-data Writers = Writers { block    :: Block ()         -- ^ collects code within one block
-                       , def      :: [Entity ()]      -- ^ collects top level definitions
-                       , decl     :: [Declaration ()] -- ^ collects top level variable declarations
-                       , params   :: [Variable ()]    -- ^ collects top level parameters
-                       , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
-                       }
+data CodeParts = CodeParts { block    :: Block ()         -- ^ collects code within one block
+                           , def      :: [Entity ()]      -- ^ collects top level definitions
+                           , decl     :: [Declaration ()] -- ^ collects top level variable declarations
+                           , params   :: [Variable ()]    -- ^ collects top level parameters
+                           , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
+                           }
 
-instance Monoid Writers
+instance Monoid CodeParts
   where
-    mempty      = Writers { block    = mempty
-                          , def      = mempty
-                          , decl     = mempty
-                          , params   = mempty
-                          , epilogue = mempty
-                          }
-    mappend a b = Writers { block    = mappend (block    a) (block    b)
-                          , def      = mappend (def      a) (def      b)
-                          , decl     = mappend (decl     a) (decl     b)
-                          , params   = mappend (params   a) (params   b)
-                          , epilogue = mappend (epilogue a) (epilogue b)
-                          }
-
-newtype States = States { fresh :: Integer -- ^ The first fresh variable id
-                        }
-
-initState :: States
-initState = States 0
+    mempty      = CodeParts { block    = mempty
+                            , def      = mempty
+                            , decl     = mempty
+                            , params   = mempty
+                            , epilogue = mempty
+                            }
+    mappend a b = CodeParts { block    = mappend (block    a) (block    b)
+                            , def      = mappend (def      a) (def      b)
+                            , decl     = mappend (decl     a) (decl     b)
+                            , params   = mappend (params   a) (params   b)
+                            , epilogue = mappend (epilogue a) (epilogue b)
+                            }
 
 -- | Where to place the program result
 type Location = Maybe (Expression ())
@@ -279,44 +274,43 @@ compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
 compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
 compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
 
--- | Construct a named variable. The integer is appended to the base name to
--- allow different variables to have the same base name. Use a negative integer
+-- | Construct a named variable. The 'VarId' is appended to the base name to
+-- allow different variables to have the same base name. Use a negative 'VarId'
 -- to just get the base name without the appendix.
 mkNamedVar
     :: String   -- ^ Base name
     -> Type     -- ^ Variable type
-    -> Integer  -- ^ Integer appendix
+    -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
 mkNamedVar base t i = Variable t $ base ++ if i < 0 then "" else show i
 
--- | Construct a named pointer. The integer is appended to the base name to
--- allow different variables to have the same base name. Use a negative integer
+-- | Construct a named variable. The 'VarId' is appended to the base name to
+-- allow different variables to have the same base name. Use a negative 'VarId'
 -- to just get the base name without the appendix.
 mkNamedRef
     :: String   -- ^ Base name
     -> Type     -- ^ Target type
-    -> Integer  -- ^ Integer appendix
+    -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
 mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
 
 -- | Construct a variable.
-mkVariable :: Type -> Integer -> Variable ()
+mkVariable :: Type -> VarId -> Variable ()
 mkVariable t i | i >= 0 = mkNamedVar "v" t i
 
 -- | Construct a pointer variable.
-mkPointer :: Type -> Integer -> Variable ()
+mkPointer :: Type -> VarId -> Variable ()
 mkPointer t i | i >= 0 = mkNamedRef "v" t i
 
 -- | Construct a variable expression.
-mkVar :: Type -> Integer -> Expression ()
+mkVar :: Type -> VarId -> Expression ()
 mkVar t = varToExpr . mkVariable t
 
 -- | Generate a fresh identifier
-freshId :: CodeWriter Integer
+freshId :: CodeWriter VarId
 freshId = do
-  s <- get
-  let v = fresh s
-  put (s {fresh = v + 1})
+  v <- get
+  put (v+1)
   return v
 
 -- | Generate a fresh variable expression
@@ -326,25 +320,32 @@ freshVar opt base t = do
   declare v
   return $ varToExpr v
 
-freshAlias :: Expression () -> CodeWriter (Expression ())
-freshAlias e = do i <- freshId
-                  let v = mkNamedVar "e" (typeof e) i
+-- | Generate and declare a fresh uninitialized variable that will not be freed
+-- in the postlude
+freshAlias :: Type -> CodeWriter (Expression ())
+freshAlias t = do i <- freshId
+                  let v = mkNamedVar "e" t i
                   declareAlias v
                   return $ varToExpr v
 
--- | Create a fresh variable aliasing some other variable and
--- initialize it to the parameter.
+-- | Generate and declare a fresh variable initialized to the given expression.
+-- The variable will not be freed in the postlude.
 freshAliasInit :: Expression () -> CodeWriter (Expression ())
-freshAliasInit e = do vexp <- freshAlias e
+freshAliasInit e = do vexp <- freshAlias (typeof e)
                       tellProg [Assign vexp e]
                       return vexp
 
+-- | Declare an uninitialized variable that will be freed in the postlude (if
+-- applicable)
 declare :: Variable () -> CodeWriter ()
 declare v = tellDeclWith True [Declaration v Nothing]
 
+-- | Declare an uninitialized variable that will not be freed in the postlude
 declareAlias :: Variable () -> CodeWriter ()
 declareAlias v = tellDeclWith False [Declaration v Nothing]
 
+-- | Declare and initialize a variable that will be freed in the postlude (if
+-- applicable)
 initialize :: Variable () -> Expression () -> CodeWriter ()
 initialize v e = tellDeclWith True [Declaration v (Just e)]
 
@@ -482,8 +483,8 @@ assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just t
 assign _          _   = return ()
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
-shallowAssign loc@(Just dst) src | dst /= src = tellProg [Assign dst src]
-shallowAssign _          _                    = return ()
+shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
+shallowAssign _          _                = return ()
 
 shallowCopyWithRefSwap :: Expression () -> Expression () -> CodeWriter ()
 shallowCopyWithRefSwap dst src
@@ -529,11 +530,11 @@ The strategy implemented a compromise between different design constraints:
     - Avoid memory leaks of arrays and ivars
 -}
 
-mkDoubleBufferState :: Expression () -> Integer -> CodeWriter (Expression (), Expression ())
+mkDoubleBufferState :: Expression () -> VarId -> CodeWriter (Expression (), Expression ())
 mkDoubleBufferState loc stvar
    = do stvar1 <- if isVarExpr loc || containsNativeArray (typeof loc)
                      then return loc
-                     else do vexp <- freshAlias loc
+                     else do vexp <- freshAlias (typeof loc)
                              shallowCopyReferences vexp loc
                              return vexp
         stvar2 <- if isComposite $ typeof loc
@@ -553,8 +554,12 @@ confiscateBlock m
     $ listen m
 
 -- | Move the generated code block, declarations and postlude code from the
--- 'CodeWriter' effect to the result value. The other fields of 'Writers' remain
+-- 'CodeWriter' effect to the result value. The other fields of 'CodeParts' remain
 -- in the 'CodeWriter' effect.
+--
+-- Note that the resulting declarations and postlude code most probably need to
+-- be re-emitted in the 'CodeWriter'. Otherwise there is a risk that the
+-- generated code will be incorrect.
 confiscateBigBlock ::
     CodeWriter a -> CodeWriter (a, (Block (), [Declaration ()], [Program ()]))
 confiscateBigBlock m
@@ -562,7 +567,7 @@ confiscateBigBlock m
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
-withAlias :: Integer -> Expression () -> CodeWriter a -> CodeWriter a
+withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
 withAlias v0 expr = local (\e -> e {alias = (v0,expr) : alias e})
 
 isVariableOrLiteral :: Ut.UntypedFeld -> Bool

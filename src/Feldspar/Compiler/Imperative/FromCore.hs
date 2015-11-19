@@ -52,7 +52,8 @@ import Control.Applicative
 
 import Feldspar.Core.Types
 import Feldspar.Core.UntypedRepresentation
-         ( UntypedFeld, Term(..), Lit(..), collectLetBinders, collectBinders
+         ( VarId(..), UntypedFeld, Term(..), Lit(..)
+         , collectLetBinders, collectBinders
          , UntypedFeldF(App, LetFun), Fork(..)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -78,12 +79,12 @@ Fast returns
 ------------
 
 Fast returns really means single return value and that value fits in a
-register--thus they are platform dependent. This is why we have to
+register--thus they are platform dependent. This is why we have to use
 compileTypeRep since that can make configuration specific choices
 about data layout.
 
-The user is free to ask for fast returns, but we might not be able to comply.
-For those cases we flip the option before generating code.
+The user is free to ask for fast returns (by setting 'useNativeReturns' to True),
+but we might not be able to comply.
 
 -}
 
@@ -93,20 +94,14 @@ fromCoreUT
     :: Options
     -> String       -- ^ Name of the generated function
     -> UntypedFeld  -- ^ Expression to generate code for
-    -> (Module (), Integer)
+    -> (Module (), VarId)
 fromCoreUT opt funname uast = (Module defs, maxVar')
   where
-    opt' | useNativeReturns opt
-         , not $ canFastReturn $ compileTypeRep opt (typeof uast)
-         = opt { useNativeReturns = False } -- Note [Fast returns]
-         | otherwise = opt
+    maxVar  = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
+    fastRet = useNativeReturns opt && canFastReturn (compileTypeRep opt (typeof uast))
 
-    maxVar = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
+    (outParam,maxVar',results) = runRWS (compileProgTop uast) (initEnv opt) maxVar
 
-    (outParam,States maxVar',results) =
-       runRWS (compileProgTop opt' uast) (initReader opt) $ States maxVar
-
-    fastRet    = useNativeReturns opt'
     decls      = decl results
     ins        = params results
     post       = epilogue results ++ returns
@@ -153,22 +148,21 @@ fromCore opt funname prog
 -- * The actual program
 -- * An expression that contains the result
 -- * A list of epilogue programs, for freeing memory, etc.
-fromCoreExp :: (MonadState Integer m)
+fromCoreExp :: (MonadState VarId m)
             => SyntacticFeld a
             => Options
-            -> Map.Map Integer String
+            -> Map.Map VarId String
             -> a
             -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
 fromCoreExp opt aliases prog = do
     s <- get
-    let (ast, s') = flip runState (fromInteger s) $ reifyFeldM (frontendOpts opt) N32 prog
+    let (ast, s') = flip runState s $ reifyFeldM (frontendOpts opt) N32 prog
         uast = untype (frontendOpts opt) ast
         mkAlias (Ut.Var i t) = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
-    let (exp,States s'',results) =
-          runRWS (compileExpr (CEnv opt False) uast) (Readers as opt) $ States $ toInteger s'
+    let (exp,s'',results) = runRWS (compileExpr (CEnv opt False) uast) (CodeEnv as opt) s'
     put s''
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
@@ -184,27 +178,30 @@ fromCoreExp opt aliases prog = do
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts = fromCore opts "test"
 
-compileProgTop :: Options -> Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
-compileProgTop opt (In (Ut.Lambda (Ut.Var v ta) body)) = do
+compileProgTop :: Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
+compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
+  opt <- asks backendOpts
   let typ = compileTypeRep opt ta
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
-     compileProgTop opt body
-compileProgTop opt (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
+     compileProgTop body
+compileProgTop (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
   | representableType l
-  = do tellDef [ValueDef var c]
+  = do opt <- asks backendOpts
+       let var = mkVariable (typeof c) v -- Note [Precise size information]
+           c   = literalConst opt l
+       tellDef [ValueDef var c]
        withAlias v (varToExpr var) $
-         compileProgTop opt body
-  where
-    var = mkVariable (typeof c) v -- Note [Precise size information]
-    c   = literalConst opt l
-compileProgTop opt a = do
+         compileProgTop body
+compileProgTop a = do
+  opt <- asks backendOpts
   let outType' = compileTypeRep opt (typeof a)
+      fastRet  = useNativeReturns opt && canFastReturn outType'
       (outType, outLoc)
-       | useNativeReturns opt = (outType',             varToExpr outParam)
-       | otherwise            = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
+       | fastRet   = (outType', varToExpr outParam)
+       | otherwise = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
   compileProg (cenv0 opt) (Just outLoc) a
   return outParam
@@ -835,7 +832,7 @@ compileExpr env (In (App p t es)) = do
     return $ fun (compileTypeRep (opts env) t) (compileOp p) es'
 compileExpr env e = compileProgFresh env e
 
-compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> Integer ->
+compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> VarId ->
               CodeWriter (Expression ())
 compileLet env a ta v = do
    let var  = mkVariable (compileTypeRep (opts env) ta) v
