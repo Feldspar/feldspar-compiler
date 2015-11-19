@@ -162,7 +162,7 @@ fromCoreExp opt aliases prog = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
-    let (exp,s'',results) = runRWS (compileExpr (CEnv opt False) uast) (CodeEnv as opt) s'
+    let (exp,s'',results) = runRWS (compileExpr uast) (CodeEnv as False opt) s'
     put s''
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
@@ -203,7 +203,7 @@ compileProgTop a = do
        | fastRet   = (outType', varToExpr outParam)
        | otherwise = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
       outParam   = Rep.Variable outType "out"
-  compileProg (cenv0 opt) (Just outLoc) a
+  compileProg (Just outLoc) a
   return outParam
 
 {-
@@ -219,32 +219,24 @@ for insanely large array literals, so don't do that.
 
 -}
 
-data CompileEnv = CEnv
-    { opts :: Options
-    , inTask :: Bool
-    }
-
--- | Initial environment for compile.
-cenv0 :: Options -> CompileEnv
-cenv0 opts = CEnv opts False
-
 -- | Compiles code and assigns the expression to the given location.
-compileExprLoc :: CompileEnv -> Location  -> Ut.UntypedFeld  -> CodeWriter ()
-compileExprLoc env loc e = do
-    expr <- compileExpr env e
+compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()
+compileExprLoc loc e = do
+    expr <- compileExpr e
     assign loc expr
 
 -- | Compiles code into a fresh variable.
-compileProgFresh :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
-compileProgFresh env e = do
-    loc <- freshVar (opts env) "e" (typeof e)
-    compileProg env (Just loc) e
+compileProgFresh :: Ut.UntypedFeld -> CodeWriter (Expression ())
+compileProgFresh e = do
+    opts <- asks backendOpts
+    loc <- freshVar opts "e" (typeof e)
+    compileProg (Just loc) e
     return loc
 
 -- | Compile an expression and make sure that the result is stored in a variable
-compileExprVar :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
-compileExprVar env e = do
-    e' <- compileExpr env e
+compileExprVar :: Ut.UntypedFeld -> CodeWriter (Expression ())
+compileExprVar e = do
+    e' <- compileExpr e
     case e' of
         _ | isNearlyVar e' -> return e'
         _         -> do
@@ -260,22 +252,21 @@ compileExprVar env e = do
         isNearlyVar _          = False
 
 -- | Compile a function bound by a LetFun.
-compileFunction :: CompileEnv -> Expression () -> (String, Fork, Ut.UntypedFeld)
-                -> CodeWriter ()
-compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
-  es' <- mapM (compileExpr env) (map (In . Ut.Variable) bs)
+compileFunction :: Expression () -> (String, Fork, Ut.UntypedFeld) -> CodeWriter ()
+compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
+  es' <- mapM compileExpr (map (In . Ut.Variable) bs)
   let args = nub $ map exprToVar es' ++ fv loc
   -- Task core:
   (_, (Block ds bl, decls, _)) <- confiscateBigBlock $
     case kind of
       Future -> do
-        p' <- compileExprVar env {inTask = True } e'
+        p' <- local (\env -> env {inTask = True }) $ compileExprVar e'
         tellProg [iVarPut loc p']
-      Par -> compileProg env {inTask = True} (Just loc) e'
+      Par -> local (\env -> env {inTask = True }) $ compileProg (Just loc) e'
       Loop | (ix:_) <- es'
-           , Ut.ElementsType{} <- typeof e' -> compileProg env (Just loc) e'
-           | (ix:_) <- es' -> compileProg env (Just $ ArrayElem loc ix) e'
-      None -> compileProg env (Just loc) e'
+           , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
+           | (ix:_) <- es' -> compileProg (Just $ ArrayElem loc ix) e'
+      None -> compileProg (Just loc) e'
   tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
   -- Task:
   let taskName = "task" ++ drop 9 coreName
@@ -286,41 +277,42 @@ compileFunction env loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
    _    -> tellDef [Proc taskName False [] (Left outs) runTask]
 
 -- | Create a variable of the right type for storing a length.
-mkLength :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
-mkLength env a t
-  | isVariableOrLiteral a = compileExpr env a
+mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
+mkLength a t
+  | isVariableOrLiteral a = compileExpr a
   | otherwise             = do
-      lenvar <- freshVar (opts env) "len" t
-      compileProg env (Just lenvar) a
+      opts <- asks backendOpts
+      lenvar <- freshVar opts "len" t
+      compileProg (Just lenvar) a
       return lenvar
 
-mkBranch :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
-         -> Maybe Ut.UntypedFeld -> CodeWriter ()
-mkBranch env loc c th el = do
-    ce <- compileExpr env c
-    (_, tb) <- confiscateBlock $ compileProg env loc th
+mkBranch :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld -> Maybe Ut.UntypedFeld -> CodeWriter ()
+mkBranch loc c th el = do
+    ce <- compileExpr c
+    (_, tb) <- confiscateBlock $ compileProg loc th
     (_, eb) <- if isJust el
-                  then confiscateBlock $ compileProg env loc (fromJust el)
+                  then confiscateBlock $ compileProg loc (fromJust el)
                   else return (undefined, toBlock Empty)
     tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
 
-compileProg :: CompileEnv -> Location -> Ut.UntypedFeld -> CodeWriter ()
+compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg env (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
-   let ix = mkVar (compileTypeRep (opts env) ta) v
-   len' <- mkLength env len ta
+compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+   opts <- asks backendOpts
+   let ix = mkVar (compileTypeRep opts ta) v
+   len' <- mkLength len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
-            vs' <- mapM (compileExpr env) vs
+            vs' <- mapM compileExpr vs
             let mkV v = Rep.Variable (typeof v) (lName v)
                 args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
-            b' <- confiscateBlock $ compileProg env (Just $ ArrayElem loc ix) ixf
+            b' <- confiscateBlock $ compileProg (Just $ ArrayElem loc ix) ixf
             return (Parallel, snd b')
    tellProg [initArray (Just loc) len']
    tellProg [for ptyp (lName ix) (litI32 0) len' (litI32 1) b]
-compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
+compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
    , not $ null bs
@@ -328,536 +320,562 @@ compileProg env loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var 
    , t1 == e
    , t2 == e
    = do
-        blocks <- mapM (confiscateBlock . compileBind env) (init bs)
+        opts <- asks backendOpts
+        blocks <- mapM (confiscateBlock . compileBind) (init bs)
         let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
-        let ix = mkVar (compileTypeRep (opts env) tix) v
-        len' <- mkLength env len tix
-        st1 <- freshVar (opts env) "st" tst
-        let st = mkPointer (compileTypeRep (opts env) tst) s
+        let ix = mkVar (compileTypeRep opts tix) v
+        len' <- mkLength len tix
+        st1 <- freshVar opts "st" tst
+        let st = mkPointer (compileTypeRep opts tst) s
             st_val = Deref $ varToExpr st
         declareAlias st
-        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg env (ArrayElem <$> loc <*> pure ix) step
-        withAlias s st_val $ compileProg env (Just st1) init'
+        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg (ArrayElem <$> loc <*> pure ix) step
+        withAlias s st_val $ compileProg (Just st1) init'
         tellProg [ Assign (varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for Sequential (lName ix) (litI32 0) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg env loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
+compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
+       opts <- asks backendOpts
        let tr' = typeof step
-       let ix = mkVar (compileTypeRep (opts env) t) v
-       len' <- mkLength env len t
-       tmp  <- freshVar (opts env) "seq" tr'
-       (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg env (Just tmp) step
+       let ix = mkVar (compileTypeRep opts t) v
+       len' <- mkLength len t
+       tmp  <- freshVar opts "seq" tr'
+       (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg (Just tmp) step
        tellProg [initArray loc len']
-       compileProg env (Just $ StructField tmp "member2") st
+       compileProg (Just $ StructField tmp "member2") st
        tellProg [toProg $ Block ds $
                  for Sequential (lName ix) (litI32 0) len' (litI32 1) $ toBlock $
                    Sequence $ body ++
                      [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                      ]]
-compileProg env loc (In (App Ut.Append _ [a, b])) = do
-   a' <- compileExpr env a
-   b' <- compileExpr env b
+compileProg loc (In (App Ut.Append _ [a, b])) = do
+   a' <- compileExpr a
+   b' <- compileExpr b
    tellProg [copyProg loc [a', b']]
-compileProg env loc (In (App Ut.SetIx _ [arr, i, a])) = do
-   compileProg env loc arr
-   i' <- compileExpr env i
-   compileProg env (ArrayElem <$> loc <*> pure i') a
-compileProg env (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
-   a' <- compileExpr env arr
-   i' <- compileExpr env i
+compileProg loc (In (App Ut.SetIx _ [arr, i, a])) = do
+   compileProg loc arr
+   i' <- compileExpr i
+   compileProg (ArrayElem <$> loc <*> pure i') a
+compileProg (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
+   a' <- compileExpr arr
+   i' <- compileExpr i
    let el = ArrayElem a' i'
    tellProg $ if isArray $ typeof el
                 then [Assign loc el]
                 else [copyProg (Just loc) [el]]
-compileProg env loc (In (App Ut.SetLength _ [len, arr])) = do
-   len' <- compileExpr env len
-   compileProg env loc arr
+compileProg loc (In (App Ut.SetLength _ [len, arr])) = do
+   len' <- compileExpr len
+   compileProg loc arr
    tellProg [setLength loc len']
 -- Binding
-compileProg _   _   e@(In Ut.Lambda{})
+compileProg _ e@(In Ut.Lambda{})
   = error ("Can only compile top-level lambda: " ++ show e)
-compileProg env loc (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
-   e <- compileLet env a ta v
-   withAlias v e $ compileProg env loc body
+compileProg loc (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
+   e <- compileLet a ta v
+   withAlias v e $ compileProg loc body
 -- Bits
 -- Complex
 -- Condition
-compileProg env loc (In (App Ut.Condition _ [cond, tHEN, eLSE])) =
-   mkBranch env loc cond tHEN $ Just eLSE
-compileProg env loc (In (App Ut.ConditionM _ [cond, tHEN, eLSE])) =
-   mkBranch env loc cond tHEN $ Just eLSE
+compileProg loc (In (App Ut.Condition _ [cond, tHEN, eLSE])) =
+   mkBranch loc cond tHEN $ Just eLSE
+compileProg loc (In (App Ut.ConditionM _ [cond, tHEN, eLSE])) =
+   mkBranch loc cond tHEN $ Just eLSE
 -- Conversion
 -- Elements
-compileProg env loc (In (App Ut.EMaterialize _ [len, arr])) = do
-   len' <- mkLength env len (Ut.typeof len)
+compileProg loc (In (App Ut.EMaterialize _ [len, arr])) = do
+   len' <- mkLength len (Ut.typeof len)
    tellProg [initArray loc len']
-   compileProg env loc arr
-compileProg env (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
-   dst <- compileExpr env ix
-   compileProg env (Just $ ArrayElem loc dst) e
-compileProg _   _   (In (App Ut.ESkip _ _)) = return ()
-compileProg env loc (In (App Ut.EPar _ [p1, p2])) = do
-   (_, Block ds1 b1) <- confiscateBlock $ compileProg env loc p1
-   (_, Block ds2 b2) <- confiscateBlock $ compileProg env loc p2
+   compileProg loc arr
+compileProg (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
+   dst <- compileExpr ix
+   compileProg (Just $ ArrayElem loc dst) e
+compileProg _ (In (App Ut.ESkip _ _)) = return ()
+compileProg loc (In (App Ut.EPar _ [p1, p2])) = do
+   (_, Block ds1 b1) <- confiscateBlock $ compileProg loc p1
+   (_, Block ds2 b2) <- confiscateBlock $ compileProg loc p2
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
-compileProg env (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
-   let ix = mkVar (compileTypeRep (opts env) ta) v
-   len' <- mkLength env len ta
+compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+   opts <- asks backendOpts
+   let ix = mkVar (compileTypeRep opts ta) v
+   len' <- mkLength len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
-            vs' <- mapM (compileExpr env) vs
+            vs' <- mapM compileExpr vs
             let mkV v = Rep.Variable (typeof v) (lName v)
                 args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
-            b' <- confiscateBlock $ compileProg env (Just loc) ixf
+            b' <- confiscateBlock $ compileProg (Just loc) ixf
             return (Parallel, snd b')
    tellProg [for ptyp (lName ix) (litI32 0) len' (litI32 1) b]
 -- Error
-compileProg _   _   (In (App Ut.Undefined _ _)) = return ()
-compileProg env loc (In (App (Ut.Assert msg) _ [cond, a])) = do
-   compileAssert env cond msg
-   compileProg env loc a
+compileProg _ (In (App Ut.Undefined _ _)) = return ()
+compileProg loc (In (App (Ut.Assert msg) _ [cond, a])) = do
+   compileAssert cond msg
+   compileProg loc a
 -- Future
-compileProg _  _ e@(In (App Ut.MkFuture _ _))
+compileProg _ e@(In (App Ut.MkFuture _ _))
   = error ("Unexpected MkFuture:" ++ show e)
-compileProg env (Just loc) (In (LetFun f e)) = do
-   compileFunction env loc f
-   compileProg env (Just loc) e
-compileProg env loc (In (App Ut.Await _ [a])) = do
-   fut <- compileExprVar env a
+compileProg (Just loc) (In (LetFun f e)) = do
+   compileFunction loc f
+   compileProg (Just loc) e
+compileProg loc (In (App Ut.Await _ [a])) = do
+   env <- ask
+   fut <- compileExprVar a
    tellProg [iVarGet (inTask env) l fut | Just l <- [loc]]
 -- Literal
-compileProg env loc (In (Ut.Literal a)) = case loc of
-     Just l -> literalLoc (opts env) l a
+compileProg loc (In (Ut.Literal a)) =
+   case loc of
+     Just l -> literalLoc l a
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg env (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
+compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
   = do
-      let ix' = mkVar (compileTypeRep (opts env) ta) ix
-      len' <- mkLength env len ta
+      opts <- asks backendOpts
+      let ix' = mkVar (compileTypeRep opts ta) ix
+      len' <- mkLength len ta
       (lstate, stvar) <- mkDoubleBufferState loc st
-      compileProg env (Just lstate) init'
+      compileProg (Just lstate) init'
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
-                          $ compileProg env (Just stvar) ixf
+                          $ compileProg (Just stvar) ixf
                           >> shallowCopyWithRefSwap lstate stvar
       tellProg [toProg $ Block ds (for Sequential (lName ix') (litI32 0) len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
-compileProg env (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
-    let condv  = mkVariable (compileTypeRep (opts env) (typeof cond)) cv
+compileProg (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
+    opts <- asks backendOpts
+    let condv  = mkVariable (compileTypeRep opts (typeof cond)) cv
         condvE = varToExpr condv
     (lstate,stvar) <- mkDoubleBufferState loc bv
-    compileProg env (Just lstate) init'
-    (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg env (Just condvE) cond
-    (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg env (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
+    compileProg (Just lstate) init'
+    (_, cond') <- confiscateBlock $ withAlias cv lstate $ compileProg (Just condvE) cond
+    (_, body') <- withAlias bv lstate $ confiscateBlock $ compileProg (Just stvar) body >> shallowCopyWithRefSwap lstate stvar
     declare condv
     tellProg [while cond' condvE body']
     shallowAssign (Just loc) lstate
 -- LoopM
-compileProg env loc (In (App Ut.While _ [cond,step])) = do
-   condv <- freshVar (opts env) "cond" (typeof cond)
-   (_, cond') <- confiscateBlock $ compileProg env (Just condv) cond
-   (_, step') <- confiscateBlock $ compileProg env loc step
+compileProg loc (In (App Ut.While _ [cond,step])) = do
+   opts <- asks backendOpts
+   condv <- freshVar opts "cond" (typeof cond)
+   (_, cond') <- confiscateBlock $ compileProg (Just condv) cond
+   (_, step') <- confiscateBlock $ compileProg loc step
    tellProg [while cond' condv step']
-compileProg env loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
-   let ix = mkVar (compileTypeRep (opts env) ta) v
-   len' <- mkLength env len ta
-   (_, Block ds body) <- confiscateBlock $ compileProg env loc ixf
+compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+   opts <- asks backendOpts
+   let ix = mkVar (compileTypeRep opts ta) v
+   len' <- mkLength len ta
+   (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
    tellProg [toProg $ Block ds (for Sequential (lName ix) (litI32 0) len' (litI32 1) (toBlock body))]
 -- Mutable
-compileProg env loc (In (App Ut.Run _ [ma])) = compileProg env loc ma
-compileProg env loc (In (App Ut.Return t [a]))
+compileProg loc (In (App Ut.Run _ [ma])) = compileProg loc ma
+compileProg loc (In (App Ut.Return t [a]))
   | Ut.MutType Ut.UnitType <- t = return ()
   | Ut.ParType Ut.UnitType <- t = return ()
-  | otherwise = compileProg env loc a
-compileProg env loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
+  | otherwise = compileProg loc a
+compileProg loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
-   let var = mkVariable (compileTypeRep (opts env) ta) v
+   opts <- asks backendOpts
+   let var = mkVariable (compileTypeRep opts ta) v
    declare var
    tellProg [iVarInit $ AddrOf $ varToExpr var]
-   compileProg env loc body
+   compileProg loc body
   | otherwise = do
-   let var = mkVariable (compileTypeRep (opts env) ta) v
+   opts <- asks backendOpts
+   let var = mkVariable (compileTypeRep opts ta) v
    declare var
-   compileProg env (Just (varToExpr var)) ma
-   compileProg env loc body
-compileProg env loc (In (App Ut.Then _ [ma, mb])) = do
-   compileProg env Nothing ma
-   compileProg env loc mb
-compileProg env loc (In (App Ut.When _ [c, action])) =
-   mkBranch env loc c action Nothing
+   compileProg (Just (varToExpr var)) ma
+   compileProg loc body
+compileProg loc (In (App Ut.Then _ [ma, mb])) = do
+   compileProg Nothing ma
+   compileProg loc mb
+compileProg loc (In (App Ut.When _ [c, action])) =
+   mkBranch loc c action Nothing
 -- MutableArray
-compileProg env loc (In (App Ut.NewArr _ [len, a])) = do
+compileProg loc (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
    let var = mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
        ix  = varToExpr var
-   a' <- compileExpr env a
-   l  <- compileExpr env len
+   a' <- compileExpr a
+   l  <- compileExpr len
    tellProg [initArray loc l]
    tellProg [for Sequential (Rep.varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
-compileProg env loc (In (App Ut.NewArr_ _ [len])) = do
-   l <- compileExpr env len
+compileProg loc (In (App Ut.NewArr_ _ [len])) = do
+   l <- compileExpr len
    tellProg [initArray loc l]
-compileProg env loc (In (App Ut.GetArr _ [arr, i])) = do
-   arr' <- compileExpr env arr
-   i'   <- compileExpr env i
+compileProg loc (In (App Ut.GetArr _ [arr, i])) = do
+   arr' <- compileExpr arr
+   i'   <- compileExpr i
    assign loc (ArrayElem arr' i')
-compileProg env _ (In (App Ut.SetArr _ [arr, i, a])) = do
-   arr' <- compileExpr env arr
-   i'   <- compileExpr env i
-   a'   <- compileExpr env a
+compileProg _ (In (App Ut.SetArr _ [arr, i, a])) = do
+   arr' <- compileExpr arr
+   i'   <- compileExpr i
+   a'   <- compileExpr a
    assign (Just $ ArrayElem arr' i') a'
 -- MutableReference
-compileProg env loc (In (App Ut.NewRef _ [a])) = compileProg env loc a
-compileProg env loc (In (App Ut.GetRef _ [r])) = compileProg env loc r
-compileProg env _ (In (App Ut.SetRef _ [r, a])) = do
-   var  <- compileExpr env r
-   compileProg env (Just var) a
-compileProg env _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _) body)])) = do
-   var <- compileExpr env r
-   withAlias v var $ compileProg env (Just var) body
+compileProg loc (In (App Ut.NewRef _ [a])) = compileProg loc a
+compileProg loc (In (App Ut.GetRef _ [r])) = compileProg loc r
+compileProg _ (In (App Ut.SetRef _ [r, a])) = do
+   var  <- compileExpr r
+   compileProg (Just var) a
+compileProg _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _) body)])) = do
+   var <- compileExpr r
+   withAlias v var $ compileProg (Just var) body
        -- Since the modifier function is pure it is safe to alias
        -- v with var here
 -- MutableToPure
-compileProg env (Just loc) (In (App Ut.RunMutableArray _ [marr]))
+compileProg (Just loc) (In (App Ut.RunMutableArray _ [marr]))
  | (In (App Ut.Bind _ [In (App Ut.NewArr_ _ [l]), In (Ut.Lambda (Ut.Var v _) body)])) <- marr
  , (In (App Ut.Return _ [In (Ut.Variable (Ut.Var r _))])) <- chaseBind body
  , v == r
  = do
-     len <- compileExpr env l
+     len <- compileExpr l
      tellProg [setLength (Just loc) len]
-     withAlias v loc $ compileProg env (Just loc) body
-compileProg env loc (In (App Ut.RunMutableArray _ [marr])) = compileProg env loc marr
-compileProg env loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _) body)])) = do
-    e <- compileExpr env marr
+     withAlias v loc $ compileProg (Just loc) body
+compileProg loc (In (App Ut.RunMutableArray _ [marr])) = compileProg loc marr
+compileProg loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _) body)])) = do
+    e <- compileExpr marr
     withAlias v e $ do
-      b <- compileExpr env body
+      b <- compileExpr body
       tellProg [copyProg loc [b]]
-compileProg env loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
-    let var = mkVariable (compileTypeRep (opts env) ta) v
+compileProg loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
+    opts <- asks backendOpts
+    let var = mkVariable (compileTypeRep opts ta) v
     declare var
-    compileProg env (Just $ varToExpr var) marr
-    e <- compileExpr env body
+    compileProg (Just $ varToExpr var) marr
+    e <- compileExpr body
     tellProg [copyProg loc [e]]
 -- Noinline
-compileProg _ (Just _) (In (App Ut.NoInline _ [e]))
+compileProg (Just _) (In (App Ut.NoInline _ [e]))
   = error ("Unexpected NoInline:" ++ show e)
 -- Par
-compileProg env loc (In (App Ut.ParRun _ [p])) = compileProg env loc p
-compileProg _   _   (In (App Ut.ParNew _ _)) = return ()
-compileProg env loc (In (App Ut.ParGet _ [r])) = do
-    iv <- compileExpr env r
+compileProg loc (In (App Ut.ParRun _ [p])) = compileProg loc p
+compileProg _ (In (App Ut.ParNew _ _)) = return ()
+compileProg loc (In (App Ut.ParGet _ [r])) = do
+    env <- ask
+    iv <- compileExpr r
     tellProg [iVarGet (inTask env) l iv | Just l <- [loc]]
-compileProg env _ (In (App Ut.ParPut _ [r, a])) = do
-    iv  <- compileExpr env r
-    val <- compileExpr env a
+compileProg _ (In (App Ut.ParPut _ [r, a])) = do
+    iv  <- compileExpr r
+    val <- compileExpr a
     i   <- freshId
     let var  = mkNamedVar "msg" (typeof val) i
         varE = varToExpr var
     declare var
     assign (Just varE) val
     tellProg [iVarPut iv varE]
-compileProg _ _ (In (App Ut.ParFork _ [e]))
+compileProg _ (In (App Ut.ParFork _ [e]))
   = error ("Unexpected ParFork:" ++ show e)
-compileProg _ _ (In (App Ut.ParYield _ _)) = return ()
+compileProg _ (In (App Ut.ParYield _ _)) = return ()
 -- SizeProp
-compileProg env loc (In (App Ut.PropSize _ [e])) = compileProg env loc e
+compileProg loc (In (App Ut.PropSize _ [e])) = compileProg loc e
 -- SourceInfo
-compileProg env loc (In (App (Ut.SourceInfo info) _ [a])) = do
+compileProg loc (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
-    compileProg env loc a
+    compileProg loc a
 -- Switch
-compileProg env loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.Equal _ [_, s]), _, _]))])) = do
-    scrutinee <- compileExpr env s
-    alts      <- chaseTree env loc s tree
+compileProg loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.Equal _ [_, s]), _, _]))])) = do
+    scrutinee <- compileExpr s
+    alts      <- chaseTree loc s tree
     tellProg [Switch{..}]
-compileProg env loc (In (App Ut.Switch _ [tree])) = compileProg env loc tree
+compileProg loc (In (App Ut.Switch _ [tree])) = compileProg loc tree
 -- Tuple
-compileProg env loc (In (App Ut.Tup2 _ [m1, m2])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-compileProg env loc (In (App Ut.Tup3 _ [m1, m2, m3])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-compileProg env loc (In (App Ut.Tup4 _ [m1, m2, m3, m4])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-compileProg env loc (In (App Ut.Tup5 _ [m1, m2, m3, m4, m5])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-compileProg env loc (In (App Ut.Tup6 _ [m1, m2, m3, m4, m5, m6])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-compileProg env loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-compileProg env loc (In (App Ut.Tup8 _ [m1, m2, m3, m4, m5, m6, m7, m8])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-compileProg env loc (In (App Ut.Tup9 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-compileProg env loc (In (App Ut.Tup10 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-compileProg env loc (In (App Ut.Tup11 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-compileProg env loc (In (App Ut.Tup12 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-compileProg env loc (In (App Ut.Tup13 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-    compileProg env (StructField <$> loc <*> pure "member13") m13
-compileProg env loc (In (App Ut.Tup14 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-    compileProg env (StructField <$> loc <*> pure "member13") m13
-    compileProg env (StructField <$> loc <*> pure "member14") m14
-compileProg env loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15])) = do
-    compileProg env (StructField <$> loc <*> pure "member1") m1
-    compileProg env (StructField <$> loc <*> pure "member2") m2
-    compileProg env (StructField <$> loc <*> pure "member3") m3
-    compileProg env (StructField <$> loc <*> pure "member4") m4
-    compileProg env (StructField <$> loc <*> pure "member5") m5
-    compileProg env (StructField <$> loc <*> pure "member6") m6
-    compileProg env (StructField <$> loc <*> pure "member7") m7
-    compileProg env (StructField <$> loc <*> pure "member8") m8
-    compileProg env (StructField <$> loc <*> pure "member9") m9
-    compileProg env (StructField <$> loc <*> pure "member10") m10
-    compileProg env (StructField <$> loc <*> pure "member11") m11
-    compileProg env (StructField <$> loc <*> pure "member12") m12
-    compileProg env (StructField <$> loc <*> pure "member13") m13
-    compileProg env (StructField <$> loc <*> pure "member14") m14
-    compileProg env (StructField <$> loc <*> pure "member15") m15
+compileProg loc (In (App Ut.Tup2 _ [m1, m2])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+compileProg loc (In (App Ut.Tup3 _ [m1, m2, m3])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+compileProg loc (In (App Ut.Tup4 _ [m1, m2, m3, m4])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+compileProg loc (In (App Ut.Tup5 _ [m1, m2, m3, m4, m5])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+compileProg loc (In (App Ut.Tup6 _ [m1, m2, m3, m4, m5, m6])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+compileProg loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+compileProg loc (In (App Ut.Tup8 _ [m1, m2, m3, m4, m5, m6, m7, m8])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+compileProg loc (In (App Ut.Tup9 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+compileProg loc (In (App Ut.Tup10 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+    compileProg (StructField <$> loc <*> pure "member10") m10
+compileProg loc (In (App Ut.Tup11 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+    compileProg (StructField <$> loc <*> pure "member10") m10
+    compileProg (StructField <$> loc <*> pure "member11") m11
+compileProg loc (In (App Ut.Tup12 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+    compileProg (StructField <$> loc <*> pure "member10") m10
+    compileProg (StructField <$> loc <*> pure "member11") m11
+    compileProg (StructField <$> loc <*> pure "member12") m12
+compileProg loc (In (App Ut.Tup13 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+    compileProg (StructField <$> loc <*> pure "member10") m10
+    compileProg (StructField <$> loc <*> pure "member11") m11
+    compileProg (StructField <$> loc <*> pure "member12") m12
+    compileProg (StructField <$> loc <*> pure "member13") m13
+compileProg loc (In (App Ut.Tup14 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+    compileProg (StructField <$> loc <*> pure "member10") m10
+    compileProg (StructField <$> loc <*> pure "member11") m11
+    compileProg (StructField <$> loc <*> pure "member12") m12
+    compileProg (StructField <$> loc <*> pure "member13") m13
+    compileProg (StructField <$> loc <*> pure "member14") m14
+compileProg loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15])) = do
+    compileProg (StructField <$> loc <*> pure "member1") m1
+    compileProg (StructField <$> loc <*> pure "member2") m2
+    compileProg (StructField <$> loc <*> pure "member3") m3
+    compileProg (StructField <$> loc <*> pure "member4") m4
+    compileProg (StructField <$> loc <*> pure "member5") m5
+    compileProg (StructField <$> loc <*> pure "member6") m6
+    compileProg (StructField <$> loc <*> pure "member7") m7
+    compileProg (StructField <$> loc <*> pure "member8") m8
+    compileProg (StructField <$> loc <*> pure "member9") m9
+    compileProg (StructField <$> loc <*> pure "member10") m10
+    compileProg (StructField <$> loc <*> pure "member11") m11
+    compileProg (StructField <$> loc <*> pure "member12") m12
+    compileProg (StructField <$> loc <*> pure "member13") m13
+    compileProg (StructField <$> loc <*> pure "member14") m14
+    compileProg (StructField <$> loc <*> pure "member15") m15
 -- Special case foreign imports since they can be of void type and just have effects.
-compileProg env (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
-    es' <- mapM (compileExpr env) es
-    tellProg [Assign loc $ fun (compileTypeRep (opts env) t) (compileOp p) es']
-compileProg env Nothing (In (App p@Ut.ForeignImport{} t es)) = do
-    es' <- mapM (compileExpr env) es
+compileProg (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
+    opts <- asks backendOpts
+    es' <- mapM compileExpr es
+    tellProg [Assign loc $ fun (compileTypeRep opts t) (compileOp p) es']
+compileProg Nothing (In (App p@Ut.ForeignImport{} t es)) = do
+    es' <- mapM compileExpr es
     tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
 -- Common nodes
-compileProg env (Just loc) (In (App (Ut.Call f name) _ es)) = do
-  es' <- mapM (compileExpr env) es
+compileProg (Just loc) (In (App (Ut.Call f name) _ es)) = do
+  es' <- mapM compileExpr es
   let args = nub $ map exprToVar es' ++ fv loc
   tellProg [iVarInitCond f (AddrOf loc)]
   tellProg [spawn f name args]
-compileProg env loc e = compileExprLoc env loc e
+compileProg loc e = compileExprLoc loc e
 
 
-compileExpr :: CompileEnv -> Ut.UntypedFeld -> CodeWriter (Expression ())
+compileExpr :: Ut.UntypedFeld -> CodeWriter (Expression ())
 -- Array
-compileExpr env (In (App Ut.GetLength _ [a])) = do
-   aExpr <- compileExpr env a
+compileExpr (In (App Ut.GetLength _ [a])) = do
+   aExpr <- compileExpr a
    return $ arrayLength aExpr
-compileExpr env (In (App Ut.GetIx _ [arr, i])) = do
-   a' <- compileExpr env arr
-   i' <- compileExpr env i
+compileExpr (In (App Ut.GetIx _ [arr, i])) = do
+   a' <- compileExpr arr
+   i' <- compileExpr i
    return $ ArrayElem a' i'
 -- Bits
-compileExpr env (In (App Ut.Bit t [arr])) = do
-   a' <- compileExpr env arr
-   let t' = compileTypeRep (opts env) t
+compileExpr (In (App Ut.Bit t [arr])) = do
+   opts <- asks backendOpts
+   a' <- compileExpr arr
+   let t' = compileTypeRep opts t
    return $ binop t' "<<" (litI t' 1) a'
 -- Binding
-compileExpr env (In (Ut.Variable (Ut.Var v t))) = do
-        env' <- ask
-        case lookup v (alias env') of
-          Nothing -> return $ mkVar (compileTypeRep (opts env) t) v
+compileExpr (In (Ut.Variable (Ut.Var v t))) = do
+        env <- ask
+        case lookup v (aliases env) of
+          Nothing -> return $ mkVar (compileTypeRep (backendOpts env) t) v
           Just e  -> return e
-compileExpr env (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
-    e <- compileLet env a ta v
-    withAlias v e $ compileExpr env body
+compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
+    e <- compileLet a ta v
+    withAlias v e $ compileExpr body
 -- Bits
 -- Condition
 -- Conversion
-compileExpr env (In (App Ut.F2I t es)) = do
-    es' <- mapM (compileExpr env) es
+compileExpr (In (App Ut.F2I t es)) = do
+    opts <- asks backendOpts
+    es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
-compileExpr env (In (App Ut.I2N t1 [e]))
- | (Rep.MachineVector 1 (Rep.ComplexType t)) <- t'
- = do
-    e' <- compileExpr env e
-    let args = [Cast t e', litF 0]
-    return $ fun t' (extend c99 "complex" t) args
- | otherwise = do
-    e' <- compileExpr env e
-    return $ Cast t' e'
-  where t' = compileTypeRep (opts env) t1
-compileExpr env (In (App Ut.B2I t [e])) = do
-    e' <- compileExpr env e
-    return $ Cast (compileTypeRep (opts env) t) e'
-compileExpr env (In (App Ut.Round t es)) = do
-    es' <- mapM (compileExpr env) es
+    return $ Cast (compileTypeRep opts t) f'
+compileExpr (In (App Ut.I2N t1 [e])) = do
+    opts <- asks backendOpts
+    let t' = compileTypeRep opts t1
+    case t' of
+      Rep.MachineVector 1 (Rep.ComplexType t) -> do
+        e' <- compileExpr e
+        let args = [Cast t e', litF 0]
+        return $ fun t' (extend c99 "complex" t) args
+      _ -> do
+        e' <- compileExpr e
+        return $ Cast t' e'
+compileExpr (In (App Ut.B2I t [e])) = do
+    opts <- asks backendOpts
+    e' <- compileExpr e
+    return $ Cast (compileTypeRep opts t) e'
+compileExpr (In (App Ut.Round t es)) = do
+    opts <- asks backendOpts
+    es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
-compileExpr env (In (App Ut.Ceiling t es)) = do
-    es' <- mapM (compileExpr env) es
+    return $ Cast (compileTypeRep opts t) f'
+compileExpr (In (App Ut.Ceiling t es)) = do
+    opts <- asks backendOpts
+    es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
-compileExpr env (In (App Ut.Floor t es)) = do
-    es' <- mapM (compileExpr env) es
+    return $ Cast (compileTypeRep opts t) f'
+compileExpr (In (App Ut.Floor t es)) = do
+    opts <- asks backendOpts
+    es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
-    return $ Cast (compileTypeRep (opts env) t) f'
+    return $ Cast (compileTypeRep opts t) f'
 -- Error
-compileExpr env (In (App (Ut.Assert msg) _ [cond, a])) = do
-    compileAssert env cond msg
-    compileExpr env a
+compileExpr (In (App (Ut.Assert msg) _ [cond, a])) = do
+    compileAssert cond msg
+    compileExpr a
 -- Eq
 -- FFI
 -- Floating
-compileExpr _ (In (App Ut.Pi t [])) = error "No pi ready"
+compileExpr (In (App Ut.Pi t [])) = error "No pi ready"
 -- Fractional
 -- Future
 -- Literal
-compileExpr env (In (Ut.Literal l)) = literal (opts env) l
+compileExpr (In (Ut.Literal l)) = literal l
 -- Loop
 -- Logic
 -- Mutable
-compileExpr env (In (App Ut.Run _ [ma])) = compileExpr env ma
+compileExpr (In (App Ut.Run _ [ma])) = compileExpr ma
 -- MutableArray
-compileExpr env (In (App Ut.ArrLength _ [arr])) = do
-    a' <- compileExpr env arr
+compileExpr (In (App Ut.ArrLength _ [arr])) = do
+    a' <- compileExpr arr
     return $ arrayLength a'
 -- MutableReference
-compileExpr env (In (App Ut.GetRef _ [r])) = compileExpr env r
+compileExpr (In (App Ut.GetRef _ [r])) = compileExpr r
 -- NoInline
 -- Num
 -- Ord
 -- SizeProp
-compileExpr env (In (App Ut.PropSize _ [e])) = compileExpr env e
+compileExpr (In (App Ut.PropSize _ [e])) = compileExpr e
 -- SourceInfo
-compileExpr env (In (App (Ut.SourceInfo info) _ [a])) = do
+compileExpr (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
-    compileExpr env a
+    compileExpr a
 -- Tuple
-compileExpr env (In (App p _ [tup]))
+compileExpr (In (App p _ [tup]))
   | p `elem` [ Ut.Sel1, Ut.Sel2, Ut.Sel3, Ut.Sel4, Ut.Sel5, Ut.Sel6, Ut.Sel7
              , Ut.Sel8, Ut.Sel9, Ut.Sel10, Ut.Sel11, Ut.Sel12, Ut.Sel13
              , Ut.Sel14, Ut.Sel15] = do
-    tupExpr <- compileExpr env tup
+    tupExpr <- compileExpr tup
     return $ StructField tupExpr ("member" ++ drop 3 (show p))
-compileExpr env e@(In (App p _ _))
+compileExpr e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.SetLength, Ut.Sequential, Ut.Condition, Ut.ConditionM
             , Ut.MkFuture, Ut.Await, Ut.Bind, Ut.Then, Ut.Return, Ut.While, Ut.For, Ut.SetArr, Ut.EMaterialize
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
             , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
             , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11
             , Ut.Tup12, Ut.Tup13, Ut.Tup14, Ut.Tup15]
- = compileProgFresh env e
-compileExpr env (In (App p t es)) = do
-    es' <- mapM (compileExpr env) es
-    return $ fun (compileTypeRep (opts env) t) (compileOp p) es'
-compileExpr env e = compileProgFresh env e
+ = compileProgFresh e
+compileExpr (In (App p t es)) = do
+    opts <- asks backendOpts
+    es' <- mapM compileExpr es
+    return $ fun (compileTypeRep opts t) (compileOp p) es'
+compileExpr e = compileProgFresh e
 
-compileLet :: CompileEnv -> Ut.UntypedFeld -> Ut.Type -> VarId ->
-              CodeWriter (Expression ())
-compileLet env a ta v = do
-   let var  = mkVariable (compileTypeRep (opts env) ta) v
+compileLet :: Ut.UntypedFeld -> Ut.Type -> VarId -> CodeWriter (Expression ())
+compileLet a ta v = do
+   opts <- asks backendOpts
+   let var  = mkVariable (compileTypeRep opts ta) v
        varE = varToExpr var
    declare var
-   compileProg env (Just varE) a
+   compileProg (Just varE) a
    return varE
 
-compileAssert :: CompileEnv -> Ut.UntypedFeld -> String -> CodeWriter ()
-compileAssert env cond msg = do
-    condExpr <- compileExpr env cond
+compileAssert :: Ut.UntypedFeld -> String -> CodeWriter ()
+compileAssert cond msg = do
+    condExpr <- compileExpr cond
     tellProg [call "assert" [ValueParameter condExpr]]
     unless (null msg) $ tellProg [Comment False $ "{" ++ msg ++ "}"]
 
-literal :: Options -> Ut.Lit -> CodeWriter (Expression ())
-literal opt t@LUnit       = return (ConstExpr $ literalConst opt t)
-literal opt t@LBool{}     = return (ConstExpr $ literalConst opt t)
-literal opt t@LInt{}      = return (ConstExpr $ literalConst opt t)
-literal opt t@LFloat{}    = return (ConstExpr $ literalConst opt t)
-literal opt t@LDouble{}   = return (ConstExpr $ literalConst opt t)
-literal opt t@LComplex{}  = return (ConstExpr $ literalConst opt t)
-literal opt t@LArray{}    = return (ConstExpr $ literalConst opt t)
-literal opt t = do loc <- freshVar opt "x" (typeof t)
-                   literalLoc opt loc t
-                   return loc
+literal :: Ut.Lit -> CodeWriter (Expression ())
+literal lit = do
+    opts <- asks backendOpts
+    let litConst = return $ ConstExpr $ literalConst opts lit
+    case lit of
+      LUnit       -> litConst
+      LBool{}     -> litConst
+      LInt{}      -> litConst
+      LFloat{}    -> litConst
+      LDouble{}   -> litConst
+      LComplex{}  -> litConst
+      LArray{}    -> litConst
+      _           -> do loc <- freshVar opts "x" (typeof lit)
+                        literalLoc loc lit
+                        return loc
 
 -- | Returns true if we can represent the literal in Program.
 representableType :: Ut.Lit -> Bool
@@ -879,173 +897,173 @@ literalConst opt (LDouble a)    = DoubleConst a
 literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileTypeRep opt t
 literalConst opt (LComplex r i) = ComplexConst (literalConst opt r) (literalConst opt i)
 
-literalLoc :: Options -> Expression () -> Ut.Lit -> CodeWriter ()
-literalLoc opt loc arr@Ut.LArray{}
-    = tellProg [copyProg (Just loc) [ConstExpr $ literalConst opt arr]]
+literalLoc :: Expression () -> Ut.Lit -> CodeWriter ()
+literalLoc loc arr@Ut.LArray{} = do
+    opts <- asks backendOpts
+    tellProg [copyProg (Just loc) [ConstExpr $ literalConst opts arr]]
 
-literalLoc env loc (Ut.LTup2 ta tb) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
+literalLoc loc (Ut.LTup2 ta tb) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
 
-literalLoc env loc (Ut.LTup3 ta tb tc) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
+literalLoc loc (Ut.LTup3 ta tb tc) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
 
-literalLoc env loc (Ut.LTup4 ta tb tc td) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
+literalLoc loc (Ut.LTup4 ta tb tc td) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
 
-literalLoc env loc (Ut.LTup5 ta tb tc td te) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
+literalLoc loc (Ut.LTup5 ta tb tc td te) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
 
-literalLoc env loc (Ut.LTup6 ta tb tc td te tf) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
+literalLoc loc (Ut.LTup6 ta tb tc td te tf) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
 
-literalLoc env loc (Ut.LTup7 ta tb tc td te tf tg) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
+literalLoc loc (Ut.LTup7 ta tb tc td te tf tg) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
 
-literalLoc env loc (Ut.LTup8 ta tb tc td te tf tg th) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
+literalLoc loc (Ut.LTup8 ta tb tc td te tf tg th) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
 
-literalLoc env loc (Ut.LTup9 ta tb tc td te tf tg th ti) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
+literalLoc loc (Ut.LTup9 ta tb tc td te tf tg th ti) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
 
-literalLoc env loc (Ut.LTup10 ta tb tc td te tf tg th ti tj) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
-       literalLoc env (StructField loc "member10") tj
+literalLoc loc (Ut.LTup10 ta tb tc td te tf tg th ti tj) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
+       literalLoc (StructField loc "member10") tj
 
-literalLoc env loc (Ut.LTup11 ta tb tc td te tf tg th ti tj tk) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
-       literalLoc env (StructField loc "member10") tj
-       literalLoc env (StructField loc "member11") tk
+literalLoc loc (Ut.LTup11 ta tb tc td te tf tg th ti tj tk) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
+       literalLoc (StructField loc "member10") tj
+       literalLoc (StructField loc "member11") tk
 
-literalLoc env loc (Ut.LTup12 ta tb tc td te tf tg th ti tj tk tl) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
-       literalLoc env (StructField loc "member10") tj
-       literalLoc env (StructField loc "member11") tk
-       literalLoc env (StructField loc "member12") tl
+literalLoc loc (Ut.LTup12 ta tb tc td te tf tg th ti tj tk tl) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
+       literalLoc (StructField loc "member10") tj
+       literalLoc (StructField loc "member11") tk
+       literalLoc (StructField loc "member12") tl
 
-literalLoc env loc (Ut.LTup13 ta tb tc td te tf tg th ti tj tk tl tm) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
-       literalLoc env (StructField loc "member10") tj
-       literalLoc env (StructField loc "member11") tk
-       literalLoc env (StructField loc "member12") tl
-       literalLoc env (StructField loc "member13") tm
+literalLoc loc (Ut.LTup13 ta tb tc td te tf tg th ti tj tk tl tm) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
+       literalLoc (StructField loc "member10") tj
+       literalLoc (StructField loc "member11") tk
+       literalLoc (StructField loc "member12") tl
+       literalLoc (StructField loc "member13") tm
 
-literalLoc env loc (Ut.LTup14 ta tb tc td te tf tg th ti tj tk tl tm tn) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
-       literalLoc env (StructField loc "member10") tj
-       literalLoc env (StructField loc "member11") tk
-       literalLoc env (StructField loc "member12") tl
-       literalLoc env (StructField loc "member13") tm
-       literalLoc env (StructField loc "member14") tn
+literalLoc loc (Ut.LTup14 ta tb tc td te tf tg th ti tj tk tl tm tn) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
+       literalLoc (StructField loc "member10") tj
+       literalLoc (StructField loc "member11") tk
+       literalLoc (StructField loc "member12") tl
+       literalLoc (StructField loc "member13") tm
+       literalLoc (StructField loc "member14") tn
 
-literalLoc env loc (Ut.LTup15 ta tb tc td te tf tg th ti tj tk tl tm tn to) =
-    do literalLoc env (StructField loc "member1") ta
-       literalLoc env (StructField loc "member2") tb
-       literalLoc env (StructField loc "member3") tc
-       literalLoc env (StructField loc "member4") td
-       literalLoc env (StructField loc "member5") te
-       literalLoc env (StructField loc "member6") tf
-       literalLoc env (StructField loc "member7") tg
-       literalLoc env (StructField loc "member8") th
-       literalLoc env (StructField loc "member9") ti
-       literalLoc env (StructField loc "member10") tj
-       literalLoc env (StructField loc "member11") tk
-       literalLoc env (StructField loc "member12") tl
-       literalLoc env (StructField loc "member13") tm
-       literalLoc env (StructField loc "member14") tn
-       literalLoc env (StructField loc "member15") to
+literalLoc loc (Ut.LTup15 ta tb tc td te tf tg th ti tj tk tl tm tn to) =
+    do literalLoc (StructField loc "member1") ta
+       literalLoc (StructField loc "member2") tb
+       literalLoc (StructField loc "member3") tc
+       literalLoc (StructField loc "member4") td
+       literalLoc (StructField loc "member5") te
+       literalLoc (StructField loc "member6") tf
+       literalLoc (StructField loc "member7") tg
+       literalLoc (StructField loc "member8") th
+       literalLoc (StructField loc "member9") ti
+       literalLoc (StructField loc "member10") tj
+       literalLoc (StructField loc "member11") tk
+       literalLoc (StructField loc "member12") tl
+       literalLoc (StructField loc "member13") tm
+       literalLoc (StructField loc "member14") tn
+       literalLoc (StructField loc "member15") to
 
-literalLoc env loc t =
-    do rhs <- literal env t
+literalLoc loc t =
+    do rhs <- literal t
        assign (Just loc) rhs
 
-chaseTree :: CompileEnv -> Location -> Ut.UntypedFeld -> Ut.UntypedFeld
-            -> CodeWriter [(Pattern (), Block ())]
-chaseTree env loc _s (In (App Ut.Condition _ [In (App Ut.Equal _ [c, a]), t, f]))
+chaseTree :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld -> CodeWriter [(Pattern (), Block ())]
+chaseTree loc _s (In (App Ut.Condition _ [In (App Ut.Equal _ [c, a]), t, f]))
     -- , alphaEq s a -- TODO check that the scrutinees are equal
     = do
-         e <- compileExpr env c
-         (_,body) <- confiscateBlock $ compileProg env loc t
-         cases <- chaseTree env loc _s f
+         e <- compileExpr c
+         (_,body) <- confiscateBlock $ compileProg loc t
+         cases <- chaseTree loc _s f
          return $ (Pat e, body) : cases
 
-chaseTree env loc _ a = do
-    (_,body) <- confiscateBlock $ compileProg env loc a
+chaseTree loc _ a = do
+    (_,body) <- confiscateBlock $ compileProg loc a
     return [(PatDefault, body)]
 
 -- | Chase down the right-spine of `Bind` and `Then` constructs and return
@@ -1065,11 +1083,12 @@ In most cases I expect `withArray` to return a scalar as its final
 result and then the copyProg is harmless.
 -}
 
-compileBind :: CompileEnv -> (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
-compileBind env (Ut.Var v t, e) = do
-   let var = mkVariable (compileTypeRep (opts env) t) v
+compileBind :: (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
+compileBind (Ut.Var v t, e) = do
+   opts <- asks backendOpts
+   let var = mkVariable (compileTypeRep opts t) v
    declare var
-   compileProg env (Just $ varToExpr var) e
+   compileProg (Just $ varToExpr var) e
 
 -- | Translates Op names to strings.
 compileOp :: Ut.Op -> String

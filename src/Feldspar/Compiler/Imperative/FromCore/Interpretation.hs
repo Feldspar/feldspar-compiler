@@ -62,12 +62,13 @@ import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 -- | Code generation monad
 type CodeWriter = RWS CodeEnv CodeParts VarId
 
-data CodeEnv = CodeEnv { alias :: [(VarId, Expression ())] -- ^ variable aliasing
-                       , backendOpts :: Options -- ^ Options for the backend.
+data CodeEnv = CodeEnv { aliases     :: [(VarId, Expression ())] -- ^ Variable aliasing
+                       , inTask      :: Bool                     -- ^ Are we currently in a concurrent task?
+                       , backendOpts :: Options                  -- ^ Options for the backend
                        }
 
 initEnv :: Options -> CodeEnv
-initEnv = CodeEnv []
+initEnv = CodeEnv [] False
 
 data CodeParts = CodeParts { block    :: Block ()         -- ^ collects code within one block
                            , def      :: [Entity ()]      -- ^ collects top level definitions
@@ -568,7 +569,7 @@ confiscateBigBlock m
     $ listen m
 
 withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
-withAlias v0 expr = local (\e -> e {alias = (v0,expr) : alias e})
+withAlias v0 expr = local (\e -> e {aliases = (v0,expr) : aliases e})
 
 isVariableOrLiteral :: Ut.UntypedFeld -> Bool
 isVariableOrLiteral (Ut.In Ut.Literal{})  = True
