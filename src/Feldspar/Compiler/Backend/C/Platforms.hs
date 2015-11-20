@@ -168,7 +168,7 @@ deepCopy _ (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
                                                       , ValueParameter in1]
           aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
 
-deepCopy _ _ = error "Multiple scalar arguments to copy"
+deepCopy _ _ = error "Multiple non-array arguments to copy"
 
 flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] ->
                Expression () -> [Program ()]

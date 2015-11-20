@@ -45,8 +45,8 @@ toProg (Block [] p) = p
 toProg e = BlockProgram e
 
 -- | Copies expressions into a destination. If the destination is
--- a non-scalar the arguments are appended to the destination.
-copyProg :: Maybe (Expression ())-> [Expression ()] -> Program ()
+-- an array the arguments are appended into the destination.
+copyProg :: Maybe (Expression ()) -> [Expression ()] -> Program ()
 copyProg _ []      = error "copyProg: missing source parameter."
 copyProg Nothing _ = Empty
 copyProg (Just outExp) inExp =
