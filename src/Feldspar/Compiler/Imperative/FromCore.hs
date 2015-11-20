@@ -288,7 +288,7 @@ compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) 
    tellProg [for ptyp (locName ix) (litI32 0) len' (litI32 1) b]
 compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
-   , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
+   , (bs, In (Ut.App Ut.Tup _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
    , not $ null bs
    , (e, step) <- last bs
    , t1 == e
@@ -556,7 +556,7 @@ compileProg loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.E
     tellProg [Switch{..}]
 compileProg loc (In (App Ut.Switch _ [tree])) = compileProg loc tree
 -- Tuple
-compileProg loc (In (App tup _ ms)) | isTuple tup = sequence_
+compileProg loc (In (App Ut.Tup _ ms)) = sequence_
     [ compileProg (StructField <$> loc <*> pure ("member" ++ show n)) m
       | (n,m) <- zip [1..] ms
     ]
@@ -692,9 +692,7 @@ compileExpr e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.SetLength, Ut.Sequential, Ut.Condition, Ut.ConditionM
             , Ut.MkFuture, Ut.Await, Ut.Bind, Ut.Then, Ut.Return, Ut.While, Ut.For, Ut.SetArr, Ut.EMaterialize
             , Ut.WhileLoop, Ut.ForLoop, Ut.RunMutableArray, Ut.NoInline
-            , Ut.Switch, Ut.WithArray, Ut.Tup2, Ut.Tup3, Ut.Tup4, Ut.Tup5
-            , Ut.Tup6, Ut.Tup7, Ut.Tup8, Ut.Tup9, Ut.Tup10, Ut.Tup11, Ut.Tup11
-            , Ut.Tup12, Ut.Tup13, Ut.Tup14, Ut.Tup15]
+            , Ut.Switch, Ut.WithArray, Ut.Tup]
  = compileProgFresh e
 compileExpr (In (App p t es)) = do
     opts <- asks backendOpts
@@ -790,23 +788,6 @@ isVariableOrLiteral :: Ut.UntypedFeld -> Bool
 isVariableOrLiteral (Ut.In Ut.Literal{})  = True
 isVariableOrLiteral (Ut.In Ut.Variable{}) = True
 isVariableOrLiteral _                     = False
-
-isTuple :: Ut.Op -> Bool
-isTuple Ut.Tup2 = True
-isTuple Ut.Tup3 = True
-isTuple Ut.Tup4 = True
-isTuple Ut.Tup5 = True
-isTuple Ut.Tup6 = True
-isTuple Ut.Tup7 = True
-isTuple Ut.Tup8 = True
-isTuple Ut.Tup9 = True
-isTuple Ut.Tup10 = True
-isTuple Ut.Tup11 = True
-isTuple Ut.Tup12 = True
-isTuple Ut.Tup13 = True
-isTuple Ut.Tup14 = True
-isTuple Ut.Tup15 = True
-isTuple _ = False
 
 -- | Create a variable of the right type for storing a length.
 mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
