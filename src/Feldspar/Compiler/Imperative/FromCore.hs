@@ -556,139 +556,10 @@ compileProg loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.E
     tellProg [Switch{..}]
 compileProg loc (In (App Ut.Switch _ [tree])) = compileProg loc tree
 -- Tuple
-compileProg loc (In (App Ut.Tup2 _ [m1, m2])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-compileProg loc (In (App Ut.Tup3 _ [m1, m2, m3])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-compileProg loc (In (App Ut.Tup4 _ [m1, m2, m3, m4])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-compileProg loc (In (App Ut.Tup5 _ [m1, m2, m3, m4, m5])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-compileProg loc (In (App Ut.Tup6 _ [m1, m2, m3, m4, m5, m6])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-compileProg loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-compileProg loc (In (App Ut.Tup8 _ [m1, m2, m3, m4, m5, m6, m7, m8])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-compileProg loc (In (App Ut.Tup9 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-compileProg loc (In (App Ut.Tup10 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-compileProg loc (In (App Ut.Tup11 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-compileProg loc (In (App Ut.Tup12 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-compileProg loc (In (App Ut.Tup13 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-    compileProg (StructField <$> loc <*> pure "member13") m13
-compileProg loc (In (App Ut.Tup14 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-    compileProg (StructField <$> loc <*> pure "member13") m13
-    compileProg (StructField <$> loc <*> pure "member14") m14
-compileProg loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-    compileProg (StructField <$> loc <*> pure "member13") m13
-    compileProg (StructField <$> loc <*> pure "member14") m14
-    compileProg (StructField <$> loc <*> pure "member15") m15
+compileProg loc (In (App tup _ ms)) | isTuple tup = sequence_
+    [ compileProg (StructField <$> loc <*> pure ("member" ++ show n)) m
+      | (n,m) <- zip [1..] ms
+    ]
 -- Special case foreign imports since they can be of void type and just have effects.
 compileProg (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
     opts <- asks backendOpts
@@ -919,6 +790,23 @@ isVariableOrLiteral :: Ut.UntypedFeld -> Bool
 isVariableOrLiteral (Ut.In Ut.Literal{})  = True
 isVariableOrLiteral (Ut.In Ut.Variable{}) = True
 isVariableOrLiteral _                     = False
+
+isTuple :: Ut.Op -> Bool
+isTuple Ut.Tup2 = True
+isTuple Ut.Tup3 = True
+isTuple Ut.Tup4 = True
+isTuple Ut.Tup5 = True
+isTuple Ut.Tup6 = True
+isTuple Ut.Tup7 = True
+isTuple Ut.Tup8 = True
+isTuple Ut.Tup9 = True
+isTuple Ut.Tup10 = True
+isTuple Ut.Tup11 = True
+isTuple Ut.Tup12 = True
+isTuple Ut.Tup13 = True
+isTuple Ut.Tup14 = True
+isTuple Ut.Tup15 = True
+isTuple _ = False
 
 -- | Create a variable of the right type for storing a length.
 mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
