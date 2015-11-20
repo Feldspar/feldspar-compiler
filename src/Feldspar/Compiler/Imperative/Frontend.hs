@@ -57,9 +57,14 @@ copyProg (Just outExp) inExp =
     [x] | outExp == x -> Empty
     _                 -> call "copy" (map ValueParameter (outExp:inExp))
 
-mkInitialize :: String -> Location -> Expression () -> Program ()
-mkInitialize _    Nothing    _   = Empty
-mkInitialize name (Just arr) len
+-- | General array initialization
+mkInitArr
+    :: String         -- ^ Name of initialization function (e.g. \"initArray\")
+    -> Location       -- ^ Array location
+    -> Expression ()  -- ^ Array length
+    -> Program ()
+mkInitArr _    Nothing    _   = Empty
+mkInitArr name (Just arr) len
   | isNativeArray arrType
   = Empty
   | otherwise
@@ -73,11 +78,19 @@ mkInitialize name (Just arr) len
     go (ArrayType _ e) = e
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
-initArray :: Location -> Expression () -> Program ()
-initArray = mkInitialize "initArray"
+-- | Initialize an array using \"initArray\"
+initArray
+    :: Location       -- ^ Array location
+    -> Expression ()  -- ^ Array length
+    -> Program ()
+initArray = mkInitArr "initArray"
 
-setLength :: Location -> Expression () -> Program ()
-setLength = mkInitialize "setLength"
+-- | Initialize an array using \"setLength\"
+setLength
+    :: Location       -- ^ Array location
+    -> Expression ()  -- ^ Array length
+    -> Program ()
+setLength = mkInitArr "setLength"
 
 -- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
