@@ -31,8 +31,27 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 
--- | Module that translates from the UntypedFeld program from the middleend to
---   the module format in the backend.
+-- | This module provides functions for translating from the 'UntypedFeld'
+-- representation (\"Feldspar core\") to imperative code (from
+-- "Feldspar.Compiler.Imperative.Representation").
+--
+-- Compilation is done as follows:
+--
+-- * The user calls one of the @fromCoreX@ functions
+--
+-- * @fromCoreX@ calls 'compileProgTop' which recurively deals with top-level
+--   lambdas and let bindings.
+--
+-- * When 'compileProgTop' gets to the body (the first non-lambda, non-let
+--   node), it calls 'compileProg' to generate code that writes the result to
+--   the variable \"out\".
+--
+-- * The body of the code is generated using mutual recursion between
+--   'compileProg' and 'compileExpr'. The former handles constructs whose
+--   result cannot be represented as a non-variable 'Expression' (e.g. a
+--   conditional), and the latter handles all other constructs (e.g. primitive
+--   functions).
+
 module Feldspar.Compiler.Imperative.FromCore (
     fromCoreUT
   , fromCore
@@ -68,38 +87,11 @@ import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.MachineLowering
 
-compileType :: Options -> Ut.Type -> Type
-compileType _   Ut.BoolType            = MachineVector 1 BoolType
-compileType _   Ut.BitType             = MachineVector 1 BitType
-compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileType _   Ut.FloatType           = MachineVector 1 FloatType
-compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
-compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
-compileType _   (Ut.TupType [])        = VoidType
-compileType opt (Ut.TupType ts)        = mkStructType
-    [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
-compileType opt (Ut.MutType a)         = compileType opt a
-compileType opt (Ut.RefType a)         = compileType opt a
-compileType opt (Ut.ArrayType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
- | otherwise           = ArrayType rs $ compileType opt a
-compileType opt (Ut.MArrType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
- | otherwise           = ArrayType rs $ compileType opt a
-compileType opt (Ut.ParType a)         = compileType opt a
-compileType opt (Ut.ElementsType a)
- | useNativeArrays opt = NativeArray Nothing $ compileType opt a
- | otherwise           = ArrayType fullRange $ compileType opt a
-compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
-compileType opt (Ut.FunType _ b)       = compileType opt b
-compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
 
--- | Generate and declare a fresh variable expression
-freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
-freshVar opt base t = do
-  v <- mkNamedVar base (compileType opt t) <$> freshId
-  declare v
-  return $ varToExpr v
+
+--------------------------------------------------------------------------------
+-- * Top-level translation functions
+--------------------------------------------------------------------------------
 
 {-
 
@@ -202,6 +194,8 @@ fromCoreExp opt aliases prog = do
            , renameProg opt x <$> epilogue results
            )
 
+-- | Generate code for an expression that may have top-level lambdas and let
+-- bindings. The returned variable holds the result of the generated code.
 compileProgTop :: Ut.UntypedFeld -> CodeWriter (Variable ())
 compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
   opt <- asks backendOpts
@@ -230,101 +224,51 @@ compileProgTop a = do
   compileProg (Just outLoc) a
   return outParam
 
-{-
 
-Precise size information
-------------------------
 
-Tight size bounds for a given literal is easy to compute. Precise
-bounds are particularly important for array literals since they are
-often copied in the deepCopy function near the CodeGen in the
-backend. Deepcopy will appear to hang when generating the copy code
-for insanely large array literals, so don't do that.
+--------------------------------------------------------------------------------
+-- * compileType
+--------------------------------------------------------------------------------
 
--}
+-- | Compile a type representation. The conversion is platform-dependent, which
+-- is why the function takes and 'Options' argument.
+compileType :: Options -> Ut.Type -> Type
+compileType _   Ut.BoolType            = MachineVector 1 BoolType
+compileType _   Ut.BitType             = MachineVector 1 BitType
+compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
+compileType _   Ut.FloatType           = MachineVector 1 FloatType
+compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
+compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
+compileType _   (Ut.TupType [])        = VoidType
+compileType opt (Ut.TupType ts)        = mkStructType
+    [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
+compileType opt (Ut.MutType a)         = compileType opt a
+compileType opt (Ut.RefType a)         = compileType opt a
+compileType opt (Ut.ArrayType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.MArrType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.ParType a)         = compileType opt a
+compileType opt (Ut.ElementsType a)
+ | useNativeArrays opt = NativeArray Nothing $ compileType opt a
+ | otherwise           = ArrayType fullRange $ compileType opt a
+compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
+compileType opt (Ut.FunType _ b)       = compileType opt b
+compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
 
--- | Compiles code and assigns the expression to the given location.
-compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()
-compileExprLoc loc e = do
-    expr <- compileExpr e
-    assign loc expr
 
--- | Compiles code into a fresh variable.
-compileProgFresh :: Ut.UntypedFeld -> CodeWriter (Expression ())
-compileProgFresh e = do
-    opts <- asks backendOpts
-    loc <- freshVar opts "e" (typeof e)
-    compileProg (Just loc) e
-    return loc
 
--- | Compile an expression and make sure that the result is stored in a variable
-compileExprVar :: Ut.UntypedFeld -> CodeWriter (Expression ())
-compileExprVar e = do
-    e' <- compileExpr e
-    case e' of
-        _ | isNearlyVar e' -> return e'
-        _         -> do
-            varId <- freshId
-            let loc  = mkNamedVar "e" (typeof e') varId
-                locE = varToExpr loc
-            declare loc
-            assign (Just locE) e'
-            return locE
-  where isNearlyVar VarExpr{}  = True
-        isNearlyVar (Deref e)  = isNearlyVar e
-        isNearlyVar (AddrOf e) = isNearlyVar e
-        isNearlyVar _          = False
+--------------------------------------------------------------------------------
+-- * compileProg
+--------------------------------------------------------------------------------
 
--- | Compile a function bound by a LetFun.
-compileFunction :: Expression () -> (String, Fork, Ut.UntypedFeld) -> CodeWriter ()
-compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
-  es' <- mapM compileExpr (map (In . Ut.Variable) bs)
-  let args = nub $ map exprToVar es' ++ fv loc
-  -- Task core:
-  (_, (Block ds bl, decls, _)) <- confiscateBigBlock $
-    case kind of
-      Future -> do
-        p' <- local (\env -> env {inTask = True }) $ compileExprVar e'
-        tellProg [iVarPut loc p']
-      Par -> local (\env -> env {inTask = True }) $ compileProg (Just loc) e'
-      Loop | (ix:_) <- es'
-           , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
-           | (ix:_) <- es' -> compileProg (Just $ ArrayElem loc ix) e'
-      None -> compileProg (Just loc) e'
-  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
-  -- Task:
-  let taskName = "task" ++ drop 9 coreName
-      runTask  = Just $ toBlock $ run coreName args
-      outs     = [mkNamedRef "params" VoidType (-1)]
-  case kind of
-   _ | kind `elem` [None, Loop] -> return ()
-   _    -> tellDef [Proc taskName False [] (Left outs) runTask]
+-- 'compileProg' should handle constructs whose result cannot be represented as
+-- a non-variable 'Expression' (e.g. a conditional), and delegate all other
+-- constructs to 'compileExpr'. Delegation is done by calling 'compileExprLoc'.
 
--- | Check if an expression is a variable or a literal
-isVariableOrLiteral :: Ut.UntypedFeld -> Bool
-isVariableOrLiteral (Ut.In Ut.Literal{})  = True
-isVariableOrLiteral (Ut.In Ut.Variable{}) = True
-isVariableOrLiteral _                     = False
-
--- | Create a variable of the right type for storing a length.
-mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
-mkLength a t
-  | isVariableOrLiteral a = compileExpr a
-  | otherwise             = do
-      opts <- asks backendOpts
-      lenvar <- freshVar opts "len" t
-      compileProg (Just lenvar) a
-      return lenvar
-
-mkBranch :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld -> Maybe Ut.UntypedFeld -> CodeWriter ()
-mkBranch loc c th el = do
-    ce <- compileExpr c
-    (_, tb) <- confiscateBlock $ compileProg loc th
-    (_, eb) <- if isJust el
-                  then confiscateBlock $ compileProg loc (fromJust el)
-                  else return (undefined, toBlock Empty)
-    tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
-
+-- | Compile an expression and put the result in the given location
 compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
 compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
@@ -762,6 +706,17 @@ compileProg (Just loc) (In (App (Ut.Call f name) _ es)) = do
 compileProg loc e = compileExprLoc loc e
 
 
+
+--------------------------------------------------------------------------------
+-- * compileExpr
+--------------------------------------------------------------------------------
+
+-- 'compileExpr' should handle constructs whose can be represented as a
+-- non-variable 'Expression' (e.g. a conditional), and delegate all other
+-- constructs to 'compileProg'. Delegation is done by calling
+-- 'compileProgFresh'.
+
+-- | Compile an expression
 compileExpr :: Ut.UntypedFeld -> CodeWriter (Expression ())
 -- Array
 compileExpr (In (App Ut.GetLength _ [a])) = do
@@ -875,6 +830,114 @@ compileExpr (In (App p t es)) = do
     es' <- mapM compileExpr es
     return $ fun (compileType opts t) (compileOp p) es'
 compileExpr e = compileProgFresh e
+
+
+
+--------------------------------------------------------------------------------
+-- * Compilation helper functions
+--------------------------------------------------------------------------------
+
+{-
+
+Precise size information
+------------------------
+
+Tight size bounds for a given literal is easy to compute. Precise
+bounds are particularly important for array literals since they are
+often copied in the deepCopy function near the CodeGen in the
+backend. Deepcopy will appear to hang when generating the copy code
+for insanely large array literals, so don't do that.
+
+-}
+
+-- | Call 'compileExpr' and assign the result to the given location.
+compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()
+compileExprLoc loc e = do
+    expr <- compileExpr e
+    assign loc expr
+
+-- | Generate and declare a fresh variable expression
+freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
+freshVar opt base t = do
+  v <- mkNamedVar base (compileType opt t) <$> freshId
+  declare v
+  return $ varToExpr v
+
+-- | Compiles code into a fresh variable.
+compileProgFresh :: Ut.UntypedFeld -> CodeWriter (Expression ())
+compileProgFresh e = do
+    opts <- asks backendOpts
+    loc <- freshVar opts "e" (typeof e)
+    compileProg (Just loc) e
+    return loc
+
+-- | Compile an expression and make sure that the result is stored in a variable
+compileExprVar :: Ut.UntypedFeld -> CodeWriter (Expression ())
+compileExprVar e = do
+    e' <- compileExpr e
+    case e' of
+        _ | isNearlyVar e' -> return e'
+        _         -> do
+            varId <- freshId
+            let loc  = mkNamedVar "e" (typeof e') varId
+                locE = varToExpr loc
+            declare loc
+            assign (Just locE) e'
+            return locE
+  where isNearlyVar VarExpr{}  = True
+        isNearlyVar (Deref e)  = isNearlyVar e
+        isNearlyVar (AddrOf e) = isNearlyVar e
+        isNearlyVar _          = False
+
+-- | Compile a function bound by a LetFun.
+compileFunction :: Expression () -> (String, Fork, Ut.UntypedFeld) -> CodeWriter ()
+compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
+  es' <- mapM compileExpr (map (In . Ut.Variable) bs)
+  let args = nub $ map exprToVar es' ++ fv loc
+  -- Task core:
+  (_, (Block ds bl, decls, _)) <- confiscateBigBlock $
+    case kind of
+      Future -> do
+        p' <- local (\env -> env {inTask = True }) $ compileExprVar e'
+        tellProg [iVarPut loc p']
+      Par -> local (\env -> env {inTask = True }) $ compileProg (Just loc) e'
+      Loop | (ix:_) <- es'
+           , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
+           | (ix:_) <- es' -> compileProg (Just $ ArrayElem loc ix) e'
+      None -> compileProg (Just loc) e'
+  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
+  -- Task:
+  let taskName = "task" ++ drop 9 coreName
+      runTask  = Just $ toBlock $ run coreName args
+      outs     = [mkNamedRef "params" VoidType (-1)]
+  case kind of
+   _ | kind `elem` [None, Loop] -> return ()
+   _    -> tellDef [Proc taskName False [] (Left outs) runTask]
+
+-- | Check if an expression is a variable or a literal
+isVariableOrLiteral :: Ut.UntypedFeld -> Bool
+isVariableOrLiteral (Ut.In Ut.Literal{})  = True
+isVariableOrLiteral (Ut.In Ut.Variable{}) = True
+isVariableOrLiteral _                     = False
+
+-- | Create a variable of the right type for storing a length.
+mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
+mkLength a t
+  | isVariableOrLiteral a = compileExpr a
+  | otherwise             = do
+      opts <- asks backendOpts
+      lenvar <- freshVar opts "len" t
+      compileProg (Just lenvar) a
+      return lenvar
+
+mkBranch :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld -> Maybe Ut.UntypedFeld -> CodeWriter ()
+mkBranch loc c th el = do
+    ce <- compileExpr c
+    (_, tb) <- confiscateBlock $ compileProg loc th
+    (_, eb) <- if isJust el
+                  then confiscateBlock $ compileProg loc (fromJust el)
+                  else return (undefined, toBlock Empty)
+    tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
 
 compileLet :: Ut.UntypedFeld -> Ut.Type -> VarId -> CodeWriter (Expression ())
 compileLet a ta v = do
