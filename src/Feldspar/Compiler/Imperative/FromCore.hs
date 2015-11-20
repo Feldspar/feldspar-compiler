@@ -136,7 +136,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
     post       = epilogue results ++ returns
     Block ds p = block results
     outDecl    = Declaration outParam Nothing
-    paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
+    paramTypes = getTypeDefs $ outDecl:map (`Declaration` Nothing) ins
     defs       = nub (def results ++ paramTypes) ++ topProc
 
     (outs, ds', returns)

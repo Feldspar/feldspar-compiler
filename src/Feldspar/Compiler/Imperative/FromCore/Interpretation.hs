@@ -183,7 +183,7 @@ tellDeclWith free ds = do
     let frees | free = freeArrays ds ++ freeIVars ds
               | otherwise = []
         opts = backendOpts rs
-        defs = getTypes ds
+        defs = getTypeDefs ds
         code | varFloating $ platform opts = mempty {decl = ds, epilogue = frees, def = defs}
              | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
@@ -276,8 +276,10 @@ decodeType = goL []
       = Just p
       | otherwise = Nothing
 
-getTypes :: [Declaration ()] -> [Entity ()]
-getTypes defs = nub $ concatMap mkDef comps
+-- | Find declarations that require top-level type definitions, and return those
+-- definitions
+getTypeDefs :: [Declaration ()] -> [Entity ()]
+getTypeDefs defs = nub $ concatMap mkDef comps
   where
     comps = filter isComposite' $ map (typeof . declVar) defs
     -- There are other composite types that are not flagged as such by this
@@ -382,6 +384,11 @@ confiscateBigBlock m
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
-withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
+-- | Add an alias to the environment of a local code generator
+withAlias
+    :: VarId          -- ^ Variable to alias
+    -> Expression ()  -- ^ Expression to substitute for the variable
+    -> CodeWriter a   -- ^ Local code generator
+    -> CodeWriter a
 withAlias v0 expr = local (\e -> e {aliases = (v0,expr) : aliases e})
 
