@@ -31,13 +31,31 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
 
--- | Module that translates from the UntypedFeld program from the middleend to
---   the module format in the backend.
+-- | This module provides functions for translating from the 'UntypedFeld'
+-- representation (\"Feldspar core\") to imperative code (from
+-- "Feldspar.Compiler.Imperative.Representation").
+--
+-- Compilation is done as follows:
+--
+-- * The user calls one of the @fromCoreX@ functions
+--
+-- * @fromCoreX@ calls 'compileProgTop' which recurively deals with top-level
+--   lambdas and let bindings.
+--
+-- * When 'compileProgTop' gets to the body (the first non-lambda, non-let
+--   node), it calls 'compileProg' to generate code that writes the result to
+--   the variable \"out\".
+--
+-- * The body of the code is generated using mutual recursion between
+--   'compileProg' and 'compileExpr'. The former handles constructs whose
+--   result cannot be represented as a non-variable 'Expression' (e.g. a
+--   conditional), and the latter handles all other constructs (e.g. primitive
+--   functions).
+
 module Feldspar.Compiler.Imperative.FromCore (
     fromCoreUT
   , fromCore
   , fromCoreExp
-  , getCore'
   )
   where
 
@@ -50,7 +68,8 @@ import Control.Monad.RWS
 import Control.Monad.State
 import Control.Applicative
 
-import Feldspar.Core.Types
+import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Core.Types (BitWidth (..))
 import Feldspar.Core.UntypedRepresentation
          ( VarId(..), UntypedFeld, Term(..), Lit(..)
          , collectLetBinders, collectBinders
@@ -62,16 +81,17 @@ import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
 import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Core.Frontend (reifyFeldM, reifyFeld)
 
-import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..), ScalarType(..))
 import Feldspar.Compiler.Imperative.Representation
-         ( ActualParameter(..), Block(..), Declaration(..), Entity(..)
-         , Expression(..), Module(..), Program(..), Pattern(..), ParType(..)
-         , Constant(..), typeof, fv
-         )
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.MachineLowering
+
+
+
+--------------------------------------------------------------------------------
+-- * Top-level translation functions
+--------------------------------------------------------------------------------
 
 {-
 
@@ -80,8 +100,8 @@ Fast returns
 
 Fast returns really means single return value and that value fits in a
 register--thus they are platform dependent. This is why we have to use
-compileTypeRep since that can make configuration specific choices
-about data layout.
+compileType since that can make configuration specific choices about
+data layout.
 
 The user is free to ask for fast returns (by setting 'useNativeReturns' to True),
 but we might not be able to comply.
@@ -98,7 +118,7 @@ fromCoreUT
 fromCoreUT opt funname uast = (Module defs, maxVar')
   where
     maxVar  = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
-    fastRet = useNativeReturns opt && canFastReturn (compileTypeRep opt (typeof uast))
+    fastRet = useNativeReturns opt && canFastReturn (compileType opt (typeof uast))
 
     (outParam,maxVar',results) = runRWS (compileProgTop uast) (initEnv opt) maxVar
 
@@ -107,7 +127,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
     post       = epilogue results ++ returns
     Block ds p = block results
     outDecl    = Declaration outParam Nothing
-    paramTypes = getTypes $ outDecl:map (`Declaration` Nothing) ins
+    paramTypes = getTypeDefs $ outDecl:map (`Declaration` Nothing) ins
     defs       = nub (def results ++ paramTypes) ++ topProc
 
     (outs, ds', returns)
@@ -122,7 +142,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
      = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
      | otherwise = p:post
       where
-        four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
+        four = ValueParameter $ ConstExpr $ IntConst 4 $ NumType Ut.Unsigned Ut.S32
 
     isTask (Proc{..}) = isPrefixOf "task_core" procName
     isTask _          = False
@@ -160,7 +180,7 @@ fromCoreExp opt aliases prog = do
         uast = untype (frontendOpts opt) ast
         mkAlias (Ut.Var i t) = do
           n <- Map.lookup i aliases
-          return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
+          return (i, varToExpr $ Variable (compileType opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
     let (exp,s'',results) = runRWS (compileExpr uast) (CodeEnv as False opt) s'
     put s''
@@ -174,16 +194,14 @@ fromCoreExp opt aliases prog = do
            , renameProg opt x <$> epilogue results
            )
 
--- | Get the generated core for a program.
-getCore' :: SyntacticFeld a => Options -> a -> Module ()
-getCore' opts = fromCore opts "test"
-
-compileProgTop :: Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
+-- | Generate code for an expression that may have top-level lambdas and let
+-- bindings. The returned variable holds the result of the generated code.
+compileProgTop :: Ut.UntypedFeld -> CodeWriter (Variable ())
 compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
   opt <- asks backendOpts
-  let typ = compileTypeRep opt ta
-      (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
-                 | otherwise               = (mkVariable typ v, varToExpr arg)
+  let typ = compileType opt ta
+      (arg,arge) | StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
+                 | otherwise           = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
      compileProgTop body
@@ -197,121 +215,77 @@ compileProgTop (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v 
          compileProgTop body
 compileProgTop a = do
   opt <- asks backendOpts
-  let outType' = compileTypeRep opt (typeof a)
+  let outType' = compileType opt (typeof a)
       fastRet  = useNativeReturns opt && canFastReturn outType'
       (outType, outLoc)
        | fastRet   = (outType', varToExpr outParam)
-       | otherwise = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
-      outParam   = Rep.Variable outType "out"
+       | otherwise = (MachineVector 1 (Pointer outType'), Deref $ varToExpr outParam)
+      outParam   = Variable outType "out"
   compileProg (Just outLoc) a
   return outParam
 
-{-
 
-Precise size information
-------------------------
 
-Tight size bounds for a given literal is easy to compute. Precise
-bounds are particularly important for array literals since they are
-often copied in the deepCopy function near the CodeGen in the
-backend. Deepcopy will appear to hang when generating the copy code
-for insanely large array literals, so don't do that.
+--------------------------------------------------------------------------------
+-- * compileType
+--------------------------------------------------------------------------------
 
--}
+-- | Compile a type representation. The conversion is platform-dependent, which
+-- is why the function takes and 'Options' argument.
+compileType :: Options -> Ut.Type -> Type
+compileType _   Ut.BoolType            = MachineVector 1 BoolType
+compileType _   Ut.BitType             = MachineVector 1 BitType
+compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
+compileType _   Ut.FloatType           = MachineVector 1 FloatType
+compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
+compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
+compileType _   (Ut.TupType [])        = VoidType
+compileType opt (Ut.TupType ts)        = mkStructType
+    [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
+compileType opt (Ut.MutType a)         = compileType opt a
+compileType opt (Ut.RefType a)         = compileType opt a
+compileType opt (Ut.ArrayType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.MArrType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.ParType a)         = compileType opt a
+compileType opt (Ut.ElementsType a)
+ | useNativeArrays opt = NativeArray Nothing $ compileType opt a
+ | otherwise           = ArrayType fullRange $ compileType opt a
+compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
+compileType opt (Ut.FunType _ b)       = compileType opt b
+compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
 
--- | Compiles code and assigns the expression to the given location.
-compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()
-compileExprLoc loc e = do
-    expr <- compileExpr e
-    assign loc expr
 
--- | Compiles code into a fresh variable.
-compileProgFresh :: Ut.UntypedFeld -> CodeWriter (Expression ())
-compileProgFresh e = do
-    opts <- asks backendOpts
-    loc <- freshVar opts "e" (typeof e)
-    compileProg (Just loc) e
-    return loc
 
--- | Compile an expression and make sure that the result is stored in a variable
-compileExprVar :: Ut.UntypedFeld -> CodeWriter (Expression ())
-compileExprVar e = do
-    e' <- compileExpr e
-    case e' of
-        _ | isNearlyVar e' -> return e'
-        _         -> do
-            varId <- freshId
-            let loc  = mkNamedVar "e" (typeof e') varId
-                locE = varToExpr loc
-            declare loc
-            assign (Just locE) e'
-            return locE
-  where isNearlyVar VarExpr{}  = True
-        isNearlyVar (Deref e)  = isNearlyVar e
-        isNearlyVar (AddrOf e) = isNearlyVar e
-        isNearlyVar _          = False
+--------------------------------------------------------------------------------
+-- * compileProg
+--------------------------------------------------------------------------------
 
--- | Compile a function bound by a LetFun.
-compileFunction :: Expression () -> (String, Fork, Ut.UntypedFeld) -> CodeWriter ()
-compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
-  es' <- mapM compileExpr (map (In . Ut.Variable) bs)
-  let args = nub $ map exprToVar es' ++ fv loc
-  -- Task core:
-  (_, (Block ds bl, decls, _)) <- confiscateBigBlock $
-    case kind of
-      Future -> do
-        p' <- local (\env -> env {inTask = True }) $ compileExprVar e'
-        tellProg [iVarPut loc p']
-      Par -> local (\env -> env {inTask = True }) $ compileProg (Just loc) e'
-      Loop | (ix:_) <- es'
-           , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
-           | (ix:_) <- es' -> compileProg (Just $ ArrayElem loc ix) e'
-      None -> compileProg (Just loc) e'
-  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
-  -- Task:
-  let taskName = "task" ++ drop 9 coreName
-      runTask  = Just $ toBlock $ run coreName args
-      outs     = [mkNamedRef "params" Rep.VoidType (-1)]
-  case kind of
-   _ | kind `elem` [None, Loop] -> return ()
-   _    -> tellDef [Proc taskName False [] (Left outs) runTask]
+-- 'compileProg' should handle constructs whose result cannot be represented as
+-- a non-variable 'Expression' (e.g. a conditional), and delegate all other
+-- constructs to 'compileExpr'. Delegation is done by calling 'compileExprLoc'.
 
--- | Create a variable of the right type for storing a length.
-mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
-mkLength a t
-  | isVariableOrLiteral a = compileExpr a
-  | otherwise             = do
-      opts <- asks backendOpts
-      lenvar <- freshVar opts "len" t
-      compileProg (Just lenvar) a
-      return lenvar
-
-mkBranch :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld -> Maybe Ut.UntypedFeld -> CodeWriter ()
-mkBranch loc c th el = do
-    ce <- compileExpr c
-    (_, tb) <- confiscateBlock $ compileProg loc th
-    (_, eb) <- if isJust el
-                  then confiscateBlock $ compileProg loc (fromJust el)
-                  else return (undefined, toBlock Empty)
-    tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
-
+-- | Compile an expression and put the result in the given location
 compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
 compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    opts <- asks backendOpts
-   let ix = mkVar (compileTypeRep opts ta) v
+   let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM compileExpr vs
-            let mkV v = Rep.Variable (typeof v) (lName v)
+            let mkV v = Variable (typeof v) (locName v)
                 args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
             b' <- confiscateBlock $ compileProg (Just $ ArrayElem loc ix) ixf
             return (Parallel, snd b')
    tellProg [initArray (Just loc) len']
-   tellProg [for ptyp (lName ix) (litI32 0) len' (litI32 1) b]
+   tellProg [for ptyp (locName ix) (litI32 0) len' (litI32 1) b]
 compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup2 _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
@@ -323,10 +297,10 @@ compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v ti
         opts <- asks backendOpts
         blocks <- mapM (confiscateBlock . compileBind) (init bs)
         let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
-        let ix = mkVar (compileTypeRep opts tix) v
+        let ix = mkVar (compileType opts tix) v
         len' <- mkLength len tix
         st1 <- freshVar opts "st" tst
-        let st = mkPointer (compileTypeRep opts tst) s
+        let st = mkPointer (compileType opts tst) s
             st_val = Deref $ varToExpr st
         declareAlias st
         (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg (ArrayElem <$> loc <*> pure ix) step
@@ -334,20 +308,20 @@ compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v ti
         tellProg [ Assign (varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
-                  for Sequential (lName ix) (litI32 0) len' (litI32 1) $
+                  for Sequential (locName ix) (litI32 0) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
 compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
   = do
        opts <- asks backendOpts
        let tr' = typeof step
-       let ix = mkVar (compileTypeRep opts t) v
+       let ix = mkVar (compileType opts t) v
        len' <- mkLength len t
        tmp  <- freshVar opts "seq" tr'
        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg (Just tmp) step
        tellProg [initArray loc len']
        compileProg (Just $ StructField tmp "member2") st
        tellProg [toProg $ Block ds $
-                 for Sequential (lName ix) (litI32 0) len' (litI32 1) $ toBlock $
+                 for Sequential (locName ix) (litI32 0) len' (litI32 1) $ toBlock $
                    Sequence $ body ++
                      [copyProg (ArrayElem <$> loc <*> pure ix) [StructField tmp "member1"]
                      ]]
@@ -399,18 +373,18 @@ compileProg loc (In (App Ut.EPar _ [p1, p2])) = do
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
 compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    opts <- asks backendOpts
-   let ix = mkVar (compileTypeRep opts ta) v
+   let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM compileExpr vs
-            let mkV v = Rep.Variable (typeof v) (lName v)
+            let mkV v = Variable (typeof v) (locName v)
                 args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
             b' <- confiscateBlock $ compileProg (Just loc) ixf
             return (Parallel, snd b')
-   tellProg [for ptyp (lName ix) (litI32 0) len' (litI32 1) b]
+   tellProg [for ptyp (locName ix) (litI32 0) len' (litI32 1) b]
 -- Error
 compileProg _ (In (App Ut.Undefined _ _)) = return ()
 compileProg loc (In (App (Ut.Assert msg) _ [cond, a])) = do
@@ -436,18 +410,18 @@ compileProg loc (In (Ut.Literal a)) =
 compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
   = do
       opts <- asks backendOpts
-      let ix' = mkVar (compileTypeRep opts ta) ix
+      let ix' = mkVar (compileType opts ta) ix
       len' <- mkLength len ta
       (lstate, stvar) <- mkDoubleBufferState loc st
       compileProg (Just lstate) init'
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
                           $ compileProg (Just stvar) ixf
                           >> shallowCopyWithRefSwap lstate stvar
-      tellProg [toProg $ Block ds (for Sequential (lName ix') (litI32 0) len' (litI32 1) (toBlock body))]
+      tellProg [toProg $ Block ds (for Sequential (locName ix') (litI32 0) len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
 compileProg (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
     opts <- asks backendOpts
-    let condv  = mkVariable (compileTypeRep opts (typeof cond)) cv
+    let condv  = mkVariable (compileType opts (typeof cond)) cv
         condvE = varToExpr condv
     (lstate,stvar) <- mkDoubleBufferState loc bv
     compileProg (Just lstate) init'
@@ -465,10 +439,10 @@ compileProg loc (In (App Ut.While _ [cond,step])) = do
    tellProg [while cond' condv step']
 compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    opts <- asks backendOpts
-   let ix = mkVar (compileTypeRep opts ta) v
+   let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
-   tellProg [toProg $ Block ds (for Sequential (lName ix) (litI32 0) len' (litI32 1) (toBlock body))]
+   tellProg [toProg $ Block ds (for Sequential (locName ix) (litI32 0) len' (litI32 1) (toBlock body))]
 -- Mutable
 compileProg loc (In (App Ut.Run _ [ma])) = compileProg loc ma
 compileProg loc (In (App Ut.Return t [a]))
@@ -478,13 +452,13 @@ compileProg loc (In (App Ut.Return t [a]))
 compileProg loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
    opts <- asks backendOpts
-   let var = mkVariable (compileTypeRep opts ta) v
+   let var = mkVariable (compileType opts ta) v
    declare var
    tellProg [iVarInit $ AddrOf $ varToExpr var]
    compileProg loc body
   | otherwise = do
    opts <- asks backendOpts
-   let var = mkVariable (compileTypeRep opts ta) v
+   let var = mkVariable (compileType opts ta) v
    declare var
    compileProg (Just (varToExpr var)) ma
    compileProg loc body
@@ -496,12 +470,12 @@ compileProg loc (In (App Ut.When _ [c, action])) =
 -- MutableArray
 compileProg loc (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
-   let var = mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
+   let var = mkNamedVar "i" (MachineVector 1 (NumType Ut.Unsigned Ut.S32)) nId
        ix  = varToExpr var
    a' <- compileExpr a
    l  <- compileExpr len
    tellProg [initArray loc l]
-   tellProg [for Sequential (Rep.varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
+   tellProg [for Sequential (varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
 compileProg loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr len
    tellProg [initArray loc l]
@@ -542,7 +516,7 @@ compileProg loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda 
       tellProg [copyProg loc [b]]
 compileProg loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     opts <- asks backendOpts
-    let var = mkVariable (compileTypeRep opts ta) v
+    let var = mkVariable (compileType opts ta) v
     declare var
     compileProg (Just $ varToExpr var) marr
     e <- compileExpr body
@@ -582,144 +556,15 @@ compileProg loc (In (App Ut.Switch _ [tree@(In (App Ut.Condition _ [In (App Ut.E
     tellProg [Switch{..}]
 compileProg loc (In (App Ut.Switch _ [tree])) = compileProg loc tree
 -- Tuple
-compileProg loc (In (App Ut.Tup2 _ [m1, m2])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-compileProg loc (In (App Ut.Tup3 _ [m1, m2, m3])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-compileProg loc (In (App Ut.Tup4 _ [m1, m2, m3, m4])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-compileProg loc (In (App Ut.Tup5 _ [m1, m2, m3, m4, m5])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-compileProg loc (In (App Ut.Tup6 _ [m1, m2, m3, m4, m5, m6])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-compileProg loc (In (App Ut.Tup7 _ [m1, m2, m3, m4, m5, m6, m7])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-compileProg loc (In (App Ut.Tup8 _ [m1, m2, m3, m4, m5, m6, m7, m8])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-compileProg loc (In (App Ut.Tup9 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-compileProg loc (In (App Ut.Tup10 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-compileProg loc (In (App Ut.Tup11 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-compileProg loc (In (App Ut.Tup12 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-compileProg loc (In (App Ut.Tup13 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-    compileProg (StructField <$> loc <*> pure "member13") m13
-compileProg loc (In (App Ut.Tup14 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-    compileProg (StructField <$> loc <*> pure "member13") m13
-    compileProg (StructField <$> loc <*> pure "member14") m14
-compileProg loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15])) = do
-    compileProg (StructField <$> loc <*> pure "member1") m1
-    compileProg (StructField <$> loc <*> pure "member2") m2
-    compileProg (StructField <$> loc <*> pure "member3") m3
-    compileProg (StructField <$> loc <*> pure "member4") m4
-    compileProg (StructField <$> loc <*> pure "member5") m5
-    compileProg (StructField <$> loc <*> pure "member6") m6
-    compileProg (StructField <$> loc <*> pure "member7") m7
-    compileProg (StructField <$> loc <*> pure "member8") m8
-    compileProg (StructField <$> loc <*> pure "member9") m9
-    compileProg (StructField <$> loc <*> pure "member10") m10
-    compileProg (StructField <$> loc <*> pure "member11") m11
-    compileProg (StructField <$> loc <*> pure "member12") m12
-    compileProg (StructField <$> loc <*> pure "member13") m13
-    compileProg (StructField <$> loc <*> pure "member14") m14
-    compileProg (StructField <$> loc <*> pure "member15") m15
+compileProg loc (In (App tup _ ms)) | isTuple tup = sequence_
+    [ compileProg (StructField <$> loc <*> pure ("member" ++ show n)) m
+      | (n,m) <- zip [1..] ms
+    ]
 -- Special case foreign imports since they can be of void type and just have effects.
 compileProg (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    tellProg [Assign loc $ fun (compileTypeRep opts t) (compileOp p) es']
+    tellProg [Assign loc $ fun (compileType opts t) (compileOp p) es']
 compileProg Nothing (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM compileExpr es
     tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
@@ -732,6 +577,17 @@ compileProg (Just loc) (In (App (Ut.Call f name) _ es)) = do
 compileProg loc e = compileExprLoc loc e
 
 
+
+--------------------------------------------------------------------------------
+-- * compileExpr
+--------------------------------------------------------------------------------
+
+-- 'compileExpr' should handle constructs whose can be represented as a
+-- non-variable 'Expression' (e.g. a conditional), and delegate all other
+-- constructs to 'compileProg'. Delegation is done by calling
+-- 'compileProgFresh'.
+
+-- | Compile an expression
 compileExpr :: Ut.UntypedFeld -> CodeWriter (Expression ())
 -- Array
 compileExpr (In (App Ut.GetLength _ [a])) = do
@@ -745,13 +601,13 @@ compileExpr (In (App Ut.GetIx _ [arr, i])) = do
 compileExpr (In (App Ut.Bit t [arr])) = do
    opts <- asks backendOpts
    a' <- compileExpr arr
-   let t' = compileTypeRep opts t
+   let t' = compileType opts t
    return $ binop t' "<<" (litI t' 1) a'
 -- Binding
 compileExpr (In (Ut.Variable (Ut.Var v t))) = do
         env <- ask
         case lookup v (aliases env) of
-          Nothing -> return $ mkVar (compileTypeRep (backendOpts env) t) v
+          Nothing -> return $ mkVar (compileType (backendOpts env) t) v
           Just e  -> return e
 compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     e <- compileLet a ta v
@@ -762,13 +618,13 @@ compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
 compileExpr (In (App Ut.F2I t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    let f' = fun (MachineVector 1 FloatType) "truncf" es'
+    return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.I2N t1 [e])) = do
     opts <- asks backendOpts
-    let t' = compileTypeRep opts t1
+    let t' = compileType opts t1
     case t' of
-      Rep.MachineVector 1 (Rep.ComplexType t) -> do
+      MachineVector 1 (ComplexType t) -> do
         e' <- compileExpr e
         let args = [Cast t e', litF 0]
         return $ fun t' (extend c99 "complex" t) args
@@ -778,22 +634,22 @@ compileExpr (In (App Ut.I2N t1 [e])) = do
 compileExpr (In (App Ut.B2I t [e])) = do
     opts <- asks backendOpts
     e' <- compileExpr e
-    return $ Cast (compileTypeRep opts t) e'
+    return $ Cast (compileType opts t) e'
 compileExpr (In (App Ut.Round t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    let f' = fun (MachineVector 1 FloatType) "roundf" es'
+    return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Ceiling t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    let f' = fun (MachineVector 1 FloatType) "ceilf" es'
+    return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Floor t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    let f' = fun (MachineVector 1 FloatType) "floorf" es'
+    return $ Cast (compileType opts t) f'
 -- Error
 compileExpr (In (App (Ut.Assert msg) _ [cond, a])) = do
     compileAssert cond msg
@@ -843,13 +699,138 @@ compileExpr e@(In (App p _ _))
 compileExpr (In (App p t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    return $ fun (compileTypeRep opts t) (compileOp p) es'
+    return $ fun (compileType opts t) (compileOp p) es'
 compileExpr e = compileProgFresh e
+
+
+
+--------------------------------------------------------------------------------
+-- * Compilation helper functions
+--------------------------------------------------------------------------------
+
+{-
+
+Precise size information
+------------------------
+
+Tight size bounds for a given literal is easy to compute. Precise
+bounds are particularly important for array literals since they are
+often copied in the deepCopy function near the CodeGen in the
+backend. Deepcopy will appear to hang when generating the copy code
+for insanely large array literals, so don't do that.
+
+-}
+
+-- | Call 'compileExpr' and assign the result to the given location.
+compileExprLoc :: Location  -> Ut.UntypedFeld  -> CodeWriter ()
+compileExprLoc loc e = do
+    expr <- compileExpr e
+    assign loc expr
+
+-- | Generate and declare a fresh variable expression
+freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
+freshVar opt base t = do
+  v <- mkNamedVar base (compileType opt t) <$> freshId
+  declare v
+  return $ varToExpr v
+
+-- | Compiles code into a fresh variable.
+compileProgFresh :: Ut.UntypedFeld -> CodeWriter (Expression ())
+compileProgFresh e = do
+    opts <- asks backendOpts
+    loc <- freshVar opts "e" (typeof e)
+    compileProg (Just loc) e
+    return loc
+
+-- | Compile an expression and make sure that the result is stored in a variable
+compileExprVar :: Ut.UntypedFeld -> CodeWriter (Expression ())
+compileExprVar e = do
+    e' <- compileExpr e
+    case e' of
+        _ | isNearlyVar e' -> return e'
+        _         -> do
+            varId <- freshId
+            let loc  = mkNamedVar "e" (typeof e') varId
+                locE = varToExpr loc
+            declare loc
+            assign (Just locE) e'
+            return locE
+  where isNearlyVar VarExpr{}  = True
+        isNearlyVar (Deref e)  = isNearlyVar e
+        isNearlyVar (AddrOf e) = isNearlyVar e
+        isNearlyVar _          = False
+
+-- | Compile a function bound by a LetFun.
+compileFunction :: Expression () -> (String, Fork, Ut.UntypedFeld) -> CodeWriter ()
+compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
+  es' <- mapM compileExpr (map (In . Ut.Variable) bs)
+  let args = nub $ map exprToVar es' ++ fv loc
+  -- Task core:
+  (_, (Block ds bl, decls, _)) <- confiscateBigBlock $
+    case kind of
+      Future -> do
+        p' <- local (\env -> env {inTask = True }) $ compileExprVar e'
+        tellProg [iVarPut loc p']
+      Par -> local (\env -> env {inTask = True }) $ compileProg (Just loc) e'
+      Loop | (ix:_) <- es'
+           , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
+           | (ix:_) <- es' -> compileProg (Just $ ArrayElem loc ix) e'
+      None -> compileProg (Just loc) e'
+  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
+  -- Task:
+  let taskName = "task" ++ drop 9 coreName
+      runTask  = Just $ toBlock $ run coreName args
+      outs     = [mkNamedRef "params" VoidType (-1)]
+  case kind of
+   _ | kind `elem` [None, Loop] -> return ()
+   _    -> tellDef [Proc taskName False [] (Left outs) runTask]
+
+-- | Check if an expression is a variable or a literal
+isVariableOrLiteral :: Ut.UntypedFeld -> Bool
+isVariableOrLiteral (Ut.In Ut.Literal{})  = True
+isVariableOrLiteral (Ut.In Ut.Variable{}) = True
+isVariableOrLiteral _                     = False
+
+isTuple :: Ut.Op -> Bool
+isTuple Ut.Tup2 = True
+isTuple Ut.Tup3 = True
+isTuple Ut.Tup4 = True
+isTuple Ut.Tup5 = True
+isTuple Ut.Tup6 = True
+isTuple Ut.Tup7 = True
+isTuple Ut.Tup8 = True
+isTuple Ut.Tup9 = True
+isTuple Ut.Tup10 = True
+isTuple Ut.Tup11 = True
+isTuple Ut.Tup12 = True
+isTuple Ut.Tup13 = True
+isTuple Ut.Tup14 = True
+isTuple Ut.Tup15 = True
+isTuple _ = False
+
+-- | Create a variable of the right type for storing a length.
+mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
+mkLength a t
+  | isVariableOrLiteral a = compileExpr a
+  | otherwise             = do
+      opts <- asks backendOpts
+      lenvar <- freshVar opts "len" t
+      compileProg (Just lenvar) a
+      return lenvar
+
+mkBranch :: Location -> Ut.UntypedFeld -> Ut.UntypedFeld -> Maybe Ut.UntypedFeld -> CodeWriter ()
+mkBranch loc c th el = do
+    ce <- compileExpr c
+    (_, tb) <- confiscateBlock $ compileProg loc th
+    (_, eb) <- if isJust el
+                  then confiscateBlock $ compileProg loc (fromJust el)
+                  else return (undefined, toBlock Empty)
+    tellProg [Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]]
 
 compileLet :: Ut.UntypedFeld -> Ut.Type -> VarId -> CodeWriter (Expression ())
 compileLet a ta v = do
    opts <- asks backendOpts
-   let var  = mkVariable (compileTypeRep opts ta) v
+   let var  = mkVariable (compileType opts ta) v
        varE = varToExpr var
    declare var
    compileProg (Just varE) a
@@ -889,12 +870,12 @@ representableType l
       where t = typeof l
 
 literalConst :: Options -> Ut.Lit -> Constant ()
-literalConst opt (LTup [])      = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
+literalConst opt (LTup [])      = IntConst 0 (NumType Ut.Unsigned Ut.S32)
 literalConst opt (LBool a)      = BoolConst a
-literalConst opt (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
+literalConst opt (LInt s sz a)  = IntConst (toInteger a) (NumType s sz)
 literalConst opt (LFloat a)     = FloatConst a
 literalConst opt (LDouble a)    = DoubleConst a
-literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileTypeRep opt t
+literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileType opt t
 literalConst opt (LComplex r i) = ComplexConst (literalConst opt r) (literalConst opt i)
 
 literalLoc :: Expression () -> Ut.Lit -> CodeWriter ()
@@ -940,7 +921,7 @@ result and then the copyProg is harmless.
 compileBind :: (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
 compileBind (Ut.Var v t, e) = do
    opts <- asks backendOpts
-   let var = mkVariable (compileTypeRep opts t) v
+   let var = mkVariable (compileType opts t) v
    declare var
    compileProg (Just $ varToExpr var) e
 

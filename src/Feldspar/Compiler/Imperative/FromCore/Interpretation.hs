@@ -44,19 +44,11 @@ import Control.Applicative
 import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix, nub)
 
-import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Range (fullRange)
 import Feldspar.Core.UntypedRepresentation (VarId (..))
-import qualified Feldspar.Core.UntypedRepresentation as Ut
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
-                                                    Type(..), Signedness(..),
-                                                    Size(..), Variable(..),
-                                                    Expression(..), ScalarType(..),
-                                                    Declaration(..),
-                                                    Program(..),
-                                                    Entity(..), StructMember(..))
-
+import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
@@ -92,43 +84,15 @@ instance Monoid CodeParts
                             , epilogue = mappend (epilogue a) (epilogue b)
                             }
 
--- | Where to place the program result
-type Location = Maybe (Expression ())
-
 --------------------------------------------------------------------------------
 -- * Utility functions
 --------------------------------------------------------------------------------
 
+-- | Make a struct type from a list of field names and their types
 mkStructType :: [(String, Type)] -> Type
 mkStructType trs = StructType n trs
   where
     n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
-
-compileTypeRep :: Options -> Ut.Type -> Type
-compileTypeRep _   Ut.BoolType            = MachineVector 1 BoolType
-compileTypeRep _   Ut.BitType             = MachineVector 1 BitType
-compileTypeRep _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileTypeRep _   Ut.FloatType           = MachineVector 1 FloatType
-compileTypeRep _   Ut.DoubleType          = MachineVector 1 DoubleType
-compileTypeRep opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileTypeRep opt t)
-compileTypeRep _   (Ut.TupType [])        = VoidType
-compileTypeRep opt (Ut.TupType ts)        = mkStructType
-    [("member" ++ show n, compileTypeRep opt t) | (n,t) <- zip [1..] ts]
-compileTypeRep opt (Ut.MutType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.RefType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.ArrayType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
- | otherwise           = ArrayType rs $ compileTypeRep opt a
-compileTypeRep opt (Ut.MArrType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
- | otherwise           = ArrayType rs $ compileTypeRep opt a
-compileTypeRep opt (Ut.ParType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.ElementsType a)
- | useNativeArrays opt = NativeArray Nothing $ compileTypeRep opt a
- | otherwise           = ArrayType fullRange $ compileTypeRep opt a
-compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
-compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
-compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
 
 -- | Construct a named variable. The 'VarId' is appended to the base name to
 -- allow different variables to have the same base name. Use a negative 'VarId'
@@ -148,7 +112,7 @@ mkNamedRef
     -> Type     -- ^ Target type
     -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
-mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
+mkNamedRef base t i = mkNamedVar base (MachineVector 1 (Pointer t)) i
 
 -- | Construct a variable.
 mkVariable :: Type -> VarId -> Variable ()
@@ -168,13 +132,6 @@ freshId = do
   v <- get
   put (v+1)
   return v
-
--- | Generate a fresh variable expression
-freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
-freshVar opt base t = do
-  v <- mkNamedVar base (compileTypeRep opt t) <$> freshId
-  declare v
-  return $ varToExpr v
 
 -- | Generate and declare a fresh uninitialized variable that will not be freed
 -- in the postlude
@@ -224,7 +181,7 @@ tellDeclWith free ds = do
     let frees | free = freeArrays ds ++ freeIVars ds
               | otherwise = []
         opts = backendOpts rs
-        defs = getTypes ds
+        defs = getTypeDefs ds
         code | varFloating $ platform opts = mempty {decl = ds, epilogue = frees, def = defs}
              | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
@@ -317,10 +274,12 @@ decodeType = goL []
       = Just p
       | otherwise = Nothing
 
-getTypes :: [Declaration ()] -> [Entity ()]
-getTypes defs = nub $ concatMap mkDef comps
+-- | Find declarations that require top-level type definitions, and return those
+-- definitions
+getTypeDefs :: [Declaration ()] -> [Entity ()]
+getTypeDefs defs = nub $ concatMap mkDef comps
   where
-    comps = filter isComposite' $ map (typeof . dVar) defs
+    comps = filter isComposite' $ map (typeof . declVar) defs
     -- There are other composite types that are not flagged as such by this
     -- version of isComposite, so keep it private.
     isComposite' :: Type -> Bool
@@ -334,10 +293,20 @@ getTypes defs = nub $ concatMap mkDef comps
     mkDef (MachineVector _ (Pointer typ)) = mkDef typ
     mkDef _                               = []
 
+-- | General assignment from an 'Expression' to a 'Location' (or nothing, if the
+-- destination and source are identical)
+--
+-- This operation will always copy the source into the definition, regardless of
+-- the type of the expression.
 assign :: Location -> Expression () -> CodeWriter ()
-assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just tgt) [src]]
-assign _          _   = return ()
+assign (Just dst) src | dst /= src = tellProg [copyProg (Just dst) [src]]
+assign _          _                = return ()
 
+-- | Shallow assignment from an 'Expression' to a 'Location' (or nothing, if the
+-- destination and source are identical)
+--
+-- Shallow assignment means that it becomes a plain assignment operation in the
+-- generated code; i.e. no deep copying of structures.
 shallowAssign :: Location -> Expression () -> CodeWriter ()
 shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
 shallowAssign _          _                = return ()
@@ -423,10 +392,11 @@ confiscateBigBlock m
     $ censor (\rec -> rec {block = mempty, decl = mempty, epilogue = mempty})
     $ listen m
 
-withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
+-- | Add an alias to the environment of a local code generator
+withAlias
+    :: VarId          -- ^ Variable to alias
+    -> Expression ()  -- ^ Expression to substitute for the variable
+    -> CodeWriter a   -- ^ Local code generator
+    -> CodeWriter a
 withAlias v0 expr = local (\e -> e {aliases = (v0,expr) : aliases e})
 
-isVariableOrLiteral :: Ut.UntypedFeld -> Bool
-isVariableOrLiteral (Ut.In Ut.Literal{})  = True
-isVariableOrLiteral (Ut.In Ut.Variable{}) = True
-isVariableOrLiteral _                     = False

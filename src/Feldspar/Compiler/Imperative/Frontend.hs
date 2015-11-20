@@ -44,9 +44,12 @@ toProg :: Block () -> Program ()
 toProg (Block [] p) = p
 toProg e = BlockProgram e
 
+-- | Where to place the program result
+type Location = Maybe (Expression ())
+
 -- | Copies expressions into a destination. If the destination is
--- a non-scalar the arguments are appended to the destination.
-copyProg :: Maybe (Expression ())-> [Expression ()] -> Program ()
+-- an array the arguments are appended into the destination.
+copyProg :: Location -> [Expression ()] -> Program ()
 copyProg _ []      = error "copyProg: missing source parameter."
 copyProg Nothing _ = Empty
 copyProg (Just outExp) inExp =
@@ -54,9 +57,14 @@ copyProg (Just outExp) inExp =
     [x] | outExp == x -> Empty
     _                 -> call "copy" (map ValueParameter (outExp:inExp))
 
-mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
-mkInitialize _    Nothing    _   = Empty
-mkInitialize name (Just arr) len
+-- | General array initialization
+mkInitArr
+    :: String         -- ^ Name of initialization function (e.g. \"initArray\")
+    -> Location       -- ^ Array location
+    -> Expression ()  -- ^ Array length
+    -> Program ()
+mkInitArr _    Nothing    _   = Empty
+mkInitArr name (Just arr) len
   | isNativeArray arrType
   = Empty
   | otherwise
@@ -68,13 +76,23 @@ mkInitialize name (Just arr) len
     t = SizeOf t'
     t' = go $ arrType
     go (ArrayType _ e) = e
-    go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
+    go _               = error $ "Feldspar.Compiler.Imperative.Frontend."
+                              ++ name ++ ": invalid type of array " ++ show arr
+                              ++ "::" ++ show (typeof arr)
 
-initArray :: Maybe (Expression ()) -> Expression () -> Program ()
-initArray = mkInitialize "initArray"
+-- | Initialize an array using \"initArray\"
+initArray
+    :: Location       -- ^ Array location
+    -> Expression ()  -- ^ Array length
+    -> Program ()
+initArray = mkInitArr "initArray"
 
-setLength :: Maybe (Expression ()) -> Expression () -> Program ()
-setLength = mkInitialize "setLength"
+-- | Initialize an array using \"setLength\"
+setLength
+    :: Location       -- ^ Array location
+    -> Expression ()  -- ^ Array length
+    -> Program ()
+setLength = mkInitArr "setLength"
 
 -- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
@@ -84,27 +102,29 @@ freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
   where
-    arrays = filter (isArray . typeof) $ map dVar defs
+    arrays = filter (isArray . typeof) $ map declVar defs
 
+-- | Get the length of an array
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
-  | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
+  | Just l <- staticArrayLength arr = litI32 $ fromIntegral l
   | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) "getLength" [arr]
 
-chaseArray :: Expression t-> Maybe (Range Length)
-chaseArray = go []  -- TODO: Extend to handle x.member1.member2
-  where go :: [String] -> Expression t -> Maybe (Range Length)
-        go []    (ConstExpr (ArrayConst l _)) = Just (singletonRange $ fromIntegral $ length l)
-        go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just r
-        go []    (VarExpr (Variable (NativeArray (Just r) _) _)) = Just (singletonRange r)
+-- | If possible, return the static length of an array
+staticArrayLength :: Expression t -> Maybe Length
+staticArrayLength = go []  -- TODO: Extend to handle x.member1.member2
+  where go :: [String] -> Expression t -> Maybe Length
+        go []    (ConstExpr (ArrayConst l _)) = Just (fromIntegral $ length l)
+        go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just (upperBound r)
+        go []    (VarExpr (Variable (NativeArray (Just l) _) _)) = Just l
         go []    (Deref e) = go [] e -- TODO: this is questionable; we now look at an expression for the address of the array
         go ss    (StructField e s) = go (s:ss) e
         go ss    (AddrOf e) = go ss e
         go (s:_) (VarExpr (Variable (StructType _ fields) _))
           | Just (ArrayType r _) <- lookup s fields
-          , isSingleton r = Just r
-          | Just (NativeArray (Just r) _) <- lookup s fields
-          = Just (singletonRange r)
+          , isSingleton r = Just (upperBound r)
+          | Just (NativeArray (Just l) _) <- lookup s fields
+          = Just l
         go _ _ = Nothing
 
 iVarInitCond :: Fork -> Expression () -> Program ()
@@ -141,19 +161,19 @@ iVarDestroy v = call "ivar_destroy" [ValueParameter $ AddrOf $ varToExpr v]
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
   where
-    ivars = filter (isIVar . typeof) $ map dVar defs
+    ivars = filter (isIVar . typeof) $ map declVar defs
 
 spawn :: Fork -> String -> [Variable ()] -> Program ()
 spawn f taskName vs
  | f `elem` [None, Loop] = call taskName $ map mkV vs
  | otherwise = call spawnName allParams
   where
-    mkV v = ValueParameter . varToExpr $ Variable (typeof v) (vName v)
+    mkV v = ValueParameter . varToExpr $ Variable (typeof v) (varName v)
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName
     typeParams = map (TypeParameter . typeof) vs
     varParams = map (ValueParameter . mkv) vs
-      where mkv v = VarExpr $ Variable (typeof v) (vName v)
+      where mkv v = VarExpr $ Variable (typeof v) (varName v)
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
@@ -255,19 +275,13 @@ hasReference IVarType{}                  = True
 hasReference (StructType _ fs)           = any (hasReference . snd) fs
 hasReference _                           = False
 
-dVar :: Declaration () -> Variable ()
-dVar (Declaration v _)    = v
-
-vName :: Variable t -> String
-vName Variable{..} = varName
-
-lName :: Expression t -> String
-lName (VarExpr v@Variable{}) = vName v
-lName (ArrayElem e _)        = lName e
-lName (StructField e _)      = lName e
-lName (AddrOf e)             = lName e
-lName (Deref e)              = lName e
-lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
+locName :: Expression t -> String
+locName (VarExpr v@Variable{}) = varName v
+locName (ArrayElem e _)        = locName e
+locName (StructField e _)      = locName e
+locName (AddrOf e)             = locName e
+locName (Deref e)              = locName e
+locName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.locName: invalid location: " ++ show e
 
 varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr

@@ -91,8 +91,8 @@ icompile' opts functionName prg = do
 
 -- | Get the generated core for a program.
 getCore :: (SyntacticFeld t) => t -> Module ()
-getCore = getCore' defaultOptions
+getCore = fromCore defaultOptions "test"
 
 -- | Print the generated core for a program.
 printCore :: (SyntacticFeld t) => t -> IO ()
-printCore prog = print $ getCore' defaultOptions prog
+printCore prog = print $ getCore prog
