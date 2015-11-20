@@ -50,7 +50,8 @@ import Control.Monad.RWS
 import Control.Monad.State
 import Control.Applicative
 
-import Feldspar.Core.Types
+import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Core.Types (BitWidth (..))
 import Feldspar.Core.UntypedRepresentation
          ( VarId(..), UntypedFeld, Term(..), Lit(..)
          , collectLetBinders, collectBinders
@@ -62,16 +63,44 @@ import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
 import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Core.Frontend (reifyFeldM, reifyFeld)
 
-import qualified Feldspar.Compiler.Imperative.Representation as Rep (Variable(..), Type(..), ScalarType(..))
 import Feldspar.Compiler.Imperative.Representation
-         ( ActualParameter(..), Block(..), Declaration(..), Entity(..)
-         , Expression(..), Module(..), Program(..), Pattern(..), ParType(..)
-         , Constant(..), typeof, fv
-         )
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Imperative.FromCore.Interpretation
 import Feldspar.Compiler.Backend.C.Options (Options(..))
 import Feldspar.Compiler.Backend.C.MachineLowering
+
+compileType :: Options -> Ut.Type -> Type
+compileType _   Ut.BoolType            = MachineVector 1 BoolType
+compileType _   Ut.BitType             = MachineVector 1 BitType
+compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
+compileType _   Ut.FloatType           = MachineVector 1 FloatType
+compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
+compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
+compileType _   (Ut.TupType [])        = VoidType
+compileType opt (Ut.TupType ts)        = mkStructType
+    [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
+compileType opt (Ut.MutType a)         = compileType opt a
+compileType opt (Ut.RefType a)         = compileType opt a
+compileType opt (Ut.ArrayType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.MArrType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.ParType a)         = compileType opt a
+compileType opt (Ut.ElementsType a)
+ | useNativeArrays opt = NativeArray Nothing $ compileType opt a
+ | otherwise           = ArrayType fullRange $ compileType opt a
+compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
+compileType opt (Ut.FunType _ b)       = compileType opt b
+compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
+
+-- | Generate and declare a fresh variable expression
+freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
+freshVar opt base t = do
+  v <- mkNamedVar base (compileType opt t) <$> freshId
+  declare v
+  return $ varToExpr v
 
 {-
 
@@ -122,7 +151,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
      = call "taskpool_init" [four,four,four] : p : call "taskpool_shutdown" [] : post
      | otherwise = p:post
       where
-        four = ValueParameter $ ConstExpr $ IntConst 4 $ Rep.NumType Ut.Unsigned Ut.S32
+        four = ValueParameter $ ConstExpr $ IntConst 4 $ NumType Ut.Unsigned Ut.S32
 
     isTask (Proc{..}) = isPrefixOf "task_core" procName
     isTask _          = False
@@ -160,7 +189,7 @@ fromCoreExp opt aliases prog = do
         uast = untype (frontendOpts opt) ast
         mkAlias (Ut.Var i t) = do
           n <- Map.lookup i aliases
-          return (i, varToExpr $ Rep.Variable (compileType opt t) n)
+          return (i, varToExpr $ Variable (compileType opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
     let (exp,s'',results) = runRWS (compileExpr uast) (CodeEnv as False opt) s'
     put s''
@@ -178,12 +207,12 @@ fromCoreExp opt aliases prog = do
 getCore' :: SyntacticFeld a => Options -> a -> Module ()
 getCore' opts = fromCore opts "test"
 
-compileProgTop :: Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
+compileProgTop :: Ut.UntypedFeld -> CodeWriter (Variable ())
 compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
   opt <- asks backendOpts
   let typ = compileType opt ta
-      (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
-                 | otherwise               = (mkVariable typ v, varToExpr arg)
+      (arg,arge) | StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
+                 | otherwise           = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
   withAlias v arge $
      compileProgTop body
@@ -201,8 +230,8 @@ compileProgTop a = do
       fastRet  = useNativeReturns opt && canFastReturn outType'
       (outType, outLoc)
        | fastRet   = (outType', varToExpr outParam)
-       | otherwise = (Rep.MachineVector 1 (Rep.Pointer outType'), Deref $ varToExpr outParam)
-      outParam   = Rep.Variable outType "out"
+       | otherwise = (MachineVector 1 (Pointer outType'), Deref $ varToExpr outParam)
+      outParam   = Variable outType "out"
   compileProg (Just outLoc) a
   return outParam
 
@@ -271,10 +300,16 @@ compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
   -- Task:
   let taskName = "task" ++ drop 9 coreName
       runTask  = Just $ toBlock $ run coreName args
-      outs     = [mkNamedRef "params" Rep.VoidType (-1)]
+      outs     = [mkNamedRef "params" VoidType (-1)]
   case kind of
    _ | kind `elem` [None, Loop] -> return ()
    _    -> tellDef [Proc taskName False [] (Left outs) runTask]
+
+-- | Check if an expression is a variable or a literal
+isVariableOrLiteral :: Ut.UntypedFeld -> Bool
+isVariableOrLiteral (Ut.In Ut.Literal{})  = True
+isVariableOrLiteral (Ut.In Ut.Variable{}) = True
+isVariableOrLiteral _                     = False
 
 -- | Create a variable of the right type for storing a length.
 mkLength :: Ut.UntypedFeld -> Ut.Type -> CodeWriter (Expression ())
@@ -304,7 +339,7 @@ compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) 
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM compileExpr vs
-            let mkV v = Rep.Variable (typeof v) (lName v)
+            let mkV v = Variable (typeof v) (lName v)
                 args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
@@ -404,7 +439,7 @@ compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) i
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM compileExpr vs
-            let mkV v = Rep.Variable (typeof v) (lName v)
+            let mkV v = Variable (typeof v) (lName v)
                 args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
@@ -496,12 +531,12 @@ compileProg loc (In (App Ut.When _ [c, action])) =
 -- MutableArray
 compileProg loc (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
-   let var = mkNamedVar "i" (Rep.MachineVector 1 (Rep.NumType Ut.Unsigned Ut.S32)) nId
+   let var = mkNamedVar "i" (MachineVector 1 (NumType Ut.Unsigned Ut.S32)) nId
        ix  = varToExpr var
    a' <- compileExpr a
    l  <- compileExpr len
    tellProg [initArray loc l]
-   tellProg [for Sequential (Rep.varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
+   tellProg [for Sequential (varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure ix) [a']])]
 compileProg loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr len
    tellProg [initArray loc l]
@@ -762,13 +797,13 @@ compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
 compileExpr (In (App Ut.F2I t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es'
+    let f' = fun (MachineVector 1 FloatType) "truncf" es'
     return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.I2N t1 [e])) = do
     opts <- asks backendOpts
     let t' = compileType opts t1
     case t' of
-      Rep.MachineVector 1 (Rep.ComplexType t) -> do
+      MachineVector 1 (ComplexType t) -> do
         e' <- compileExpr e
         let args = [Cast t e', litF 0]
         return $ fun t' (extend c99 "complex" t) args
@@ -782,17 +817,17 @@ compileExpr (In (App Ut.B2I t [e])) = do
 compileExpr (In (App Ut.Round t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es'
+    let f' = fun (MachineVector 1 FloatType) "roundf" es'
     return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Ceiling t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es'
+    let f' = fun (MachineVector 1 FloatType) "ceilf" es'
     return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Floor t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
+    let f' = fun (MachineVector 1 FloatType) "floorf" es'
     return $ Cast (compileType opts t) f'
 -- Error
 compileExpr (In (App (Ut.Assert msg) _ [cond, a])) = do
@@ -889,9 +924,9 @@ representableType l
       where t = typeof l
 
 literalConst :: Options -> Ut.Lit -> Constant ()
-literalConst opt (LTup [])      = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
+literalConst opt (LTup [])      = IntConst 0 (NumType Ut.Unsigned Ut.S32)
 literalConst opt (LBool a)      = BoolConst a
-literalConst opt (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
+literalConst opt (LInt s sz a)  = IntConst (toInteger a) (NumType s sz)
 literalConst opt (LFloat a)     = FloatConst a
 literalConst opt (LDouble a)    = DoubleConst a
 literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileType opt t

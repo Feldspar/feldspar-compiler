@@ -44,19 +44,11 @@ import Control.Applicative
 import Data.Char (toLower)
 import Data.List (intercalate, stripPrefix, nub)
 
-import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Range (fullRange)
 import Feldspar.Core.UntypedRepresentation (VarId (..))
-import qualified Feldspar.Core.UntypedRepresentation as Ut
 
 import Feldspar.Compiler.Imperative.Frontend
-import Feldspar.Compiler.Imperative.Representation (typeof, Block(..),
-                                                    Type(..), Signedness(..),
-                                                    Size(..), Variable(..),
-                                                    Expression(..), ScalarType(..),
-                                                    Declaration(..),
-                                                    Program(..),
-                                                    Entity(..), StructMember(..))
-
+import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 
 -- | Code generation monad
@@ -104,32 +96,6 @@ mkStructType trs = StructType n trs
   where
     n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
 
-compileType :: Options -> Ut.Type -> Type
-compileType _   Ut.BoolType            = MachineVector 1 BoolType
-compileType _   Ut.BitType             = MachineVector 1 BitType
-compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileType _   Ut.FloatType           = MachineVector 1 FloatType
-compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
-compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
-compileType _   (Ut.TupType [])        = VoidType
-compileType opt (Ut.TupType ts)        = mkStructType
-    [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
-compileType opt (Ut.MutType a)         = compileType opt a
-compileType opt (Ut.RefType a)         = compileType opt a
-compileType opt (Ut.ArrayType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
- | otherwise           = ArrayType rs $ compileType opt a
-compileType opt (Ut.MArrType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
- | otherwise           = ArrayType rs $ compileType opt a
-compileType opt (Ut.ParType a)         = compileType opt a
-compileType opt (Ut.ElementsType a)
- | useNativeArrays opt = NativeArray Nothing $ compileType opt a
- | otherwise           = ArrayType fullRange $ compileType opt a
-compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
-compileType opt (Ut.FunType _ b)       = compileType opt b
-compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
-
 -- | Construct a named variable. The 'VarId' is appended to the base name to
 -- allow different variables to have the same base name. Use a negative 'VarId'
 -- to just get the base name without the appendix.
@@ -168,13 +134,6 @@ freshId = do
   v <- get
   put (v+1)
   return v
-
--- | Generate and declare a fresh variable expression
-freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
-freshVar opt base t = do
-  v <- mkNamedVar base (compileType opt t) <$> freshId
-  declare v
-  return $ varToExpr v
 
 -- | Generate and declare a fresh uninitialized variable that will not be freed
 -- in the postlude
@@ -426,7 +385,3 @@ confiscateBigBlock m
 withAlias :: VarId -> Expression () -> CodeWriter a -> CodeWriter a
 withAlias v0 expr = local (\e -> e {aliases = (v0,expr) : aliases e})
 
-isVariableOrLiteral :: Ut.UntypedFeld -> Bool
-isVariableOrLiteral (Ut.In Ut.Literal{})  = True
-isVariableOrLiteral (Ut.In Ut.Variable{}) = True
-isVariableOrLiteral _                     = False
