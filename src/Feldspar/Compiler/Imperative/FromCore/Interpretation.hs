@@ -148,7 +148,7 @@ mkNamedRef
     -> Type     -- ^ Target type
     -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
-mkNamedRef base t i = Variable (MachineVector 1 (Pointer t)) $ base ++ if i < 0 then "" else show i
+mkNamedRef base t i = mkNamedVar base (MachineVector 1 (Pointer t)) i
 
 -- | Construct a variable.
 mkVariable :: Type -> VarId -> Variable ()
@@ -169,7 +169,7 @@ freshId = do
   put (v+1)
   return v
 
--- | Generate a fresh variable expression
+-- | Generate and declare a fresh variable expression
 freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
 freshVar opt base t = do
   v <- mkNamedVar base (compileTypeRep opt t) <$> freshId
