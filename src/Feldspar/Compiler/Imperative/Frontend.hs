@@ -273,13 +273,13 @@ hasReference IVarType{}                  = True
 hasReference (StructType _ fs)           = any (hasReference . snd) fs
 hasReference _                           = False
 
-lName :: Expression t -> String
-lName (VarExpr v@Variable{}) = varName v
-lName (ArrayElem e _)        = lName e
-lName (StructField e _)      = lName e
-lName (AddrOf e)             = lName e
-lName (Deref e)              = lName e
-lName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.lName: invalid location: " ++ show e
+locName :: Expression t -> String
+locName (VarExpr v@Variable{}) = varName v
+locName (ArrayElem e _)        = locName e
+locName (StructField e _)      = locName e
+locName (AddrOf e)             = locName e
+locName (Deref e)              = locName e
+locName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.locName: invalid location: " ++ show e
 
 varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
