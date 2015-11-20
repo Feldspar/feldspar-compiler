@@ -279,7 +279,7 @@ decodeType = goL []
 getTypes :: [Declaration ()] -> [Entity ()]
 getTypes defs = nub $ concatMap mkDef comps
   where
-    comps = filter isComposite' $ map (typeof . dVar) defs
+    comps = filter isComposite' $ map (typeof . declVar) defs
     -- There are other composite types that are not flagged as such by this
     -- version of isComposite, so keep it private.
     isComposite' :: Type -> Bool

@@ -84,7 +84,7 @@ freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
 freeArrays :: [Declaration ()] -> [Program ()]
 freeArrays defs = map freeArray arrays
   where
-    arrays = filter (isArray . typeof) $ map dVar defs
+    arrays = filter (isArray . typeof) $ map declVar defs
 
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
@@ -141,7 +141,7 @@ iVarDestroy v = call "ivar_destroy" [ValueParameter $ AddrOf $ varToExpr v]
 freeIVars :: [Declaration ()] -> [Program ()]
 freeIVars defs = map iVarDestroy ivars
   where
-    ivars = filter (isIVar . typeof) $ map dVar defs
+    ivars = filter (isIVar . typeof) $ map declVar defs
 
 spawn :: Fork -> String -> [Variable ()] -> Program ()
 spawn f taskName vs
@@ -254,9 +254,6 @@ hasReference (MachineVector _ Pointer{}) = True
 hasReference IVarType{}                  = True
 hasReference (StructType _ fs)           = any (hasReference . snd) fs
 hasReference _                           = False
-
-dVar :: Declaration () -> Variable ()
-dVar (Declaration v _)    = v
 
 vName :: Variable t -> String
 vName Variable{..} = varName
