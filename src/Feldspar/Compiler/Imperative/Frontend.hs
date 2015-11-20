@@ -148,12 +148,12 @@ spawn f taskName vs
  | f `elem` [None, Loop] = call taskName $ map mkV vs
  | otherwise = call spawnName allParams
   where
-    mkV v = ValueParameter . varToExpr $ Variable (typeof v) (vName v)
+    mkV v = ValueParameter . varToExpr $ Variable (typeof v) (varName v)
     spawnName = "spawn" ++ show (length vs)
     taskParam = FunParameter taskName
     typeParams = map (TypeParameter . typeof) vs
     varParams = map (ValueParameter . mkv) vs
-      where mkv v = VarExpr $ Variable (typeof v) (vName v)
+      where mkv v = VarExpr $ Variable (typeof v) (varName v)
     allParams = taskParam : concat (zipWith (\a b -> [a,b]) typeParams varParams)
 
 run :: String -> [Variable ()] -> Program ()
@@ -255,11 +255,8 @@ hasReference IVarType{}                  = True
 hasReference (StructType _ fs)           = any (hasReference . snd) fs
 hasReference _                           = False
 
-vName :: Variable t -> String
-vName Variable{..} = varName
-
 lName :: Expression t -> String
-lName (VarExpr v@Variable{}) = vName v
+lName (VarExpr v@Variable{}) = varName v
 lName (ArrayElem e _)        = lName e
 lName (StructField e _)      = lName e
 lName (AddrOf e)             = lName e
