@@ -56,6 +56,7 @@ module Feldspar.Compiler.Imperative.FromCore (
     fromCoreUT
   , fromCore
   , fromCoreExp
+  , compileType
   )
   where
 
