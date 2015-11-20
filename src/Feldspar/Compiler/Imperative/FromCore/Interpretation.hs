@@ -296,8 +296,8 @@ getTypeDefs defs = nub $ concatMap mkDef comps
     mkDef _                               = []
 
 assign :: Location -> Expression () -> CodeWriter ()
-assign (Just tgt) src = tellProg [if tgt == src then Empty else copyProg (Just tgt) [src]]
-assign _          _   = return ()
+assign (Just dst) src | dst /= src = tellProg [copyProg (Just dst) [src]]
+assign _          _                = return ()
 
 shallowAssign :: Location -> Expression () -> CodeWriter ()
 shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
