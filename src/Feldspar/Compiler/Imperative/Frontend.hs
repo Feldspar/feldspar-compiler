@@ -76,7 +76,9 @@ mkInitArr name (Just arr) len
     t = SizeOf t'
     t' = go $ arrType
     go (ArrayType _ e) = e
-    go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
+    go _               = error $ "Feldspar.Compiler.Imperative.Frontend."
+                              ++ name ++ ": invalid type of array " ++ show arr
+                              ++ "::" ++ show (typeof arr)
 
 -- | Initialize an array using \"initArray\"
 initArray

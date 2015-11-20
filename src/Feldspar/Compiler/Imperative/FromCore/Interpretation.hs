@@ -88,6 +88,7 @@ instance Monoid CodeParts
 -- * Utility functions
 --------------------------------------------------------------------------------
 
+-- | Make a struct type from a list of field names and their types
 mkStructType :: [(String, Type)] -> Type
 mkStructType trs = StructType n trs
   where
@@ -292,10 +293,20 @@ getTypeDefs defs = nub $ concatMap mkDef comps
     mkDef (MachineVector _ (Pointer typ)) = mkDef typ
     mkDef _                               = []
 
+-- | General assignment from an 'Expression' to a 'Location' (or nothing, if the
+-- destination and source are identical)
+--
+-- This operation will always copy the source into the definition, regardless of
+-- the type of the expression.
 assign :: Location -> Expression () -> CodeWriter ()
 assign (Just dst) src | dst /= src = tellProg [copyProg (Just dst) [src]]
 assign _          _                = return ()
 
+-- | Shallow assignment from an 'Expression' to a 'Location' (or nothing, if the
+-- destination and source are identical)
+--
+-- Shallow assignment means that it becomes a plain assignment operation in the
+-- generated code; i.e. no deep copying of structures.
 shallowAssign :: Location -> Expression () -> CodeWriter ()
 shallowAssign (Just dst) src | dst /= src = tellProg [Assign dst src]
 shallowAssign _          _                = return ()
