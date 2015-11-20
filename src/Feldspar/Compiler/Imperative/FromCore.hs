@@ -80,8 +80,8 @@ Fast returns
 
 Fast returns really means single return value and that value fits in a
 register--thus they are platform dependent. This is why we have to use
-compileTypeRep since that can make configuration specific choices
-about data layout.
+compileType since that can make configuration specific choices about
+data layout.
 
 The user is free to ask for fast returns (by setting 'useNativeReturns' to True),
 but we might not be able to comply.
@@ -98,7 +98,7 @@ fromCoreUT
 fromCoreUT opt funname uast = (Module defs, maxVar')
   where
     maxVar  = succ $ maximum $ map Ut.varNum $ Ut.allVars uast
-    fastRet = useNativeReturns opt && canFastReturn (compileTypeRep opt (typeof uast))
+    fastRet = useNativeReturns opt && canFastReturn (compileType opt (typeof uast))
 
     (outParam,maxVar',results) = runRWS (compileProgTop uast) (initEnv opt) maxVar
 
@@ -160,7 +160,7 @@ fromCoreExp opt aliases prog = do
         uast = untype (frontendOpts opt) ast
         mkAlias (Ut.Var i t) = do
           n <- Map.lookup i aliases
-          return (i, varToExpr $ Rep.Variable (compileTypeRep opt t) n)
+          return (i, varToExpr $ Rep.Variable (compileType opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
     let (exp,s'',results) = runRWS (compileExpr uast) (CodeEnv as False opt) s'
     put s''
@@ -181,7 +181,7 @@ getCore' opts = fromCore opts "test"
 compileProgTop :: Ut.UntypedFeld -> CodeWriter (Rep.Variable ())
 compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
   opt <- asks backendOpts
-  let typ = compileTypeRep opt ta
+  let typ = compileType opt ta
       (arg,arge) | Rep.StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
                  | otherwise               = (mkVariable typ v, varToExpr arg)
   tell $ mempty {params=[arg]}
@@ -197,7 +197,7 @@ compileProgTop (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v 
          compileProgTop body
 compileProgTop a = do
   opt <- asks backendOpts
-  let outType' = compileTypeRep opt (typeof a)
+  let outType' = compileType opt (typeof a)
       fastRet  = useNativeReturns opt && canFastReturn outType'
       (outType, outLoc)
        | fastRet   = (outType', varToExpr outParam)
@@ -299,7 +299,7 @@ compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
 compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    opts <- asks backendOpts
-   let ix = mkVar (compileTypeRep opts ta) v
+   let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
@@ -323,10 +323,10 @@ compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v ti
         opts <- asks backendOpts
         blocks <- mapM (confiscateBlock . compileBind) (init bs)
         let (dss, lets) = unzip $ map (\(_, Block ds (Sequence body)) -> (ds, body)) blocks
-        let ix = mkVar (compileTypeRep opts tix) v
+        let ix = mkVar (compileType opts tix) v
         len' <- mkLength len tix
         st1 <- freshVar opts "st" tst
-        let st = mkPointer (compileTypeRep opts tst) s
+        let st = mkPointer (compileType opts tst) s
             st_val = Deref $ varToExpr st
         declareAlias st
         (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg (ArrayElem <$> loc <*> pure ix) step
@@ -340,7 +340,7 @@ compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (I
   = do
        opts <- asks backendOpts
        let tr' = typeof step
-       let ix = mkVar (compileTypeRep opts t) v
+       let ix = mkVar (compileType opts t) v
        len' <- mkLength len t
        tmp  <- freshVar opts "seq" tr'
        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s (StructField tmp "member2") $ compileProg (Just tmp) step
@@ -399,7 +399,7 @@ compileProg loc (In (App Ut.EPar _ [p1, p2])) = do
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
 compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    opts <- asks backendOpts
-   let ix = mkVar (compileTypeRep opts ta) v
+   let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
@@ -436,7 +436,7 @@ compileProg loc (In (Ut.Literal a)) =
 compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
   = do
       opts <- asks backendOpts
-      let ix' = mkVar (compileTypeRep opts ta) ix
+      let ix' = mkVar (compileType opts ta) ix
       len' <- mkLength len ta
       (lstate, stvar) <- mkDoubleBufferState loc st
       compileProg (Just lstate) init'
@@ -447,7 +447,7 @@ compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var 
       shallowAssign (Just loc) lstate
 compileProg (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
     opts <- asks backendOpts
-    let condv  = mkVariable (compileTypeRep opts (typeof cond)) cv
+    let condv  = mkVariable (compileType opts (typeof cond)) cv
         condvE = varToExpr condv
     (lstate,stvar) <- mkDoubleBufferState loc bv
     compileProg (Just lstate) init'
@@ -465,7 +465,7 @@ compileProg loc (In (App Ut.While _ [cond,step])) = do
    tellProg [while cond' condv step']
 compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
    opts <- asks backendOpts
-   let ix = mkVar (compileTypeRep opts ta) v
+   let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
    tellProg [toProg $ Block ds (for Sequential (lName ix) (litI32 0) len' (litI32 1) (toBlock body))]
@@ -478,13 +478,13 @@ compileProg loc (In (App Ut.Return t [a]))
 compileProg loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
    opts <- asks backendOpts
-   let var = mkVariable (compileTypeRep opts ta) v
+   let var = mkVariable (compileType opts ta) v
    declare var
    tellProg [iVarInit $ AddrOf $ varToExpr var]
    compileProg loc body
   | otherwise = do
    opts <- asks backendOpts
-   let var = mkVariable (compileTypeRep opts ta) v
+   let var = mkVariable (compileType opts ta) v
    declare var
    compileProg (Just (varToExpr var)) ma
    compileProg loc body
@@ -542,7 +542,7 @@ compileProg loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda 
       tellProg [copyProg loc [b]]
 compileProg loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     opts <- asks backendOpts
-    let var = mkVariable (compileTypeRep opts ta) v
+    let var = mkVariable (compileType opts ta) v
     declare var
     compileProg (Just $ varToExpr var) marr
     e <- compileExpr body
@@ -719,7 +719,7 @@ compileProg loc (In (App Ut.Tup15 _ [m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m1
 compileProg (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    tellProg [Assign loc $ fun (compileTypeRep opts t) (compileOp p) es']
+    tellProg [Assign loc $ fun (compileType opts t) (compileOp p) es']
 compileProg Nothing (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM compileExpr es
     tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
@@ -745,13 +745,13 @@ compileExpr (In (App Ut.GetIx _ [arr, i])) = do
 compileExpr (In (App Ut.Bit t [arr])) = do
    opts <- asks backendOpts
    a' <- compileExpr arr
-   let t' = compileTypeRep opts t
+   let t' = compileType opts t
    return $ binop t' "<<" (litI t' 1) a'
 -- Binding
 compileExpr (In (Ut.Variable (Ut.Var v t))) = do
         env <- ask
         case lookup v (aliases env) of
-          Nothing -> return $ mkVar (compileTypeRep (backendOpts env) t) v
+          Nothing -> return $ mkVar (compileType (backendOpts env) t) v
           Just e  -> return e
 compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
     e <- compileLet a ta v
@@ -763,10 +763,10 @@ compileExpr (In (App Ut.F2I t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "truncf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.I2N t1 [e])) = do
     opts <- asks backendOpts
-    let t' = compileTypeRep opts t1
+    let t' = compileType opts t1
     case t' of
       Rep.MachineVector 1 (Rep.ComplexType t) -> do
         e' <- compileExpr e
@@ -778,22 +778,22 @@ compileExpr (In (App Ut.I2N t1 [e])) = do
 compileExpr (In (App Ut.B2I t [e])) = do
     opts <- asks backendOpts
     e' <- compileExpr e
-    return $ Cast (compileTypeRep opts t) e'
+    return $ Cast (compileType opts t) e'
 compileExpr (In (App Ut.Round t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "roundf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Ceiling t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "ceilf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Floor t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
     let f' = fun (Rep.MachineVector 1 Rep.FloatType) "floorf" es'
-    return $ Cast (compileTypeRep opts t) f'
+    return $ Cast (compileType opts t) f'
 -- Error
 compileExpr (In (App (Ut.Assert msg) _ [cond, a])) = do
     compileAssert cond msg
@@ -843,13 +843,13 @@ compileExpr e@(In (App p _ _))
 compileExpr (In (App p t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    return $ fun (compileTypeRep opts t) (compileOp p) es'
+    return $ fun (compileType opts t) (compileOp p) es'
 compileExpr e = compileProgFresh e
 
 compileLet :: Ut.UntypedFeld -> Ut.Type -> VarId -> CodeWriter (Expression ())
 compileLet a ta v = do
    opts <- asks backendOpts
-   let var  = mkVariable (compileTypeRep opts ta) v
+   let var  = mkVariable (compileType opts ta) v
        varE = varToExpr var
    declare var
    compileProg (Just varE) a
@@ -894,7 +894,7 @@ literalConst opt (LBool a)      = BoolConst a
 literalConst opt (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
 literalConst opt (LFloat a)     = FloatConst a
 literalConst opt (LDouble a)    = DoubleConst a
-literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileTypeRep opt t
+literalConst opt (LArray t es)  = ArrayConst (map (literalConst opt) es) $ compileType opt t
 literalConst opt (LComplex r i) = ComplexConst (literalConst opt r) (literalConst opt i)
 
 literalLoc :: Expression () -> Ut.Lit -> CodeWriter ()
@@ -940,7 +940,7 @@ result and then the copyProg is harmless.
 compileBind :: (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
 compileBind (Ut.Var v t, e) = do
    opts <- asks backendOpts
-   let var = mkVariable (compileTypeRep opts t) v
+   let var = mkVariable (compileType opts t) v
    declare var
    compileProg (Just $ varToExpr var) e
 

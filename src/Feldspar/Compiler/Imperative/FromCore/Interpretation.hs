@@ -104,31 +104,31 @@ mkStructType trs = StructType n trs
   where
     n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
 
-compileTypeRep :: Options -> Ut.Type -> Type
-compileTypeRep _   Ut.BoolType            = MachineVector 1 BoolType
-compileTypeRep _   Ut.BitType             = MachineVector 1 BitType
-compileTypeRep _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileTypeRep _   Ut.FloatType           = MachineVector 1 FloatType
-compileTypeRep _   Ut.DoubleType          = MachineVector 1 DoubleType
-compileTypeRep opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileTypeRep opt t)
-compileTypeRep _   (Ut.TupType [])        = VoidType
-compileTypeRep opt (Ut.TupType ts)        = mkStructType
-    [("member" ++ show n, compileTypeRep opt t) | (n,t) <- zip [1..] ts]
-compileTypeRep opt (Ut.MutType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.RefType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.ArrayType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
- | otherwise           = ArrayType rs $ compileTypeRep opt a
-compileTypeRep opt (Ut.MArrType rs a)
- | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileTypeRep opt a
- | otherwise           = ArrayType rs $ compileTypeRep opt a
-compileTypeRep opt (Ut.ParType a)           = compileTypeRep opt a
-compileTypeRep opt (Ut.ElementsType a)
- | useNativeArrays opt = NativeArray Nothing $ compileTypeRep opt a
- | otherwise           = ArrayType fullRange $ compileTypeRep opt a
-compileTypeRep opt (Ut.IVarType a)          = IVarType $ compileTypeRep opt a
-compileTypeRep opt (Ut.FunType _ b)         = compileTypeRep opt b
-compileTypeRep opt (Ut.FValType a)          = IVarType $ compileTypeRep opt a
+compileType :: Options -> Ut.Type -> Type
+compileType _   Ut.BoolType            = MachineVector 1 BoolType
+compileType _   Ut.BitType             = MachineVector 1 BitType
+compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
+compileType _   Ut.FloatType           = MachineVector 1 FloatType
+compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
+compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
+compileType _   (Ut.TupType [])        = VoidType
+compileType opt (Ut.TupType ts)        = mkStructType
+    [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
+compileType opt (Ut.MutType a)         = compileType opt a
+compileType opt (Ut.RefType a)         = compileType opt a
+compileType opt (Ut.ArrayType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.MArrType rs a)
+ | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
+ | otherwise           = ArrayType rs $ compileType opt a
+compileType opt (Ut.ParType a)         = compileType opt a
+compileType opt (Ut.ElementsType a)
+ | useNativeArrays opt = NativeArray Nothing $ compileType opt a
+ | otherwise           = ArrayType fullRange $ compileType opt a
+compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
+compileType opt (Ut.FunType _ b)       = compileType opt b
+compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
 
 -- | Construct a named variable. The 'VarId' is appended to the base name to
 -- allow different variables to have the same base name. Use a negative 'VarId'
@@ -172,7 +172,7 @@ freshId = do
 -- | Generate and declare a fresh variable expression
 freshVar :: Options -> String -> Ut.Type -> CodeWriter (Expression ())
 freshVar opt base t = do
-  v <- mkNamedVar base (compileTypeRep opt t) <$> freshId
+  v <- mkNamedVar base (compileType opt t) <$> freshId
   declare v
   return $ varToExpr v
 
