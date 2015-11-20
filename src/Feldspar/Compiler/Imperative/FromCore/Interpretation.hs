@@ -84,9 +84,6 @@ instance Monoid CodeParts
                             , epilogue = mappend (epilogue a) (epilogue b)
                             }
 
--- | Where to place the program result
-type Location = Maybe (Expression ())
-
 --------------------------------------------------------------------------------
 -- * Utility functions
 --------------------------------------------------------------------------------

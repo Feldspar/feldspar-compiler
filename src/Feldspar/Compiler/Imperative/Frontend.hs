@@ -44,9 +44,12 @@ toProg :: Block () -> Program ()
 toProg (Block [] p) = p
 toProg e = BlockProgram e
 
+-- | Where to place the program result
+type Location = Maybe (Expression ())
+
 -- | Copies expressions into a destination. If the destination is
 -- an array the arguments are appended into the destination.
-copyProg :: Maybe (Expression ()) -> [Expression ()] -> Program ()
+copyProg :: Location -> [Expression ()] -> Program ()
 copyProg _ []      = error "copyProg: missing source parameter."
 copyProg Nothing _ = Empty
 copyProg (Just outExp) inExp =
@@ -54,7 +57,7 @@ copyProg (Just outExp) inExp =
     [x] | outExp == x -> Empty
     _                 -> call "copy" (map ValueParameter (outExp:inExp))
 
-mkInitialize :: String -> Maybe (Expression ()) -> Expression () -> Program ()
+mkInitialize :: String -> Location -> Expression () -> Program ()
 mkInitialize _    Nothing    _   = Empty
 mkInitialize name (Just arr) len
   | isNativeArray arrType
@@ -70,10 +73,10 @@ mkInitialize name (Just arr) len
     go (ArrayType _ e) = e
     go _               = error $ "Feldspar.Compiler.Imperative.Frontend." ++ name ++ ": invalid type of array " ++ show arr ++ "::" ++ show (typeof arr)
 
-initArray :: Maybe (Expression ()) -> Expression () -> Program ()
+initArray :: Location -> Expression () -> Program ()
 initArray = mkInitialize "initArray"
 
-setLength :: Maybe (Expression ()) -> Expression () -> Program ()
+setLength :: Location -> Expression () -> Program ()
 setLength = mkInitialize "setLength"
 
 -- | Generate a call to free an array represented as a variable
