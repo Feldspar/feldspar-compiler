@@ -37,7 +37,6 @@ module Feldspar.Compiler.Imperative.FromCore (
     fromCoreUT
   , fromCore
   , fromCoreExp
-  , getCore'
   )
   where
 
@@ -202,10 +201,6 @@ fromCoreExp opt aliases prog = do
            , renameExp x exp
            , renameProg opt x <$> epilogue results
            )
-
--- | Get the generated core for a program.
-getCore' :: SyntacticFeld a => Options -> a -> Module ()
-getCore' opts = fromCore opts "test"
 
 compileProgTop :: Ut.UntypedFeld -> CodeWriter (Variable ())
 compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
