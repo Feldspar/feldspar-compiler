@@ -102,25 +102,27 @@ freeArrays defs = map freeArray arrays
   where
     arrays = filter (isArray . typeof) $ map declVar defs
 
+-- | Get the length of an array
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
-  | Just r <- chaseArray arr = litI32 $ fromIntegral (upperBound r)
+  | Just l <- staticArrayLength arr = litI32 $ fromIntegral l
   | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) "getLength" [arr]
 
-chaseArray :: Expression t-> Maybe (Range Length)
-chaseArray = go []  -- TODO: Extend to handle x.member1.member2
-  where go :: [String] -> Expression t -> Maybe (Range Length)
-        go []    (ConstExpr (ArrayConst l _)) = Just (singletonRange $ fromIntegral $ length l)
-        go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just r
-        go []    (VarExpr (Variable (NativeArray (Just r) _) _)) = Just (singletonRange r)
+-- | If possible, return the static length of an array
+staticArrayLength :: Expression t -> Maybe Length
+staticArrayLength = go []  -- TODO: Extend to handle x.member1.member2
+  where go :: [String] -> Expression t -> Maybe Length
+        go []    (ConstExpr (ArrayConst l _)) = Just (fromIntegral $ length l)
+        go []    (VarExpr (Variable (ArrayType r _) _)) | isSingleton r = Just (upperBound r)
+        go []    (VarExpr (Variable (NativeArray (Just l) _) _)) = Just l
         go []    (Deref e) = go [] e -- TODO: this is questionable; we now look at an expression for the address of the array
         go ss    (StructField e s) = go (s:ss) e
         go ss    (AddrOf e) = go ss e
         go (s:_) (VarExpr (Variable (StructType _ fields) _))
           | Just (ArrayType r _) <- lookup s fields
-          , isSingleton r = Just r
-          | Just (NativeArray (Just r) _) <- lookup s fields
-          = Just (singletonRange r)
+          , isSingleton r = Just (upperBound r)
+          | Just (NativeArray (Just l) _) <- lookup s fields
+          = Just l
         go _ _ = Nothing
 
 iVarInitCond :: Fork -> Expression () -> Program ()
