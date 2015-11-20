@@ -472,8 +472,8 @@ compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
 -- Mutable
 compileProg loc (In (App Ut.Run _ [ma])) = compileProg loc ma
 compileProg loc (In (App Ut.Return t [a]))
-  | Ut.MutType Ut.UnitType <- t = return ()
-  | Ut.ParType Ut.UnitType <- t = return ()
+  | Ut.MutType (Ut.TupType []) <- t = return ()
+  | Ut.ParType (Ut.TupType []) <- t = return ()
   | otherwise = compileProg loc a
 compileProg loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
@@ -866,7 +866,7 @@ literal lit = do
     opts <- asks backendOpts
     let litConst = return $ ConstExpr $ literalConst opts lit
     case lit of
-      LUnit       -> litConst
+      LTup []     -> litConst
       LBool{}     -> litConst
       LInt{}      -> litConst
       LFloat{}    -> litConst
@@ -885,11 +885,11 @@ representableType l
   | Ut.IntType{} <- t = True
   | Ut.ComplexType{} <- t = True
   | otherwise
-  = t `elem` [Ut.UnitType, Ut.DoubleType, Ut.FloatType, Ut.BoolType]
+  = t `elem` [Ut.TupType [], Ut.DoubleType, Ut.FloatType, Ut.BoolType]
       where t = typeof l
 
 literalConst :: Options -> Ut.Lit -> Constant ()
-literalConst opt LUnit          = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
+literalConst opt (LTup [])      = IntConst 0 (Rep.NumType Ut.Unsigned Ut.S32)
 literalConst opt (LBool a)      = BoolConst a
 literalConst opt (LInt s sz a)  = IntConst (toInteger a) (Rep.NumType s sz)
 literalConst opt (LFloat a)     = FloatConst a
@@ -901,154 +901,8 @@ literalLoc :: Expression () -> Ut.Lit -> CodeWriter ()
 literalLoc loc arr@Ut.LArray{} = do
     opts <- asks backendOpts
     tellProg [copyProg (Just loc) [ConstExpr $ literalConst opts arr]]
-
-literalLoc loc (Ut.LTup2 ta tb) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-
-literalLoc loc (Ut.LTup3 ta tb tc) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-
-literalLoc loc (Ut.LTup4 ta tb tc td) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-
-literalLoc loc (Ut.LTup5 ta tb tc td te) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-
-literalLoc loc (Ut.LTup6 ta tb tc td te tf) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-
-literalLoc loc (Ut.LTup7 ta tb tc td te tf tg) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-
-literalLoc loc (Ut.LTup8 ta tb tc td te tf tg th) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-
-literalLoc loc (Ut.LTup9 ta tb tc td te tf tg th ti) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-
-literalLoc loc (Ut.LTup10 ta tb tc td te tf tg th ti tj) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-       literalLoc (StructField loc "member10") tj
-
-literalLoc loc (Ut.LTup11 ta tb tc td te tf tg th ti tj tk) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-       literalLoc (StructField loc "member10") tj
-       literalLoc (StructField loc "member11") tk
-
-literalLoc loc (Ut.LTup12 ta tb tc td te tf tg th ti tj tk tl) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-       literalLoc (StructField loc "member10") tj
-       literalLoc (StructField loc "member11") tk
-       literalLoc (StructField loc "member12") tl
-
-literalLoc loc (Ut.LTup13 ta tb tc td te tf tg th ti tj tk tl tm) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-       literalLoc (StructField loc "member10") tj
-       literalLoc (StructField loc "member11") tk
-       literalLoc (StructField loc "member12") tl
-       literalLoc (StructField loc "member13") tm
-
-literalLoc loc (Ut.LTup14 ta tb tc td te tf tg th ti tj tk tl tm tn) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-       literalLoc (StructField loc "member10") tj
-       literalLoc (StructField loc "member11") tk
-       literalLoc (StructField loc "member12") tl
-       literalLoc (StructField loc "member13") tm
-       literalLoc (StructField loc "member14") tn
-
-literalLoc loc (Ut.LTup15 ta tb tc td te tf tg th ti tj tk tl tm tn to) =
-    do literalLoc (StructField loc "member1") ta
-       literalLoc (StructField loc "member2") tb
-       literalLoc (StructField loc "member3") tc
-       literalLoc (StructField loc "member4") td
-       literalLoc (StructField loc "member5") te
-       literalLoc (StructField loc "member6") tf
-       literalLoc (StructField loc "member7") tg
-       literalLoc (StructField loc "member8") th
-       literalLoc (StructField loc "member9") ti
-       literalLoc (StructField loc "member10") tj
-       literalLoc (StructField loc "member11") tk
-       literalLoc (StructField loc "member12") tl
-       literalLoc (StructField loc "member13") tm
-       literalLoc (StructField loc "member14") tn
-       literalLoc (StructField loc "member15") to
-
+literalLoc loc (Ut.LTup ls) = sequence_
+    [literalLoc (StructField loc ("member" ++ show n)) l | (n,l) <- zip [1..] ls]
 literalLoc loc t =
     do rhs <- literal t
        assign (Just loc) rhs

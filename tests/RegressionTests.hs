@@ -159,7 +159,7 @@ foreignEffect =
             ]
         ]
   where
-    void   = UT.MutType UT.UnitType
+    void   = UT.MutType (UT.TupType [])
     pos    = UT.Var 77 UT.FloatType
     alert  = UT.In $ UT.App (UT.ForeignImport "alert") void []
     getPos = UT.In $ UT.App (UT.ForeignImport "getPos") UT.FloatType []
