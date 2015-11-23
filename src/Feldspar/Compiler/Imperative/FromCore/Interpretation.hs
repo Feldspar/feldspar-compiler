@@ -293,14 +293,9 @@ getTypeDefs defs = nub $ concatMap mkDef comps
     mkDef (MachineVector _ (Pointer typ)) = mkDef typ
     mkDef _                               = []
 
--- | General assignment from an 'Expression' to a 'Location' (or nothing, if the
--- destination and source are identical)
---
--- This operation will always copy the source into the definition, regardless of
--- the type of the expression.
+-- | Copy an 'Expression' to a 'Location'. See 'copyProg' for more details.
 assign :: Location -> Expression () -> CodeWriter ()
-assign (Just dst) src | dst /= src = tellProg [copyProg (Just dst) [src]]
-assign _          _                = return ()
+assign dst src = tellProg [copyProg dst [src]]
 
 -- | Shallow assignment from an 'Expression' to a 'Location' (or nothing, if the
 -- destination and source are identical)

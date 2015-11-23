@@ -334,13 +334,13 @@ compileProg loc (In (App Ut.SetIx _ [arr, i, a])) = do
    compileProg loc arr
    i' <- compileExpr i
    compileProg (ArrayElem <$> loc <*> pure i') a
-compileProg (Just loc) (In (App Ut.GetIx _ [arr, i])) = do
+compileProg loc (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr arr
    i' <- compileExpr i
    let el = ArrayElem a' i'
-   tellProg $ if isArray $ typeof el
-                then [Assign loc el]
-                else [copyProg (Just loc) [el]]
+   if isArray $ typeof el
+      then shallowAssign loc el
+      else assign loc el
 compileProg loc (In (App Ut.SetLength _ [len, arr])) = do
    len' <- compileExpr len
    compileProg loc arr
@@ -562,10 +562,10 @@ compileProg loc (In (App Ut.Tup _ ms)) = sequence_
       | (n,m) <- zip [1..] ms
     ]
 -- Special case foreign imports since they can be of void type and just have effects.
-compileProg (Just loc) (In (App p@Ut.ForeignImport{} t es)) = do
+compileProg loc@(Just _) (In (App p@Ut.ForeignImport{} t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    tellProg [Assign loc $ fun (compileType opts t) (compileOp p) es']
+    shallowAssign loc $ fun (compileType opts t) (compileOp p) es'
 compileProg Nothing (In (App p@Ut.ForeignImport{} t es)) = do
     es' <- mapM compileExpr es
     tellProg [ProcedureCall (compileOp p) $ map ValueParameter es']
