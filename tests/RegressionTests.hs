@@ -174,7 +174,8 @@ tuples a =
           share (c1+c2,c2+c3,c3+c4,c4+c1,c4) $ \(d1,d2,d3,d4,d5) ->
             share (d1+d2,d2+d3,d3+d4,d4+d5,d5+d1,d5) $ \(e1,e2,e3,e4,e5,e6) ->
               share (e1+e2,e2+e3,e3+e4,e4+e5,e5+e6,e6+e1,e6) $ \(f1,f2,f3,f4,f5,f6,f7) ->
-                f1+f2+f3+f4+f5+f6+f7
+                share (f1+f2,f2+f3,f3+f4,f4+f5,f5+f6,f6+f7,f7+f1,f1+f2,f2+f3,f3+f4,f4+f5,f5+f6,f6+f7,f7+f1,f7*f1) $ \(g1,g2,g3,g4,g5,g6,g7,g8,g9,g10,g11,g12,g13,g14,g15) ->
+                  g1+g2+g3+g4+g5+g6+g7+g8+g9+g10+g11+g12+g13+g14+g15
 
 loadFun ['tuples]
 

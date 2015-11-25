@@ -64,6 +64,25 @@ struct s_7_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32
   int32_t member7;
 };
 
+struct s_15_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32_signedS32
+{
+  int32_t member1;
+  int32_t member2;
+  int32_t member3;
+  int32_t member4;
+  int32_t member5;
+  int32_t member6;
+  int32_t member7;
+  int32_t member8;
+  int32_t member9;
+  int32_t member10;
+  int32_t member11;
+  int32_t member12;
+  int32_t member13;
+  int32_t member14;
+  int32_t member15;
+};
+
 void tuples(int32_t v0, int32_t * out);
 
 #endif // TESTS_TUPLES_H
