@@ -162,6 +162,7 @@ data ParType
    = Sequential
    | Parallel
    | TaskParallel
+   | WorkParallel -- Generated from ExternalProgram.
      deriving (Show, Eq)
 
 data ActualParameter t
