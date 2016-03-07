@@ -211,7 +211,7 @@ stmToProgram :: TPEnv -> Stm -> Program ()
 stmToProgram _ l@Label{} = error ("stmToProgram: Unexpected label: " ++ show l)
 stmToProgram _ (Exp Nothing _) = error "Exp: Nothing?"
 stmToProgram env (Exp (Just e) _) = snd $ impureExpToProgram env e
-stmToProgram env (Block bis _) = Sequence (snd $ blockItemsToProgram env bis)
+stmToProgram env (Block bis _) = R.BlockProgram $ snd $ blockToBlock env bis
 stmToProgram env (If e b1@(Block alt _) (Just b2@(Block alt' _)) _)
   = R.Switch cond [ (Pat $ litB True, toBlock $ stmToProgram env b1)
                   , (Pat $ litB False, toBlock $ stmToProgram env b2)]
