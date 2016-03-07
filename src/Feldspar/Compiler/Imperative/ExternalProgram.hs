@@ -111,7 +111,13 @@ blockDeclToDecl env (BlockDecl ig) = (env', dv)
         dv = map (\(_, v) -> Declaration v Nothing) igv -- Program decl
 
 blockItemsToProgram :: TPEnv -> [BlockItem] -> (TPEnv, [Program ()])
-blockItemsToProgram = mapAccumL blockItemToProgram
+-- TODO: Stop freeloading on ParLoop since we have to fake v/t at this stage.
+blockItemsToProgram env (BlockStm (Pragma "omp parallel" _):bis)
+  = (env', [ParLoop WorkParallel v t t t (toBlock $ Sequence ps)])
+    where (env', ps) = blockItemsToProgram env bis
+          t = litB True -- Fake information with the correct type.
+          v = snd $ head builtins -- Fake information with the correct type.
+blockItemsToProgram env bs = mapAccumL blockItemToProgram env bs
 
 blockItemToProgram :: TPEnv -> BlockItem -> (TPEnv, Program ())
 blockItemToProgram _ b@BlockDecl{}
