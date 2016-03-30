@@ -191,6 +191,11 @@ initGroupToDeclaration env (InitGroup ds attr [] _) = (env', s)
   where env' = updateEnv2 env [] t
         t = declSpecToType env ds
         [s] = mkDef t
+initGroupToDeclaration env g@(TypedefGroup ds attr (h:_) ns) = (env', s)
+  where env'                  = updateEnv2 env [] t
+        (StructType _ fields) = declSpecToType env ds
+        t                     = StructType (typeDefToName h) fields
+        [s]                   = mkDef t
 -- Function declarations
 initGroupToDeclaration env (InitGroup ds attr [is@(Init n (Proto _ (Params ps _ _) _) _ _ _ _)] _)
   = initToFunDecl env ds is ps
@@ -445,6 +450,9 @@ typSpecToType _ Tlong_long{} = error "longlong"
 typSpecToType _ Tfloat{} = MachineVector 1 FloatType
 typSpecToType _ Tdouble{} = MachineVector 1 DoubleType
 typSpecToType _ Tlong_double{} = error "long double"
+-- Anonymous typedefs.
+typSpecToType env (Tstruct Nothing mfg attrs _)
+  = StructType fakeName (concatMap (fieldGroupToType env) (fromJust mfg))
 -- Array types are incomplete so fake one. We recover the type elsewhere.
 typSpecToType _ (Tstruct (Just (Id "array" _)) mfg attrs _)
   = ArrayType universal fakeType
@@ -458,13 +466,14 @@ typSpecToType env t'@(Tstruct (Just (Id s _)) mfg attrs _)
   | Nothing <- mfg = error ("typSpecToType: Internal error: " ++ show t'
                            ++ " not found in:\n" ++ show (headerDefs env)
                            ++ " and not in " ++ show (typedefs env))
-  | otherwise = StructType s (map (fieldGroupToType env) (fromJust mfg))
+  | otherwise = StructType s (concatMap (fieldGroupToType env) (fromJust mfg))
 typSpecToType _ Tunion{} = error "typSpecToType: No support for union."
 typSpecToType _ Tenum{} = error "typSpecToType: No support for enum."
 typSpecToType _ (Tnamed i@Id{} _ _) = namedToType (unId i)
 typSpecToType _ TtypeofExp{} = error "typSpecToType: No support for typeofExp"
 typSpecToType _ TtypeofType{} = error "typSpecToType: No support for typeofType"
 typSpecToType _ Tva_list{} = error "typSpecToType: No support for valist."
+typSpecToType _ t = error $ "typSpecToType: Unknown type " ++ show t
 
 namedToType :: String -> R.Type
 namedToType "uint64_t" = MachineVector 1 (NumType R.Unsigned S64)
@@ -499,9 +508,9 @@ pointedArray (ArrayType{})                 = True
 pointedArray (MachineVector _ (Pointer t)) = pointedArray t
 pointedArray _                             = False
 
-fieldGroupToType :: TPEnv -> FieldGroup -> (String, R.Type)
-fieldGroupToType env (FieldGroup dss [fs] _)
-  = (fieldToName fs, declSpecToType env dss)
+fieldGroupToType :: TPEnv -> FieldGroup -> [(String, R.Type)]
+fieldGroupToType env (FieldGroup dss fs _)
+  = zip (map fieldToName fs) $ replicate (length fs) $ declSpecToType env dss
 fieldGroupToType _ g
   = error ("fieldGroupToType: Unhandled construct: " ++ show g)
 
@@ -512,6 +521,9 @@ signToSign Unsigned = R.Unsigned
 fieldToName :: Field -> String
 fieldToName (Field (Just s) _ _ _) = unId s
 
+typeDefToName :: Typedef -> String
+typeDefToName (Typedef s _ _ _) = unId s
+
 unId :: Id -> String
 unId (Id n _) = n
 unId i = error ("unId: Unhandled construct: " ++ show i)
@@ -519,6 +531,9 @@ unId i = error ("unId: Unhandled construct: " ++ show i)
 -- Some place holders.
 fakeType :: R.Type
 fakeType = VoidType
+
+fakeName :: String
+fakeName = "fakeName"
 
 -- Feldspar "builtins".
 builtins :: [(String, R.Variable ())]
