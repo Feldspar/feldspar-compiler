@@ -263,6 +263,7 @@ instance Lift t => Lift (Constant t) where
     lift (BoolConst v)        = [| BoolConst v |]
     lift (ComplexConst r i)   = [| ComplexConst r i |]
     lift (ArrayConst vs t)    = [| ArrayConst vs t |]
+    lift (StructConst vs t)   = [| StructConst vs t |]
 
 instance Lift (Constant () -> String) where
     lift x = [| error "No TH instance for ShowValue" |]

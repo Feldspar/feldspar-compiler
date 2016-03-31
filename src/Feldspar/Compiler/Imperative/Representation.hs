@@ -246,6 +246,10 @@ data Constant t
         { arrayValues               :: [Constant t]
         , arrayType                 :: Type
         }
+    | StructConst
+        { memberValues              :: [(String, Constant t)]
+        , structType                :: Type
+        }
     deriving (Typeable, Show, Eq)
 
 data Variable t
@@ -321,6 +325,7 @@ instance HasType (Constant t) where
     typeof FloatConst{}      = MachineVector 1 FloatType
     typeof BoolConst{}       = MachineVector 1 BoolType
     typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) arrayType
+    typeof StructConst{..}   = structType
     typeof ComplexConst{..}  = MachineVector 1 (ComplexType $ typeof realPartComplexValue)
 
 instance HasType (Expression t) where

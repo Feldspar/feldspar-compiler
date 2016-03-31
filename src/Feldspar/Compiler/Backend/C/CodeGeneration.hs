@@ -219,9 +219,15 @@ instance CodeGen (Constant ())
     cgen env cnst@(BoolConst False) = maybe (int 0)     text $ transformConst env cnst
     cgen env cnst@(BoolConst True)  = maybe (int 1)     text $ transformConst env cnst
     cgen env      (ArrayConst cs _) = braces (cgenList env cs)
+    cgen env     (StructConst cs _) = block env (cgenList env cs)
     cgen env cnst@ComplexConst{..}  = maybe cmplxCnst   text $ transformConst env cnst
       where
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])
+    cgenList env = sep . punctuate comma . map (cgen env)
+
+instance CodeGen (String, Constant ())
+  where
+    cgen env (n, c) = char '.' <> text n <+> equals <+> cgen env c
     cgenList env = sep . punctuate comma . map (cgen env)
 
 transformConst :: PrintEnv -> Constant () -> Maybe String
