@@ -469,25 +469,26 @@ typSpecToType env t'@(Tstruct (Just (Id s _)) mfg attrs _)
   | otherwise = StructType s (concatMap (fieldGroupToType env) (fromJust mfg))
 typSpecToType _ Tunion{} = error "typSpecToType: No support for union."
 typSpecToType _ Tenum{} = error "typSpecToType: No support for enum."
-typSpecToType _ (Tnamed i@Id{} _ _) = namedToType (unId i)
+typSpecToType env (Tnamed i@Id{} _ _) = namedToType env (unId i)
 typSpecToType _ TtypeofExp{} = error "typSpecToType: No support for typeofExp"
 typSpecToType _ TtypeofType{} = error "typSpecToType: No support for typeofType"
 typSpecToType _ Tva_list{} = error "typSpecToType: No support for valist."
 typSpecToType _ t = error $ "typSpecToType: Unknown type " ++ show t
 
-namedToType :: String -> R.Type
-namedToType "uint64_t" = MachineVector 1 (NumType R.Unsigned S64)
-namedToType "uint40_t" = MachineVector 1 (NumType R.Unsigned S40)
-namedToType "uint32_t" = MachineVector 1 (NumType R.Unsigned S32)
-namedToType "uint16_t" = MachineVector 1 (NumType R.Unsigned S16)
-namedToType "uint8_t"  = MachineVector 1 (NumType R.Unsigned S8)
-namedToType "int64_t"  = MachineVector 1 (NumType R.Signed S64)
-namedToType "int40_t"  = MachineVector 1 (NumType R.Signed S40)
-namedToType "int32_t"  = MachineVector 1 (NumType R.Signed S32)
-namedToType "int16_t"  = MachineVector 1 (NumType R.Signed S16)
-namedToType "int8_t"   = MachineVector 1 (NumType R.Signed S8)
-namedToType "bool"     = MachineVector 1 BoolType
-namedToType s          = error ("namedToType: Unrecognized type: " ++ s)
+namedToType :: TPEnv -> String -> R.Type
+namedToType _ "uint64_t" = MachineVector 1 (NumType R.Unsigned S64)
+namedToType _ "uint40_t" = MachineVector 1 (NumType R.Unsigned S40)
+namedToType _ "uint32_t" = MachineVector 1 (NumType R.Unsigned S32)
+namedToType _ "uint16_t" = MachineVector 1 (NumType R.Unsigned S16)
+namedToType _ "uint8_t"  = MachineVector 1 (NumType R.Unsigned S8)
+namedToType _ "int64_t"  = MachineVector 1 (NumType R.Signed S64)
+namedToType _ "int40_t"  = MachineVector 1 (NumType R.Signed S40)
+namedToType _ "int32_t"  = MachineVector 1 (NumType R.Signed S32)
+namedToType _ "int16_t"  = MachineVector 1 (NumType R.Signed S16)
+namedToType _ "int8_t"   = MachineVector 1 (NumType R.Signed S8)
+namedToType _ "bool"     = MachineVector 1 BoolType
+namedToType env s | Just t <- findLocalDeclaration env s = t
+namedToType _ s          = error ("namedToType: Unrecognized type: " ++ s)
 
 declToType :: R.Type -> Decl -> R.Type
 declToType t DeclRoot{} = t
