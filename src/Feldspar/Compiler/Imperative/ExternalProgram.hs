@@ -8,7 +8,9 @@ import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
   Deref, AddrOf, Unsigned, Signed, inParams)
-import Feldspar.Compiler.Imperative.Frontend (litB, toBlock, fun, call)
+import Feldspar.Compiler.Imperative.Frontend (
+    litB, litI32, toBlock, fun, call
+  )
 
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
@@ -233,13 +235,20 @@ stmToProgram env (While e s _) = SeqLoop cond (toBlock Empty) (toBlock p)
   where cond = expToExpression env e
         p = stmToProgram env s
 stmToProgram _ (DoWhile s e _) = error "stmToProgram: No support for Do."
-stmToProgram env (For (Left es@(InitGroup ds attr [Init n _ Nothing (Just (ExpInitializer e0 _)) _ _] _))
+stmToProgram env (For eit
                       (Just (BinOp Lt name@Var{} v2 _))
-                      (Just (Assign lhs AddAssign rhs _)) s _)
-  = ParLoop Sequential v' (expToExpression env' e0) (expToExpression env' v2) (expToExpression env' rhs) body
-    where env' = initGroupToProgram env es
-          v' = varToVariable env' name
+                      (Just ass) s _)
+  = ParLoop Sequential v' e0' (expToExpression env' v2) rhs' body
+    where v' = varToVariable env' name
           body = toBlock $ stmToProgram env' s
+          (e0', env') = case eit of
+                         Right (Just (Assign _ JustAssign e0 _)) -> (expToExpression env e0, env)
+                         Left es@(InitGroup ds attr [Init _ _ Nothing (Just (ExpInitializer e0 _)) _ _] _) -> (expToExpression env' e0, initGroupToProgram env es)
+                         _ -> error $ "stmToProgram: Unknown first for block: " ++ show eit
+          rhs' = case ass of
+                   Assign _ AddAssign rhs _ -> expToExpression env' rhs
+                   PostInc v _              -> plusOne $ expToExpression env' v
+                   _ -> error $ "stmToProgram: Unknown second for block: " ++ show ass
 stmToProgram _ Goto{} = error "stmToProgram: No support for goto."
 stmToProgram _ Continue{} = error "stmToProgram: No support for continue."
 stmToProgram _ Break{} = error "stmToProgram: Unexpected break."
@@ -315,7 +324,7 @@ expToExpression' _ _ (Const c _) = ConstExpr (constToConstant c)
 expToExpression' env t (BinOp op e1 e2 _) = opToFunctionCall parms op
   where parms = map (expToExpression' env t) [e1, e2]
 expToExpression' env t (UnOp op e _) = unOpToExp (expToExpression' env t e) op
-expToExpression' _ _ (Assign e1 JustAssign e2 _) = error "Assign unimplemented"
+expToExpression' _ _ (Assign e1 JustAssign e2 _) = error $ "Assign unimplemented" ++ show e1 ++ " = " ++ show e2
 expToExpression' _ _ a@Assign{} = error ("AssignOp unhandled: " ++ show a)
 expToExpression' _ _ PreInc{} = error "expToExpression: No support for preinc."
 expToExpression' _ _ PostInc{} = error "expToExpression: No support for postinc."
@@ -616,6 +625,11 @@ fixupEnv env (Member (FnCall (Var (Id "at" _) _) [Var (Id s _) _, _] _) (Id name
                  structFixup e = e
         goStructAt (p:t) = p:goStructAt t
 fixupEnv env e tp = env
+
+-- Expression builders.
+
+plusOne :: Expression () -> Expression ()
+plusOne e = opToFunctionCall [e, litI32 1] Add
 
 -- Misc helpers
 
