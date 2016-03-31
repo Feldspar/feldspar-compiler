@@ -34,7 +34,7 @@ module Feldspar.Compiler.Backend.C.CodeGeneration where
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Error (handleError, ErrorClass(..))
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Frontend (isNativeArray)
+import Feldspar.Compiler.Imperative.Frontend (isNativeArray, isPointer)
 
 import Text.PrettyPrint
 
@@ -186,7 +186,7 @@ instance CodeGen (Expression ())
      | c@ConstExpr{} <- array
      , (NativeArray _ t) <- typeof c
      = parens (parens (cgen env t <> brackets empty) <> cgen env c) <> brackets (cgen env arrayIndex)
-     | isNativeArray $ typeof array
+     | isNativeArray (typeof array) || isPointer (typeof array)
      = cgen env array <> brackets (cgen env arrayIndex)
      | otherwise = text "at" <> parens (hcat $ punctuate comma [ cgen env $ typeof e
                                                                , cgen env array
