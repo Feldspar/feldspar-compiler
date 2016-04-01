@@ -233,16 +233,17 @@ stmToProgram env (While e s _) = SeqLoop cond (toBlock Empty) (toBlock p)
         p = stmToProgram env s
 stmToProgram _ (DoWhile s e _) = error "stmToProgram: No support for Do."
 stmToProgram env (For eit
-                      (Just (BinOp Lt name@Var{} v2 _))
+                      (Just (BinOp Lt Var{} v2 _))
                       (Just ass) s _)
   = ParLoop Sequential v' e0' (expToExpression env' v2) rhs' body
-    where v' = varToVariable env' name
-          body = toBlock $ stmToProgram env' s
-          (env', e0') = case eit of
-                         Right (Just (Assign _ JustAssign e0 _)) -> (env, expToExpression env e0)
-                         Left es@InitGroup{} -> (env0, e0)
-                            where (env0, [Declaration _ (Just e0)]) = initGroupToProgram env es
-                         _ -> error $ "stmToProgram: Unknown first for block: " ++ show eit
+    where body = toBlock $ stmToProgram env' s
+          (v', env', e0') = case eit of
+             Right (Just (Assign name JustAssign e0 _)) -> (v, env, expToExpression env e0)
+               where v = varToVariable env name
+             Left es@InitGroup{} -> (v, env0, e0)
+               where (env0, es') = initGroupToProgram env es
+                     [Declaration v (Just e0)] = es'
+             _ -> error $ "stmToProgram: Unknown first for block: " ++ show eit
           rhs' = case ass of
                    Assign _ AddAssign rhs _ -> expToExpression env' rhs
                    PostInc v _              -> plusOne $ expToExpression env' v
