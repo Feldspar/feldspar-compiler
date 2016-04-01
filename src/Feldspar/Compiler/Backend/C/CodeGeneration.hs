@@ -269,7 +269,7 @@ instance CodeGen Type
         toC IVarType{}                    = text "struct ivar"
         toC (StructType n _)              = text "struct" <+> text n
         toC (NativeArray _ t)             = toC t
-        toC (MachineVector 1 (Pointer t)) = toC t <+> text "*"
+        toC (1 :# (Pointer t))            = toC t <+> text "*"
         toC t | Just s <- lookup t pts    = text s
         toC t = codeGenerationError InternalError
               $ unwords ["Unhandled type in platform ", name pfm,  ": ", show t]
@@ -288,7 +288,7 @@ call fn args = fn <> parens (hsep $ punctuate comma args)
 -- inside a compound type.
 initialize :: Bool -> Type -> Doc
 -- Compound/Special types.
-initialize _     (MachineVector 1 Pointer{}) = equals <+> text "NULL"
+initialize _     (1 :# Pointer{})  = equals <+> text "NULL"
 initialize _     ArrayType{}       = equals <+> text "NULL"
 initialize _     (NativeArray _ t) = equals <+> lbrace <+> initialize False t <+> rbrace
 initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
@@ -297,12 +297,12 @@ initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
 -- Simple types.
 initialize False _                 = empty
 -- Simple types inside compound types.
-initialize _     (MachineVector 1 BoolType{})        = equals <+> text "false"
-initialize _     (MachineVector 1 BitType{})         = equals <+> text "0"
-initialize _     (MachineVector 1 NumType{})         = equals <+> text "0"
-initialize _     (MachineVector 1 FloatType{})       = equals <+> text "0.0f"
-initialize _     (MachineVector 1 DoubleType{})      = equals <+> text "0.0"
-initialize b     (MachineVector 1 (ComplexType t))   = initialize b t
+initialize _     (1 :# BoolType{})        = equals <+> text "false"
+initialize _     (1 :# BitType{})         = equals <+> text "0"
+initialize _     (1 :# NumType{})         = equals <+> text "0"
+initialize _     (1 :# FloatType{})       = equals <+> text "0.0f"
+initialize _     (1 :# DoubleType{})      = equals <+> text "0.0"
+initialize b     (1 :# (ComplexType t))   = initialize b t
 
 blockComment :: [Doc] -> Doc
 blockComment ds = vcat (zipWith (<+>) (text "/*" : repeat (text " *")) ds)

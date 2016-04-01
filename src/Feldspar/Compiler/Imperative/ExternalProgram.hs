@@ -362,7 +362,7 @@ expToExpression' _ _ e = error ("expToExpression: Unhandled construct: " ++ show
 opToFunctionCall :: [Expression ()] -> BinOp -> Expression ()
 opToFunctionCall es op = case opToString op of
                       Right s -> fun t s es
-                      Left s -> fun (MachineVector 1 BoolType) s es
+                      Left s -> fun (1 :# BoolType) s es
   where t = typeof (head es)
 
 opToString :: BinOp -> Either String String
@@ -394,7 +394,7 @@ expToFunctionCall _ es (Var name _)
 -- Signed integers are the default for literals, but that is not always
 -- convenient. Fix things up afterwards instead.
 castConstant :: R.Type -> R.Constant () -> R.Constant ()
-castConstant (MachineVector 1 t) (R.IntConst i _) = R.IntConst i t
+castConstant (1 :# t) (R.IntConst i _) = R.IntConst i t
 castConstant _ c = error ("castConstant: Unexpected argument: " ++ show c)
 
 constToConstant :: Const -> Constant ()
@@ -461,7 +461,7 @@ unOpToExp (ConstExpr (R.DoubleConst n)) Negate
 unOpToExp e Negate = fun (typeof e) "-" [e]
 unOpToExp e Positive = e
 unOpToExp e Not = error "Not"
-unOpToExp e Lnot = fun (MachineVector 1 BoolType) "!" [e]
+unOpToExp e Lnot = fun (1 :# BoolType) "!" [e]
 
 typToType :: TPEnv -> Type -> R.Type
 typToType env (Type ds de _) = declSpecToType env ds
@@ -471,12 +471,12 @@ typSpecToType :: TPEnv -> TypeSpec -> R.Type
 typSpecToType _ Tvoid{} = VoidType
 typSpecToType _ Tchar{} = error "Tchar"
 typSpecToType _ Tshort{} = error "TShort"
-typSpecToType _ (Tint Nothing _) = MachineVector 1 (NumType R.Unsigned S32)
-typSpecToType _ (Tint _ _) = MachineVector 1 (NumType R.Signed S32)
+typSpecToType _ (Tint Nothing _) = 1 :# (NumType R.Unsigned S32)
+typSpecToType _ (Tint _ _)       = 1 :# (NumType R.Signed S32)
 typSpecToType _ Tlong{} = error "Tlong"
 typSpecToType _ Tlong_long{} = error "longlong"
-typSpecToType _ Tfloat{} = MachineVector 1 FloatType
-typSpecToType _ Tdouble{} = MachineVector 1 DoubleType
+typSpecToType _ Tfloat{}         = 1 :# FloatType
+typSpecToType _ Tdouble{}        = 1 :# DoubleType
 typSpecToType _ Tlong_double{} = error "long double"
 -- Anonymous typedefs.
 typSpecToType env (Tstruct Nothing mfg attrs _)
@@ -504,17 +504,17 @@ typSpecToType _ Tva_list{} = error "typSpecToType: No support for valist."
 typSpecToType _ t = error $ "typSpecToType: Unknown type " ++ show t
 
 namedToType :: TPEnv -> String -> R.Type
-namedToType _ "uint64_t" = MachineVector 1 (NumType R.Unsigned S64)
-namedToType _ "uint40_t" = MachineVector 1 (NumType R.Unsigned S40)
-namedToType _ "uint32_t" = MachineVector 1 (NumType R.Unsigned S32)
-namedToType _ "uint16_t" = MachineVector 1 (NumType R.Unsigned S16)
-namedToType _ "uint8_t"  = MachineVector 1 (NumType R.Unsigned S8)
-namedToType _ "int64_t"  = MachineVector 1 (NumType R.Signed S64)
-namedToType _ "int40_t"  = MachineVector 1 (NumType R.Signed S40)
-namedToType _ "int32_t"  = MachineVector 1 (NumType R.Signed S32)
-namedToType _ "int16_t"  = MachineVector 1 (NumType R.Signed S16)
-namedToType _ "int8_t"   = MachineVector 1 (NumType R.Signed S8)
-namedToType _ "bool"     = MachineVector 1 BoolType
+namedToType _ "uint64_t" = 1 :# (NumType R.Unsigned S64)
+namedToType _ "uint40_t" = 1 :# (NumType R.Unsigned S40)
+namedToType _ "uint32_t" = 1 :# (NumType R.Unsigned S32)
+namedToType _ "uint16_t" = 1 :# (NumType R.Unsigned S16)
+namedToType _ "uint8_t"  = 1 :# (NumType R.Unsigned S8)
+namedToType _ "int64_t"  = 1 :# (NumType R.Signed S64)
+namedToType _ "int40_t"  = 1 :# (NumType R.Signed S40)
+namedToType _ "int32_t"  = 1 :# (NumType R.Signed S32)
+namedToType _ "int16_t"  = 1 :# (NumType R.Signed S16)
+namedToType _ "int8_t"   = 1 :# (NumType R.Signed S8)
+namedToType _ "bool"     = 1 :# BoolType
 namedToType env s | Just t <- findLocalDeclaration env s = t
 namedToType _ s          = error ("namedToType: Unrecognized type: " ++ s)
 
@@ -522,7 +522,7 @@ declToType :: R.Type -> Decl -> R.Type
 declToType t DeclRoot{} = t
 -- Truncate one level of pointers on array types.
 declToType t (Ptr tqs DeclRoot{} _) | pointedArray t = t
-declToType t (Ptr tqs dcl _)  = declToType (MachineVector 1 (Pointer t)) dcl
+declToType t (Ptr tqs dcl _)  = declToType (1 :# (Pointer t)) dcl
 declToType t BlockPtr{} = error "Blocks?"
 declToType t (Array tqs (NoArraySize _) dcl _) = NativeArray Nothing t
 declToType t (Array tqs sz dcl _)
@@ -534,7 +534,7 @@ declToType _ d = error ("declToType: Unhandled construct: " ++ show d)
 
 pointedArray :: R.Type -> Bool
 pointedArray (ArrayType{})                 = True
-pointedArray (MachineVector _ (Pointer t)) = pointedArray t
+pointedArray (_ :# (Pointer t))            = pointedArray t
 pointedArray _                             = False
 
 fieldGroupToType :: TPEnv -> FieldGroup -> [(String, R.Type)]
@@ -567,7 +567,7 @@ fakeName = "fakeName"
 -- Feldspar "builtins".
 builtins :: [(String, R.Variable ())]
 builtins =
-  [ ("getLength", Variable (MachineVector 1 (NumType R.Unsigned S32)) "getLength")
+  [ ("getLength", Variable (1 :# (NumType R.Unsigned S32)) "getLength")
   ]
 
 findBuiltinDeclaration :: TPEnv -> String -> Maybe R.Type
@@ -610,8 +610,8 @@ fixupEnv :: TPEnv -> Exp -> R.Type -> TPEnv
 fixupEnv env _ VoidType = env -- No new type information.
 fixupEnv env (UnOp Deref (Var (Id s _) _) _) tp = env { vars = goVar (vars env) }
   where goVar [] = []
-        goVar (p@(n, Variable (MachineVector l (Pointer (ArrayType r _))) n'):t)
-         | s == n = (n, Variable (MachineVector l (Pointer (ArrayType r tp))) n'):goVar t
+        goVar (p@(n, Variable (l :# (Pointer (ArrayType r _))) n'):t)
+         | s == n = (n, Variable (l :# (Pointer (ArrayType r tp))) n'):goVar t
         goVar (p:t) = p:goVar t
 fixupEnv _ (UnOp Deref e _) _ = error ("fixupEnv: No support for " ++ show e)
 fixupEnv env (Var (Id s _) _) tp = env { vars = goVar (vars env) }

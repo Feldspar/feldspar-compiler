@@ -290,7 +290,7 @@ data ScalarType =
 
 data Type =
       VoidType
-    | MachineVector Length ScalarType
+    | Length :# ScalarType -- Machine SIMD vectors; xmm registers in x86.
     | AliasType Type String
     | ArrayType (Range Length) Type
     | NativeArray (Maybe Length) Type
@@ -302,7 +302,7 @@ data Type =
 -- where size info is ignored and struct types where the tag is ignored.
 instance Eq Type where
    VoidType              == VoidType              = True
-   (MachineVector l1 t1) == (MachineVector l2 t2) = l1 == l2 && t1 == t2
+   (l1 :# t1)            == (l2 :# t2)            = l1 == l2 && t1 == t2
    (AliasType t1 s1)     == (AliasType t2 s2)     = t1 == t2 && s1 == s2
    (ArrayType _ t1)      == (ArrayType _ t2)      = t1 == t2
    (NativeArray l1 t1)   == (NativeArray l2 t2)   = l1 == l2 && t1 == t2
@@ -321,13 +321,13 @@ instance HasType (Variable t) where
 
 instance HasType (Constant t) where
     type TypeOf (Constant t) = Type
-    typeof IntConst{..}      = MachineVector 1 intType
-    typeof DoubleConst{}     = MachineVector 1 DoubleType
-    typeof FloatConst{}      = MachineVector 1 FloatType
-    typeof BoolConst{}       = MachineVector 1 BoolType
+    typeof IntConst{..}      = 1 :# intType
+    typeof DoubleConst{}     = 1 :# DoubleType
+    typeof FloatConst{}      = 1 :# FloatType
+    typeof BoolConst{}       = 1 :# BoolType
     typeof ArrayConst{..}    = NativeArray (Just (fromIntegral $ length arrayValues)) arrayType
     typeof StructConst{..}   = structType
-    typeof ComplexConst{..}  = MachineVector 1 (ComplexType $ typeof realPartComplexValue)
+    typeof ComplexConst{..}  = 1 :# (ComplexType $ typeof realPartComplexValue)
 
 instance HasType (Expression t) where
     type TypeOf (Expression t) = Type
@@ -338,7 +338,7 @@ instance HasType (Expression t) where
         decrArrayDepth (ArrayType _ t)               = t
         decrArrayDepth (NativeArray _ t)             = t
         -- Allow indexing of int* with [].
-        decrArrayDepth (MachineVector 1 (Pointer t)) = t
+        decrArrayDepth (1 :# Pointer t)              = t
         decrArrayDepth t                             = reprError InternalError $ "Non-array variable is indexed! " ++ show array ++ " :: " ++ show t
     typeof StructField{..} = getStructFieldType fieldName $ typeof struct
       where
@@ -351,10 +351,10 @@ instance HasType (Expression t) where
     typeof ConstExpr{..}    = typeof constExpr
     typeof FunctionCall{..} = returnType function
     typeof Cast{..}         = castType
-    typeof AddrOf{..}       = MachineVector 1 $ Pointer $ typeof addrExpr
-    typeof SizeOf{..}       = MachineVector 1 $ NumType Signed S32
+    typeof AddrOf{..}       = 1 :# (Pointer $ typeof addrExpr)
+    typeof SizeOf{..}       = 1 :# NumType Signed S32
     typeof Deref{..}        = case typeof ptrExpr of
-                                MachineVector 1 (Pointer btype) -> btype
+                                1 :# (Pointer btype) -> btype
                                 wtype         -> reprError InternalError $ "Type of dereferenced expression " ++ show ptrExpr ++ " has type " ++ show wtype
 
 instance HasType (ActualParameter t) where

@@ -220,7 +220,7 @@ compileProgTop a = do
       fastRet  = useNativeReturns opt && canFastReturn outType'
       (outType, outLoc)
        | fastRet   = (outType', varToExpr outParam)
-       | otherwise = (MachineVector 1 (Pointer outType'), Deref $ varToExpr outParam)
+       | otherwise = (1 :# (Pointer outType'), Deref $ varToExpr outParam)
       outParam   = Variable outType "out"
   compileProg (Just outLoc) a
   return outParam
@@ -234,12 +234,12 @@ compileProgTop a = do
 -- | Compile a type representation. The conversion is platform-dependent, which
 -- is why the function takes and 'Options' argument.
 compileType :: Options -> Ut.Type -> Type
-compileType _   Ut.BoolType            = MachineVector 1 BoolType
-compileType _   Ut.BitType             = MachineVector 1 BitType
-compileType _   (Ut.IntType s n)       = MachineVector 1 (NumType s n)
-compileType _   Ut.FloatType           = MachineVector 1 FloatType
-compileType _   Ut.DoubleType          = MachineVector 1 DoubleType
-compileType opt (Ut.ComplexType t)     = MachineVector 1 $ ComplexType (compileType opt t)
+compileType _   Ut.BoolType            = 1 :# BoolType
+compileType _   Ut.BitType             = 1 :# BitType
+compileType _   (Ut.IntType s n)       = 1 :# (NumType s n)
+compileType _   Ut.FloatType           = 1 :# FloatType
+compileType _   Ut.DoubleType          = 1 :# DoubleType
+compileType opt (Ut.ComplexType t)     = 1 :# (ComplexType $ compileType opt t)
 compileType _   (Ut.TupType [])        = VoidType
 compileType opt (Ut.TupType ts)        = mkStructType
     [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
@@ -471,7 +471,7 @@ compileProg loc (In (App Ut.When _ [c, action])) =
 -- MutableArray
 compileProg loc (In (App Ut.NewArr _ [len, a])) = do
    nId <- freshId
-   let var = mkNamedVar "i" (MachineVector 1 (NumType Ut.Unsigned Ut.S32)) nId
+   let var = mkNamedVar "i" (1 :# (NumType Ut.Unsigned Ut.S32)) nId
        ix  = varToExpr var
    a' <- compileExpr a
    l  <- compileExpr len
@@ -619,13 +619,13 @@ compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
 compileExpr (In (App Ut.F2I t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (MachineVector 1 FloatType) "truncf" es'
+    let f' = fun (1 :# FloatType) "truncf" es'
     return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.I2N t1 [e])) = do
     opts <- asks backendOpts
     let t' = compileType opts t1
     case t' of
-      MachineVector 1 (ComplexType t) -> do
+      1 :# (ComplexType t) -> do
         e' <- compileExpr e
         let args = [Cast t e', litF 0]
         return $ fun t' (extend c99 "complex" t) args
@@ -639,17 +639,17 @@ compileExpr (In (App Ut.B2I t [e])) = do
 compileExpr (In (App Ut.Round t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (MachineVector 1 FloatType) "roundf" es'
+    let f' = fun (1 :# FloatType) "roundf" es'
     return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Ceiling t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (MachineVector 1 FloatType) "ceilf" es'
+    let f' = fun (1 :# FloatType) "ceilf" es'
     return $ Cast (compileType opts t) f'
 compileExpr (In (App Ut.Floor t es)) = do
     opts <- asks backendOpts
     es' <- mapM compileExpr es
-    let f' = fun (MachineVector 1 FloatType) "floorf" es'
+    let f' = fun (1 :# FloatType) "floorf" es'
     return $ Cast (compileType opts t) f'
 -- Error
 compileExpr (In (App (Ut.Assert msg) _ [cond, a])) = do

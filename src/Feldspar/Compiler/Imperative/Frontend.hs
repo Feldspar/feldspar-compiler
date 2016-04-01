@@ -71,7 +71,7 @@ mkInitArr name (Just arr) len
   = Assign arr $ fun arrType name [arr, sz, len]
    where
     arrType = typeof arr
-    sz | isArray t' = binop (MachineVector 1 (NumType Unsigned S32)) "-" (litI32 0) t
+    sz | isArray t' = binop (1 :# (NumType Unsigned S32)) "-" (litI32 0) t
        | otherwise  = t
     t = SizeOf t'
     t' = go $ arrType
@@ -108,7 +108,7 @@ freeArrays defs = map freeArray arrays
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just l <- staticArrayLength arr = litI32 $ fromIntegral l
-  | otherwise = fun (MachineVector 1 (NumType Unsigned S32)) "getLength" [arr]
+  | otherwise = fun (1 :# (NumType Unsigned S32)) "getLength" [arr]
 
 -- | If possible, return the static length of an array
 staticArrayLength :: Expression t -> Maybe Length
@@ -185,16 +185,16 @@ run taskName vs = call runName allParams
     allParams = taskParam : typeParams
 
 intWidth :: Type -> Maybe Integer
-intWidth (MachineVector 1 (NumType _ S8))  = Just 8
-intWidth (MachineVector 1 (NumType _ S16)) = Just 16
-intWidth (MachineVector 1 (NumType _ S32)) = Just 32
-intWidth (MachineVector 1 (NumType _ S40)) = Just 40
-intWidth (MachineVector 1 (NumType _ S64)) = Just 64
+intWidth (1 :# (NumType _ S8))             = Just 8
+intWidth (1 :# (NumType _ S16))            = Just 16
+intWidth (1 :# (NumType _ S32))            = Just 32
+intWidth (1 :# (NumType _ S40))            = Just 40
+intWidth (1 :# (NumType _ S64))            = Just 64
 intWidth _                                 = Nothing
 
 intSigned :: Type -> Maybe Bool
-intSigned (MachineVector 1 (NumType Unsigned _)) = Just False
-intSigned (MachineVector 1 (NumType Signed _))   = Just True
+intSigned (1 :# (NumType Unsigned _))            = Just False
+intSigned (1 :# (NumType Signed _))              = Just True
 intSigned _                                      = Nothing
 
 litF :: Float -> Expression t
@@ -210,27 +210,27 @@ litC :: Constant () -> Constant () -> Expression ()
 litC r i = ConstExpr (ComplexConst r i)
 
 litI :: Type -> Integer -> Expression ()
-litI (MachineVector _ t) n = ConstExpr (IntConst n t)
+litI (_ :# t) n = ConstExpr (IntConst n t)
 
 litI32 :: Integer -> Expression ()
-litI32 = litI (MachineVector 1 (NumType Unsigned S32))
+litI32 = litI (1 :# (NumType Unsigned S32))
 
 isComplex :: Type -> Bool
-isComplex (MachineVector _ ComplexType{}) = True
+isComplex (_ :# ComplexType{})            = True
 isComplex _                               = False
 
 isFloat :: Type -> Bool
-isFloat (MachineVector _ FloatType{}) = True
+isFloat (_ :# FloatType{})            = True
 isFloat _                             = False
 
 isArray :: Type -> Bool
 isArray ArrayType{}                   = True
-isArray (MachineVector _ (Pointer t)) = isArray t
+isArray (_ :# (Pointer t))            = isArray t
 isArray _                             = False
 
 isNativeArray :: Type -> Bool
 isNativeArray NativeArray{}                   = True
-isNativeArray (MachineVector _ (Pointer t))   = isNativeArray t
+isNativeArray (_ :# (Pointer t))              = isNativeArray t
 isNativeArray _                               = False
 
 isIVar :: Type -> Bool
@@ -238,7 +238,7 @@ isIVar IVarType{} = True
 isIVar _              = False
 
 isPointer :: Type -> Bool
-isPointer (MachineVector _ Pointer{}) = True
+isPointer (_ :# Pointer{})            = True
 isPointer _                           = False
 
 isVarExpr :: Expression () -> Bool
@@ -270,7 +270,7 @@ flattenStructs t = [(id, t)]
 hasReference :: Type -> Bool
 hasReference ArrayType{}                 = True
 hasReference NativeArray{}               = True -- TODO: Reconsider this safe approximation if we start using native arrays for performance
-hasReference (MachineVector _ Pointer{}) = True
+hasReference (_ :# Pointer{})            = True
 hasReference IVarType{}                  = True
 hasReference (StructType _ fs)           = any (hasReference . snd) fs
 hasReference _                           = False
@@ -306,7 +306,7 @@ call = ProcedureCall
 
 for :: ParType -> String -> Expression () -> Expression () -> Expression () -> Block () -> Program ()
 for _ _ _ _ _ (Block [] (Sequence [Empty])) = Empty
-for p n s e i b = ParLoop p (Variable (MachineVector 1 $ NumType Unsigned S32) n) s e i b
+for p n s e i b = ParLoop p (Variable (1 :# (NumType Unsigned S32)) n) s e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e = SeqLoop e p

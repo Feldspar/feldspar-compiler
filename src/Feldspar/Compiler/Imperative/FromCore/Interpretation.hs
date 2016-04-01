@@ -112,7 +112,7 @@ mkNamedRef
     -> Type     -- ^ Target type
     -> VarId    -- ^ Identifier (appended to the base name)
     -> Variable ()
-mkNamedRef base t i = mkNamedVar base (MachineVector 1 (Pointer t)) i
+mkNamedRef base t i = mkNamedVar base (1 :# (Pointer t)) i
 
 -- | Construct a variable.
 mkVariable :: Type -> VarId -> Variable ()
@@ -204,7 +204,7 @@ encodeType = go
   where
     go VoidType              = "void"
     -- Machine vectors do not change memory layout, so keep internal.
-    go (MachineVector _ t)   = goScalar t
+    go (_ :# t)              = goScalar t
     go (AliasType t s)       = "a_" ++ show (length s) ++ "_" ++ s ++ "_" ++ go t
     go (IVarType t)          = "i_" ++ go t
     go (NativeArray _ t)     = "narr_" ++ go t
@@ -231,17 +231,17 @@ decodeType = goL []
                       _     -> rest
 
     go (stripPrefix "void"     -> Just t) = (VoidType, t)
-    go (stripPrefix "bool"     -> Just t) = (MachineVector 1 BoolType, t)
-    go (stripPrefix "bit"      -> Just t) = (MachineVector 1 BitType, t)
-    go (stripPrefix "float"    -> Just t) = (MachineVector 1 FloatType, t)
-    go (stripPrefix "double"   -> Just t) = (MachineVector 1 DoubleType, t)
-    go (stripPrefix "unsigned" -> Just t) = (MachineVector 1 (NumType Unsigned w), t')
+    go (stripPrefix "bool"     -> Just t) = (1 :# BoolType, t)
+    go (stripPrefix "bit"      -> Just t) = (1 :# BitType, t)
+    go (stripPrefix "float"    -> Just t) = (1 :# FloatType, t)
+    go (stripPrefix "double"   -> Just t) = (1 :# DoubleType, t)
+    go (stripPrefix "unsigned" -> Just t) = (1 :# (NumType Unsigned w), t')
      where (w, t') = decodeSize t
-    go (stripPrefix "signed"   -> Just t) = (MachineVector 1 (NumType Signed w), t')
+    go (stripPrefix "signed"   -> Just t) = (1 :# (NumType Signed w), t')
      where (w, t') = decodeSize t
-    go (stripPrefix "complex"  -> Just t) = (MachineVector 1 (ComplexType tn), t')
+    go (stripPrefix "complex"  -> Just t) = (1 :# (ComplexType tn), t')
      where (tn, t') = go t
-    go (stripPrefix "ptr_"     -> Just t) = (MachineVector 1 (Pointer tt), t')
+    go (stripPrefix "ptr_"     -> Just t) = (1 :# (Pointer tt), t')
      where (tt, t') = go t
     go (stripPrefix "a_"       -> Just t) = (AliasType tt s', t'')
      where Just (n, '_':t') = decodeLen t
@@ -284,13 +284,13 @@ getTypeDefs defs = nub $ concatMap mkDef comps
     -- version of isComposite, so keep it private.
     isComposite' :: Type -> Bool
     isComposite' (StructType {})               = True
-    isComposite' (MachineVector _ (Pointer t)) = isComposite' t
+    isComposite' (_ :# (Pointer t))            = isComposite' t
     isComposite' e                             = isArray e
     mkDef (StructType n members)
       =  concatMap (mkDef . snd) members
       ++ [StructDef n (map (uncurry StructMember) members)]
     mkDef (ArrayType _ typ)               = mkDef typ
-    mkDef (MachineVector _ (Pointer typ)) = mkDef typ
+    mkDef (_ :# (Pointer typ))            = mkDef typ
     mkDef _                               = []
 
 -- | Copy an 'Expression' to a 'Location'. See 'copyProg' for more details.

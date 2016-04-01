@@ -10,29 +10,29 @@ import Feldspar.Compiler.Backend.C.CodeGeneration (cgen, penv0)
 
 machineLibrary :: Options -> [Entity ()]
 machineLibrary opts =
-  map (\t -> abs_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> pow_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> pow_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> signum_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> signum_fun_s opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> signum_fun_f opts (MachineVector 1 t)) floats ++
-  map (\t -> logbase_fun_f opts (MachineVector 1 t)) floats ++
-  map (\t -> setBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> setBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> clearBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> clearBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> complementBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> complementBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> testBit_fun opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> testBit_fun opts (MachineVector 1 (NumType Signed t))) sizes ++
-  map (\t -> rotateL_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
---  map (\t -> rotateL_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> rotateR_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
---  map (\t -> rotateR_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> reverseBits_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes ++
---  map (\t -> rotateR_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
-  map (\t -> bitScan_fun_u opts (MachineVector 1 (NumType Unsigned t))) sizes
---  map (\t -> bitScan_fun_s opts (MachineVector 1 (NumType Unsigned t))) sizes ++
+  map (\t -> abs_fun opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> pow_fun opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> pow_fun opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> signum_fun_u opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> signum_fun_s opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> signum_fun_f opts (1 :# t)) floats ++
+  map (\t -> logbase_fun_f opts (1 :# t)) floats ++
+  map (\t -> setBit_fun opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> setBit_fun opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> clearBit_fun opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> clearBit_fun opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> complementBit_fun opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> complementBit_fun opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> testBit_fun opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> testBit_fun opts (1 :# (NumType Signed t))) sizes ++
+  map (\t -> rotateL_fun_u opts (1 :# (NumType Unsigned t))) sizes ++
+--  map (\t -> rotateL_fun_s opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> rotateR_fun_u opts (1 :# (NumType Unsigned t))) sizes ++
+--  map (\t -> rotateR_fun_s opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> reverseBits_fun_u opts (1 :# (NumType Unsigned t))) sizes ++
+--  map (\t -> rotateR_fun_s opts (1 :# (NumType Unsigned t))) sizes ++
+  map (\t -> bitScan_fun_u opts (1 :# (NumType Unsigned t))) sizes
+--  map (\t -> bitScan_fun_s opts (1 :# (NumType Unsigned t))) sizes ++
 
 sizes :: [Size]
 sizes = [S8, S16, S32, S64]
@@ -63,7 +63,7 @@ abs_fun opts typ = Proc name False [inVar] (Right outVar) (Just body)
        ival   = binop typ ">>" inVar' arg2
        arg2   = ConstExpr (IntConst (sizeToNum typ - 1) typ')
        typ'   = case typ of
-                  MachineVector _ t -> t
+                  _ :# t -> t
 
 {-
 uint8_t pow_fun_uint8_t( uint8_t a, uint8_t b ) {
@@ -104,7 +104,7 @@ pow_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body)
        guard
          | Just True <- intSigned typ
          = Sequence [ call "assert" [ ValueParameter $
-                         binop (MachineVector 1 BoolType) "<" inVar2' (litI typ 0)]
+                         binop (1 :# BoolType) "<" inVar2' (litI typ 0)]
                     , Comment False "Negative exponent in function pow_fun"]
          | otherwise = Empty
 
@@ -127,7 +127,7 @@ signum_fun_s opts typ = Proc name False [inVar] (Right outVar) (Just body)
        ival   = binop typ ">>" inVar' arg2
        arg2   = ConstExpr (IntConst (sizeToNum typ - 1) typ')
        typ'   = case typ of
-                  MachineVector _ t -> t
+                  _ :# t -> t
 
 {-
 uint8_t signum_fun_uint8_t( uint8_t a ) {
@@ -184,8 +184,8 @@ logbase_fun_f opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
                    binop typ "/" numer denom]
        numer  = fun typ (logNam typ) [inVar2']
        denom  = fun typ (logNam typ) [inVar1']
-       logNam (MachineVector _ FloatType) = "logf"
-       logNam (MachineVector _ DoubleType) = "log"
+       logNam (_ :# FloatType)  = "logf"
+       logNam (_ :# DoubleType) = "log"
 
 {-
 int8_t setBit_fun_int8_t( int8_t x, uint32_t i ) {
@@ -197,7 +197,7 @@ setBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just body
  where name   = "setBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2  = Variable (1 :# (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -215,7 +215,7 @@ clearBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just bo
  where name   = "clearBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2  = Variable (1 :# (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -233,7 +233,7 @@ complementBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Ju
  where name   = "complementBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2  = Variable (1 :# (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
@@ -252,14 +252,14 @@ testBit_fun opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just bod
  where name   = "testBit_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2  = Variable (1 :# (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
-       outVar  = Variable (MachineVector 1 BoolType) "out"
+       outVar  = Variable (1 :# BoolType) "out"
        body    = toBlock prg
        prg     = call "return" [ValueParameter $
                    binop btyp "!=" (binop typ "&" inVar1' ival) (litI typ 0)]
        ival    = binop typ "<<" (litI typ 1) inVar2'
-       btyp    = MachineVector 1 BoolType
+       btyp    = 1 :# BoolType
 
 -- TODO: rotateL signed
 
@@ -274,12 +274,12 @@ rotateL_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
  where name   = "rotateL_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2  = Variable (1 :# (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
        ret1    = call "return" [ValueParameter inVar1']
-       cnd     = binop (MachineVector 1 BoolType) "=="
+       cnd     = binop (1 :# BoolType) "=="
                      (binop typ "%=" inVar2' (litI typ sz)) (litI typ 0)
        prg     = Sequence [if' cnd (toBlock ret1) Nothing,
                   call "return" [ValueParameter $
@@ -288,7 +288,7 @@ rotateL_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
        arg2    = ConstExpr (IntConst sz typ')
        sz      = sizeToNum typ
        typ'    = case typ of
-                  MachineVector _ t -> t
+                  _ :# t -> t
 
 -- TODO: rotateR signed
 
@@ -303,12 +303,12 @@ rotateR_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
  where name   = "rotateR_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar1  = Variable typ "x"
        inVar1' = varToExpr inVar1
-       inVar2  = Variable (MachineVector 1 (NumType Unsigned S32)) "i"
+       inVar2  = Variable (1 :# (NumType Unsigned S32)) "i"
        inVar2' = varToExpr inVar2
        outVar  = Variable typ "out"
        body    = toBlock prg
        ret1    = call "return" [ValueParameter inVar1']
-       cnd     = binop (MachineVector 1 BoolType) "=="
+       cnd     = binop (1 :# BoolType) "=="
                      (binop typ "%=" inVar2' (litI typ sz)) (litI typ 0)
        prg     = Sequence [if' cnd (toBlock ret1) Nothing,
                   call "return" [ValueParameter $
@@ -317,7 +317,7 @@ rotateR_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
        arg2    = ConstExpr (IntConst sz typ')
        sz      = sizeToNum typ
        typ'    = case typ of
-                  MachineVector _ t -> t
+                  _ :# t -> t
 
 -- TODO: reverseBits signed
 
@@ -373,7 +373,7 @@ bitScan_fun_u opts typ = Proc name False [inVar] (Right outVar) (Just body)
  where name   = "bitScan_fun_" ++ (render $ cgen (penv0 opts) typ)
        inVar  = Variable typ "x"
        inVar' = varToExpr inVar
-       ot     = MachineVector 1 (NumType Unsigned S32)
+       ot     = 1 :# (NumType Unsigned S32)
        outVar = Variable ot "r"
        outVar'= varToExpr outVar
        lvars  = [Declaration outVar $ Just $ litI ot sz]

@@ -51,24 +51,24 @@ c99 :: Platform
 c99 = Platform {
     name = "c99",
     types =
-        [ (MachineVector 1 (NumType Signed S8),     "int8_t")
-        , (MachineVector 1 (NumType Signed S16),    "int16_t")
-        , (MachineVector 1 (NumType Signed S32),    "int32_t")
-        , (MachineVector 1 (NumType Signed S64),    "int64_t")
-        , (MachineVector 1 (NumType Unsigned S8),   "uint8_t")
-        , (MachineVector 1 (NumType Unsigned S16),  "uint16_t")
-        , (MachineVector 1 (NumType Unsigned S32),  "uint32_t")
-        , (MachineVector 1 (NumType Unsigned S64),  "uint64_t")
-        , (MachineVector 1 BoolType,                "bool")
-        , (MachineVector 1 FloatType,               "float")
-        , (MachineVector 1 DoubleType,              "double")
-        , (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), "float complex")
-        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)),"double complex")
+        [ (1 :# (NumType Signed S8),             "int8_t")
+        , (1 :# (NumType Signed S16),            "int16_t")
+        , (1 :# (NumType Signed S32),            "int32_t")
+        , (1 :# (NumType Signed S64),            "int64_t")
+        , (1 :# (NumType Unsigned S8),           "uint8_t")
+        , (1 :# (NumType Unsigned S16),          "uint16_t")
+        , (1 :# (NumType Unsigned S32),          "uint32_t")
+        , (1 :# (NumType Unsigned S64),          "uint64_t")
+        , (1 :# BoolType,                        "bool")
+        , (1 :# FloatType,                       "float")
+        , (1 :# DoubleType,                      "double")
+        , (1 :# (ComplexType (1 :# FloatType)),  "float complex")
+        , (1 :# (ComplexType (1 :# DoubleType)), "double complex")
         ] ,
     values =
-        [ (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
-        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)), \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
-        , (MachineVector 1 BoolType, \b -> if boolValue b then "true" else "false")
+        [ (1 :# (ComplexType (1 :# FloatType)), \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
+        , (1 :# (ComplexType (1 :# DoubleType)), \cx -> "(" ++ showRe cx ++ "+" ++ showIm cx ++ "i)")
+        , (1 :# BoolType, \b -> if boolValue b then "true" else "false")
         ] ,
     includes =
         [ "feldspar_c99.h"
@@ -99,26 +99,26 @@ tic64x :: Platform
 tic64x = Platform {
     name = "tic64x",
     types =
-        [ (MachineVector 1 (NumType Signed S8),     "char")
-        , (MachineVector 1 (NumType Signed S16),    "short")
-        , (MachineVector 1 (NumType Signed S32),    "int")
-        , (MachineVector 1 (NumType Signed S40),    "long")
-        , (MachineVector 1 (NumType Signed S64),    "long long")
-        , (MachineVector 1 (NumType Unsigned S8),   "unsigned char")
-        , (MachineVector 1 (NumType Unsigned S16),  "unsigned short")
-        , (MachineVector 1 (NumType Unsigned S32),  "unsigned")
-        , (MachineVector 1 (NumType Unsigned S40),  "unsigned long")
-        , (MachineVector 1 (NumType Unsigned S64),  "unsigned long long")
-        , (MachineVector 1 BoolType,                "int")
-        , (MachineVector 1 FloatType,               "float")
-        , (MachineVector 1 DoubleType,              "double")
-        , (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), "complexOf_float")
-        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)),"complexOf_double")
+        [ (1 :# (NumType Signed S8),             "char")
+        , (1 :# (NumType Signed S16),            "short")
+        , (1 :# (NumType Signed S32),            "int")
+        , (1 :# (NumType Signed S40),            "long")
+        , (1 :# (NumType Signed S64),            "long long")
+        , (1 :# (NumType Unsigned S8),           "unsigned char")
+        , (1 :# (NumType Unsigned S16),          "unsigned short")
+        , (1 :# (NumType Unsigned S32),          "unsigned")
+        , (1 :# (NumType Unsigned S40),          "unsigned long")
+        , (1 :# (NumType Unsigned S64),          "unsigned long long")
+        , (1 :# BoolType,                        "int")
+        , (1 :# FloatType,                       "float")
+        , (1 :# DoubleType,                      "double")
+        , (1 :# (ComplexType (1 :# FloatType)),  "complexOf_float")
+        , (1 :# (ComplexType (1 :# DoubleType)), "complexOf_double")
         ] ,
     values =
-        [ (MachineVector 1 (ComplexType (MachineVector 1 FloatType)), \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
-        , (MachineVector 1 (ComplexType (MachineVector 1 DoubleType)), \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
-        , (MachineVector 1 BoolType, \b -> if boolValue b then "1" else "0")
+        [ (1 :# (ComplexType (1 :# FloatType)), \cx -> "complex_fun_float(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
+        , (1 :# (ComplexType (1 :# DoubleType)), \cx -> "complex_fun_double(" ++ showRe cx ++ "," ++ showIm cx ++ ")")
+        , (1 :# BoolType, \b -> if boolValue b then "1" else "0")
         ] ,
     includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
                , "<math.h>"],
@@ -179,7 +179,7 @@ flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cL
 ePlus :: Expression () -> Expression () -> Expression ()
 ePlus (ConstExpr (IntConst 0 _)) e = e
 ePlus e (ConstExpr (IntConst 0 _)) = e
-ePlus e1 e2 = binop (MachineVector 1 (NumType Signed S32)) "+" e1 e2
+ePlus e1 e2                        = binop (1 :# (NumType Signed S32)) "+" e1 e2
 
 extend :: Platform -> String -> Type -> String
 extend Platform{..} s t = s ++ "_fun_" ++ fromMaybe (show t) (lookup t types)

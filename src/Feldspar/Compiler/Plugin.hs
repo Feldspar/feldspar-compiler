@@ -232,7 +232,7 @@ instance Lift ScalarType where
 
 instance Lift Type where
     lift VoidType             = [| VoidType |]
-    lift (MachineVector l st) = [| MachineVector l st |]
+    lift (l :# st)            = [| l :# st |]
     lift (AliasType t s)      = [| AliasType t s |]
     lift (ArrayType r t)      = [| ArrayType r t |]
     lift (NativeArray l t)    = [| NativeArray l t |]

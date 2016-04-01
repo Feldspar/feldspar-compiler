@@ -77,11 +77,11 @@ renameExp m (FunctionCall f es) = res
             = StructField (fun div_t (div_f t) [arg1, arg2]) "quot"
           where
            div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
-           div_f (MachineVector 1 (NumType Signed S8))  = "div"
-           div_f (MachineVector 1 (NumType Signed S16)) = "div"
-           div_f (MachineVector 1 (NumType Signed S32)) = "div"
-           div_f (MachineVector 1 (NumType Signed S40)) = "ldiv"
-           div_f (MachineVector 1 (NumType Signed S64)) = "lldiv"
+           div_f (1 :# (NumType Signed S8))  = "div"
+           div_f (1 :# (NumType Signed S16)) = "div"
+           div_f (1 :# (NumType Signed S32)) = "div"
+           div_f (1 :# (NumType Signed S40)) = "ldiv"
+           div_f (1 :# (NumType Signed S64)) = "lldiv"
            div_f typ = error $ "div not defined for " ++ show typ
 
 renameExp m (Cast t e)          = Cast t $ renameExp m e
