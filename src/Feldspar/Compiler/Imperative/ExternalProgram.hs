@@ -238,9 +238,10 @@ stmToProgram env (For eit
   = ParLoop Sequential v' e0' (expToExpression env' v2) rhs' body
     where v' = varToVariable env' name
           body = toBlock $ stmToProgram env' s
-          (e0', env') = case eit of
-                         Right (Just (Assign _ JustAssign e0 _)) -> (expToExpression env e0, env)
-                         Left es@(InitGroup ds attr [Init _ _ Nothing (Just (ExpInitializer e0 _)) _ _] _) -> (expToExpression env' e0, fst $ initGroupToProgram env es)
+          (env', e0') = case eit of
+                         Right (Just (Assign _ JustAssign e0 _)) -> (env, expToExpression env e0)
+                         Left es@InitGroup{} -> (env0, e0)
+                            where (env0, [Declaration _ (Just e0)]) = initGroupToProgram env es
                          _ -> error $ "stmToProgram: Unknown first for block: " ++ show eit
           rhs' = case ass of
                    Assign _ AddAssign rhs _ -> expToExpression env' rhs
