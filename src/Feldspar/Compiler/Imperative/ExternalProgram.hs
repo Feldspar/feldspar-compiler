@@ -86,7 +86,7 @@ funcToProgram _ e = error ("funcToProgram: Unhandled construct: " ++ show e)
 valueToProgram :: TPEnv -> DeclSpec -> [Init] -> Id -> [Initializer]
                -> (TPEnv, Entity ())
 valueToProgram env ds is n ins = (env', ValueDef (nameToVariable env' n) cs')
-  where env' = initToNames env ds is
+  where env' = fst $ initToNames env ds is
         cs = map (\(ExpInitializer (Const c _) _) -> constToConstant c) ins
         cs' = ArrayConst (map (castConstant t) cs) t
         t = declSpecToType env ds
@@ -107,10 +107,7 @@ blockToBlock env bis = (env'', R.Block (concat ds) (Sequence bs))
         isBlockDecl _           = False
 
 blockDeclToDecl :: TPEnv -> BlockItem -> (TPEnv, [Declaration ()])
-blockDeclToDecl env (BlockDecl ig) = (env', dv)
-  where env' = initGroupToProgram env ig
-        igv = take (length (vars env') - length (vars env)) (vars env')
-        dv = map (\(_, v) -> Declaration v Nothing) igv -- Program decl
+blockDeclToDecl env (BlockDecl ig) = initGroupToProgram env ig
 
 blockItemsToProgram :: TPEnv -> [BlockItem] -> (TPEnv, [Program ()])
 -- TODO: Stop freeloading on ParLoop since we have to fake v/t at this stage.
@@ -203,7 +200,7 @@ initGroupToDeclaration env (InitGroup ds attr [is@(Init n (Proto _ (Params ps _ 
   = initToFunDecl env ds is ps
 initGroupToDeclaration _ e = error ("initGroupToDeclaration: " ++ show e)
 
-initGroupToProgram :: TPEnv -> InitGroup -> TPEnv
+initGroupToProgram :: TPEnv -> InitGroup -> (TPEnv, [Declaration ()])
 -- Variable declarations
 initGroupToProgram env (InitGroup ds attr is _) = initToNames env ds is
 initGroupToProgram env (TypedefGroup ds attr ts _)
@@ -243,7 +240,7 @@ stmToProgram env (For eit
           body = toBlock $ stmToProgram env' s
           (e0', env') = case eit of
                          Right (Just (Assign _ JustAssign e0 _)) -> (expToExpression env e0, env)
-                         Left es@(InitGroup ds attr [Init _ _ Nothing (Just (ExpInitializer e0 _)) _ _] _) -> (expToExpression env' e0, initGroupToProgram env es)
+                         Left es@(InitGroup ds attr [Init _ _ Nothing (Just (ExpInitializer e0 _)) _ _] _) -> (expToExpression env' e0, fst $ initGroupToProgram env es)
                          _ -> error $ "stmToProgram: Unknown first for block: " ++ show eit
           rhs' = case ass of
                    Assign _ AddAssign rhs _ -> expToExpression env' rhs
@@ -319,6 +316,7 @@ expToExpression' :: TPEnv -> Maybe R.Type -> Exp -> Expression ()
 expToExpression' _ _ (Var n _)
   | unId n == "true" = litB True
   | unId n == "false" = litB False
+  | unId n == "NULL"  = litI32 0 -- Only representation for NULL in Program.
 expToExpression' env _ v@Var{} = VarExpr $ varToVariable env v
 expToExpression' _ _ (Const c _) = ConstExpr (constToConstant c)
 expToExpression' env t (BinOp op e1 e2 _) = opToFunctionCall parms op
@@ -419,16 +417,35 @@ declSpecToType _ e = error ("declSpecToType: Unhandled construct: " ++ show e)
 
 initToFunDecl :: TPEnv -> DeclSpec -> Init -> [Param] -> (TPEnv, Entity ())
 initToFunDecl env ds is ps = (env', Proc iv False ps' (Left []) Nothing)
- where iv = fst $ initToName env (declSpecToType env' ds) is
+ where (iv, _, _)  = initToName env (declSpecToType env' ds) is
        (env', ps') = mapAccumL paramToVariable env ps
 
-initToNames :: TPEnv -> DeclSpec -> [Init] -> TPEnv
-initToNames env ds is = updateEnv env vs
+initToNames :: TPEnv -> DeclSpec -> [Init] -> (TPEnv, [Declaration ()])
+initToNames env ds is = (updateEnv env vs, dv)
  where ivs = map (initToName env (declSpecToType env ds)) is
-       vs = map (\(name, t) -> Variable t name) ivs
+       vs  = map (\(name, t, _) -> Variable t name) ivs
+       dv  = zipWith (\v (_, _, start) -> Declaration v start) vs ivs
 
-initToName :: TPEnv -> R.Type -> Init -> (String, R.Type)
-initToName env tp (Init name dcl _ _ _ _) = (unId name, declToType tp dcl)
+initToName :: TPEnv -> R.Type -> Init -> (String, R.Type, Maybe (Expression ()))
+initToName env tp (Init name dcl _ ints _ _)
+  = (unId name, t, maybe Nothing (initializerToExp env t) ints)
+    where t = declToType tp dcl
+
+initializerToExp :: TPEnv -> R.Type -> Initializer -> Maybe (Expression ())
+initializerToExp env _ (ExpInitializer e _)
+  = Just $ expToExpression env e
+initializerToExp env t@(StructType _ ts) (CompoundInitializer es _)
+  = Just (ConstExpr (StructConst (zipWith (structInit env) ts es) t))
+initializerToExp _ t e = error $ "initializerToExp: Unexpected argument: " ++ show e ++ " of type " ++ show e
+
+structInit :: TPEnv -> (String, R.Type)
+           -> (Maybe Designation, Initializer) -> (Maybe String, Constant ())
+structInit env (_, t) (d, e)
+  | Just (ConstExpr c) <- e'
+  = (maybe Nothing (\(Designation ((MemberDesignator i _):_) _) -> Just $ unId i) d, c)
+  | otherwise
+  = error $ "structInit: Unexpected pattern : " ++ show (d, e)
+   where e' = initializerToExp env t e
 
 unOpToExp :: Expression () -> UnOp -> Expression ()
 unOpToExp e AddrOf = R.AddrOf e
