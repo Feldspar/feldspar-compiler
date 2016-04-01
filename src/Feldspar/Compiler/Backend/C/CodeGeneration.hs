@@ -34,7 +34,9 @@ module Feldspar.Compiler.Backend.C.CodeGeneration where
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Error (handleError, ErrorClass(..))
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Imperative.Frontend (isNativeArray, isPointer)
+import Feldspar.Compiler.Imperative.Frontend (
+    isNativeArray, isArray, isPointer
+  )
 
 import Text.PrettyPrint
 
@@ -104,11 +106,19 @@ instance CodeGen (Declaration ())
   where
     cgen env Declaration{..}
      | Just i <- initVal
-     = var <+> nest (nestSize $ options env) equals <+> cgen env i <> semi
+     = var <+> nest (nestSize $ options env) equals <+> specialInit (typeof declVar) i <> semi
      | otherwise = var <+> nest (nestSize $ options env) init <> semi
       where
         var  = pvar env declVar
         init = initialize False (varType declVar)
+        specialInit t i
+          | ConstExpr (StructConst es (StructType _ ts)) <- i
+          = printStruct env es ts
+          | ConstExpr (IntConst 0 _) <- i
+          , isArray t || isPointer t
+          = text "NULL"
+          | otherwise = cgen env i
+
     cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Program ())
@@ -219,7 +229,8 @@ instance CodeGen (Constant ())
     cgen env cnst@(BoolConst False) = maybe (int 0)     text $ transformConst env cnst
     cgen env cnst@(BoolConst True)  = maybe (int 1)     text $ transformConst env cnst
     cgen env      (ArrayConst cs _) = braces (cgenList env cs)
-    cgen env     (StructConst cs _) = braces $ space <> (cgenList env cs) <> space
+    cgen env     (StructConst cs t) = printStruct env cs ts
+      where StructType _ ts = t
     cgen env cnst@ComplexConst{..}  = maybe cmplxCnst   text $ transformConst env cnst
       where
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])
@@ -230,6 +241,19 @@ instance CodeGen (Maybe String, Constant ())
     cgen env (n, c) = name <+> cgen env c
       where name = maybe empty (\s -> char '.' <> text s <+> equals) n
     cgenList env = hsep . punctuate comma . map (cgen env)
+
+printStruct :: PrintEnv
+            -> [(Maybe String, Constant ())] -> [(String, Type)] -> Doc
+printStruct env cs ts = braces $ space <> (hsep members) <> space
+  where members = punctuate comma $ zipWith (printStructMember env) cs ts
+
+printStructMember :: PrintEnv
+                  -> (Maybe String, Constant ()) -> (String, Type) -> Doc
+printStructMember env e@(n, e') (_, t)
+ | (IntConst 0 _) <- e'
+ , isArray t || isPointer t
+ = maybe empty (\s -> char '.' <> text s <+> equals) n <+> text "NULL"
+ | otherwise = cgen env e
 
 transformConst :: PrintEnv -> Constant () -> Maybe String
 transformConst PEnv{..} cnst = do
