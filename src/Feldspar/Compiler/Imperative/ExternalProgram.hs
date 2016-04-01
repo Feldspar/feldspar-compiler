@@ -619,6 +619,12 @@ fixupEnv env (Var (Id s _) _) tp = env { vars = goVar (vars env) }
         goVar (p@(n, Variable (ArrayType r _) n'):t)
          | s == n = (n, Variable (ArrayType r tp) n'):goVar t
         goVar (p:t) = p:goVar t
+fixupEnv env (FnCall (Var (Id "at" _) _) [(UnOp Deref (Var (Id s _) _) _), _] _) tp = env { vars = goVar (vars env) }
+  where goVar [] = []
+        goVar (p@(n, Variable (k :# (Pointer (ArrayType r1 (ArrayType r2 _)))) n'):t)
+         | s == n = let nt = (k :# (Pointer (ArrayType r1 (ArrayType r2 tp))))
+                    in (n, Variable nt n'):goVar t
+        goVar (p:t) = p:goVar t
 fixupEnv env (Member (Var (Id s _) _) (Id name _) _) tp = env { vars = goStruct (vars env) }
   where goStruct [] = []
         goStruct (p@(n, Variable (StructType s' ns) n'):t)
