@@ -104,7 +104,7 @@ instance CodeGen (Declaration ())
   where
     cgen env Declaration{..}
      | Just i <- initVal
-     = var <+> nest (nestSize $ options env) equals <+> cgen env i <> semi <> text "\n"
+     = var <+> nest (nestSize $ options env) equals <+> cgen env i <> semi
      | otherwise = var <+> nest (nestSize $ options env) init <> semi
       where
         var  = pvar env declVar
@@ -219,7 +219,7 @@ instance CodeGen (Constant ())
     cgen env cnst@(BoolConst False) = maybe (int 0)     text $ transformConst env cnst
     cgen env cnst@(BoolConst True)  = maybe (int 1)     text $ transformConst env cnst
     cgen env      (ArrayConst cs _) = braces (cgenList env cs)
-    cgen env     (StructConst cs _) = braces (cgenList env cs)
+    cgen env     (StructConst cs _) = braces $ space <> (cgenList env cs) <> space
     cgen env cnst@ComplexConst{..}  = maybe cmplxCnst   text $ transformConst env cnst
       where
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])
@@ -229,7 +229,7 @@ instance CodeGen (Maybe String, Constant ())
   where
     cgen env (n, c) = name <+> cgen env c
       where name = maybe empty (\s -> char '.' <> text s <+> equals) n
-    cgenList env = sep . punctuate comma . map (cgen env)
+    cgenList env = hsep . punctuate comma . map (cgen env)
 
 transformConst :: PrintEnv -> Constant () -> Maybe String
 transformConst PEnv{..} cnst = do
