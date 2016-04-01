@@ -225,9 +225,10 @@ instance CodeGen (Constant ())
         cmplxCnst = text "complex" <> parens (cgenList env [realPartComplexValue, imagPartComplexValue])
     cgenList env = sep . punctuate comma . map (cgen env)
 
-instance CodeGen (String, Constant ())
+instance CodeGen (Maybe String, Constant ())
   where
-    cgen env (n, c) = char '.' <> text n <+> equals <+> cgen env c
+    cgen env (n, c) = name <+> cgen env c
+      where name = maybe empty (\s -> char '.' <> text s <+> equals) n
     cgenList env = sep . punctuate comma . map (cgen env)
 
 transformConst :: PrintEnv -> Constant () -> Maybe String

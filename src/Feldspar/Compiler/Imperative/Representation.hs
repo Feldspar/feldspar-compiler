@@ -246,8 +246,9 @@ data Constant t
         { arrayValues               :: [Constant t]
         , arrayType                 :: Type
         }
+    -- The maybe allows us to represent both x = { .field = 0 } and x = { 0 }.
     | StructConst
-        { memberValues              :: [(String, Constant t)]
+        { memberValues              :: [(Maybe String, Constant t)]
         , structType                :: Type
         }
     deriving (Typeable, Show, Eq)
