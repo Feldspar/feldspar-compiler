@@ -17,6 +17,8 @@ import Feldspar
 import qualified Feldspar.Core.UntypedRepresentation as UT
 import Feldspar.Mutable
 import Feldspar.Vector
+import qualified Feldspar.SimpleVector.Push as SP
+import qualified Feldspar.SimpleVector as S
 import Feldspar.Compiler
 import Feldspar.Compiler.Imperative.FromCore (fromCoreUT)
 import Feldspar.Compiler.Plugin
@@ -76,8 +78,8 @@ metricFast prev (z, _) _ = prev !! z
 copyPush :: Pull1 Index -> DPush DIM1 Index
 copyPush v = let pv = toPush v in pv ++ pv
 
--- scanlPush :: DPush sh WordN -> Pull1 WordN -> Push (DPush WordN)
--- scanlPush = scanl const
+scanlPush :: SP.PushVector1 WordN -> S.Vector1 WordN -> SP.PushVector (SP.PushVector1 WordN)
+scanlPush = SP.scanl const
 
 concatV :: Pull DIM1 (Pull1 IntN) -> DPush DIM1 IntN
 concatV xs = fromZero $ fold (++) empty xs
@@ -207,7 +209,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkGoldTest topLevelConsts "topLevelConsts_sics" sicsOptions2
     , mkGoldTest metrics "metrics" defaultOptions
---    , mkGoldTest scanlPush "scanlPush" defaultOptions
+    , mkGoldTest scanlPush "scanlPush" defaultOptions
     , mkGoldTest divConq3 "divConq3" defaultOptions
     , mkGoldTest switcher "switcher" defaultOptions
     , mkGoldTest ivartest "ivartest" defaultOptions
@@ -233,7 +235,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOptions2
     , mkBuildTest metrics "metrics" defaultOptions
     , mkBuildTest copyPush "copyPush" defaultOptions
---    , mkBuildTest scanlPush "scanlPush" defaultOptions
+    , mkBuildTest scanlPush "scanlPush" defaultOptions
     , mkBuildTest divConq3 "divConq3" defaultOptions
     , mkBuildTest ivartest "ivartest" defaultOptions
     , mkBuildTest ivartest2 "ivartest2" defaultOptions
@@ -261,10 +263,9 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "topLevelConsts" defaultOptions
     , mkParseTest "topLevelConsts_native" nativeOpts
     , mkParseTest "topLevelConsts_sics" sicsOptions
-    -- TODO: Enable when encodeType does not include sizes in struct names.
+    -- TODO: Enable with a typed array representation.
     -- , mkParseTest "metrics" defaultOptions
---    , mkParseTest "scanlPush" defaultOptions
-    -- Still incomplete reconstruction of futures.
+    , mkParseTest "scanlPush" defaultOptions
     , mkParseTest "divConq3" defaultOptions
     , mkParseTest "switcher" defaultOptions
     , mkParseTest "ivartest" defaultOptions
