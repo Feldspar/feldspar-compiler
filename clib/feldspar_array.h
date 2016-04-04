@@ -36,8 +36,6 @@
 //#define LOG
 #include "log.h"
 
-#include <stdio.h> /* to be removed */
-
 /* TODO qualify the names to avoid clashes with Haskell names */
 
 struct array
