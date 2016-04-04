@@ -190,28 +190,4 @@ static inline int32_t getLength(struct array *arr)
   return arr->length;
 }
 
-/* Reset array length */
-static inline struct array *setLength(struct array *arr, int32_t size, int32_t len)
-{
-    if ( !arr )
-      arr = calloc(1, sizeof(struct array));
-
-    assert(arr);
-    log_2("setLength %p %d - enter\n", arr, len);
-    arr->elemSize = size;
-    if( size < 0 )
-        size = sizeof(struct array);
-    int newBytes = size * len;
-    arr->length = len;
-    if( arr->bytes < newBytes )
-    {
-        log_3("setLength %p %d - realloc %d bytes\n", arr, len, newBytes);
-        arr->buffer = realloc(arr->buffer,newBytes);
-        assert(arr->buffer);
-        arr->bytes  = newBytes;
-    }
-    log_2("setLength %p %d - leave\n", arr, len);
-    return arr;
-}
-
 #endif

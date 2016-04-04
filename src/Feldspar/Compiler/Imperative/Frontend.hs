@@ -87,13 +87,6 @@ initArray
     -> Program ()
 initArray = mkInitArr "initArray"
 
--- | Initialize an array using \"setLength\"
-setLength
-    :: Location       -- ^ Array location
-    -> Expression ()  -- ^ Array length
-    -> Program ()
-setLength = mkInitArr "setLength"
-
 -- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
 freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]

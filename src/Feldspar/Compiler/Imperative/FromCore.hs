@@ -344,7 +344,7 @@ compileProg loc (In (App Ut.GetIx _ [arr, i])) = do
 compileProg loc (In (App Ut.SetLength _ [len, arr])) = do
    len' <- compileExpr len
    compileProg loc arr
-   tellProg [setLength loc len']
+   tellProg [initArray loc len']
 -- Binding
 compileProg _ e@(In Ut.Lambda{})
   = error ("Can only compile top-level lambda: " ++ show e)
@@ -507,7 +507,7 @@ compileProg (Just loc) (In (App Ut.RunMutableArray _ [marr]))
  , v == r
  = do
      len <- compileExpr l
-     tellProg [setLength (Just loc) len]
+     tellProg [initArray (Just loc) len]
      withAlias v loc $ compileProg (Just loc) body
 compileProg loc (In (App Ut.RunMutableArray _ [marr])) = compileProg loc marr
 compileProg loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _) body)])) = do

@@ -281,7 +281,7 @@ instance CodeGen Type
 call :: Doc -> [Doc] -> Doc
 call fn args = fn <> parens (hsep $ punctuate comma args)
 
--- Initializes local variables so that initArray/setLength/.. will get defined
+-- Initializes local variables so that initArray/.. will get defined
 -- inputs.
 --
 -- First parameter is whether the initialization context is somewhere

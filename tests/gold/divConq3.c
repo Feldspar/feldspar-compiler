@@ -87,7 +87,7 @@ void divConq3(struct array * v0, struct array * * out)
     v201 = ivar_get_array_nontask(v201, e208);
     v188 = getLength(e206);
     v189 = getLength(v201);
-    v5 = setLength(v5, sizeof(int32_t), (v188 + v189));
+    v5 = initArray(v5, sizeof(int32_t), (v188 + v189));
     for (uint32_t v11 = 0; v11 < v188; v11 += 1)
     {
       at(int32_t,v5,v11) = at(int32_t,e206,v11);
@@ -118,7 +118,7 @@ void divConq3(struct array * v0, struct array * * out)
     v202 = ivar_get_array_nontask(v202, e214);
     v195 = getLength(v198);
     v196 = getLength(v202);
-    v115 = setLength(v115, sizeof(int32_t), (v195 + v196));
+    v115 = initArray(v115, sizeof(int32_t), (v195 + v196));
     for (uint32_t v121 = 0; v121 < v195; v121 += 1)
     {
       at(int32_t,v115,v121) = at(int32_t,v198,v121);
@@ -131,7 +131,7 @@ void divConq3(struct array * v0, struct array * * out)
     v198 = v115;
     v115 = e215;
   }
-  *out = setLength(*out, sizeof(int32_t), v191);
+  *out = initArray(*out, sizeof(int32_t), v191);
   for (uint32_t v74 = 0; v74 < v191; v74 += 1)
   {
     at(int32_t,*out,v74) = at(int32_t,v198,v74);
