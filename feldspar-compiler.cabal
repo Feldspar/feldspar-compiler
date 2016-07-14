@@ -75,7 +75,7 @@ library
     ghc-paths,
     plugins-multistage >= 0.6   && < 0.7,
     feldspar-language  >= 0.6.1 && < 0.7,
-    language-c-quote   >= 0.11  && < 0.12,
+    language-c-quote   >= 0.11  && < 0.11.5,
     bytestring         >= 0.9   && < 0.11,
     srcloc,
     mtl,
