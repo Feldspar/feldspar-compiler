@@ -28,7 +28,7 @@ import Feldspar.Compiler.Frontend.Interactive.Interface (writeFiles)
 
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Except (liftIO)
+import Control.Monad.Error (liftIO)
 import Data.Monoid ((<>))
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as LB
