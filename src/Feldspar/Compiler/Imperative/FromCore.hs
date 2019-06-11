@@ -73,7 +73,7 @@ import Feldspar.Range (upperBound, fullRange)
 import Feldspar.Core.Types (BitWidth (..))
 import Feldspar.Core.UntypedRepresentation
          ( VarId(..), UntypedFeld, Term(..), Lit(..)
-         , {- collectLetBinders, -} collectBinders
+         {- , collectLetBinders, collectBinders -}
          , UntypedFeldF(App, LetFun), Fork(..)
          )
 import qualified Feldspar.Core.UntypedRepresentation as Ut
@@ -948,3 +948,9 @@ collectLetBinders :: UntypedFeld -> ([(Ut.Var, UntypedFeld)], UntypedFeld)
 collectLetBinders = go []
   where go acc (In (App Ut.Let _ [e, In (Ut.Lambda v b)])) = go ((v, e):acc) b
         go acc e                                           = (reverse acc, e)
+
+-- FIXME: Remove this definition of collectLetBinders.
+collectBinders :: UntypedFeld -> ([Ut.Var], UntypedFeld)
+collectBinders = go []
+  where go acc (In (Ut.Lambda v e)) = go (v:acc) e
+        go acc e                    = (reverse acc, e)
