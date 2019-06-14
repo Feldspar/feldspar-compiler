@@ -222,7 +222,7 @@ stmToProgram _ l@Label{} = error ("stmToProgram: Unexpected label: " ++ show l)
 stmToProgram _ (Exp Nothing _) = error "Exp: Nothing?"
 stmToProgram env (Exp (Just e) _) = snd $ impureExpToProgram env e
 stmToProgram env (Block bis _) = R.BlockProgram $ snd $ blockToBlock env bis
-stmToProgram env (If e b1@(Block alt _) (Just b2@(Block alt' _)) _)
+stmToProgram env (If e b1 (Just b2) _)
   = R.Switch cond [ (Pat $ litB True, toBlock $ stmToProgram env b1)
                   , (Pat $ litB False, toBlock $ stmToProgram env b2)]
     where cond = expToExpression env e
@@ -404,9 +404,9 @@ constToConstant (LongIntConst _ sgn i _)
   = R.IntConst i (NumType (signToSign sgn) S64)
 constToConstant (LongLongIntConst _ sgn i _)
   = R.IntConst i (NumType (signToSign sgn) S64)
-constToConstant (FloatConst _ r _) = R.FloatConst (fromRational r)
-constToConstant (DoubleConst _ r _) = R.DoubleConst (fromRational r)
-constToConstant (LongDoubleConst _ r _) = R.DoubleConst (fromRational r)
+constToConstant (FloatConst _ r _) = R.FloatConst r
+constToConstant (DoubleConst _ r _) = R.DoubleConst r
+constToConstant (LongDoubleConst _ r _) = R.DoubleConst r
 constToConstant (CharConst _ c _)
   = error "constToConstant: No support for character constants."
 constToConstant (StringConst ss s _)
