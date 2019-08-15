@@ -179,7 +179,7 @@ fromCoreExp opt aliases prog = do
     s <- get
     let (ast, s') = flip runState s $ reifyFeldM (frontendOpts opt) N32 prog
         uast = untype (frontendOpts opt) ast
-        mkAlias (Ut.Var i t) = do
+        mkAlias (Ut.Var i t _) = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Variable (compileType opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
@@ -198,7 +198,7 @@ fromCoreExp opt aliases prog = do
 -- | Generate code for an expression that may have top-level lambdas and let
 -- bindings. The returned variable holds the result of the generated code.
 compileProgTop :: Ut.UntypedFeld -> CodeWriter (Variable ())
-compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
+compileProgTop (In (Ut.Lambda (Ut.Var v ta _) body)) = do
   opt <- asks backendOpts
   let typ = compileType opt ta
       (arg,arge) | StructType{} <- typ = (mkPointer typ v, Deref $ varToExpr arg)
@@ -206,7 +206,7 @@ compileProgTop (In (Ut.Lambda (Ut.Var v ta) body)) = do
   tell $ mempty {params=[arg]}
   withAlias v arge $
      compileProgTop body
-compileProgTop (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _) body)]))
+compileProgTop (In (Ut.App Ut.Let _ [In (Ut.Literal l), In (Ut.Lambda (Ut.Var v _ _) body)]))
   | representableType l
   = do opt <- asks backendOpts
        let var = mkVariable (typeof c) v -- Note [Precise size information]
@@ -272,7 +272,7 @@ compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
 -- | Compile an expression and put the result in the given location
 compileProg :: Location -> Ut.UntypedFeld -> CodeWriter ()
 -- Array
-compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta _) ixf)])) = do
    opts <- asks backendOpts
    let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
@@ -287,8 +287,8 @@ compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta) 
             return (Parallel, snd b')
    tellProg [initArray (Just loc) len']
    tellProg [for ptyp (locName ix) (litI32 0) len' (litI32 1) b]
-compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix) ixf1)]))
-   | In (Ut.Lambda (Ut.Var s tst) l) <- ixf1
+compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix _) ixf1)]))
+   | In (Ut.Lambda (Ut.Var s tst _) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
    , not $ null bs
    , (e, step) <- last bs
@@ -311,7 +311,7 @@ compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v ti
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for Sequential (locName ix) (litI32 0) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr ix)]) loc)]
-compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t) (In (Ut.Lambda (Ut.Var s _) step)))]))
+compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t _) (In (Ut.Lambda (Ut.Var s _ _) step)))]))
   = do
        opts <- asks backendOpts
        let tr' = typeof step
@@ -348,7 +348,7 @@ compileProg loc (In (App Ut.SetLength _ [len, arr])) = do
 -- Binding
 compileProg _ e@(In Ut.Lambda{})
   = error ("Can only compile top-level lambda: " ++ show e)
-compileProg loc (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
+compileProg loc (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta _) body)])) = do
    e <- compileLet a ta v
    withAlias v e $ compileProg loc body
 -- Bits
@@ -372,7 +372,7 @@ compileProg loc (In (App Ut.EPar _ [p1, p2])) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg loc p1
    (_, Block ds2 b2) <- confiscateBlock $ compileProg loc p2
    tellProg [toProg $ Block (ds1 ++ ds2) (Sequence [b1,b2])]
-compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta _) ixf)])) = do
    opts <- asks backendOpts
    let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
@@ -408,7 +408,7 @@ compileProg loc (In (Ut.Literal a)) =
      Nothing -> return ()
 -- Logic
 -- Loop
-compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta) (In (Ut.Lambda (Ut.Var st stt) ixf)))]))
+compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var ix ta _) (In (Ut.Lambda (Ut.Var st stt _) ixf)))]))
   = do
       opts <- asks backendOpts
       let ix' = mkVar (compileType opts ta) ix
@@ -420,7 +420,7 @@ compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var 
                           >> shallowCopyWithRefSwap lstate stvar
       tellProg [toProg $ Block ds (for Sequential (locName ix') (litI32 0) len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
-compileProg (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct) cond), In (Ut.Lambda (Ut.Var bv bt) body)])) = do
+compileProg (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct _) cond), In (Ut.Lambda (Ut.Var bv bt _) body)])) = do
     opts <- asks backendOpts
     let condv  = mkVariable (compileType opts (typeof cond)) cv
         condvE = varToExpr condv
@@ -438,7 +438,7 @@ compileProg loc (In (App Ut.While _ [cond,step])) = do
    (_, cond') <- confiscateBlock $ compileProg (Just condv) cond
    (_, step') <- confiscateBlock $ compileProg loc step
    tellProg [while cond' condv step']
-compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta) ixf)])) = do
+compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta _) ixf)])) = do
    opts <- asks backendOpts
    let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
@@ -450,7 +450,7 @@ compileProg loc (In (App Ut.Return t [a]))
   | Ut.MutType (Ut.TupType []) <- t = return ()
   | Ut.ParType (Ut.TupType []) <- t = return ()
   | otherwise = compileProg loc a
-compileProg loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta) body)]))
+compileProg loc (In (App Ut.Bind _ [ma, In (Ut.Lambda (Ut.Var v ta _) body)]))
   | (In (App Ut.ParNew _ _)) <- ma = do
    opts <- asks backendOpts
    let var = mkVariable (compileType opts ta) v
@@ -495,27 +495,27 @@ compileProg loc (In (App Ut.GetRef _ [r])) = compileProg loc r
 compileProg _ (In (App Ut.SetRef _ [r, a])) = do
    var  <- compileExpr r
    compileProg (Just var) a
-compileProg _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _) body)])) = do
+compileProg _ (In (App Ut.ModRef _ [r, In (Ut.Lambda (Ut.Var v _ _) body)])) = do
    var <- compileExpr r
    withAlias v var $ compileProg (Just var) body
        -- Since the modifier function is pure it is safe to alias
        -- v with var here
 -- MutableToPure
 compileProg (Just loc) (In (App Ut.RunMutableArray _ [marr]))
- | (In (App Ut.Bind _ [In (App Ut.NewArr_ _ [l]), In (Ut.Lambda (Ut.Var v _) body)])) <- marr
- , (In (App Ut.Return _ [In (Ut.Variable (Ut.Var r _))])) <- chaseBind body
+ | (In (App Ut.Bind _ [In (App Ut.NewArr_ _ [l]), In (Ut.Lambda (Ut.Var v _ _) body)])) <- marr
+ , (In (App Ut.Return _ [In (Ut.Variable (Ut.Var r _ _))])) <- chaseBind body
  , v == r
  = do
      len <- compileExpr l
      tellProg [initArray (Just loc) len]
      withAlias v loc $ compileProg (Just loc) body
 compileProg loc (In (App Ut.RunMutableArray _ [marr])) = compileProg loc marr
-compileProg loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _) body)])) = do
+compileProg loc (In (App Ut.WithArray _ [marr@(In Ut.Variable{}), In (Ut.Lambda (Ut.Var v _ _) body)])) = do
     e <- compileExpr marr
     withAlias v e $ do
       b <- compileExpr body
       tellProg [copyProg loc [b]]
-compileProg loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta) body)])) = do
+compileProg loc (In (App Ut.WithArray _ [marr, In (Ut.Lambda (Ut.Var v ta _) body)])) = do
     opts <- asks backendOpts
     let var = mkVariable (compileType opts ta) v
     declare var
@@ -605,12 +605,12 @@ compileExpr (In (App Ut.Bit t [arr])) = do
    let t' = compileType opts t
    return $ binop t' "<<" (litI t' 1) a'
 -- Binding
-compileExpr (In (Ut.Variable (Ut.Var v t))) = do
+compileExpr (In (Ut.Variable (Ut.Var v t _))) = do
         env <- ask
         case lookup v (aliases env) of
           Nothing -> return $ mkVar (compileType (backendOpts env) t) v
           Just e  -> return e
-compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta) body)])) = do
+compileExpr (In (Ut.App Ut.Let _ [a, In (Ut.Lambda (Ut.Var v ta _) body)])) = do
     e <- compileLet a ta v
     withAlias v e $ compileExpr body
 -- Bits
@@ -901,7 +901,7 @@ result and then the copyProg is harmless.
 -}
 
 compileBind :: (Ut.Var, Ut.UntypedFeld) -> CodeWriter ()
-compileBind (Ut.Var v t, e) = do
+compileBind (Ut.Var v t _, e) = do
    opts <- asks backendOpts
    let var = mkVariable (compileType opts t) v
    declare var
