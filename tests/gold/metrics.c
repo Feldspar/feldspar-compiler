@@ -3,38 +3,58 @@
 
 void metrics(struct array * v0, struct array * v1, struct array * v2, struct array * * out)
 {
-  uint32_t v28;
-  uint32_t v29;
-  struct array * st32 = NULL;
-  struct array * * v16 = NULL;
-  struct array * v30 = NULL;
-  uint32_t len33;
+  uint32_t v37;
+  uint32_t v30;
+  struct array * e40 = NULL;
+  uint32_t v31;
+  struct array * v34 = NULL;
+  struct s_2_arr_signedS32_arr_signedS32 seq41 = { .member1 = NULL, .member2 = NULL };
+  struct array * v38 = NULL;
+  uint32_t v32;
+  struct array * v39 = NULL;
+  uint32_t v35;
   
-  v28 = getLength(v2);
-  v29 = getLength(v0);
-  st32 = initArray(st32, sizeof(int32_t), 8);
-  at(int32_t,st32,0) = -32678;
-  at(int32_t,st32,1) = -32678;
-  at(int32_t,st32,2) = -32678;
-  at(int32_t,st32,3) = -32678;
-  at(int32_t,st32,4) = -32678;
-  at(int32_t,st32,5) = -32678;
-  at(int32_t,st32,6) = -32678;
-  at(int32_t,st32,7) = -32678;
-  v16 = &st32;
-  *out = initArray(*out, (0 - sizeof(struct array *)), v28);
-  for (uint32_t v15 = 0; v15 < v28; v15 += 1)
+  v37 = getLength(v2);
+  e40 = initArray(e40, sizeof(uint32_t), 1);
+  at(uint32_t,e40,0) = v37;
+  v30 = at(uint32_t,e40,0);
+  v31 = getLength(v0);
+  v34 = initArray(v34, (0 - sizeof(struct array *)), v37);
+  (seq41).member2 = initArray((seq41).member2, sizeof(int32_t), 8);
+  for (uint32_t v4 = 0; v4 < 8; v4 += 1)
   {
-    v30 = at(struct array *,v2,v15);
-    len33 = min(getLength(v30), v29);
-    at(struct array *,*out,v15) = initArray(at(struct array *,*out,v15), sizeof(int32_t), len33);
-    for (uint32_t v17 = 0; v17 < len33; v17 += 1)
-    {
-      at(int32_t,at(struct array *,*out,v15),v17) = at(int32_t,*v16,(at(struct s_2_unsignedS32_unsignedS32,v30,v17)).member1);
-    }
-    v16 = &at(struct array *,*out,v15);
+    at(int32_t,(seq41).member2,v4) = -32678;
   }
-  *out = initArray(*out, (0 - sizeof(struct array *)), v28);
-  freeArray(st32);
-  freeArray(v30);
+  for (uint32_t v5 = 0; v5 < v37; v5 += 1)
+  {
+    v38 = at(struct array *,v2,v5);
+    v32 = min(getLength(v38), v31);
+    (seq41).member1 = initArray((seq41).member1, sizeof(int32_t), v32);
+    for (uint32_t v7 = 0; v7 < v32; v7 += 1)
+    {
+      at(int32_t,(seq41).member1,v7) = at(int32_t,(seq41).member2,(at(struct s_2_unsignedS32_unsignedS32,v38,v7)).member1);
+    }
+    (seq41).member2 = initArray((seq41).member2, sizeof(int32_t), v32);
+    for (uint32_t v8 = 0; v8 < v32; v8 += 1)
+    {
+      at(int32_t,(seq41).member2,v8) = at(int32_t,(seq41).member2,(at(struct s_2_unsignedS32_unsignedS32,v38,v8)).member1);
+    }
+    at(struct array *,v34,v5) = initArray(at(struct array *,v34,v5), sizeof(int32_t), getLength((seq41).member1));
+    copyArray(at(struct array *,v34,v5), (seq41).member1);
+  }
+  *out = initArray(*out, (0 - sizeof(struct array *)), v30);
+  for (uint32_t v3 = 0; v3 < v30; v3 += 1)
+  {
+    v39 = at(struct array *,v34,v3);
+    v35 = getLength(v39);
+    at(struct array *,*out,v3) = initArray(at(struct array *,*out,v3), sizeof(int32_t), v35);
+    for (uint32_t v14 = 0; v14 < v35; v14 += 1)
+    {
+      at(int32_t,at(struct array *,*out,v3),v14) = at(int32_t,v39,v14);
+    }
+  }
+  freeArray(e40);
+  freeArray(v34);
+  freeArray(v38);
+  freeArray(v39);
 }

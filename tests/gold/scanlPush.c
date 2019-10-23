@@ -4,8 +4,8 @@
 void scanlPush(struct array * v0, struct array * v1, struct array * * out)
 {
   uint32_t v22;
-  struct array * v24 = NULL;
   uint32_t v23;
+  struct array * v24 = NULL;
   struct array * v7 = NULL;
   uint32_t v25;
   struct array * v15 = NULL;

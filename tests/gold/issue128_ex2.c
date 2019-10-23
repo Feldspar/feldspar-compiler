@@ -3,17 +3,20 @@
 
 void issue128__ex2(uint32_t v0, uint32_t * out)
 {
+  uint32_t v1;
+  
+  switch (v0)
+  {
+    case 1:
+      v1 = 20;
+      break;
+    default:
+      v1 = 45;
+      break;
+  }
   if ((2 == v0))
   {
-    switch (v0)
-    {
-      case 1:
-        *out = 20;
-        break;
-      default:
-        *out = 45;
-        break;
-    }
+    *out = v1;
   }
   else
   {
