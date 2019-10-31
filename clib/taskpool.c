@@ -125,8 +125,10 @@ void spawn( void *closure )
 
 void *worker()
 {
+#ifdef LOG
     unsigned int self;
     self = (unsigned long)pthread_self();
+#endif
     log_1("worker %d - enter\n", self);
     taskpool *pool = feldspar_taskpool;
     void (*fun)();

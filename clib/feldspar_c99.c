@@ -26,9 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
+#define __STDC_FORMAT_MACROS
+
 #include "feldspar_c99.h"
 
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -55,7 +57,7 @@ int8_t pow_fun_int8_t( int8_t a, int8_t b )
     int8_t r = 1;
     int i;
     if (b < 0) {
-        fprintf(stderr, "Negative exponent in function pow_fun_(): %d `pow` %d", a, b);
+        fprintf(stderr, "Negative exponent in function pow_fun_(): %" PRId8 " `pow` %" PRId8, a, b);
         exit(1);
     }
     for(i = 0; i < b; ++i)
@@ -68,7 +70,7 @@ int16_t pow_fun_int16_t( int16_t a, int16_t b )
     int16_t r = 1;
     int i;
     if (b < 0) {
-        fprintf(stderr, "Negative exponent in function pow_fun_(): %d `pow` %d", a, b);
+        fprintf(stderr, "Negative exponent in function pow_fun_(): %" PRId16 " `pow` %" PRId16, a, b);
         exit(1);
     }
     for(i = 0; i < b; ++i)
@@ -81,7 +83,7 @@ int32_t pow_fun_int32_t( int32_t a, int32_t b )
     int32_t r = 1;
     int i;
     if (b < 0) {
-        fprintf(stderr, "Negative exponent in function pow_fun_(): %d `pow` %d", a, b);
+        fprintf(stderr, "Negative exponent in function pow_fun_(): %" PRId32 " `pow` %d" PRId32, a, b);
         exit(1);
     }
     for(i = 0; i < b; ++i)
@@ -94,7 +96,7 @@ int64_t pow_fun_int64_t( int64_t a, int64_t b )
     int64_t r = 1;
     int i;
     if (b < 0) {
-        fprintf(stderr, "Negative exponent in function pow_fun_(): %lld `pow` %lld", a, b);
+        fprintf(stderr, "Negative exponent in function pow_fun_(): %" PRId64 " `pow` %" PRId64, a, b);
         exit(1);
     }
     for(i = 0; i < b; ++i)
