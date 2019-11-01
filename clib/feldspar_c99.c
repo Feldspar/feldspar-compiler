@@ -26,8 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#define __STDC_FORMAT_MACROS
-
 #include "feldspar_c99.h"
 
 #include <inttypes.h>
