@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -18,7 +19,11 @@ module Feldspar.Compiler.Plugin
   where
 
 import BasicTypes (failed)
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
+import GHCi.ObjLink (initObjLinker,loadObj,resolveObjs)
+#else
 import ObjLink (initObjLinker,loadObj,resolveObjs)
+#endif
 import GHC.Paths (ghc)
 import System.Plugins.MultiStage
 import Distribution.Verbosity (verbose)
@@ -179,7 +184,11 @@ compileAndLoad name opts = do
     initObjLinker
     _ <- loadObj oname
     res <- resolveObjs
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
+    when (not res) $ error $ "Symbols in " ++ oname ++ " could not be resolved"
+#else
     when (failed res) $ error $ "Symbols in " ++ oname ++ " could not be resolved"
+#endif
 
 compileC :: String -> String -> [String] -> IO ()
 compileC srcfile objfile opts = do
