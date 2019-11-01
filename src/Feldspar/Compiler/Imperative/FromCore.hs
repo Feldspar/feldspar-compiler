@@ -886,6 +886,7 @@ chaseTree loc _ a = do
 -- | Chase down the right-spine of `Bind` and `Then` constructs and return
 -- the last term
 chaseBind :: Ut.UntypedFeld -> Ut.UntypedFeld
+chaseBind (In (App Ut.Let  _ [_, In (Ut.Lambda _  body)])) = chaseBind body
 chaseBind (In (App Ut.Bind _ [_, In (Ut.Lambda _  body)])) = chaseBind body
 chaseBind (In (App Ut.Then _ [_, body]))                   = chaseBind body
 chaseBind a                                                = a
