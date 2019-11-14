@@ -3,12 +3,12 @@
 
 void issue128__ex1(uint32_t v0, uint32_t * out)
 {
-  bool v2;
+  bool v1;
   
-  v2 = (1 == v0);
-  if (v2)
+  v1 = (1 == v0);
+  if (v1)
   {
-    if (v2)
+    if (v1)
     {
       *out = 10;
     }

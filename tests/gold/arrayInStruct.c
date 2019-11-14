@@ -3,30 +3,30 @@
 
 void arrayInStruct(struct array * v0, struct array * * out)
 {
-  struct s_2_unsignedS32_arr_unsignedS32 e4 = { .member1 = 0, .member2 = NULL };
-  struct s_2_unsignedS32_arr_unsignedS32 v2 = { .member1 = 0, .member2 = NULL };
-  uint32_t len5;
-  struct array * e6 = NULL;
-  bool v1;
+  struct s_2_unsignedS32_arr_unsignedS32 e11 = { .member1 = 0, .member2 = NULL };
+  struct s_2_unsignedS32_arr_unsignedS32 v6 = { .member1 = 0, .member2 = NULL };
+  uint32_t len12;
+  struct array * e13 = NULL;
+  bool v3;
   
-  (e4).member1 = getLength(v0);
-  (e4).member2 = initArray((e4).member2, sizeof(uint32_t), getLength(v0));
-  copyArray((e4).member2, v0);
-  v1 = ((e4).member1 > 0);
-  while (v1)
+  (e11).member1 = getLength(v0);
+  (e11).member2 = initArray((e11).member2, sizeof(uint32_t), getLength(v0));
+  copyArray((e11).member2, v0);
+  v3 = ((e11).member1 > 0);
+  while (v3)
   {
-    (v2).member1 = ((e4).member1 - 1);
-    len5 = getLength((e4).member2);
-    (v2).member2 = initArray((v2).member2, sizeof(uint32_t), len5);
-    for (uint32_t v3 = 0; v3 < len5; v3 += 1)
+    (v6).member1 = ((e11).member1 - 1);
+    len12 = getLength((e11).member2);
+    (v6).member2 = initArray((v6).member2, sizeof(uint32_t), len12);
+    for (uint32_t v10 = 0; v10 < len12; v10 += 1)
     {
-      at(uint32_t,(v2).member2,v3) = (at(uint32_t,(e4).member2,v3) + 5);
+      at(uint32_t,(v6).member2,v10) = (at(uint32_t,(e11).member2,v10) + 5);
     }
-    e6 = (e4).member2;
-    e4 = v2;
-    (v2).member2 = e6;
-    v1 = ((e4).member1 > 0);
+    e13 = (e11).member2;
+    e11 = v6;
+    (v6).member2 = e13;
+    v3 = ((e11).member1 > 0);
   }
-  *out = initArray(*out, sizeof(uint32_t), getLength((e4).member2));
-  copyArray(*out, (e4).member2);
+  *out = initArray(*out, sizeof(uint32_t), getLength((e11).member2));
+  copyArray(*out, (e11).member2);
 }

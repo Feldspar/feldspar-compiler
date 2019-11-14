@@ -1,44 +1,44 @@
 #include "concatV.h"
 
 
-void concatV(struct array * v0, struct array * * out)
+void concatV(struct array * v1, struct array * * out)
 {
-  struct array * v64 = NULL;
-  uint32_t len65;
-  struct array * v3 = NULL;
-  struct array * v63 = NULL;
-  uint32_t v55;
-  uint32_t v56;
-  struct array * e66 = NULL;
-  uint32_t v58;
+  struct array * v32 = NULL;
+  uint32_t len38;
+  struct array * v7 = NULL;
+  uint32_t v12;
+  struct array * v9 = NULL;
+  uint32_t v10;
+  struct array * e39 = NULL;
+  uint32_t v33;
   
-  len65 = getLength(v0);
-  v64 = initArray(v64, sizeof(int32_t), 0);
-  for (uint32_t v2 = 0; v2 < len65; v2 += 1)
+  len38 = getLength(v1);
+  v32 = initArray(v32, sizeof(int32_t), 0);
+  for (uint32_t v6 = 0; v6 < len38; v6 += 1)
   {
-    v63 = at(struct array *,v0,v2);
-    v55 = getLength(v64);
-    v56 = getLength(v63);
-    v3 = initArray(v3, sizeof(int32_t), (v55 + v56));
-    for (uint32_t v5 = 0; v5 < v55; v5 += 1)
+    v12 = getLength(v32);
+    v9 = at(struct array *,v1,v6);
+    v10 = getLength(v9);
+    v7 = initArray(v7, sizeof(int32_t), (v12 + v10));
+    for (uint32_t v18 = 0; v18 < v12; v18 += 1)
     {
-      at(int32_t,v3,v5) = at(int32_t,v64,v5);
+      at(int32_t,v7,v18) = at(int32_t,v32,v18);
     }
-    for (uint32_t v8 = 0; v8 < v56; v8 += 1)
+    for (uint32_t v24 = 0; v24 < v10; v24 += 1)
     {
-      at(int32_t,v3,(v8 + v55)) = at(int32_t,v63,v8);
+      at(int32_t,v7,(v24 + v12)) = at(int32_t,v9,v24);
     }
-    e66 = v64;
-    v64 = v3;
-    v3 = e66;
+    e39 = v32;
+    v32 = v7;
+    v7 = e39;
   }
-  v58 = getLength(v64);
-  *out = initArray(*out, sizeof(int32_t), v58);
-  for (uint32_t v22 = 0; v22 < v58; v22 += 1)
+  v33 = getLength(v32);
+  *out = initArray(*out, sizeof(int32_t), v33);
+  for (uint32_t v37 = 0; v37 < v33; v37 += 1)
   {
-    at(int32_t,*out,v22) = at(int32_t,v64,v22);
+    at(int32_t,*out,v37) = at(int32_t,v32,v37);
   }
-  freeArray(v64);
-  freeArray(v3);
-  freeArray(v63);
+  freeArray(v32);
+  freeArray(v7);
+  freeArray(v9);
 }

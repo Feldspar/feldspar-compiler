@@ -13,6 +13,6 @@
 #include <complex.h>
 
 
-void concatV(struct array * v0, struct array * * out);
+void concatV(struct array * v1, struct array * * out);
 
 #endif // TESTS_CONCATV_H

@@ -13,6 +13,6 @@
 #include <complex.h>
 
 
-void topLevelConsts__sics(uint32_t v0, uint32_t v1, uint32_t * out);
+void topLevelConsts__sics(uint32_t v1, uint32_t v2, uint32_t * out);
 
 #endif // TESTS_TOPLEVELCONSTS_SICS_H

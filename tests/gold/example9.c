@@ -3,15 +3,15 @@
 
 void example9(int32_t v0, int32_t * out)
 {
-  int32_t v1;
+  int32_t v2;
   
-  v1 = (v0 + 20);
+  v2 = (v0 + 20);
   if ((v0 < 5))
   {
-    *out = (v1 * 3);
+    *out = (3 * v2);
   }
   else
   {
-    *out = (v1 * 30);
+    *out = (30 * v2);
   }
 }
