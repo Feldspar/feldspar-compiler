@@ -87,6 +87,11 @@ concatV xs = fromZero $ fold (++) empty xs
 
 loadFun ['concatV]
 
+concatVM :: Pull DIM1 (Pull1 IntN) -> Manifest DIM1 (Data IntN)
+concatVM xs = fromZero $ fold (\ l r -> store $ l ++ r) (store empty) xs
+
+loadFun ['concatVM]
+
 complexWhileCond :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCond y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a /= b * b) a (b-a))) (\(a,b) -> (a+1,b))
 
@@ -189,6 +194,10 @@ prop_concatV = forAll (vectorOf 3 (choose (0,5))) $ \ls ->
                  forAll (mapM (\l -> vectorOf l arbitrary) ls) $ \xss ->
                    Prelude.concat xss === c_concatV xss
 
+prop_concatVM = forAll (vectorOf 3 (choose (0,5))) $ \ls ->
+                  forAll (mapM (\l -> vectorOf l arbitrary) ls) $ \xss ->
+                    Prelude.concat xss === c_concatVM xss
+
 prop_divConq3 = forAll (choose (1,3)) $ \l ->
                   forAll (vectorOf (l*1024) arbitrary) $ \xs ->
                     map (+1) xs === c_divConq3 xs
@@ -197,6 +206,7 @@ compilerTests :: TestTree
 compilerTests = testGroup "Compiler-RegressionTests"
     [ testProperty "example9 (plugin)" $ eval example9 ==== c_example9
     , testProperty "concatV (plugin)" prop_concatV
+    , testProperty "concatVM (plugin)" prop_concatVM
     -- , testProperty "divConq3 (plugin)" prop_divConq3
     , testProperty "bindToThen" (\y -> eval bindToThen y === y)
     , testProperty "tuples (plugin)" $ eval tuples ==== c_tuples
@@ -205,6 +215,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest pairParam "pairParam_ret" nativeRetOpts
     , mkGoldTest pairParam2 "pairParam2" defaultOptions
     , mkGoldTest concatV "concatV" defaultOptions
+    , mkGoldTest concatVM "concatVM" defaultOptions
     , mkGoldTest complexWhileCond "complexWhileCond" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts" defaultOptions
     , mkGoldTest topLevelConsts "topLevelConsts_native" nativeOpts
@@ -231,6 +242,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest pairParam "pairParam_ret" nativeRetOpts
     , mkBuildTest concatV "concatV" defaultOptions
+    , mkBuildTest concatVM "concatVM" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts" defaultOptions
     , mkBuildTest topLevelConsts "topLevelConsts_native" nativeOpts
     , mkBuildTest topLevelConsts "topLevelConsts_sics" sicsOptions2
@@ -260,6 +272,7 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "pairParam_ret" defaultOptions
     , mkParseTest "pairParam2" defaultOptions
     , mkParseTest "concatV" defaultOptions
+    , mkParseTest "concatVM" defaultOptions
     , mkParseTest "complexWhileCond" defaultOptions
     , mkParseTest "topLevelConsts" defaultOptions
     , mkParseTest "topLevelConsts_native" nativeOpts
