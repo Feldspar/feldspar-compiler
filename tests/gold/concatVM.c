@@ -3,36 +3,38 @@
 
 void concatVM(struct array * v1, struct array * * out)
 {
-  uint32_t len26;
-  struct array * e27 = NULL;
-  struct array * v8 = NULL;
-  uint32_t v13;
-  struct array * v10 = NULL;
-  uint32_t v11;
-  struct array * e28 = NULL;
+  uint32_t len22;
+  struct array * e23 = NULL;
+  struct array * v7 = NULL;
+  uint32_t v12;
+  struct array * v9 = NULL;
+  uint32_t v10;
+  uint32_t len24;
+  struct array * e25 = NULL;
   
-  len26 = getLength(v1);
-  e27 = *out;
-  e27 = initArray(e27, sizeof(int32_t), 0);
-  for (uint32_t v7 = 0; v7 < len26; v7 += 1)
+  len22 = getLength(v1);
+  e23 = *out;
+  e23 = initArray(e23, sizeof(int32_t), 0);
+  for (uint32_t v6 = 0; v6 < len22; v6 += 1)
   {
-    v13 = getLength(e27);
-    v10 = at(struct array *,v1,v7);
-    v11 = getLength(v10);
-    v8 = initArray(v8, sizeof(int32_t), (v13 + v11));
-    for (uint32_t v19 = 0; v19 < v13; v19 += 1)
+    v12 = getLength(e23);
+    v9 = at(struct array *,v1,v6);
+    v10 = getLength(v9);
+    len24 = (v12 + v10);
+    v7 = initArray(v7, sizeof(int32_t), len24);
+    for (uint32_t v17 = 0; v17 < v12; v17 += 1)
     {
-      at(int32_t,v8,v19) = at(int32_t,e27,v19);
+      at(int32_t,v7,v17) = at(int32_t,e23,v17);
     }
-    for (uint32_t v25 = 0; v25 < v11; v25 += 1)
+    for (uint32_t v21 = 0; v21 < v10; v21 += 1)
     {
-      at(int32_t,v8,(v25 + v13)) = at(int32_t,v10,v25);
+      at(int32_t,v7,(v21 + v12)) = at(int32_t,v9,v21);
     }
-    e28 = e27;
-    e27 = v8;
-    v8 = e28;
+    e25 = e23;
+    e23 = v7;
+    v7 = e25;
   }
-  *out = e27;
-  freeArray(v8);
-  freeArray(v10);
+  *out = e23;
+  freeArray(v7);
+  freeArray(v9);
 }
