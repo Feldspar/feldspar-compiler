@@ -5,6 +5,9 @@ module Feldspar.Compiler
     , icompile
     , icompileWith
     , icompile'
+    , program
+    , programOpts
+    , programOptsArgs
     , getCore
     , printCore
     , Options (..)
