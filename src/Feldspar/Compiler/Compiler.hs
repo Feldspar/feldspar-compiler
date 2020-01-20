@@ -31,6 +31,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
 module Feldspar.Compiler.Compiler (
@@ -288,8 +289,8 @@ translate opts p = (ssf ++ ssb, as)
 instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (x,y) = "(" ++ pretty x ++ ", " ++ pretty y ++ ")"
 
-instance Pretty (Module a) where
-  pretty m = show m
+instance Pretty (Module ()) where
+  pretty m = compToCWithInfos defaultOptions m
 
 instance Pretty VarId where
   pretty v = show v
