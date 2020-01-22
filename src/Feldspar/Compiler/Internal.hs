@@ -31,9 +31,6 @@ module Feldspar.Compiler.Internal
     , sicsOptions
     , sicsOptions2
     , sicsOptions3
-    , program
-    , programOpts
-    , programOptsArgs
     , c99PlatformOptions
     , c99OpenMpPlatformOptions
     , tic64xPlatformOptions

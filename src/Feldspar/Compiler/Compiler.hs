@@ -46,9 +46,9 @@ module Feldspar.Compiler.Compiler (
   , tic64xPlatformOptions
   , SplitModule(..)
   , CompiledModule(..)
-  , program
-  , programOpts
-  , programOptsArgs
+  , BackendPass(..)
+  , TargetCode(..)
+  , backend
   ) where
 
 import Data.List (partition)
@@ -56,10 +56,7 @@ import Data.Maybe (fromMaybe)
 
 import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Core.Interpretation (defaultFeldOpts, FeldOpts(..), Target(..))
-import Feldspar.Core.Frontend (reifyFeld)
 import Feldspar.Core.UntypedRepresentation (UntypedFeld, VarId)
-import Feldspar.Core.Types (BitWidth(N32))
-import Feldspar.Core.Middleend.FromTyped
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -69,9 +66,6 @@ import Feldspar.Compiler.Backend.C.Tic64x
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Core.Middleend.PassManager
-import System.Environment (getArgs, getProgName)
-import System.Console.GetOpt
-import System.IO
 import Control.Monad (when)
 
 data SplitModule = SplitModule
@@ -176,115 +170,6 @@ data BackendPass = BPFromCore
                  | BPCompile
                  | BPUnsplit
   deriving (Eq, Enum, Bounded, Read, Show)
-
-data ProgOpts =
-    ProgOpts
-    { backOpts     :: Options
-    , passFileName :: String
-    , outFileName  :: String
-    , functionName :: String
-    , frontendCtrl :: PassCtrl FrontendPass
-    , backendCtrl  :: PassCtrl BackendPass
-    , printHelp    :: Bool
-    }
-
-defaultProgOpts :: ProgOpts
-defaultProgOpts =
-    ProgOpts
-    { backOpts     = defaultOptions
-    , passFileName = ""
-    , outFileName  = ""
-    , functionName = ""
-    , frontendCtrl = defaultPassCtrl
-    , backendCtrl  = defaultPassCtrl
-    , printHelp    = False
-    }
-
-program :: SyntacticFeld a => a -> IO ()
-program p = programOpts p defaultOptions
-
-programOpts :: SyntacticFeld a => a -> Options -> IO ()
-programOpts p opts = do args <- getArgs
-                        programOptsArgs p defaultProgOpts{backOpts = opts} args
-
-programOptsArgs :: SyntacticFeld a => a -> ProgOpts -> [String] -> IO ()
-programOptsArgs p opts args = programComp (const (return p)) opts args
-
-programComp :: SyntacticFeld a => ([String] -> IO a) -> ProgOpts -> [String] -> IO ()
-programComp pc opts args = do name <- getProgName
-                              let (opts1,nonopts) = decodeOpts (optsFromName opts name) args
-                              let header = "Usage: " ++ name ++ " <option>...\n"
-                                         ++ "where <option> is one of"
-                              if printHelp opts1
-                                then putStr $ usageInfo header optionDescs ++ passInfo
-                                else
-                                  do p <- pc nonopts
-                                     let (strs,mProgs) = translate opts1 p
-                                     when (not $ null strs)
-                                        $ writeFileLB (passFileName opts1) (concat strs)
-                                     case mProgs of
-                                       Nothing -> return ()
-                                       Just progs -> mapM_ (uncurry writeFileLB)
-                                                   $ zip (outFileNames opts1)
-                                                   $ targetCode progs
-
-optsFromName :: ProgOpts -> String -> ProgOpts
-optsFromName opts name = opts{passFileName = name ++ ".passes",
-                              outFileName = name,
-                              functionName = name}
-
-outFileNames :: ProgOpts -> [String]
-outFileNames opts = [name ++ ".h", name ++ ".c"]
-  where name = outFileName opts
-
-decodeOpts :: ProgOpts -> [String] -> (ProgOpts, [String])
-decodeOpts optsIn argv = if null errors then (foldl (\ o f -> f o) optsIn actions, nonOptions)
-                                        else error $ unlines errors
-   where (actions, nonOptions, errors) = getOpt Permute optionDescs argv
-
-passInfo :: String
-passInfo = "\nPASS is a frontend pass from\n" ++
-           (unlines $ map ((++) "  " . unwords) $ chunksOf 5 $ map show [minBound .. maxBound :: FrontendPass]) ++
-           "or a backend pass from\n" ++
-           (unlines $ map ((++) "  " . unwords) $ chunksOf 5 $ map show [minBound .. maxBound :: BackendPass])
-  where chunksOf n [] = []
-        chunksOf n xs = take n xs : chunksOf n (drop n xs)
-
-optionDescs = driverOpts
-
-driverOpts =
-  [ Option []  ["writeBefore"] (ReqArg (chooseEnd addWrBefore) "PASS")   "write IR before PASS"
-  , Option []  ["writeAfter"]  (ReqArg (chooseEnd addWrAfter) "PASS")    "write IR after PASS"
-  , Option []  ["stopBefore"]  (ReqArg (chooseEnd setStopBefore) "PASS") "stop processing before PASS"
-  , Option []  ["stopAfter"]   (ReqArg (chooseEnd setStopAfter) "PASS")  "stop processing after PASS"
-  , Option []  ["skip"]        (ReqArg (chooseEnd addSkip) "PASS")       "skip PASS"
-  , Option "o" ["outFile"]     (ReqArg (\ arg opts -> opts{outFileName = arg}) "FILE") "set base name of out file"
-  , Option "p" ["passFile"]    (ReqArg (\ arg opts -> opts{passFileName = arg}) "FILE") "set name of pass file"
-  , Option []  ["funcName"]    (ReqArg (\ arg opts -> opts{functionName = arg}) "IDENTIFIER") "set name of generated function"
-  , Option "h" ["help"]        (NoArg (\ opts -> opts{printHelp = True})) "print a useage message"
-  ]
-
-chooseEnd :: (forall a . PassCtrl a -> a -> PassCtrl a) -> String -> ProgOpts -> ProgOpts
-chooseEnd f str opts
-  | [(p,_)] <- reads str = opts{frontendCtrl = f (frontendCtrl opts) p}
-  | [(p,_)] <- reads str = opts{backendCtrl = f (backendCtrl opts) p}
-  | otherwise = error $ "Compiler.chooseEnd: unrecognized pass " ++ str
-
-writeFileLB :: String -> String -> IO ()
-writeFileLB  "-" str = putStr str
-writeFileLB name str = do fh <- openFile name WriteMode
-                          hSetBuffering fh LineBuffering
-                          hPutStr fh str
-                          hClose fh
-
-translate :: SyntacticFeld a => ProgOpts -> a -> ([String], Maybe TargetCode)
-translate opts p = (ssf ++ ssb, as)
-  where astf = reifyFeld fopts N32 p
-        (ssf,ut) = frontend (frontendCtrl opts) fopts astf
-        (ssb,as) = maybe ([], Nothing) (backend (backendCtrl opts) bopts name) ut
-        bopts = backOpts opts
-        fopts = frontendOpts bopts
-        name = functionName opts
 
 instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (x,y) = "(" ++ pretty x ++ ", " ++ pretty y ++ ")"
