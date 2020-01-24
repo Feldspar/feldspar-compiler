@@ -47,7 +47,6 @@ module Feldspar.Compiler.Compiler (
   , SplitModule(..)
   , CompiledModule(..)
   , BackendPass(..)
-  , TargetCode(..)
   , backend
   ) where
 
@@ -180,14 +179,11 @@ instance Pretty (Module ()) where
 instance Pretty VarId where
   pretty v = show v
 
-instance Pretty TargetCode where
-  pretty (TargetCode bs) = concat ["// Block\n" ++ b ++ "\n" | b <- bs]
-
 instance Pretty SplitModule where
   pretty (SplitModule impl intf) = "// Interface\n" ++ sourceCode intf ++
                                    "\n// Implementation\n" ++ sourceCode impl
 
-backend :: PassCtrl BackendPass -> Options -> String -> UntypedFeld -> ([String], Maybe TargetCode)
+backend :: PassCtrl BackendPass -> Options -> String -> UntypedFeld -> ([String], Maybe SplitModule)
 backend ctrl opts name = evalPasses 0
                        $ codegen (codeGenerator $ platform opts) ctrl opts
                        . pc BPRename   (rename opts False)
@@ -197,14 +193,8 @@ backend ctrl opts name = evalPasses 0
         pt :: (Pretty a, Pretty b) => BackendPass -> (a -> b) -> Prog a Int -> Prog b Int
         pt = passT ctrl
 
-codegen :: String -> PassCtrl BackendPass -> Options -> Prog (Module ()) Int -> Prog TargetCode Int
-codegen "c"   ctrl opts  = passT ctrl BPUnsplit  unsplit
-                         . passT ctrl BPCompile  (compileSplitModule opts)
+codegen :: String -> PassCtrl BackendPass -> Options -> Prog (Module ()) Int -> Prog SplitModule Int
+codegen "c"   ctrl opts  = passT ctrl BPCompile  (compileSplitModule opts)
                          . passT ctrl BPSplit    splitModule
                          . passC ctrl BPAdapt    (adaptTic64x opts)
 codegen gen   _    _     = error $ "Compiler.codegen: unknown code generator " ++ gen
-
-data TargetCode = TargetCode {targetCode :: [String]}
-
-unsplit :: SplitModule -> TargetCode
-unsplit (SplitModule impl intf) = TargetCode [sourceCode intf, sourceCode impl]

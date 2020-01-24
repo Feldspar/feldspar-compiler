@@ -59,11 +59,11 @@ import System.IO
 -- ================================================================================================
 
 compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
-compile prg fileName funName opts = writeFiles compRes fileName
+compile prg fileName funName opts = writeFiles compRes fileName (codeGenerator $ platform opts)
   where compRes = compileToCCore funName opts prg
 
-writeFiles :: SplitModule -> FilePath -> IO ()
-writeFiles prg fileName = do
+writeFiles :: SplitModule -> FilePath -> String -> IO ()
+writeFiles prg fileName "c" = do
     writeFile cfile $ unlines [ "#include \"" ++ takeFileName hfile ++ "\""
                               , "\n"
                               , sourceCode $ implementation prg
@@ -84,6 +84,7 @@ writeFiles prg fileName = do
     guardName = map ((\c -> if c `elem` toBeChanged then '_' else c) . toUpper) hfile
       where
         toBeChanged = "./\\"
+writeFiles prg fileName _ = writeFile fileName $ sourceCode $ implementation prg
 
 icompile :: (SyntacticFeld t) => t -> IO ()
 icompile = icompileWith defaultOptions
@@ -162,9 +163,9 @@ programComp pc opts args = do name <- getProgName
                                         $ writeFileLB (passFileName opts1) (concat strs)
                                      case mProgs of
                                        Nothing -> return ()
-                                       Just progs -> mapM_ (uncurry writeFileLB)
-                                                   $ zip (outFileNames opts1)
-                                                   $ targetCode progs
+                                       Just prog -> writeFiles prog
+                                                               (outFileName opts1)
+                                                               (codeGenerator $ platform $ backOpts opts1)
 
 optsFromName :: ProgOpts -> String -> ProgOpts
 optsFromName opts name = opts{passFileName = name ++ ".passes",
@@ -226,7 +227,7 @@ writeFileLB name str = do fh <- openFile name WriteMode
                           hPutStr fh str
                           hClose fh
 
-translate :: SyntacticFeld a => ProgOpts -> a -> ([String], Maybe TargetCode)
+translate :: SyntacticFeld a => ProgOpts -> a -> ([String], Maybe SplitModule)
 translate opts p = (ssf ++ ssb, as)
   where astf = reifyFeld fopts N32 p
         (ssf,ut) = frontend (frontendCtrl opts) fopts astf

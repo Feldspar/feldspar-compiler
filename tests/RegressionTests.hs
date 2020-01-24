@@ -26,6 +26,7 @@ import Feldspar.Compiler.Plugin
 import Feldspar.Compiler.ExternalProgram (compileFile)
 import Feldspar.Compiler.Compiler (compileToCCore')
 import Feldspar.Compiler.Frontend.Interactive.Interface (writeFiles)
+import Feldspar.Compiler.Backend.C.Options (Platform(..))
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -322,7 +323,7 @@ mkGoldTestUT :: UT.UntypedFeld -> Prelude.FilePath -> Options -> TestTree
 mkGoldTestUT untyped n opts = do
     let ref = goldDir <> n
         new = testDir <> n
-        act = writeFiles (compileToCCore' opts $ fst $ fromCoreUT opts n untyped) new
+        act = writeFiles (compileToCCore' opts $ fst $ fromCoreUT opts n untyped) new (codeGenerator $ platform opts)
         cmp = simpleCmp $ printf "Files '%s.{c,h}' and '%s.{c,h}' differ" ref new
         upd = LB.writeFile ref
     goldenTest n (vgReadFiles ref) (liftIO act >> vgReadFiles new) cmp upd
