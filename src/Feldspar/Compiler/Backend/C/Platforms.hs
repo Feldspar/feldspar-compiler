@@ -30,6 +30,7 @@
 
 module Feldspar.Compiler.Backend.C.Platforms
     ( availablePlatforms
+    , platformFromName
     , c99
     , c99OpenMp
     , c99Wool
@@ -46,6 +47,10 @@ import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
 availablePlatforms = [ c99, c99OpenMp, c99Wool, tic64x ]
+
+platformFromName :: String -> Platform
+platformFromName str = head $ [pf | pf <- availablePlatforms, name pf == str]
+                              ++ error ("Platform.platformFromName: No platform named " ++ str)
 
 c99 :: Platform
 c99 = Platform {
@@ -81,7 +86,8 @@ c99 = Platform {
         , "<math.h>"
         , "<stdbool.h>"
         , "<complex.h>"],
-    varFloating = True
+    varFloating = True,
+    codeGenerator = "c"
 }
 
 c99OpenMp :: Platform
@@ -122,7 +128,8 @@ tic64x = Platform {
         ] ,
     includes = [ "feldspar_tic64x.h", "feldspar_array.h", "<c6x.h>", "<string.h>"
                , "<math.h>"],
-    varFloating = True
+    varFloating = True,
+    codeGenerator = "c"
 }
 
 showRe, showIm :: Constant t -> String

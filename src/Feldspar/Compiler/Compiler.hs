@@ -189,16 +189,20 @@ instance Pretty SplitModule where
 
 backend :: PassCtrl BackendPass -> Options -> String -> UntypedFeld -> ([String], Maybe TargetCode)
 backend ctrl opts name = evalPasses 0
-                       $ pt BPUnsplit  unsplit
-                       . pt BPCompile  (compileSplitModule opts)
-                       . pt BPSplit    splitModule
-                       . pc BPAdapt    (adaptTic64x opts)
+                       $ codegen (codeGenerator $ platform opts) ctrl opts
                        . pc BPRename   (rename opts False)
                        . pt BPFromCore (fst . fromCoreUT opts (encodeFunctionName name))
   where pc :: Pretty a => BackendPass -> (a -> a) -> Prog a Int -> Prog a Int
         pc = passC ctrl
         pt :: (Pretty a, Pretty b) => BackendPass -> (a -> b) -> Prog a Int -> Prog b Int
         pt = passT ctrl
+
+codegen :: String -> PassCtrl BackendPass -> Options -> Prog (Module ()) Int -> Prog TargetCode Int
+codegen "c"   ctrl opts  = passT ctrl BPUnsplit  unsplit
+                         . passT ctrl BPCompile  (compileSplitModule opts)
+                         . passT ctrl BPSplit    splitModule
+                         . passC ctrl BPAdapt    (adaptTic64x opts)
+codegen gen   _    _     = error $ "Compiler.codegen: unknown code generator " ++ gen
 
 data TargetCode = TargetCode {targetCode :: [String]}
 

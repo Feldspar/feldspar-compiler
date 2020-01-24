@@ -33,6 +33,7 @@
 
 module Feldspar.Compiler.Frontend.Interactive.Interface where
 
+import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
 import Feldspar.Core.Constructs (SyntacticFeld)
 import Feldspar.Core.Middleend.PassManager
 import Feldspar.Core.Middleend.FromTyped (FrontendPass, frontend)
@@ -42,9 +43,11 @@ import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Library
+import Feldspar.Compiler.Backend.C.Platforms (availablePlatforms, platformFromName)
 import Feldspar.Compiler.Imperative.Representation (Module(..))
 
 import Data.Char
+import Data.List (intercalate)
 import Control.Monad (when)
 import System.FilePath (takeFileName)
 import System.Environment (getArgs, getProgName)
@@ -128,6 +131,13 @@ defaultProgOpts =
     , printHelp    = False
     }
 
+targetsFromPlatform :: Platform -> [Target]
+targetsFromPlatform pf = tfp $ name pf
+   where tfp "c99"       = []
+         tfp "c99OpenMp" = []
+         tfp "c99Wool"   = [Wool]
+         tfp "ba"        = [BA]
+
 program :: SyntacticFeld a => a -> IO ()
 program p = programOpts p defaultOptions
 
@@ -144,7 +154,7 @@ programComp pc opts args = do name <- getProgName
                               let header = "Usage: " ++ name ++ " <option>...\n"
                                          ++ "where <option> is one of"
                               if printHelp opts1
-                                then putStr $ usageInfo header optionDescs ++ passInfo
+                                then putStr $ usageInfo header optionDescs ++ passInfo ++ targetInfo
                                 else
                                   do p <- pc nonopts
                                      let (strs,mProgs) = translate opts1 p
@@ -178,6 +188,9 @@ passInfo = "\nPASS is a frontend pass from\n" ++
   where chunksOf n [] = []
         chunksOf n xs = take n xs : chunksOf n (drop n xs)
 
+targetInfo :: String
+targetInfo = "\nTARGET is one of " ++ intercalate " " (map name availablePlatforms) ++ "\n\n"
+
 optionDescs = driverOpts
 
 driverOpts =
@@ -189,8 +202,16 @@ driverOpts =
   , Option "o" ["outFile"]     (ReqArg (\ arg opts -> opts{outFileName = arg}) "FILE") "set base name of out file"
   , Option "p" ["passFile"]    (ReqArg (\ arg opts -> opts{passFileName = arg}) "FILE") "set name of pass file"
   , Option []  ["funcName"]    (ReqArg (\ arg opts -> opts{functionName = arg}) "IDENTIFIER") "set name of generated function"
+  , Option "t" ["target"]      (ReqArg (\ arg opts -> setTarget opts arg) "TARGET") "set target"
   , Option "h" ["help"]        (NoArg (\ opts -> opts{printHelp = True})) "print a useage message"
   ]
+
+setTarget :: ProgOpts -> String -> ProgOpts
+setTarget opts str = opts{backOpts = bopts{platform = pf,
+                                           frontendOpts = fopts{targets = targetsFromPlatform pf}}}
+   where bopts = backOpts opts
+         fopts = frontendOpts bopts
+         pf = platformFromName str
 
 chooseEnd :: (forall a . PassCtrl a -> a -> PassCtrl a) -> String -> ProgOpts -> ProgOpts
 chooseEnd f str opts

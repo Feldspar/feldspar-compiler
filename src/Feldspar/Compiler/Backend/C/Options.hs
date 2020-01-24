@@ -55,7 +55,8 @@ data Platform = Platform {
     types           :: [(Type, String)],
     values          :: [(Type, ShowValue)],
     includes        :: [String],
-    varFloating     :: Bool
+    varFloating     :: Bool,
+    codeGenerator   :: String
 } deriving (Show)
 
 type ShowValue = Constant () -> String
