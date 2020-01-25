@@ -30,7 +30,7 @@ import Feldspar.Compiler.Backend.C.Options (Platform(..))
 
 import Control.Applicative hiding (empty)
 import Control.Monad
-import Control.Monad.Error (liftIO)
+import Control.Monad.Except (liftIO)
 import Data.Monoid ((<>))
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as LB
