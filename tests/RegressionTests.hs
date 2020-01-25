@@ -169,9 +169,9 @@ foreignEffect =
         ]
   where
     void   = UT.MutType (UT.TupType [])
-    pos    = UT.Var 77 UT.FloatType B.empty
+    pos    = UT.Var 77 (1 UT.:# UT.FloatType) B.empty
     alert  = UT.In $ UT.App (UT.ForeignImport "alert") void []
-    getPos = UT.In $ UT.App (UT.ForeignImport "getPos") UT.FloatType []
+    getPos = UT.In $ UT.App (UT.ForeignImport "getPos") (1 UT.:# UT.FloatType) []
     launchMissiles = UT.In $ UT.App (UT.ForeignImport "launchMissiles") void [UT.In $ UT.Variable pos]
     cleanUp = UT.In $ UT.App (UT.ForeignImport "cleanUp") void []
 

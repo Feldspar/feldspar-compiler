@@ -234,12 +234,12 @@ compileProgTop a = do
 -- | Compile a type representation. The conversion is platform-dependent, which
 -- is why the function takes and 'Options' argument.
 compileType :: Options -> Ut.Type -> Type
-compileType _   Ut.BoolType            = 1 :# BoolType
-compileType _   Ut.BitType             = 1 :# BitType
-compileType _   (Ut.IntType s n)       = 1 :# (NumType s n)
-compileType _   Ut.FloatType           = 1 :# FloatType
-compileType _   Ut.DoubleType          = 1 :# DoubleType
-compileType opt (Ut.ComplexType t)     = 1 :# (ComplexType $ compileType opt t)
+compileType _   (n Ut.:# Ut.BoolType)      = n :# BoolType
+compileType _   (n Ut.:# Ut.BitType)       = n :# BitType
+compileType _   (n Ut.:# Ut.IntType s sz)  = n :# (NumType s sz)
+compileType _   (n Ut.:# Ut.FloatType)     = n :# FloatType
+compileType _   (n Ut.:# Ut.DoubleType)    = n :# DoubleType
+compileType opt (n Ut.:# Ut.ComplexType t) = n :# (ComplexType $ compileType opt t)
 compileType _   (Ut.TupType [])        = VoidType
 compileType opt (Ut.TupType ts)        = mkStructType
     [("member" ++ show n, compileType opt t) | (n,t) <- zip [1..] ts]
@@ -845,10 +845,12 @@ representableType :: Ut.Lit -> Bool
 representableType l
   | Ut.ArrayType{} <- t = True
   -- Simple types.
-  | Ut.IntType{} <- t = True
-  | Ut.ComplexType{} <- t = True
+  | _ Ut.:# Ut.IntType{} <- t     = True
+  | _ Ut.:# Ut.ComplexType{} <- t = True
+  | _ Ut.:# st <- t
+  = st `elem` [Ut.DoubleType, Ut.FloatType, Ut.BoolType]
   | otherwise
-  = t `elem` [Ut.TupType [], Ut.DoubleType, Ut.FloatType, Ut.BoolType]
+  = t == Ut.TupType []
       where t = typeof l
 
 literalConst :: Options -> Ut.Lit -> Constant ()
