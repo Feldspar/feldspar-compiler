@@ -339,9 +339,9 @@ expToExpression' env _ (Member e name _)
   = StructField (expToExpression env e) (unId name)
 expToExpression' _ _ PtrMember{} = error "expToExpression: No support for ptrmember."
 expToExpression' env _ (Index e1 e2 _)
-  = ArrayElem (expToExpression env e1) (expToExpression env e2)
+  = ArrayElem (expToExpression env e1) [expToExpression env e2]
 expToExpression' env tcontext (FnCall (Var (Id "at" _) _) [e1, e2] _)
-  = ArrayElem (expToExpression env' e1) (expToExpression env' e2)
+  = ArrayElem (expToExpression env' e1) [expToExpression env' e2]
    where env' | (Var name _) <- e1
               , Just t <- tcontext
               , Just (Variable (ArrayType _ fakeType) _) <- lookup (unId name) (vars env)

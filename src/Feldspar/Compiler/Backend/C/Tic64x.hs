@@ -59,7 +59,7 @@ adaptTic64xProg (BlockProgram b)     = BlockProgram $ adaptTic64xBlock b
 -- | Adapts expressions.
 adaptTic64xExp :: Expression () -> Expression ()
 adaptTic64xExp v@VarExpr{}         = v
-adaptTic64xExp (ArrayElem e1 e2)   = ArrayElem (adaptTic64xExp e1) (adaptTic64xExp e2)
+adaptTic64xExp (ArrayElem e es)    = ArrayElem (adaptTic64xExp e) $ map adaptTic64xExp es
 adaptTic64xExp (StructField e s)   = StructField (adaptTic64xExp e) s
 adaptTic64xExp c@ConstExpr{}       = c
 adaptTic64xExp (FunctionCall (Function "/=" t) [arg1,arg2]) | isComplex (typeof arg1)

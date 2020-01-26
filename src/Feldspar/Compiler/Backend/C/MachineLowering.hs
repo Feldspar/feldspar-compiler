@@ -66,7 +66,7 @@ renameProg opts m (BlockProgram b)     = BlockProgram $ renameBlock opts m b
 -- | Rename expressions.
 renameExp :: M.Map String [(Which, Destination)] -> Expression () -> Expression ()
 renameExp _ v@VarExpr{}         = v
-renameExp m (ArrayElem e1 e2)   = ArrayElem (renameExp m e1) (renameExp m e2)
+renameExp m (ArrayElem e es)    = ArrayElem (renameExp m e) $ map (renameExp m) es
 renameExp m (StructField e s)   = StructField (renameExp m e) s
 renameExp _ c@ConstExpr{}       = c
 renameExp m (FunctionCall f es) = res

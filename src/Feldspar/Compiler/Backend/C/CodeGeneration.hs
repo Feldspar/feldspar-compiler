@@ -195,13 +195,14 @@ instance CodeGen (Expression ())
     cgen env e@ArrayElem{..}
      | c@ConstExpr{} <- array
      , (NativeArray _ t) <- typeof c
-     = parens (parens (cgen env t <> brackets empty) <> cgen env c) <> brackets (cgen env arrayIndex)
+     = parens (parens (cgen env t <> brackets empty) <> cgen env c)
+       <> (hcat $ map brackets $ map (cgen env) arrayIndex)
      | isNativeArray (typeof array) || isPointer (typeof array)
-     = cgen env array <> brackets (cgen env arrayIndex)
-     | otherwise = text "at" <> parens (hcat $ punctuate comma [ cgen env $ typeof e
-                                                               , cgen env array
-                                                               , cgen env arrayIndex
-                                                               ])
+     = cgen env array <> (hcat $ map brackets (map (cgen env) arrayIndex))
+     | otherwise = text "at" <> parens (hcat $ punctuate comma $
+                                         [ cgen env $ typeof e
+                                         , cgen env array
+                                         ] ++ map (cgen env) arrayIndex)
     cgen env StructField{..}  = parens (cgen env struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..}    = cgen env constExpr
     cgen env FunctionCall{..}

@@ -188,7 +188,7 @@ data Expression t
         }
     | ArrayElem
         { array                     :: Expression t
-        , arrayIndex                :: Expression t
+        , arrayIndex                :: [Expression t]
         }
     | StructField
         { struct                    :: Expression t
@@ -372,7 +372,7 @@ fv = nub . fv'
 
 fv' :: Expression t -> [Variable t]
 fv' (VarExpr v)         = [v]
-fv' (ArrayElem e i)     = fv' e ++ fv' i
+fv' (ArrayElem e i)     = fv' e ++ concatMap fv' i
 fv' (StructField e _)   = fv' e
 fv' (FunctionCall _ ps) = concatMap fv' ps
 fv' (Cast _ e)          = fv' e
