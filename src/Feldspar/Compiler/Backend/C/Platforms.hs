@@ -46,7 +46,7 @@ import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 
 availablePlatforms :: [Platform]
-availablePlatforms = [ c99, c99OpenMp, c99Wool, tic64x ]
+availablePlatforms = [ c99, c99OpenMp, c99Wool, ba, tic64x ]
 
 platformFromName :: String -> Platform
 platformFromName str = head $ [pf | pf <- availablePlatforms, name pf == str]
@@ -100,6 +100,11 @@ c99Wool = c99 { name = "c99Wool"
               , includes = "wool.h":includes c99
               , varFloating = False
               }
+
+ba :: Platform
+ba = c99 { name = "ba"
+         , codeGenerator = "ba"
+         }
 
 tic64x :: Platform
 tic64x = Platform {
