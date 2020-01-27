@@ -18,6 +18,7 @@ import Feldspar.Compiler.Backend.C.RuntimeLibrary
 
 -- | External interface for renaming.
 rename :: Options -> Bool -> Module () -> Module ()
+rename opts _             | codeGenerator (platform opts) /= "c" = id
 rename opts addRuntimeLib = rename' opts addRuntimeLib x
   where x = getPlatformRenames opts
 
