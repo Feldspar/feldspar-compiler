@@ -268,14 +268,6 @@ hasReference IVarType{}                  = True
 hasReference (StructType _ fs)           = any (hasReference . snd) fs
 hasReference _                           = False
 
-locName :: Expression t -> String
-locName (VarExpr v@Variable{}) = varName v
-locName (ArrayElem e _)        = locName e
-locName (StructField e _)      = locName e
-locName (AddrOf e)             = locName e
-locName (Deref e)              = locName e
-locName e                      = error $ "Feldspar.Compiler.Imperative.Frontend.locName: invalid location: " ++ show e
-
 varToExpr :: Variable t -> Expression t
 varToExpr = VarExpr
 
@@ -297,9 +289,9 @@ if' ce tb (Just eb) = Switch ce [(Pat (litB True), tb), (Pat (litB False), eb)]
 call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
-for :: ParType -> String -> Expression () -> Expression () -> Expression () -> Block () -> Program ()
+for :: ParType -> Variable () -> Expression () -> Expression () -> Expression () -> Block () -> Program ()
 for _ _ _ _ _ (Block [] (Sequence [Empty])) = Empty
-for p n s e i b = ParLoop p (Variable (1 :# (NumType Unsigned S32)) n) s e i b
+for p n s e i b = ParLoop p n s e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e = SeqLoop e p

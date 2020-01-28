@@ -279,14 +279,13 @@ compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta _
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM compileExpr vs
-            let mkV v = Variable (typeof v) (locName v)
-                args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
+            let args  = map (ValueParameter . varToExpr) $ nub $ map varExpr vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
             b' <- confiscateBlock $ compileProg (Just $ ArrayElem loc [ix]) ixf
             return (Parallel, snd b')
    tellProg [initArray (Just loc) len']
-   tellProg [for ptyp (locName ix) (litI32 0) len' (litI32 1) b]
+   tellProg [for ptyp (varExpr ix) (litI32 0) len' (litI32 1) b]
 compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v tix _) ixf1)]))
    | In (Ut.Lambda (Ut.Var s tst _) l) <- ixf1
    , (bs, In (Ut.App Ut.Tup _ [In (Ut.Variable t1), In (Ut.Variable t2)])) <- collectLetBinders l
@@ -309,7 +308,7 @@ compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v ti
         tellProg [ Assign (varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
-                  for Sequential (locName ix) (litI32 0) len' (litI32 1) $
+                  for Sequential (varExpr ix) (litI32 0) len' (litI32 1) $
                                toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr [ix])]) loc)]
 compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t _) (In (Ut.Lambda (Ut.Var s _ _) step)))]))
   = do
@@ -322,7 +321,7 @@ compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t _) 
        tellProg [initArray loc len']
        compileProg (Just $ StructField tmp "member2") st
        tellProg [toProg $ Block ds $
-                 for Sequential (locName ix) (litI32 0) len' (litI32 1) $ toBlock $
+                 for Sequential (varExpr ix) (litI32 0) len' (litI32 1) $ toBlock $
                    Sequence $ body ++
                      [copyProg (ArrayElem <$> loc <*> pure [ix]) [StructField tmp "member1"]
                      ]]
@@ -379,13 +378,12 @@ compileProg (Just loc) (In (App Ut.EparFor _ [len, In (Ut.Lambda (Ut.Var v ta _)
    (ptyp, b) <- case ixf of
           In (App (Ut.Call Loop n) _ vs) -> do
             vs' <- mapM compileExpr vs
-            let mkV v = Variable (typeof v) (locName v)
-                args  = map (ValueParameter . varToExpr) $ nub $ map mkV vs' ++ fv loc
+            let args  = map (ValueParameter . varToExpr) $ nub $ map varExpr vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
             b' <- confiscateBlock $ compileProg (Just loc) ixf
             return (Parallel, snd b')
-   tellProg [for ptyp (locName ix) (litI32 0) len' (litI32 1) b]
+   tellProg [for ptyp (varExpr ix) (litI32 0) len' (litI32 1) b]
 -- Error
 compileProg _ (In (App Ut.Undefined _ _)) = return ()
 compileProg loc (In (App (Ut.Assert msg) _ [cond, a])) = do
@@ -418,7 +416,7 @@ compileProg (Just loc) (In (App Ut.ForLoop _ [len, init', In (Ut.Lambda (Ut.Var 
       (_, Block ds body) <- withAlias st lstate $ confiscateBlock
                           $ compileProg (Just stvar) ixf
                           >> shallowCopyWithRefSwap lstate stvar
-      tellProg [toProg $ Block ds (for Sequential (locName ix') (litI32 0) len' (litI32 1) (toBlock body))]
+      tellProg [toProg $ Block ds (for Sequential (varExpr ix') (litI32 0) len' (litI32 1) (toBlock body))]
       shallowAssign (Just loc) lstate
 compileProg (Just loc) (In (App Ut.WhileLoop t [init', In (Ut.Lambda (Ut.Var cv ct _) cond), In (Ut.Lambda (Ut.Var bv bt _) body)])) = do
     opts <- asks backendOpts
@@ -443,7 +441,7 @@ compileProg loc (In (App Ut.For _ [len, In (Ut.Lambda (Ut.Var v ta _) ixf)])) = 
    let ix = mkVar (compileType opts ta) v
    len' <- mkLength len ta
    (_, Block ds body) <- confiscateBlock $ compileProg loc ixf
-   tellProg [toProg $ Block ds (for Sequential (locName ix) (litI32 0) len' (litI32 1) (toBlock body))]
+   tellProg [toProg $ Block ds (for Sequential (varExpr ix) (litI32 0) len' (litI32 1) (toBlock body))]
 -- Mutable
 compileProg loc (In (App Ut.Run _ [ma])) = compileProg loc ma
 compileProg loc (In (App Ut.Return t [a]))
@@ -476,7 +474,7 @@ compileProg loc (In (App Ut.NewArr _ [len, a])) = do
    a' <- compileExpr a
    l  <- compileExpr len
    tellProg [initArray loc l]
-   tellProg [for Sequential (varName var) (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure [ix]) [a']])]
+   tellProg [for Sequential var (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure [ix]) [a']])]
 compileProg loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr len
    tellProg [initArray loc l]
