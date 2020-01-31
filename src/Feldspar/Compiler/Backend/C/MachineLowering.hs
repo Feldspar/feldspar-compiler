@@ -7,7 +7,7 @@ import qualified Data.Map as M
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
 import Feldspar.Compiler.Backend.C.Options
-import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x, deepCopy)
+import Feldspar.Compiler.Backend.C.Platforms (extend, c99, tic64x)
 import Feldspar.Compiler.Backend.C.RuntimeLibrary
 
 -- This module does function renaming as well as copy expansion, in a single pass.
