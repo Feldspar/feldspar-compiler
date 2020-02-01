@@ -56,55 +56,62 @@ copyProg Nothing _ = Empty
 copyProg (Just outExp) inExp =
   case inExp of
     [x] | outExp == x -> Empty
-    _                 -> call "copy" (map ValueParameter (outExp:inExp))
+    _                 -> deepCopy outExp inExp
 
 -- | Expand copying of aggregate data to copying of components
-deepCopy :: Options -> [ActualParameter ()] -> [Program ()]
-deepCopy opts [ValueParameter arg1, ValueParameter arg2]
+deepCopy :: Expression () -> [Expression ()] -> Program ()
+deepCopy arg1 [arg2]
   | arg1 == arg2
-  = []
-
-  | ConstExpr ArrayConst{..} <- arg2
-  = initArray (Just arg1) (litI32 $ toInteger $ length arrayValues)
-    : zipWith (\i c -> Assign (ArrayElem arg1 [litI32 i]) (ConstExpr c)) [0..] arrayValues
-
-  | NativeArray{} <- typeof arg2
-  , l@(ConstExpr (IntConst n _)) <- arrayLength arg2
-  = if n < safetyLimit opts
-      then initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 [litI32 i]) (ArrayElem arg2 [litI32 i])) [0..(n-1)]
-      else error $ unlines ["Internal compiler error: array size (" ++ show n ++ ") too large for deepcopy", show arg1, show arg2]
+  = Empty
 
   | StructType _ fts <- typeof arg2
-  = concatMap (deepCopyField . fst) fts
+  = Sequence $ map (deepCopyField . fst) fts
 
-  | not (isArray (typeof arg1))
-  = [Assign arg1 arg2]
-    where deepCopyField fld = deepCopy opts [ ValueParameter $ StructField arg1 fld
-                                            , ValueParameter $ StructField arg2 fld]
+  | not (isArray (typeof arg1) || isNativeArray (typeof arg1))
+  = Assign arg1 arg2
+    where deepCopyField fld = deepCopy (StructField arg1 fld) [StructField arg2 fld]
 
-deepCopy _ (ValueParameter arg1 : ins'@(ValueParameter in1:ins))
-  | isArray (typeof arg1)
-  = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++
-      flattenCopy (ValueParameter arg1) ins argnLens arg1len
-    where expDstLen = foldr ePlus (litI32 0) aLens
-          copyFirstSegment = if arg1 == in1
-                                then Empty
-                                else call "copyArray" [ ValueParameter arg1
-                                                      , ValueParameter in1]
-          aLens@(arg1len:argnLens) = map (\(ValueParameter src) -> arrayLength src) ins'
+deepCopy arg1 args
+  | isArray (typeof arg1) || isNativeArray (typeof arg1)
+  = Assign arg1 $ fun (typeof arg1) "copy" (arg1 : args)
 
 deepCopy _ _ = error "Multiple non-array arguments to copy"
 
-flattenCopy :: ActualParameter () -> [ActualParameter ()] -> [Expression ()] ->
+flattenCopy :: Expression () -> [Expression ()] -> [Expression ()] ->
                Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [dst, ValueParameter cLen, t]
+flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [ValueParameter dst, ValueParameter cLen, ValueParameter t]
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
 ePlus (ConstExpr (IntConst 0 _)) e = e
 ePlus e (ConstExpr (IntConst 0 _)) = e
 ePlus e1 e2                        = binop (1 :# (NumType Signed S32)) "+" e1 e2
+
+-- | Lower array copy
+lowerCopy :: Options -> Type -> Expression () -> [Expression ()] -> [Program ()]
+lowerCopy _ ArrayType{} arg1 ins'@(in1:ins)
+  | [ConstExpr ArrayConst{..}] <- ins'
+  = initArray (Just arg1) (litI32 $ toInteger $ length arrayValues)
+    : zipWith (\i c -> Assign (ArrayElem arg1 [litI32 i]) (ConstExpr c)) [0..] arrayValues
+
+  | otherwise
+  = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++
+      flattenCopy arg1 ins argnLens arg1len
+    where expDstLen = foldr ePlus (litI32 0) aLens
+          copyFirstSegment = if arg1 == in1
+                                then Empty
+                                else call "copyArray" [ ValueParameter arg1
+                                                      , ValueParameter in1]
+          aLens@(arg1len:argnLens) = map arrayLength ins'
+lowerCopy opts NativeArray{} arg1 [arg2]
+  | l@(ConstExpr (IntConst n _)) <- arrayLength arg2
+  = if n < safetyLimit opts
+      then initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 [litI32 i]) (ArrayElem arg2 [litI32 i])) [0..(n-1)]
+      else error $ unlines ["Frontend.lowerCopy: array size (" ++ show n ++ ") too large", show arg1, show arg2]
+lowerCopy _ t e es = error $ "Frontend.lowerCopy: funny type (" ++ show t ++ ") or destination\n"
+                                ++ show e ++ "\nor arguments\n"
+                                ++ (unlines $ map show es)
 
 -- | General array initialization
 mkInitArr
@@ -267,12 +274,10 @@ isFloat _                             = False
 
 isArray :: Type -> Bool
 isArray ArrayType{}                   = True
-isArray (_ :# (Pointer t))            = isArray t
 isArray _                             = False
 
 isNativeArray :: Type -> Bool
 isNativeArray NativeArray{}                   = True
-isNativeArray (_ :# (Pointer t))              = isNativeArray t
 isNativeArray _                               = False
 
 isIVar :: Type -> Bool
@@ -339,7 +344,7 @@ call :: String -> [ActualParameter ()] -> Program ()
 call = ProcedureCall
 
 for :: ParType -> Variable () -> Expression () -> Expression () -> Expression () -> Block () -> Program ()
-for _ _ _ _ _ (Block [] (Sequence [Empty])) = Empty
+for _ _ _ _ _ (Block [] (Sequence ps)) | all (== Empty) ps = Empty
 for p n s e i b = ParLoop p n s e i b
 
 while :: Block () -> Expression () -> Block () -> Program ()
