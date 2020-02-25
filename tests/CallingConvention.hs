@@ -40,12 +40,50 @@ vectorInVector v = fromZero $ sum $ map (fromZero . sum) v
 vectorInPairInVector :: Data WordN -> Pull DIM1 (Data WordN, Pull1 WordN)
 vectorInPairInVector l = indexed1 l $ \i -> (i, indexed1 i id)
 
+shTest :: Data Length -> Data Length
+shTest n = runMutable $ do
+             a <- newArr n 1
+             c <- newArr n 2
+             let d = n<5 ? a $ c
+             setArr d 0 n
+             b <- getArr a $ 0
+             return b
+
+escTest :: Data Length -> Data Length
+escTest n = share (runMutable $ newArr 5 n) $
+            \ a -> (runMutable $ setArr a 2 (n+1) >> getArr a 3)
+                 + (runMutable $ setArr a 3 (n+2) >> getArr a 2)
+
+
+arrayInStructR :: Data [Length] -> Data [Length]
+arrayInStructR a = snd $ whileLoop (getLength a, a) (\(n,_) -> (n>0)) (\(n,a) -> (n-1, parallel (getLength a) (\ i -> a!i + 5)))
+
+pairParamR :: (Data Index, Data Index) -> Data Index
+pairParamR (x, _) = x
+
+pairParam2R :: (Data Int16, Data Int16) ->
+              ((Data Int16, Data Int16), (Data Int16, Data Int16))
+pairParam2R c = (c, c)
+
+copyPushR :: Pull1 Index -> DPush DIM1 Index
+copyPushR v = let pv = toPush v in pv ++ pv
+
+complexWhileCondR :: Data Int32 -> (Data Int32, Data Int32)
+complexWhileCondR y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a < b * b) a (b-a))) (\(a,b) -> (a+1,b))
+
 loadFun ['pairArg]
 loadFun ['pairRes]
 loadFun ['vecId]
 loadFun ['vectorInPair]
 loadFun ['vectorInVector]
 loadFun ['vectorInPairInVector]
+loadFun ['shTest]
+loadFun ['escTest]
+loadFun ['arrayInStructR]
+loadFun ['pairParamR]
+loadFun ['pairParam2R]
+loadFun ['copyPushR]
+loadFun ['complexWhileCondR]
 
 prop_pairArg = eval pairArg ==== c_pairArg
 prop_pairRes = eval pairRes ==== c_pairRes
@@ -59,6 +97,14 @@ prop_vectorInVector (Small l1) (Small l2) =
     forAll (vector1D l1 (vector1D l2 arbitrary)) $ \v ->
       eval vectorInVector v ==== c_vectorInVector v
 prop_vectorInPairInVector (Small l) = eval vectorInPairInVector l ==== c_vectorInPairInVector l
+prop_shTest (Positive n) = eval shTest n ==== c_shTest n
+prop_escTest = eval escTest ==== c_escTest
+
+prop_arrayInStruct = eval arrayInStructR ==== c_arrayInStructR
+prop_pairParam = eval pairParamR ==== c_pairParamR
+prop_pairParam2 = eval pairParam2R ==== c_pairParam2R
+prop_copyPush = eval copyPushR ==== c_copyPushR
+prop_complexWhileCond (Small n) = eval complexWhileCondR n ==== c_complexWhileCondR n
 
 tests :: TestTree
 tests = testGroup "CallingConvention"
@@ -69,6 +115,12 @@ tests = testGroup "CallingConvention"
     , testProperty "vectorInVector" prop_vectorInVector
     -- TODO: This test case will cause a segmentation fault due to issue #145
     -- , testProperty "vectorInPairInVector" prop_vectorInPairInVector
+    , testProperty "escTest" prop_escTest
+    , testProperty "arrayInStruct" prop_arrayInStruct
+    , testProperty "pairParam" prop_pairParam
+    , testProperty "pairParam2" prop_pairParam2
+    , testProperty "copyPush" prop_copyPush
+    , testProperty "complexWhileCond" prop_complexWhileCond
     ]
 
 main :: IO ()
