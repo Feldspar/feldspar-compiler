@@ -194,8 +194,7 @@ Encoded format is:
 
 Where the type tag is some unique prefix except for the scalar
 types. The tag for StructTypes include the number of elements in the
-struct to simplify the job for decodeType, and AliasType does the same
-thing with encoding the length of the name of the aliased type.
+struct to simplify the job for decodeType.
 
 -}
 
@@ -205,7 +204,6 @@ encodeType = go
     go VoidType              = "void"
     -- Machine vectors do not change memory layout, so keep internal.
     go (_ :# t)              = goScalar t
-    go (AliasType t s)       = "a_" ++ show (length s) ++ "_" ++ s ++ "_" ++ go t
     go (IVarType t)          = "i_" ++ go t
     go (NativeArray _ t)     = "narr_" ++ go t
     go (StructType n _)      = n
@@ -243,10 +241,6 @@ decodeType = goL []
      where (tn, t') = go t
     go (stripPrefix "ptr_"     -> Just t) = (1 :# (Pointer tt), t')
      where (tt, t') = go t
-    go (stripPrefix "a_"       -> Just t) = (AliasType tt s', t'')
-     where Just (n, '_':t') = decodeLen t
-           s' = take n t'
-           (tt, t'') = go $ drop n t'
     go (stripPrefix "i_"       -> Just t) = (IVarType tt, t')
      where (tt, t') = go t
     go (stripPrefix "narr_"    -> Just t) = (NativeArray Nothing tt, t')

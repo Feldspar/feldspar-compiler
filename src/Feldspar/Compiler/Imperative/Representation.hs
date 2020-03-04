@@ -290,7 +290,6 @@ data ScalarType =
 data Type =
       VoidType
     | Length :# ScalarType -- Machine SIMD vectors; xmm registers in x86.
-    | AliasType Type String
     | ArrayType (Range Length) Type
     | NativeArray (Maybe Length) Type
     | StructType String [(String, Type)]
@@ -302,7 +301,6 @@ data Type =
 instance Eq Type where
    VoidType              == VoidType              = True
    (l1 :# t1)            == (l2 :# t2)            = l1 == l2 && t1 == t2
-   (AliasType t1 s1)     == (AliasType t2 s2)     = t1 == t2 && s1 == s2
    (ArrayType _ t1)      == (ArrayType _ t2)      = t1 == t2
    (NativeArray l1 t1)   == (NativeArray l2 t2)   = l1 == l2 && t1 == t2
    (StructType _ l1)     == (StructType _ l2)     = l1 == l2
@@ -343,7 +341,6 @@ instance HasType (Expression t) where
       where
         getStructFieldType :: String -> Type -> Type
         getStructFieldType f (StructType _ l) = fromMaybe (structFieldNotFound f) $ lookup f l
-        getStructFieldType f (AliasType t _)  = getStructFieldType f t
         getStructFieldType f t                = reprError InternalError $
             "Trying to get a struct field from not a struct typed expression\n" ++ "Field: " ++ f ++ "\nType:  " ++ show t
         structFieldNotFound f = reprError InternalError $ "Not found struct field with this name: " ++ f

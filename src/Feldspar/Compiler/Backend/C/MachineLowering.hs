@@ -84,7 +84,7 @@ renameExp m (FunctionCall f es) = res
             = StructField (fun div_t (div_f t) [arg1, arg2]) "quot"
             | otherwise = fun t "/" es'
           where
-           div_t = AliasType (StructType "div_t" [("quot", t), ("rem", t)]) "div_t"
+           div_t = StructType "div_t" [("quot", t), ("rem", t)]
            div_f (1 :# (NumType Signed S8))  = "div"
            div_f (1 :# (NumType Signed S16)) = "div"
            div_f (1 :# (NumType Signed S32)) = "div"
