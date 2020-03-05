@@ -282,7 +282,7 @@ rotateL_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
        ret1    = call "return" [ValueParameter inVar1']
        cnd     = binop (1 :# BoolType) "=="
                      (binop typ "%=" inVar2' (litI typ sz)) (litI typ 0)
-       prg     = Sequence [if' cnd (toBlock ret1) Nothing,
+       prg     = Sequence [mkIf cnd (toBlock ret1) Nothing,
                   call "return" [ValueParameter $
                     binop typ "|" (binop typ "<<" inVar1' inVar2') rsh]]
        rsh     = binop typ ">>" inVar1' (binop typ "-" arg2 inVar2')
@@ -311,7 +311,7 @@ rotateR_fun_u opts typ = Proc name False [inVar1, inVar2] (Right outVar) (Just b
        ret1    = call "return" [ValueParameter inVar1']
        cnd     = binop (1 :# BoolType) "=="
                      (binop typ "%=" inVar2' (litI typ sz)) (litI typ 0)
-       prg     = Sequence [if' cnd (toBlock ret1) Nothing,
+       prg     = Sequence [mkIf cnd (toBlock ret1) Nothing,
                   call "return" [ValueParameter $
                     binop typ "|" lsh (binop typ ">>" inVar1' inVar2') ]]
        lsh     = binop typ "<<" inVar1' (binop typ "-" arg2 inVar2')
