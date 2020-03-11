@@ -130,8 +130,6 @@ library
 
   ghc-options: -fcontext-stack=100
 
-  cpp-options: -DRELEASE
-
 test-suite regression
   type: exitcode-stdio-1.0
 
