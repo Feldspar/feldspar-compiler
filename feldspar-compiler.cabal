@@ -1,6 +1,6 @@
 name:           feldspar-compiler
 version:        0.6.1.0
-cabal-version:  >= 1.14
+cabal-version:  1.24
 build-type:     Custom
 license:        BSD3
 license-file:   LICENSE
@@ -221,7 +221,7 @@ benchmark matmul
 
  ghc-options: -O2
 
- CC-Options: -O2 -fno-vectorize
+ CC-Options: -fno-vectorize
  if flag(UseICC)
    x-cc-name: icc
 
@@ -233,3 +233,10 @@ benchmark matmul
    base,
    deepseq,
    criterion
+
+custom-setup
+  setup-depends:
+    base,
+    Cabal,
+    filepath,
+    process

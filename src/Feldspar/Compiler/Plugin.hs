@@ -21,6 +21,9 @@ module Feldspar.Compiler.Plugin
 import BasicTypes (failed)
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
 import GHCi.ObjLink (initObjLinker,loadObj,resolveObjs)
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 802
+import GHCi.ObjLink (ShouldRetainCAFs(..))
+#endif
 #else
 import ObjLink (initObjLinker,loadObj,resolveObjs)
 #endif
@@ -29,7 +32,11 @@ import System.Plugins.MultiStage
 import Distribution.Verbosity (verbose)
 import Distribution.Simple.Utils (defaultPackageDesc)
 import Distribution.PackageDescription
+#if defined(MIN_VERSION_Cabal) && MIN_VERSION_Cabal(2,2,0)
+import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
+#else
 import Distribution.PackageDescription.Parse (readPackageDescription)
+#endif
 import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 
 import Feldspar.Compiler.CallConv (rewriteType, buildCType, buildHaskellType)
@@ -163,7 +170,11 @@ getDB = unsafePerformIO $ do
         ExitSuccess -> return $ drop 1 $ words d
         _           -> return []
     local   = do
+#if defined(MIN_VERSION_Cabal) && MIN_VERSION_Cabal(2,2,0)
+      pd <- readGenericPackageDescription verbose =<< defaultPackageDesc verbose
+#else
       pd <- readPackageDescription verbose =<< defaultPackageDesc verbose
+#endif
       let f a = return $ includeDirs $ libBuildInfo a
       maybe (return []) f (maybeHasLibs $ flattenPackageDescription pd)
 {-# NOINLINE getDB #-}
@@ -181,7 +192,11 @@ compileAndLoad name opts = do
     exists <- doesFileExist oname
     when exists $ removeFile oname
     compileC cname oname opts
+#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 802
+    initObjLinker RetainCAFs
+#else
     initObjLinker
+#endif
     _ <- loadObj oname
     res <- resolveObjs
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800

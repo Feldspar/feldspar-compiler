@@ -37,10 +37,11 @@ module Feldspar.Compiler.Imperative.FromCore.Interpretation where
 
 
 import Control.Arrow
-import Control.Monad.RWS
+import Control.Monad.RWS hiding ((<>))
 import Control.Applicative
 
 import Data.List (intercalate, nub)
+import Data.Semigroup (Semigroup(..))
 
 import Feldspar.Range (fullRange)
 import Feldspar.Core.UntypedRepresentation (VarId (..))
@@ -67,20 +68,22 @@ data CodeParts = CodeParts { block    :: Block ()         -- ^ collects code wit
                            , epilogue :: [Program ()]     -- ^ collects postlude code (freeing memory, etc)
                            }
 
-instance Monoid CodeParts
-  where
-    mempty      = CodeParts { block    = mempty
-                            , def      = mempty
-                            , decl     = mempty
-                            , params   = mempty
-                            , epilogue = mempty
-                            }
-    mappend a b = CodeParts { block    = mappend (block    a) (block    b)
-                            , def      = mappend (def      a) (def      b)
-                            , decl     = mappend (decl     a) (decl     b)
-                            , params   = mappend (params   a) (params   b)
-                            , epilogue = mappend (epilogue a) (epilogue b)
-                            }
+instance Semigroup CodeParts where
+  a <> b = CodeParts { block    = (block    a) <> (block    b)
+                     , def      = (def      a) <> (def      b)
+                     , decl     = (decl     a) <> (decl     b)
+                     , params   = (params   a) <> (params   b)
+                     , epilogue = (epilogue a) <> (epilogue b)
+                      }
+
+instance Monoid CodeParts where
+  mappend     = (<>)
+  mempty      = CodeParts { block    = mempty
+                          , def      = mempty
+                          , decl     = mempty
+                          , params   = mempty
+                          , epilogue = mempty
+                          }
 
 --------------------------------------------------------------------------------
 -- * Utility functions

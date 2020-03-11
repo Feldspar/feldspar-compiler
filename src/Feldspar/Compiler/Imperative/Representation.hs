@@ -58,6 +58,7 @@ module Feldspar.Compiler.Imperative.Representation (
 import Data.Typeable
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
+import Data.Semigroup (Semigroup(..))
 
 import Feldspar.Compiler.Error
 
@@ -259,19 +260,18 @@ data Variable t
         }
     deriving (Typeable, Show, Eq)
 
-instance Monoid (Program t)
-  where
-    mempty                              = Empty
-    mappend Empty     p                 = p
-    mappend p        Empty              = p
-    mappend (Sequence pa) (Sequence pb) = Sequence (mappend pa pb)
-    mappend pa pb                       = Sequence [mappend pa pb]
+instance Semigroup (Program t) where
+  Empty         <> p              = p
+  p             <> Empty          = p
+  (Sequence pa) <> (Sequence pb)  = Sequence (pa <> pb)
+  pa            <> pb             = Sequence [pa <> pb]
 
-instance Monoid (Block t)
-  where
-    mempty                              = Block [] Empty
-    mappend (Block da pa) (Block db pb) = Block (mappend da db) (mappend pa pb)
+instance Semigroup (Block t) where
+  (Block da pa) <> (Block db pb)  = Block (da <> db) (pa <> pb)
 
+instance Monoid (Block t) where
+  mempty                          = Block [] Empty
+  mappend                         = (<>)
 
 --------------------------------------------------------------------------------
 -- * Types

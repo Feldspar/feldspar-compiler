@@ -31,6 +31,8 @@
 
 module Feldspar.Compiler.Backend.C.CodeGeneration where
 
+import Prelude hiding (Semigroup(..), (<>))
+
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Error (handleError, ErrorClass(..))
 import Feldspar.Compiler.Backend.C.Options
