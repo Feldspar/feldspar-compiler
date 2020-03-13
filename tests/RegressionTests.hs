@@ -278,9 +278,9 @@ externalProgramTests = testGroup "ExternalProgram-RegressionTests"
     , mkParseTest "topLevelConsts" defaultOptions
     , mkParseTest "topLevelConsts_native" nativeOpts
     , mkParseTest "topLevelConsts_sics" sicsOptions
-    -- TODO: Enable with a typed array representation.
+    -- TODO: Enable with a typed array representation (both tests).
     -- , mkParseTest "metrics" defaultOptions
-    , mkParseTest "scanlPush" defaultOptions
+    -- , mkParseTest "scanlPush" defaultOptions
     , mkParseTest "divConq3" defaultOptions
     , mkParseTest "switcher" defaultOptions
     , mkParseTest "ivartest" defaultOptions

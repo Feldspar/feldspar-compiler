@@ -14,7 +14,7 @@ void task_core0(uint32_t v8, uint32_t v3, struct array * v1, struct array * v24)
   {
     at(int32_t,e54,v15) = (at(int32_t,v1,(v15 + v9)) + 1);
   }
-  ivar_put_array(at(struct ivar,v24,v8), e54);
+  ivar_put_array_shallow(at(struct ivar,v24,v8), e54, sizeof(int32_t));
 }
 
 void task0(void * params)
@@ -53,7 +53,7 @@ void divConq3(struct array * v1, struct array * * out)
   {
     v34 = getLength(v49);
     e56 = at(struct ivar,v24,v27);
-    v31 = ivar_get_array_nontask(v31, e56);
+    v31 = ivar_get_array_shallow_nontask(v31, e56, sizeof(int32_t));
     v32 = getLength(v31);
     len57 = (v34 + v32);
     v28 = initArray(v28, sizeof(int32_t), len57);

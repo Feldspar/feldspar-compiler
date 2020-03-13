@@ -39,6 +39,7 @@ library
 
   exposed-modules:
     Feldspar.Compiler
+    Feldspar.Compiler.Imperative.ArrayOps
     Feldspar.Compiler.Imperative.Representation
     Feldspar.Compiler.Imperative.ExternalProgram
     Feldspar.Compiler.Imperative.FromCore

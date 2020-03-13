@@ -1,6 +1,45 @@
 #include "metrics.h"
 
 
+struct array * initArray_arr_signedS32(struct array * dst, uint32_t newLen)
+{
+  uint32_t oldLen;
+  
+  dst = allocArray(dst);
+  oldLen = getLength(dst);
+  if ((oldLen != newLen))
+  {
+    if ((oldLen < newLen))
+    {
+      dst = resizeArray(dst, sizeof(struct array *), newLen);
+      for (int32_t i = oldLen; i < newLen; i += 1)
+      {
+        struct array * null_arr_0 = NULL;
+        
+        at(struct array *,dst,i) = null_arr_0;
+      }
+    }
+    else
+    {
+      for (int32_t i = newLen; i < oldLen; i += 1)
+      {
+        freeArray(at(struct array *,dst,i));
+      }
+      dst = resizeArray(dst, sizeof(struct array *), newLen);
+    }
+  }
+  return(dst);
+}
+
+void freeArray_arr_signedS32(struct array * src)
+{
+  for (int32_t i = 0; i < getLength(src); i += 1)
+  {
+    freeArray(at(struct array *,src,i));
+  }
+  freeArray(src);
+}
+
 void metrics(struct array * v1, struct array * v2, struct array * v3, struct array * * out)
 {
   uint32_t v10;
@@ -26,7 +65,7 @@ void metrics(struct array * v1, struct array * v2, struct array * v3, struct arr
     at(int32_t,st45,v6) = -32678;
   }
   v14 = &st45;
-  v33 = initArray(v33, (0 - sizeof(struct array *)), v10);
+  v33 = initArray_arr_signedS32(v33, v10);
   for (uint32_t v13 = 0; v13 < v10; v13 += 1)
   {
     v16 = at(struct array *,v3,v13);
@@ -38,7 +77,7 @@ void metrics(struct array * v1, struct array * v2, struct array * v3, struct arr
     }
     v14 = &at(struct array *,v33,v13);
   }
-  *out = initArray(*out, (0 - sizeof(struct array *)), v34);
+  *out = initArray_arr_signedS32(*out, v34);
   for (uint32_t v37 = 0; v37 < v34; v37 += 1)
   {
     v39 = at(struct array *,v33,v37);
@@ -50,7 +89,7 @@ void metrics(struct array * v1, struct array * v2, struct array * v3, struct arr
     }
   }
   freeArray(e44);
-  freeArray(v33);
+  freeArray_arr_signedS32(v33);
   freeArray(v16);
   freeArray(st45);
   freeArray(v39);

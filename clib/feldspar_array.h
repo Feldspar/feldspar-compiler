@@ -36,155 +36,91 @@
 //#define LOG
 #include "log.h"
 
+/* This library contains operations on flat arrays, arrays that do not contain
+   (pointers to) other arrays. For non-flat arrays, these array operations are
+   implemented by code generated from the program by the ArrayOps module.
+   The size argument is always the size in bytes of each element.
+*/
+
 /* TODO qualify the names to avoid clashes with Haskell names */
 
 struct array
 {
     void*    buffer;   /* pointer to the buffer of elements */
     int32_t  length;   /* number of elements in the array */
-    int32_t  elemSize; /* size of elements in bytes; (- sizeof(struct array)) for nested arrays */
-    uint32_t bytes;    /* The number of bytes the buffer can hold */
 };
 
-/* Indexing into an array: */
-/* Result: element of type 'type' */
+/// Indexing into an array:
+/// Result: element of type 'type'
 #define at(type,arr,idx) (((type*)((arr)->buffer))[idx])
 
-/* Array (re)initialization */
-static inline struct array *initArray(struct array *arr, int32_t size, int32_t len)
+/// Allocate and initialize a struct array if we did not have one already
+static inline struct array* allocArray( struct array* src )
 {
-    int newBytes;
-
-    log_3("initArray %p %d %d - enter\n", arr, size, len);
-    if ( !arr )
-    {
-      struct array * ptr;
-      ptr = calloc(1, sizeof(struct array));
-      log_4("initArray %p %d %d - alloc fresh struct array %p\n", arr, size, len, ptr);
-      arr = ptr;
-    }
-
-    assert(arr);
-    arr->elemSize = size;
-    arr->length   = len;
-    if( size < 0 )
-        size = sizeof(struct array);
-    newBytes = size * len;
-    if( arr->buffer )
-    {
-        // Re-initialization
-        log_3("initArray %p %d %d - reinitialize\n",arr,size,len);
-        if( arr->bytes < newBytes )
-        {
-            log_5("initArray %p %d %d - realloc since %d < %d\n"
-                 , arr, size, len, arr->bytes, newBytes);
-            // Not enough space: reallocation needed
-            arr->bytes  = newBytes;
-            arr->buffer = realloc(arr->buffer, newBytes);
-        }
-        else
-        {
-            // Otherwise: space is enough, nothing to do
-            log_5("initArray %p %d %d - large enough %d >= %d\n"
-                 , arr, size, len, arr->bytes, newBytes);
-        }
-    }
-    else
-    {
-        // First initialization
-        arr->bytes = newBytes;
-        arr->buffer = (void*)malloc(newBytes);
-        log_5("initArray %p - alloc %d * %d = %d bytes at %p\n"
-             , arr, arr->length, arr->elemSize, newBytes, arr->buffer);
-    }
-    assert( arr->buffer );
-    log_3("initArray %p %d %d - leave\n", arr, size, len);
-    return arr;
+  if( src == NULL ) {
+    src = malloc( sizeof(struct array) );
+    src->buffer = NULL;
+    src->length = 0;
+  }
+  return src;
 }
 
-// Free array
+/// Resizing an existing array (the struct array must be initialized).
+static inline struct array* resizeArray( struct array* arr, int32_t size, int32_t len )
+{
+  assert( arr && "array not initialized" );
+  arr->buffer = realloc( arr->buffer, len*size );
+  arr->length = len;
+  return arr;
+}
+
+/// Array (re)initialization for flat arrays.
+static inline struct array* initArray( struct array* src, int32_t size, int32_t len )
+{
+  src = allocArray( src );
+  if( len != src->length ) {
+    src = resizeArray( src, size, len );
+  }
+  return src;
+}
+
+/// Free a flat array or an array where all the arrays it contains have been free'd already.
 // TODO: Think about arrays escaping from their scope.
-static inline void freeArray(struct array *arr)
+static inline void freeArray( struct array* arr )
 {
-    log_1("freeArray %p - enter\n", arr);
-    if( arr && arr->buffer )
-    {
-      if( arr->elemSize < 0 )
-      {
-        for(int i=0; i<arr->length; ++i )
-          freeArray( &at(struct array,arr,i) );
-      }
-      free(arr->buffer);
-      // For the sake of extra safety:
-      arr->buffer = 0;
-      arr->length = 0;
-      arr->bytes = 0;
-      free(arr);
-    }
-    log_1("freeArray %p - leave\n", arr);
+  if( arr != NULL ) {
+    free( arr->buffer );
+    free( arr );
+  }
 }
 
-/* Deep array copy */
-static inline void copyArray(struct array *to, struct array *from)
+/// Deep array copy to a given position for flat arrays.
+static inline struct array* copyArrayPos( struct array* dst, int32_t size, struct array* src, int32_t pos )
 {
-    log_2("copyArray %p %p - enter\n", to, from);
-    if( from && to )
-    {
-      if ( from->elemSize < 0 )
-      {
-          log_2("copyArray %p %p - nested enter\n", to, from);
-          unsigned i;
-          for( i = 0; i < from->length; ++i )
-          {
-              struct array *to_row   = &at(struct array, to, i);
-              struct array *from_row = &at(struct array, from, i);
-              if( to_row == NULL )
-                  to_row = initArray( to_row, from_row->elemSize, from_row->length );
-              copyArray( to_row, from_row );
-          }
-          log_2("copyArray %p %p - nested leave\n", to, from);
-      }
-      else
-      {
-          assert(to->buffer);
-          assert(from->buffer);
-          log_3("copyArray %p %p - memcpy %d bytes\n", to, from
-              , from->length * from->elemSize);
-          memcpy( to->buffer, from->buffer, from->length * from->elemSize );
-      }
-    }
-    log_2("copyArray %p %p - leave\n", to, from);
+  if( src->length > 0 ) {
+    memcpy( dst->buffer + pos * size, src->buffer, src->length * size );
+  }
+  return dst;
 }
 
-/* Deep array copy to a given position */
-static inline void copyArrayPos(struct array *to, unsigned pos, struct array *from)
+/// Deep array copy for flat arrays.
+static inline struct array* copyArray( struct array* dst, int32_t size, struct array* src )
 {
-    log_3("copyArrayPos %p %d %p - enter\n", to, pos, from);
-    if ( from && to )
-    {
-      if( from->elemSize < 0 )
-      {
-          unsigned i;
-          for( i = 0; i < from->length; ++i )
-              copyArray( &at(struct array, to, i + pos), &at(struct array, from, i) );
-      }
-      else
-      {
-          assert(to->buffer);
-          assert(from->buffer);
-          log_4("copyArrayPos %p %d %p - memcpy %d bytes\n", to, pos, from
-              , from->length * from->elemSize);
-          memcpy( (char*)(to->buffer) + pos * to->elemSize, from->buffer, from->length * from->elemSize );
-      }
-    }
-    log_3("copyArrayPos %p %d %p - leave\n", to, pos, from);
+  return copyArrayPos( dst, size, src, 0 );
 }
 
+/// Combined init and copy for flat arrays.
+static inline struct array* initCopyArray( struct array* dst, int32_t size, struct array* src )
+{
+  assert(src && "source array not initialized" );
+  dst = initArray( dst, size, src->length );
+  return copyArrayPos( dst, size, src, 0 );
+}
 
-/* Array length */
+/// Array length
 static inline int32_t getLength(struct array *arr)
 {
-  assert(arr);
+  assert(arr && "array not initialized" );
   return arr->length;
 }
 

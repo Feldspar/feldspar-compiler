@@ -63,6 +63,7 @@ import Feldspar.Compiler.Backend.C.CodeGeneration
 import Feldspar.Compiler.Backend.C.MachineLowering
 import Feldspar.Compiler.Backend.C.Tic64x
 import Feldspar.Compiler.Imperative.FromCore
+import Feldspar.Compiler.Imperative.ArrayOps
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Core.Middleend.PassManager
 import Control.Monad (when)
@@ -120,7 +121,7 @@ compileToCCore name opts prg = compileToCCore' opts mod
 compileToCCore' :: Options -> Module () -> SplitModule
 compileToCCore' opts m = compileSplitModule opts $ splitModule mod
       where
-        mod = adaptTic64x opts $ rename opts False m
+        mod = adaptTic64x opts $ rename opts False $ arrayOps opts m
 
 genIncludeLines :: Options -> Maybe String -> String
 genIncludeLines opts mainHeader = concatMap include incs ++ "\n\n"
@@ -163,6 +164,7 @@ sicsOptions3 :: Options
 sicsOptions3 = defaultOptions { platform = c99Wool, frontendOpts = defaultFeldOpts { targets = [SICS,CSE,Wool] }}
 
 data BackendPass = BPFromCore
+                 | BPArrayOps
                  | BPRename
                  | BPAdapt
                  | BPSplit
@@ -187,6 +189,7 @@ backend :: PassCtrl BackendPass -> Options -> String -> UntypedFeld -> ([String]
 backend ctrl opts name = evalPasses 0
                        $ codegen (codeGenerator $ platform opts) ctrl opts
                        . pc BPRename   (rename opts False)
+                       . pc BPArrayOps (arrayOps opts)
                        . pt BPFromCore (fst . fromCoreUT opts (encodeFunctionName name))
   where pc :: Pretty a => BackendPass -> (a -> a) -> Prog a Int -> Prog a Int
         pc = passC ctrl

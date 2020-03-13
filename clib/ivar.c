@@ -33,6 +33,9 @@
 //#define LOG
 #include "log.h"
 
+/* Type of function pointer */
+typedef struct array* array_copy_t( struct array* dst, struct array* src );
+
 int feldspar_ivar_hook(void)
 {
   return 0;
@@ -85,17 +88,29 @@ void ivar_put_with_size( struct ivar iv, void *d, int size )
     log_3("ivar_put_with_size %p %p %d - leave\n", &iv, d, size);
 }
 
-void ivar_put_array( struct ivar iv, struct array *d )
+void ivar_put_array( struct ivar iv, struct array *d, void* vcf )
 {
     struct ivar_internals *ivi = iv.internals;
     log_2("ivar_put_array %p %p - enter\n", &iv, d);
     pthread_mutex_lock( &(ivi->mutex) );
-    ivi->data = initArray( NULL, d->elemSize, d->length );
-    copyArray( ivi->data, d );
+    array_copy_t* cf = (array_copy_t*) vcf;
+    ivi->data = cf( NULL, d );
     ivi->full = 1;
     pthread_cond_broadcast( &(ivi->cond) );
     pthread_mutex_unlock( &(ivi->mutex) );
     log_2("ivar_put_array %p %p - leave\n", &iv, d);
+}
+
+void ivar_put_array_shallow( struct ivar iv, struct array *d, int32_t size )
+{
+    struct ivar_internals *ivi = iv.internals;
+    log_2("ivar_put_array_shallow %p %p - enter\n", &iv, d);
+    pthread_mutex_lock( &(ivi->mutex) );
+    ivi->data = initCopyArray( NULL, size, d );
+    ivi->full = 1;
+    pthread_cond_broadcast( &(ivi->cond) );
+    pthread_mutex_unlock( &(ivi->mutex) );
+    log_2("ivar_put_array_shallow %p %p - leave\n", &iv, d);
 }
 
 void ivar_get_helper( struct ivar_internals *iv )
@@ -122,16 +137,28 @@ void ivar_get_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-struct array * ivar_get_array( struct array *var, struct ivar iv )
+struct array * ivar_get_array( struct array *var, struct ivar iv, void* vcf )
 {
     struct array *ptr;
     log_2("ivar_get_array %p %p - enter\n", var, &iv);
     ivar_get_helper(iv.internals);
     ptr = (struct array*)iv.internals->data;
     assert(ptr);
-    var = initArray( var, ptr->elemSize, ptr->length );
-    copyArray( var, ptr );
+    array_copy_t* cf = (array_copy_t*) vcf;
+    var = cf( var, ptr );
     log_2("ivar_get_array %p %p - leave\n", var, &iv);
+    return var;
+}
+
+struct array * ivar_get_array_shallow( struct array *var, struct ivar iv, int32_t size )
+{
+    struct array *ptr;
+    log_2("ivar_get_array_shallow %p %p - enter\n", var, &iv);
+    ivar_get_helper(iv.internals);
+    ptr = (struct array*)iv.internals->data;
+    assert(ptr);
+    var = initCopyArray( var, size, ptr );
+    log_2("ivar_get_arra_shallowy %p %p - leave\n", var, &iv);
     return var;
 }
 
@@ -154,7 +181,7 @@ void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_nontask_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-struct array * ivar_get_array_nontask( struct array *var, struct ivar iv )
+struct array * ivar_get_array_nontask( struct array *var, struct ivar iv, void* vcf )
 {
     struct ivar_internals *ivi = iv.internals;
     struct array *ptr;
@@ -176,10 +203,38 @@ struct array * ivar_get_array_nontask( struct array *var, struct ivar iv )
     else
     {
         ptr = (struct array*)ivi->data;
-        var = initArray( var, ptr->elemSize, ptr->length );
-        copyArray( var, ptr );
+        array_copy_t* cf = (array_copy_t*) vcf;
+        var = cf( var, ptr );
     }
     log_2("ivar_get_array_nontask %p %p - leave\n", var, &iv);
+    return var;
+}
+
+struct array * ivar_get_array_shallow_nontask( struct array *var, struct ivar iv, int32_t size )
+{
+    struct ivar_internals *ivi = iv.internals;
+    struct array *ptr;
+    log_2("ivar_get_array_shallow_nontask %p %p - enter\n", var, &iv);
+    pthread_mutex_lock( &(ivi->mutex) );
+    if ( !ivi->full )
+        log_2("ivar_get_array_shallow_nontask %p %p - waiting for data\n", var, &iv);
+    while(!ivi->full)
+    {
+        int err = pthread_cond_wait( &(ivi->cond), &(ivi->mutex) );
+        if (err) { exit(err); }
+    }
+    assert(ivi->full);
+    pthread_mutex_unlock( &(ivi->mutex) );
+    if (NULL == ivi->data)
+    {
+        log_2("ivar_get_array_shallow_nontask %p %p - data uninitialized\n", var, &iv);
+    }
+    else
+    {
+        ptr = (struct array*)ivi->data;
+        var = initCopyArray( var, size, ptr );
+    }
+    log_2("ivar_get_array_shallow_nontask %p %p - leave\n", var, &iv);
     return var;
 }
 

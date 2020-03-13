@@ -19,6 +19,10 @@ struct s_2_unsignedS32_unsignedS32
   uint32_t member2;
 };
 
+struct array * initArray_arr_signedS32(struct array * dst, uint32_t newLen);
+
+void freeArray_arr_signedS32(struct array * src);
+
 void metrics(struct array * v1, struct array * v2, struct array * v3, struct array * * out);
 
 #endif // TESTS_METRICS_H

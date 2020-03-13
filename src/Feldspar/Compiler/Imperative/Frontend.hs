@@ -84,7 +84,7 @@ deepCopy _ _ = error "Multiple non-array arguments to copy"
 flattenCopy :: Expression () -> [Expression ()] -> [Expression ()] ->
                Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen = call "copyArrayPos" [ValueParameter dst, ValueParameter cLen, ValueParameter t]
+flattenCopy dst (t:ts) (l:ls) cLen = Assign dst (arrayFun "copyArrayPos" [dst, t, cLen])
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
@@ -94,62 +94,47 @@ ePlus e1 e2                        = binop (1 :# (NumType Signed S32)) "+" e1 e2
 
 -- | Lower array copy
 lowerCopy :: Options -> Type -> Expression () -> [Expression ()] -> [Program ()]
-lowerCopy _ ArrayType{} arg1 ins'@(in1:ins)
+lowerCopy _ ArrayType{} dst ins'@(arg1:in1:ins)
   | [ConstExpr ArrayConst{..}] <- ins'
-  = initArray (Just arg1) (litI32 $ toInteger $ length arrayValues)
-    : zipWith (\i c -> Assign (ArrayElem arg1 [litI32 i]) (ConstExpr c)) [0..] arrayValues
+  = initArray (Just dst) (litI32 $ toInteger $ length arrayValues)
+    : zipWith (\i c -> Assign (ArrayElem dst [litI32 i]) (ConstExpr c)) [0..] arrayValues
 
   | otherwise
-  = [ initArray (Just arg1) expDstLen, copyFirstSegment ] ++
+  = [ initArray (Just dst) expDstLen, copyFirstSegment ] ++
       flattenCopy arg1 ins argnLens arg1len
     where expDstLen = foldr ePlus (litI32 0) aLens
-          copyFirstSegment = if arg1 == in1
+          copyFirstSegment = if dst == in1
                                 then Empty
-                                else call "copyArray" [ ValueParameter arg1
-                                                      , ValueParameter in1]
-          aLens@(arg1len:argnLens) = map arrayLength ins'
-lowerCopy opts NativeArray{} arg1 [arg2]
+                                else Assign dst (arrayFun "copyArray" [arg1, in1])
+          aLens@(arg1len:argnLens) = map arrayLength (in1 : ins)
+
+lowerCopy opts NativeArray{} dst [arg1,arg2]
   | l@(ConstExpr (IntConst n _)) <- arrayLength arg2
   = if n < safetyLimit opts
-      then initArray (Just arg1) l:map (\i -> Assign (ArrayElem arg1 [litI32 i]) (ArrayElem arg2 [litI32 i])) [0..(n-1)]
+      then initArray (Just dst) l:map (\i -> Assign (ArrayElem dst [litI32 i]) (ArrayElem arg2 [litI32 i])) [0..(n-1)]
       else error $ unlines ["Frontend.lowerCopy: array size (" ++ show n ++ ") too large", show arg1, show arg2]
+
 lowerCopy _ t e es = error $ "Frontend.lowerCopy: funny type (" ++ show t ++ ") or destination\n"
                                 ++ show e ++ "\nor arguments\n"
                                 ++ (unlines $ map show es)
 
--- | General array initialization
-mkInitArr
-    :: String         -- ^ Name of initialization function (e.g. \"initArray\")
-    -> Location       -- ^ Array location
-    -> Expression ()  -- ^ Array length
-    -> Program ()
-mkInitArr _    Nothing    _   = Empty
-mkInitArr name (Just arr) len
-  | isNativeArray arrType
-  = Empty
-  | otherwise
-  = Assign arr $ fun arrType name [arr, sz, len]
-   where
-    arrType = typeof arr
-    sz | isArray t' = binop (1 :# (NumType Unsigned S32)) "-" (litI32 0) t
-       | otherwise  = t
-    t = SizeOf t'
-    t' = go $ arrType
-    go (ArrayType _ e) = e
-    go _               = error $ "Feldspar.Compiler.Imperative.Frontend."
-                              ++ name ++ ": invalid type of array " ++ show arr
-                              ++ "::" ++ show (typeof arr)
 
 -- | Initialize an array using \"initArray\"
 initArray
     :: Location       -- ^ Array location
     -> Expression ()  -- ^ Array length
     -> Program ()
-initArray = mkInitArr "initArray"
+initArray Nothing _ = Empty
+initArray (Just arr) len
+  | isNativeArray $ typeof arr
+  = Empty
+  | otherwise
+  = Assign arr $ arrayFun "initArray" [arr, len]
 
 -- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
-freeArray arr = call "freeArray" [ValueParameter $ varToExpr arr]
+freeArray arr = call (variant "freeArray" t) [ValueParameter $ varToExpr arr]
+  where ArrayType _ t = typeof arr
 
 -- | Generate 'freeArray' calls for all arrays in a list of declarations
 freeArrays :: [Declaration ()] -> [Program ()]
@@ -189,22 +174,30 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Bool -> Expression () -> Expression () -> Program ()
 iVarGet inTask loc ivar
-    | isArray typ   = Assign loc
-                    $ fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar ]
-    | otherwise     = call (mangle inTask "ivar_get") [ TypeParameter typ
-                                                       , ValueParameter (AddrOf loc)
-                                                       , ValueParameter ivar]
+    | ArrayType _ eTy <- typ = Assign loc
+                             $ if isShallow eTy
+                                  then fun (typeof loc) (mangle inTask "ivar_get_array_shallow") [ loc, ivar, size eTy ]
+                                  else fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar, copyFun eTy ]
+    | otherwise              = call (mangle inTask "ivar_get") [ TypeParameter typ
+                                                               , ValueParameter (AddrOf loc)
+                                                               , ValueParameter ivar]
       where
         typ = typeof loc
         mangle True  s = s
         mangle False s = s ++ "_nontask"
+        size t = SizeOf t
+        copyFun t = VarExpr $ Variable (1 :# Pointer VoidType) (variant "initCopyArray" t)
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | isArray typ   = call "ivar_put_array" [ValueParameter ivar, ValueParameter  msg]
-    | otherwise     = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter (AddrOf msg)]
+    | ArrayType _ eTy <- typ = if isShallow eTy
+                                  then call "ivar_put_array_shallow" [ValueParameter ivar, ValueParameter msg, sizePar eTy]
+                                  else call "ivar_put_array" [ValueParameter ivar, ValueParameter msg, copyPar eTy]
+    | otherwise              = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter (AddrOf msg)]
       where
         typ = typeof msg
+        copyPar t = ValueParameter $ VarExpr $ Variable (1 :# Pointer VoidType) (variant "initCopyArray" t)
+        sizePar t = ValueParameter $ SizeOf t
 
 -- | Generate a call to free an IVar represented as a variable
 iVarDestroy :: Variable () -> Program ()
@@ -301,6 +294,25 @@ isComposite ArrayType{}   = True
 isComposite NativeArray{} = True
 isComposite StructType{}  = True
 isComposite _             = False
+
+isShallow :: Type -> Bool
+isShallow ArrayType{} = False
+isShallow NativeArray{} = False
+isShallow (StructType _ fs) = all (isShallow . snd) fs
+isShallow _ = True
+
+variant :: String -> Type -> String
+variant str t | isShallow t = str
+              | otherwise = str ++ "_" ++ encodeType t
+
+arrayFun :: String -> [Expression ()] -> Expression ()
+arrayFun name (dst : es) = fun arrTy (variant name eTy) (dst : addSize es eTy)
+  where arrTy = typeof dst
+        eTy   = elemType arrTy
+        elemType (ArrayType _ t) = t
+        elemType t               = error $ "Frontend.elemType: not an array " ++ show t
+        addSize es t | isShallow t = SizeOf t : es
+                     | otherwise   = es
 
 -- | Does the parameters allow a fast/cheap (in register) return.
 canFastReturn :: Type -> Bool
