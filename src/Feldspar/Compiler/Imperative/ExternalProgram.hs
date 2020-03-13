@@ -3,13 +3,12 @@
 module Feldspar.Compiler.Imperative.ExternalProgram (parseFile, massageInput) where
 
 import Feldspar.Lattice (universal)
-import Feldspar.Compiler.Imperative.FromCore.Interpretation (decodeType)
 import qualified Feldspar.Compiler.Imperative.Representation as R
 import Feldspar.Compiler.Imperative.Representation hiding (
   Block, Switch, Assign, Cast, IntConst, FloatConst, DoubleConst, Type,
   Deref, AddrOf, Unsigned, Signed, inParams)
 import Feldspar.Compiler.Imperative.Frontend (
-    litB, litI32, toBlock, fun, call
+    litB, litI32, toBlock, fun, call, decodeType
   )
 
 import qualified Data.ByteString.Char8 as B

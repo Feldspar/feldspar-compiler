@@ -27,7 +27,6 @@
 --
 
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -41,8 +40,7 @@ import Control.Arrow
 import Control.Monad.RWS
 import Control.Applicative
 
-import Data.Char (toLower)
-import Data.List (intercalate, stripPrefix, nub)
+import Data.List (intercalate, nub)
 
 import Feldspar.Range (fullRange)
 import Feldspar.Core.UntypedRepresentation (VarId (..))
@@ -186,87 +184,6 @@ tellDeclWith free ds = do
              | otherwise = mempty {block = Block ds Empty,
                                    epilogue = frees, def = defs}
     tell code
-
-{-
-Encoded format is:
-
-<type tag>_<inner_type_tag(s)>
-
-Where the type tag is some unique prefix except for the scalar
-types. The tag for StructTypes include the number of elements in the
-struct to simplify the job for decodeType.
-
--}
-
-encodeType :: Type -> String
-encodeType = go
-  where
-    go VoidType              = "void"
-    -- Machine vectors do not change memory layout, so keep internal.
-    go (_ :# t)              = goScalar t
-    go (IVarType t)          = "i_" ++ go t
-    go (NativeArray _ t)     = "narr_" ++ go t
-    go (StructType n _)      = n
-    go (ArrayType _ t)       = "arr_" ++ go t
-    goScalar BoolType        = "bool"
-    goScalar BitType         = "bit"
-    goScalar FloatType       = "float"
-    goScalar DoubleType      = "double"
-    goScalar (NumType s w)   = map toLower (show s) ++ show w
-    goScalar (ComplexType t) = "complex_" ++ go t
-    goScalar (Pointer t)     = "ptr_" ++ go t
-
--- Almost the inverse of encodeType. Some type encodings are lossy so
--- they are impossible to recover.
-decodeType :: String -> [Type]
-decodeType = goL []
-  where
-    goL acc [] = reverse acc
-    goL acc s  = goL (out:acc) rest'
-       where (out, rest) = go s
-             rest' = case rest of
-                      '_':t -> t
-                      _     -> rest
-
-    go (stripPrefix "void"     -> Just t) = (VoidType, t)
-    go (stripPrefix "bool"     -> Just t) = (1 :# BoolType, t)
-    go (stripPrefix "bit"      -> Just t) = (1 :# BitType, t)
-    go (stripPrefix "float"    -> Just t) = (1 :# FloatType, t)
-    go (stripPrefix "double"   -> Just t) = (1 :# DoubleType, t)
-    go (stripPrefix "unsigned" -> Just t) = (1 :# (NumType Unsigned w), t')
-     where (w, t') = decodeSize t
-    go (stripPrefix "signed"   -> Just t) = (1 :# (NumType Signed w), t')
-     where (w, t') = decodeSize t
-    go (stripPrefix "complex"  -> Just t) = (1 :# (ComplexType tn), t')
-     where (tn, t') = go t
-    go (stripPrefix "ptr_"     -> Just t) = (1 :# (Pointer tt), t')
-     where (tt, t') = go t
-    go (stripPrefix "i_"       -> Just t) = (IVarType tt, t')
-     where (tt, t') = go t
-    go (stripPrefix "narr_"    -> Just t) = (NativeArray Nothing tt, t')
-     where (tt, t') = go t
-    go h@('s':'_':t) = (StructType h' $ zipWith mkMember [1..] ts, t'')
-       where mkMember n t = ("member" ++ show n, t)
-             Just (n, t') = decodeLen t
-             (ts, t'') = structGo n t' []
-             structGo 0 s acc = (reverse acc, s)
-             structGo n ('_':s) acc = structGo (n - 1) s' (ts:acc)
-                      where (ts, s') = go s
-             h' = take (length h - length t'') h
-    go (stripPrefix "arr_"     -> Just t) = (ArrayType fullRange tt, t')
-      where (tt, t') = go t
-    go s = error ("decodeType: " ++ s)
-
-    decodeSize (stripPrefix "S32" -> Just t) = (S32, t)
-    decodeSize (stripPrefix "S8"  -> Just t) = (S8, t)
-    decodeSize (stripPrefix "S16" -> Just t) = (S16, t)
-    decodeSize (stripPrefix "S40" -> Just t) = (S40, t)
-    decodeSize (stripPrefix "S64" -> Just t) = (S64, t)
-
-    decodeLen e
-      | [p@(_,_)] <- reads e :: [(Int,String)]
-      = Just p
-      | otherwise = Nothing
 
 -- | Find declarations that require top-level type definitions, and return those
 -- definitions
