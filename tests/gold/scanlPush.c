@@ -62,16 +62,14 @@ void scanlPush(struct array * v0, struct array * v1, struct array * * out)
   {
     v15 = getLength(v12);
     v12 = initArray(v12, sizeof(uint32_t), v15);
-    v23 = initArray(v23, sizeof(uint32_t), getLength(v12));
-    v23 = copyArray(v23, sizeof(uint32_t), v12);
+    v23 = initCopyArray(v23, sizeof(uint32_t), v12);
     v24 = getLength(v23);
     e27 = initArray(e27, sizeof(uint32_t), v24);
     for (uint32_t v26 = 0; v26 < v24; v26 += 1)
     {
       at(uint32_t,e27,v26) = at(uint32_t,v23,v26);
     }
-    at(struct array *,*out,v13) = initArray(at(struct array *,*out,v13), sizeof(uint32_t), getLength(e27));
-    at(struct array *,*out,v13) = copyArray(at(struct array *,*out,v13), sizeof(uint32_t), e27);
+    at(struct array *,*out,v13) = initCopyArray(at(struct array *,*out,v13), sizeof(uint32_t), e27);
   }
   freeArray(v12);
   freeArray(v23);

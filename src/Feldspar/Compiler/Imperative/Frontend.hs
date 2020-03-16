@@ -98,7 +98,8 @@ lowerCopy _ ArrayType{} dst ins'@(arg1:in1:ins)
   | [ConstExpr ArrayConst{..}] <- ins'
   = initArray (Just dst) (litI32 $ toInteger $ length arrayValues)
     : zipWith (\i c -> Assign (ArrayElem dst [litI32 i]) (ConstExpr c)) [0..] arrayValues
-
+  | [] <- ins
+  = [Assign dst (arrayFun "initCopyArray" [arg1, in1])]
   | otherwise
   = [ initArray (Just dst) expDstLen, copyFirstSegment ] ++
       flattenCopy arg1 ins argnLens arg1len

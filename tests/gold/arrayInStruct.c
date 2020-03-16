@@ -10,8 +10,7 @@ void arrayInStruct(struct array * v0, struct array * * out)
   bool v3;
   
   (e11).member1 = getLength(v0);
-  (e11).member2 = initArray((e11).member2, sizeof(uint32_t), getLength(v0));
-  (e11).member2 = copyArray((e11).member2, sizeof(uint32_t), v0);
+  (e11).member2 = initCopyArray((e11).member2, sizeof(uint32_t), v0);
   v3 = ((e11).member1 > 0);
   while (v3)
   {
@@ -27,6 +26,5 @@ void arrayInStruct(struct array * v0, struct array * * out)
     (v6).member2 = e13;
     v3 = ((e11).member1 > 0);
   }
-  *out = initArray(*out, sizeof(uint32_t), getLength((e11).member2));
-  *out = copyArray(*out, sizeof(uint32_t), (e11).member2);
+  *out = initCopyArray(*out, sizeof(uint32_t), (e11).member2);
 }
