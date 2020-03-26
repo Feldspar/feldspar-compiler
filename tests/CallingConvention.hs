@@ -49,12 +49,6 @@ shTest n = runMutable $ do
              b <- getArr a $ 0
              return b
 
-escTest :: Data Length -> Data Length
-escTest n = share (runMutable $ newArr 5 n) $
-            \ a -> (runMutable $ setArr a 2 (n+1) >> getArr a 3)
-                 + (runMutable $ setArr a 3 (n+2) >> getArr a 2)
-
-
 arrayInStructR :: Data [Length] -> Data [Length]
 arrayInStructR a = snd $ whileLoop (getLength a, a) (\(n,_) -> (n>0)) (\(n,a) -> (n-1, parallel (getLength a) (\ i -> a!i + 5)))
 
@@ -78,7 +72,6 @@ loadFun ['vectorInPair]
 loadFun ['vectorInVector]
 loadFun ['vectorInPairInVector]
 loadFun ['shTest]
-loadFun ['escTest]
 loadFun ['arrayInStructR]
 loadFun ['pairParamR]
 loadFun ['pairParam2R]
@@ -98,7 +91,6 @@ prop_vectorInVector (Small l1) (Small l2) =
       eval vectorInVector v ==== c_vectorInVector v
 prop_vectorInPairInVector (Small l) = eval vectorInPairInVector l ==== c_vectorInPairInVector l
 prop_shTest (Positive n) = eval shTest n ==== c_shTest n
-prop_escTest = eval escTest ==== c_escTest
 
 prop_arrayInStruct = eval arrayInStructR ==== c_arrayInStructR
 prop_pairParam = eval pairParamR ==== c_pairParamR
@@ -115,7 +107,6 @@ tests = testGroup "CallingConvention"
     , testProperty "vectorInVector" prop_vectorInVector
     -- TODO: This test case will cause a segmentation fault due to issue #145
     -- , testProperty "vectorInPairInVector" prop_vectorInPairInVector
-    , testProperty "escTest" prop_escTest
     , testProperty "arrayInStruct" prop_arrayInStruct
     , testProperty "pairParam" prop_pairParam
     , testProperty "pairParam2" prop_pairParam2
