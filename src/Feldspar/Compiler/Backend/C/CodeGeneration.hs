@@ -199,12 +199,8 @@ instance CodeGen (Expression ())
      , (NativeArray _ t) <- typeof c
      = parens (parens (cgen env t <> brackets empty) <> cgen env c)
        <> (hcat $ map brackets $ map (cgen env) arrayIndex)
-     | isNativeArray (typeof array) || isPointer (typeof array)
+     | otherwise
      = cgen env array <> (hcat $ map brackets (map (cgen env) arrayIndex))
-     | otherwise = text "at" <> parens (hcat $ punctuate comma $
-                                         [ cgen env $ typeof e
-                                         , cgen env array
-                                         ] ++ map (cgen env) arrayIndex)
     cgen env StructField{..}  = parens (cgen env struct) <> char '.' <> text fieldName
     cgen env ConstExpr{..}    = cgen env constExpr
     cgen env FunctionCall{..}
@@ -268,7 +264,7 @@ instance CodeGen Type
     cgen env = toC
       where
         toC VoidType                      = text "void"
-        toC ArrayType{}                   = text "struct array *"
+        toC (ArrayType _ t)               = toC t <+> text "*"
         toC IVarType{}                    = text "struct ivar"
         toC (StructType n _)              = text "struct" <+> text n
         toC (NativeArray _ t)             = toC t

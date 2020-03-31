@@ -34,7 +34,7 @@
 #include "log.h"
 
 /* Type of function pointer */
-typedef struct array* array_copy_t( struct array* dst, struct array* src );
+typedef void* array_copy_t( void* dst, int32_t dstLen, void* src, int32_t srcLen );
 
 int feldspar_ivar_hook(void)
 {
@@ -88,25 +88,33 @@ void ivar_put_with_size( struct ivar iv, void *d, int size )
     log_3("ivar_put_with_size %p %p %d - leave\n", &iv, d, size);
 }
 
-void ivar_put_array( struct ivar iv, struct array *d, void* vcf )
+void ivar_put_array( struct ivar iv, void *dv, void* vcf )
 {
     struct ivar_internals *ivi = iv.internals;
     log_2("ivar_put_array %p %p - enter\n", &iv, d);
     pthread_mutex_lock( &(ivi->mutex) );
     array_copy_t* cf = (array_copy_t*) vcf;
-    ivi->data = cf( NULL, d );
+    struct array *str = allocArray( ivi->data );
+    struct array *d = dv;
+    str->buffer = cf( str->buffer, str->length, d->buffer, d->length );
+    str->length = d->length;
+    ivi->data = str;
     ivi->full = 1;
     pthread_cond_broadcast( &(ivi->cond) );
     pthread_mutex_unlock( &(ivi->mutex) );
     log_2("ivar_put_array %p %p - leave\n", &iv, d);
 }
 
-void ivar_put_array_shallow( struct ivar iv, struct array *d, int32_t size )
+void ivar_put_array_shallow( struct ivar iv, void *dv, int32_t size )
 {
     struct ivar_internals *ivi = iv.internals;
     log_2("ivar_put_array_shallow %p %p - enter\n", &iv, d);
     pthread_mutex_lock( &(ivi->mutex) );
-    ivi->data = initCopyArray( NULL, size, d );
+    struct array *str = allocArray( ivi->data );
+    struct array *d = dv;
+    str->buffer = initCopyArray( str->buffer, str->length, size, d->buffer, d->length );
+    str->length = d->length;
+    ivi->data = str;
     ivi->full = 1;
     pthread_cond_broadcast( &(ivi->cond) );
     pthread_mutex_unlock( &(ivi->mutex) );
@@ -137,29 +145,31 @@ void ivar_get_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-struct array * ivar_get_array( struct array *var, struct ivar iv, void* vcf )
+void ivar_get_array( void *vvar, struct ivar iv, void* vcf )
 {
     struct array *ptr;
     log_2("ivar_get_array %p %p - enter\n", var, &iv);
     ivar_get_helper(iv.internals);
     ptr = (struct array*)iv.internals->data;
     assert(ptr);
+    struct array *var = vvar;
     array_copy_t* cf = (array_copy_t*) vcf;
-    var = cf( var, ptr );
+    var->buffer = cf( var->buffer, var->length, ptr->buffer, ptr->length );
+    var->length = ptr->length;
     log_2("ivar_get_array %p %p - leave\n", var, &iv);
-    return var;
 }
 
-struct array * ivar_get_array_shallow( struct array *var, struct ivar iv, int32_t size )
+void ivar_get_array_shallow( void *vvar, struct ivar iv, int32_t size )
 {
     struct array *ptr;
     log_2("ivar_get_array_shallow %p %p - enter\n", var, &iv);
     ivar_get_helper(iv.internals);
     ptr = (struct array*)iv.internals->data;
     assert(ptr);
-    var = initCopyArray( var, size, ptr );
+    struct array *var = vvar;
+    var->buffer = initCopyArray( var->buffer, var->length, size, ptr->buffer, ptr->length );
+    var->length = ptr->length;
     log_2("ivar_get_arra_shallowy %p %p - leave\n", var, &iv);
-    return var;
 }
 
 void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
@@ -181,7 +191,7 @@ void ivar_get_nontask_with_size( void *var, struct ivar iv, int size )
     log_3("ivar_get_nontask_with_size %p %p %d - leave\n", var, &iv, size);
 }
 
-struct array * ivar_get_array_nontask( struct array *var, struct ivar iv, void* vcf )
+void ivar_get_array_nontask( void *vvar, struct ivar iv, void* vcf )
 {
     struct ivar_internals *ivi = iv.internals;
     struct array *ptr;
@@ -203,14 +213,15 @@ struct array * ivar_get_array_nontask( struct array *var, struct ivar iv, void* 
     else
     {
         ptr = (struct array*)ivi->data;
+        struct array *var = vvar;
         array_copy_t* cf = (array_copy_t*) vcf;
-        var = cf( var, ptr );
+        var->buffer = cf( var->buffer, var->length, ptr->buffer, ptr->length );
+        var->length = ptr->length;
     }
     log_2("ivar_get_array_nontask %p %p - leave\n", var, &iv);
-    return var;
 }
 
-struct array * ivar_get_array_shallow_nontask( struct array *var, struct ivar iv, int32_t size )
+void ivar_get_array_shallow_nontask( void *vvar, struct ivar iv, int32_t size )
 {
     struct ivar_internals *ivi = iv.internals;
     struct array *ptr;
@@ -232,9 +243,10 @@ struct array * ivar_get_array_shallow_nontask( struct array *var, struct ivar iv
     else
     {
         ptr = (struct array*)ivi->data;
-        var = initCopyArray( var, size, ptr );
+        struct array *var = vvar;
+        var->buffer = initCopyArray( var->buffer, var->length, size, ptr->buffer, ptr->length );
+        var->length = ptr->length;
     }
     log_2("ivar_get_array_shallow_nontask %p %p - leave\n", var, &iv);
-    return var;
 }
 

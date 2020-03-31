@@ -247,14 +247,14 @@ compileType opt (Ut.MutType a)         = compileType opt a
 compileType opt (Ut.RefType a)         = compileType opt a
 compileType opt (Ut.ArrayType rs a)
  | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
- | otherwise           = ArrayType rs $ compileType opt a
+ | otherwise           = mkAwLType rs $ compileType opt a
 compileType opt (Ut.MArrType rs a)
  | useNativeArrays opt = NativeArray (Just $ upperBound rs) $ compileType opt a
- | otherwise           = ArrayType rs $ compileType opt a
+ | otherwise           = mkAwLType rs $ compileType opt a
 compileType opt (Ut.ParType a)         = compileType opt a
 compileType opt (Ut.ElementsType a)
  | useNativeArrays opt = NativeArray Nothing $ compileType opt a
- | otherwise           = ArrayType fullRange $ compileType opt a
+ | otherwise           = mkAwLType fullRange $ compileType opt a
 compileType opt (Ut.IVarType a)        = IVarType $ compileType opt a
 compileType opt (Ut.FunType _ b)       = compileType opt b
 compileType opt (Ut.FValType a)        = IVarType $ compileType opt a
@@ -282,7 +282,7 @@ compileProg (Just loc) (In (App Ut.Parallel _ [len, In (Ut.Lambda (Ut.Var v ta _
             let args  = map (ValueParameter . varToExpr) $ nub $ map varExpr vs' ++ fv loc
             return $ (TaskParallel, toBlock $ ProcedureCall n args)
           _                              -> do
-            b' <- confiscateBlock $ compileProg (Just $ ArrayElem loc [ix]) ixf
+            b' <- confiscateBlock $ compileProg (Just $ mkArrayElem loc [ix]) ixf
             return (Parallel, snd b')
    tellProg [initArray (Just loc) len']
    tellProg [for ptyp (varExpr ix) (litI32 0) len' (litI32 1) b]
@@ -303,13 +303,13 @@ compileProg loc (In (App Ut.Sequential _ [len, init', In (Ut.Lambda (Ut.Var v ti
         let st = mkPointer (compileType opts tst) s
             st_val = Deref $ varToExpr st
         declareAlias st
-        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg (ArrayElem <$> loc <*> pure [ix]) step
+        (_, Block ds (Sequence body)) <- confiscateBlock $ withAlias s st_val $ compileProg (mkArrayElem <$> loc <*> pure [ix]) step
         withAlias s st_val $ compileProg (Just st1) init'
         tellProg [ Assign (varToExpr st) (AddrOf st1)
                  , initArray loc len']
         tellProg [toProg $ Block (concat dss ++ ds) $
                   for Sequential (varExpr ix) (litI32 0) len' (litI32 1) $
-                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (ArrayElem arr [ix])]) loc)]
+                               toBlock $ Sequence (concat lets ++ body ++ maybe [] (\arr -> [Assign (varToExpr st) $ AddrOf (mkArrayElem arr [ix])]) loc)]
 compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t _) (In (Ut.Lambda (Ut.Var s _ _) step)))]))
   = do
        opts <- asks backendOpts
@@ -323,7 +323,7 @@ compileProg loc (In (App Ut.Sequential _ [len, st, In (Ut.Lambda (Ut.Var v t _) 
        tellProg [toProg $ Block ds $
                  for Sequential (varExpr ix) (litI32 0) len' (litI32 1) $ toBlock $
                    Sequence $ body ++
-                     [copyProg (ArrayElem <$> loc <*> pure [ix]) [StructField tmp "member1"]
+                     [copyProg (mkArrayElem <$> loc <*> pure [ix]) [StructField tmp "member1"]
                      ]]
 compileProg loc (In (App Ut.Append _ [a, b])) = do
    a' <- compileExpr a
@@ -332,12 +332,12 @@ compileProg loc (In (App Ut.Append _ [a, b])) = do
 compileProg loc (In (App Ut.SetIx _ [arr, i, a])) = do
    compileProg loc arr
    i' <- compileExpr i
-   compileProg (ArrayElem <$> loc <*> pure [i']) a
+   compileProg (mkArrayElem <$> loc <*> pure [i']) a
 compileProg loc (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr arr
    i' <- compileExpr i
-   let el = ArrayElem a' [i']
-   if isArray $ typeof el
+   let el = mkArrayElem a' [i']
+   if isAwLType $ typeof el
       then shallowAssign loc el
       else assign loc el
 compileProg loc (In (App Ut.SetLength _ [len, arr])) = do
@@ -365,7 +365,7 @@ compileProg loc (In (App Ut.EMaterialize _ [len, arr])) = do
    compileProg loc arr
 compileProg (Just loc) (In (App Ut.EWrite _ [ix, e])) = do
    dst <- compileExpr ix
-   compileProg (Just $ ArrayElem loc [dst]) e
+   compileProg (Just $ mkArrayElem loc [dst]) e
 compileProg _ (In (App Ut.ESkip _ _)) = return ()
 compileProg loc (In (App Ut.EPar _ [p1, p2])) = do
    (_, Block ds1 b1) <- confiscateBlock $ compileProg loc p1
@@ -474,19 +474,19 @@ compileProg loc (In (App Ut.NewArr _ [len, a])) = do
    a' <- compileExpr a
    l  <- compileExpr len
    tellProg [initArray loc l]
-   tellProg [for Sequential var (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (ArrayElem <$> loc <*> pure [ix]) [a']])]
+   tellProg [for Sequential var (litI32 0) l (litI32 1) $ toBlock (Sequence [copyProg (mkArrayElem <$> loc <*> pure [ix]) [a']])]
 compileProg loc (In (App Ut.NewArr_ _ [len])) = do
    l <- compileExpr len
    tellProg [initArray loc l]
 compileProg loc (In (App Ut.GetArr _ [arr, i])) = do
    arr' <- compileExpr arr
    i'   <- compileExpr i
-   assign loc (ArrayElem arr' [i'])
+   assign loc (mkArrayElem arr' [i'])
 compileProg _ (In (App Ut.SetArr _ [arr, i, a])) = do
    arr' <- compileExpr arr
    i'   <- compileExpr i
    a'   <- compileExpr a
-   assign (Just $ ArrayElem arr' [i']) a'
+   assign (Just $ mkArrayElem arr' [i']) a'
 -- MutableReference
 compileProg loc (In (App Ut.NewRef _ [a])) = compileProg loc a
 compileProg loc (In (App Ut.GetRef _ [r])) = compileProg loc r
@@ -595,7 +595,7 @@ compileExpr (In (App Ut.GetLength _ [a])) = do
 compileExpr (In (App Ut.GetIx _ [arr, i])) = do
    a' <- compileExpr arr
    i' <- compileExpr i
-   return $ ArrayElem a' [i']
+   return $ mkArrayElem a' [i']
 -- Bits
 compileExpr (In (App Ut.Bit t [arr])) = do
    opts <- asks backendOpts
@@ -771,7 +771,7 @@ compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
       Par -> local (\env -> env {inTask = True }) $ compileProg (Just loc) e'
       Loop | (ix:_) <- es'
            , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
-           | (ix:_) <- es' -> compileProg (Just $ ArrayElem loc [ix]) e'
+           | (ix:_) <- es' -> compileProg (Just $ mkArrayElem loc [ix]) e'
       None -> compileProg (Just loc) e'
   tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
   -- Task:

@@ -1,96 +1,98 @@
 #include "metrics.h"
 
 
-struct array * initArray_arr_signedS32(struct array * dst, uint32_t newLen)
+struct awl_signedS32 * initArray_awl_signedS32(struct awl_signedS32 * dst, uint32_t oldLen, uint32_t newLen)
 {
-  uint32_t oldLen;
-  
-  dst = allocArray(dst);
-  oldLen = getLength(dst);
   if ((oldLen != newLen))
   {
     if ((oldLen < newLen))
     {
-      dst = resizeArray(dst, sizeof(struct array *), newLen);
+      dst = resizeArray(dst, sizeof(struct awl_signedS32), newLen);
       for (int32_t i = oldLen; i < newLen; i += 1)
       {
-        struct array * null_arr_0 = NULL;
+        struct awl_signedS32 null_arr_0 = { .buffer = NULL, .length = 0 };
         
-        at(struct array *,dst,i) = null_arr_0;
+        dst[i] = null_arr_0;
       }
     }
     else
     {
       for (int32_t i = newLen; i < oldLen; i += 1)
       {
-        freeArray(at(struct array *,dst,i));
+        freeArray((dst[i]).buffer, (dst[i]).length);
       }
-      dst = resizeArray(dst, sizeof(struct array *), newLen);
+      dst = resizeArray(dst, sizeof(struct awl_signedS32), newLen);
     }
   }
   return(dst);
 }
 
-void freeArray_arr_signedS32(struct array * src)
+void freeArray_awl_signedS32(struct awl_signedS32 * src, int32_t srcLen)
 {
-  for (int32_t i = 0; i < getLength(src); i += 1)
+  for (int32_t i = 0; i < srcLen; i += 1)
   {
-    freeArray(at(struct array *,src,i));
+    freeArray((src[i]).buffer, (src[i]).length);
   }
-  freeArray(src);
+  freeArray(src, srcLen);
 }
 
-void metrics(struct array * v1, struct array * v2, struct array * v3, struct array * * out)
+void metrics(struct awl_signedS32 * v1, struct awl_signedS32 * v2, struct awl_awl_s_2_unsignedS32_unsignedS32 * v3, struct awl_awl_signedS32 * out)
 {
   uint32_t v10;
   uint32_t v34;
-  struct array * e44 = NULL;
+  struct awl_unsignedS32 e44 = { .buffer = NULL, .length = 0 };
   uint32_t v9;
-  struct array * v33 = NULL;
-  struct array * v16 = NULL;
+  struct awl_awl_signedS32 v33 = { .buffer = NULL, .length = 0 };
+  struct awl_s_2_unsignedS32_unsignedS32 v16 = { .buffer = NULL, .length = 0 };
   uint32_t v19;
-  struct array * st45 = NULL;
-  struct array * * v14 = NULL;
-  struct array * v39 = NULL;
+  struct awl_signedS32 st45 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 * v14 = NULL;
+  struct awl_signedS32 v39 = { .buffer = NULL, .length = 0 };
   uint32_t v40;
   
-  v10 = getLength(v3);
-  e44 = initArray(e44, sizeof(uint32_t), 1);
-  at(uint32_t,e44,0) = v10;
-  v34 = at(uint32_t,e44,0);
-  v9 = getLength(v1);
-  st45 = initArray(st45, sizeof(int32_t), 8);
+  v10 = (*v3).length;
+  (e44).buffer = initArray((e44).buffer, (e44).length, sizeof(uint32_t), 1);
+  (e44).length = 1;
+  (e44).buffer[0] = v10;
+  v34 = (e44).buffer[0];
+  v9 = (*v1).length;
+  (st45).buffer = initArray((st45).buffer, (st45).length, sizeof(int32_t), 8);
+  (st45).length = 8;
   for (uint32_t v6 = 0; v6 < 8; v6 += 1)
   {
-    at(int32_t,st45,v6) = -32678;
+    (st45).buffer[v6] = -32678;
   }
   v14 = &st45;
-  v33 = initArray_arr_signedS32(v33, v10);
+  (v33).buffer = initArray_awl_signedS32((v33).buffer, (v33).length, v10);
+  (v33).length = v10;
   for (uint32_t v13 = 0; v13 < v10; v13 += 1)
   {
-    v16 = at(struct array *,v3,v13);
-    v19 = min(getLength(v16), v9);
-    at(struct array *,v33,v13) = initArray(at(struct array *,v33,v13), sizeof(int32_t), v19);
+    v16 = (*v3).buffer[v13];
+    v19 = min((v16).length, v9);
+    ((v33).buffer[v13]).buffer = initArray(((v33).buffer[v13]).buffer, ((v33).buffer[v13]).length, sizeof(int32_t), v19);
+    ((v33).buffer[v13]).length = v19;
     for (uint32_t v24 = 0; v24 < v19; v24 += 1)
     {
-      at(int32_t,at(struct array *,v33,v13),v24) = at(int32_t,*v14,(at(struct s_2_unsignedS32_unsignedS32,v16,v24)).member1);
+      ((v33).buffer[v13]).buffer[v24] = (*v14).buffer[((v16).buffer[v24]).member1];
     }
-    v14 = &at(struct array *,v33,v13);
+    v14 = &(v33).buffer[v13];
   }
-  *out = initArray_arr_signedS32(*out, v34);
+  (*out).buffer = initArray_awl_signedS32((*out).buffer, (*out).length, v34);
+  (*out).length = v34;
   for (uint32_t v37 = 0; v37 < v34; v37 += 1)
   {
-    v39 = at(struct array *,v33,v37);
-    v40 = getLength(v39);
-    at(struct array *,*out,v37) = initArray(at(struct array *,*out,v37), sizeof(int32_t), v40);
+    v39 = (v33).buffer[v37];
+    v40 = (v39).length;
+    ((*out).buffer[v37]).buffer = initArray(((*out).buffer[v37]).buffer, ((*out).buffer[v37]).length, sizeof(int32_t), v40);
+    ((*out).buffer[v37]).length = v40;
     for (uint32_t v43 = 0; v43 < v40; v43 += 1)
     {
-      at(int32_t,at(struct array *,*out,v37),v43) = at(int32_t,v39,v43);
+      ((*out).buffer[v37]).buffer[v43] = (v39).buffer[v43];
     }
   }
-  freeArray(e44);
-  freeArray_arr_signedS32(v33);
-  freeArray(v16);
-  freeArray(st45);
-  freeArray(v39);
+  freeArray((e44).buffer, (e44).length);
+  freeArray_awl_signedS32((v33).buffer, (v33).length);
+  freeArray((v16).buffer, (v16).length);
+  freeArray((st45).buffer, (st45).length);
+  freeArray((v39).buffer, (v39).length);
 }

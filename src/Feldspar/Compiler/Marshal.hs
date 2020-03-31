@@ -44,15 +44,15 @@ instance Default (Ptr a) where def = nullPtr
 
 instance (Storable (Rep a), Marshal a) => Marshal [a]
   where
-    type Rep [a] = Ptr (SA (Rep a))
+    type Rep [a] = SA (Rep a)
     to xs = do
         let len  = fromIntegral $ length xs
         let size = fromIntegral $ sizeOf (undefined :: Rep a)
         ys <- mapM to xs
         buffer <- newArray ys
-        new $ SA buffer len size (fromIntegral (len * size))
-    from p | p == nullPtr = return []
-    from p = peek p >>= go
+        return $ SA buffer len
+    from p | elems p == 0 = return []
+    from p = go p
       where
         go SA{..} = do
           res <- mapM from =<< peekArray (fromIntegral elems) buf
@@ -63,27 +63,23 @@ instance (Storable (Rep a), Marshal a) => Marshal [a]
 -- | Buffer descriptor for Feldspar arrays
 data SA a = SA { buf   :: Ptr a
                , elems :: Int32
-               , esize :: Int32
-               , bytes :: Word32
                }
   deriving (Eq, Show)
 
 instance Default (SA a) where
-    def = SA nullPtr def def def
+    def = SA nullPtr def
 
 allocSA :: forall a. Storable a => Int -> IO (Ptr (SA a))
 allocSA len = do
     let size  = fromIntegral $ sizeOf (undefined :: a)
     let bytes = len * size
     buffer <- mallocBytes bytes
-    new $ SA buffer (fromIntegral len) (fromIntegral size) (fromIntegral bytes)
+    new $ SA buffer (fromIntegral len)
 
 storeSA :: Storable a => Store.Dictionary (SA a)
 storeSA = Store.run $ SA
     <$> Store.element buf
     <*> Store.element elems
-    <*> Store.element esize
-    <*> Store.element bytes
 
 instance Storable a => Storable (SA a)
   where

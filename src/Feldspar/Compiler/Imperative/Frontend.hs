@@ -68,23 +68,24 @@ deepCopy arg1 [arg2]
   | arg1 == arg2
   = Empty
 
+deepCopy arg1 args
+  | isAwLType (typeof arg1) || isNativeArray (typeof arg1)
+  = Assign arg1 $ fun (typeof arg1) "copy" (arg1 : args)
+
+deepCopy arg1 [arg2]
   | StructType _ fts <- typeof arg2
   = Sequence $ map (deepCopyField . fst) fts
 
-  | not (isArray (typeof arg1) || isNativeArray (typeof arg1))
+  | otherwise
   = Assign arg1 arg2
     where deepCopyField fld = deepCopy (StructField arg1 fld) [StructField arg2 fld]
-
-deepCopy arg1 args
-  | isArray (typeof arg1) || isNativeArray (typeof arg1)
-  = Assign arg1 $ fun (typeof arg1) "copy" (arg1 : args)
 
 deepCopy _ _ = error "Multiple non-array arguments to copy"
 
 flattenCopy :: Expression () -> [Expression ()] -> [Expression ()] ->
                Expression () -> [Program ()]
 flattenCopy _ [] [] _ = []
-flattenCopy dst (t:ts) (l:ls) cLen = Assign dst (arrayFun "copyArrayPos" [dst, t, cLen])
+flattenCopy dst (t:ts) (l:ls) cLen = Assign dst (arrayFun "copyArrayPos" $ arrayBufLen dst ++ arrayBufLen t ++ [cLen])
                                    : flattenCopy dst ts ls (ePlus cLen l)
 
 ePlus :: Expression () -> Expression () -> Expression ()
@@ -94,30 +95,35 @@ ePlus e1 e2                        = binop (1 :# (NumType Signed S32)) "+" e1 e2
 
 -- | Lower array copy
 lowerCopy :: Options -> Type -> Expression () -> [Expression ()] -> [Program ()]
-lowerCopy _ ArrayType{} dst ins'@(arg1:in1:ins)
+lowerCopy opts t dst ins
+  | isAwLType t = lowerArrayCopy opts t dst ins
+lowerCopy opts NativeArray{} dst [arg1,arg2]
+  | l@(ConstExpr (IntConst n _)) <- arrayLength arg2
+  = if n < safetyLimit opts
+      then initArray (Just dst) l:map (\i -> Assign (ArrayElem dst [litI32 i]) (ArrayElem arg2 [litI32 i])) [0..(n-1)]
+      else error $ unlines ["Frontend.lowerCopy: array size (" ++ show n ++ ") too large", show arg1, show arg2]
+lowerCopy _ t e es = error $ "Frontend.lowerCopy: funny type (" ++ show t ++ ") or destination\n"
+                                ++ show e ++ "\nor arguments\n"
+                                ++ (unlines $ map show es)
+
+-- | Lower general array copy
+lowerArrayCopy :: Options -> Type -> Expression () -> [Expression ()] -> [Program ()]
+lowerArrayCopy opts _ dst ins'@(arg1:in1:ins)
   | [ConstExpr ArrayConst{..}] <- ins'
   = initArray (Just dst) (litI32 $ toInteger $ length arrayValues)
     : zipWith (\i c -> Assign (ArrayElem dst [litI32 i]) (ConstExpr c)) [0..] arrayValues
   | [] <- ins
-  = [Assign dst (arrayFun "initCopyArray" [arg1, in1])]
+  = [ Assign (arrayBuffer   dst) (arrayFun "initCopyArray" $ concatMap arrayBufLen [arg1, in1])
+    , Assign (arrayLengthLV dst) (arrayLength in1)
+    ]
   | otherwise
   = [ initArray (Just dst) expDstLen, copyFirstSegment ] ++
       flattenCopy arg1 ins argnLens arg1len
     where expDstLen = foldr ePlus (litI32 0) aLens
           copyFirstSegment = if dst == in1
                                 then Empty
-                                else Assign dst (arrayFun "copyArray" [arg1, in1])
+                                else Assign (arrayBuffer dst) (arrayFun "copyArray" $ concatMap arrayBufLen [arg1, in1])
           aLens@(arg1len:argnLens) = map arrayLength (in1 : ins)
-
-lowerCopy opts NativeArray{} dst [arg1,arg2]
-  | l@(ConstExpr (IntConst n _)) <- arrayLength arg2
-  = if n < safetyLimit opts
-      then initArray (Just dst) l:map (\i -> Assign (ArrayElem dst [litI32 i]) (ArrayElem arg2 [litI32 i])) [0..(n-1)]
-      else error $ unlines ["Frontend.lowerCopy: array size (" ++ show n ++ ") too large", show arg1, show arg2]
-
-lowerCopy _ t e es = error $ "Frontend.lowerCopy: funny type (" ++ show t ++ ") or destination\n"
-                                ++ show e ++ "\nor arguments\n"
-                                ++ (unlines $ map show es)
 
 
 -- | Initialize an array using \"initArray\"
@@ -130,24 +136,40 @@ initArray (Just arr) len
   | isNativeArray $ typeof arr
   = Empty
   | otherwise
-  = Assign arr $ arrayFun "initArray" [arr, len]
+  = Sequence [ Assign (arrayBuffer arr) $ arrayFun "initArray" $ arrayBufLen arr ++ [len]
+             , Assign (arrayLengthLV arr) len
+             ]
 
 -- | Generate a call to free an array represented as a variable
 freeArray :: Variable () -> Program ()
-freeArray arr = call (variant "freeArray" t) [ValueParameter $ varToExpr arr]
-  where ArrayType _ t = typeof arr
+freeArray = freeArrayE . VarExpr
+
+-- | Generate a call to free an array represented as an expression
+freeArrayE :: Expression () -> Program ()
+freeArrayE arr = call (variant "freeArray" t) $ map ValueParameter $ arrayBufLen arr
+  where StructType _ [("buffer", ArrayType _ t), _] = typeof arr
 
 -- | Generate 'freeArray' calls for all arrays in a list of declarations
 freeArrays :: [Declaration ()] -> [Program ()]
-freeArrays defs = map freeArray arrays
+freeArrays defs = map freeArrayE arrays
   where
-    arrays = filter (isArray . typeof) $ map declVar defs
+    arrays = [f $ varToExpr v  | v <- map declVar defs, (f,t) <- flattenStructs $ typeof v, isAwLType t]
 
 -- | Get the length of an array
 arrayLength :: Expression () -> Expression ()
 arrayLength arr
   | Just l <- staticArrayLength arr = litI32 $ fromIntegral l
-  | otherwise = fun (1 :# (NumType Unsigned S32)) "getLength" [arr]
+  | otherwise = StructField arr "length"
+
+-- | Get the length of an array as an lval
+arrayLengthLV :: Expression () -> Expression ()
+arrayLengthLV arr = StructField arr "length"
+
+arrayBuffer :: Expression () -> Expression ()
+arrayBuffer arr = StructField arr "buffer"
+
+arrayBufLen :: Expression () -> [Expression ()]
+arrayBufLen arr = [arrayBuffer arr, arrayLength arr]
 
 -- | If possible, return the static length of an array
 staticArrayLength :: Expression t -> Maybe Length
@@ -175,13 +197,13 @@ iVarInit var = call "ivar_init" [ValueParameter var]
 
 iVarGet :: Bool -> Expression () -> Expression () -> Program ()
 iVarGet inTask loc ivar
-    | ArrayType _ eTy <- typ = Assign loc
-                             $ if isShallow eTy
-                                  then fun (typeof loc) (mangle inTask "ivar_get_array_shallow") [ loc, ivar, size eTy ]
-                                  else fun (typeof loc) (mangle inTask "ivar_get_array") [ loc, ivar, copyFun eTy ]
-    | otherwise              = call (mangle inTask "ivar_get") [ TypeParameter typ
-                                                               , ValueParameter (AddrOf loc)
-                                                               , ValueParameter ivar]
+    | Just eTy <- elemTyAwL typ
+    = if isShallow eTy
+          then call (mangle inTask "ivar_get_array_shallow") $ map ValueParameter [ AddrOf loc, ivar, size eTy ]
+          else call (mangle inTask "ivar_get_array") $ map ValueParameter [ AddrOf loc, ivar, copyFun eTy ]
+    | otherwise  = call (mangle inTask "ivar_get") [ TypeParameter typ
+                                                   , ValueParameter (AddrOf loc)
+                                                   , ValueParameter ivar]
       where
         typ = typeof loc
         mangle True  s = s
@@ -191,9 +213,10 @@ iVarGet inTask loc ivar
 
 iVarPut :: Expression () -> Expression () -> Program ()
 iVarPut ivar msg
-    | ArrayType _ eTy <- typ = if isShallow eTy
-                                  then call "ivar_put_array_shallow" [ValueParameter ivar, ValueParameter msg, sizePar eTy]
-                                  else call "ivar_put_array" [ValueParameter ivar, ValueParameter msg, copyPar eTy]
+    | Just eTy <- elemTyAwL typ
+    = if isShallow eTy
+          then call "ivar_put_array_shallow" [ValueParameter ivar, ValueParameter $ AddrOf msg, sizePar eTy]
+          else call "ivar_put_array" [ValueParameter ivar, ValueParameter $ AddrOf msg, copyPar eTy]
     | otherwise              = call "ivar_put" [TypeParameter typ, ValueParameter ivar, ValueParameter (AddrOf msg)]
       where
         typ = typeof msg
@@ -262,6 +285,10 @@ litI (_ :# t) n = ConstExpr (IntConst n t)
 litI32 :: Integer -> Expression ()
 litI32 = litI (1 :# (NumType Unsigned S32))
 
+int32, uint32 :: Type
+int32 = 1 :# NumType Signed S32
+uint32 = 1 :# NumType Unsigned S32
+
 isComplex :: Type -> Bool
 isComplex (_ :# ComplexType{})            = True
 isComplex _                               = False
@@ -269,6 +296,15 @@ isComplex _                               = False
 isFloat :: Type -> Bool
 isFloat (_ :# FloatType{})            = True
 isFloat _                             = False
+
+isAwLType :: Type -> Bool
+isAwLType (StructType _ [("buffer", ArrayType{}), ("length",_)])
+            = True
+isAwLType _ = False
+
+elemTyAwL :: Type -> Maybe Type
+elemTyAwL (StructType _ [("buffer", ArrayType _ t), ("length",_)]) = Just t
+elemTyAwL _ = Nothing
 
 isArray :: Type -> Bool
 isArray ArrayType{}                   = True
@@ -307,13 +343,19 @@ variant str t | isShallow t = str
               | otherwise = str ++ "_" ++ encodeType t
 
 arrayFun :: String -> [Expression ()] -> Expression ()
-arrayFun name (dst : es) = fun arrTy (variant name eTy) (dst : addSize es eTy)
+arrayFun name (dst : dLen : es) = fun arrTy (variant name eTy) (dst : dLen : addSize es eTy)
   where arrTy = typeof dst
         eTy   = elemType arrTy
         elemType (ArrayType _ t) = t
+        elemType (StructType _ [("buffer", ArrayType _ t), _]) = t
         elemType t               = error $ "Frontend.elemType: not an array " ++ show t
         addSize es t | isShallow t = SizeOf t : es
                      | otherwise   = es
+
+-- | The type of an array paired with its length
+mkAwLType :: Range Length -> Type -> Type
+mkAwLType r t = StructType n [("buffer", ArrayType r t), ("length", uint32)]
+  where n = "awl_" ++ encodeType t
 
 -- | Does the parameters allow a fast/cheap (in register) return.
 canFastReturn :: Type -> Bool
@@ -328,7 +370,8 @@ containsNativeArray t = any (isNativeArray . snd) $ flattenStructs t
 
 -- | Returns a list of access functions and types for the leaves of the struct tree of the type
 flattenStructs :: Type -> [(Expression () -> Expression (), Type)]
-flattenStructs (StructType _ fts) = [(\ e -> af $ StructField e fname, t') | (fname,t) <- fts, (af, t') <- flattenStructs t]
+flattenStructs t@(StructType _ fts)
+  | not $ isAwLType t = [(\ e -> af $ StructField e fname, t') | (fname,t) <- fts, (af, t') <- flattenStructs t]
 flattenStructs t = [(id, t)]
 
 hasReference :: Type -> Bool
@@ -434,6 +477,8 @@ decodeType = goL []
                       where (ts, s') = go s
              h' = take (length h - length t'') h
     go (stripPrefix "arr_"     -> Just t) = (ArrayType fullRange tt, t')
+      where (tt, t') = go t
+    go (stripPrefix "awl_"     -> Just t) = (mkAwLType fullRange tt, t')
       where (tt, t') = go t
     go s = error ("decodeType: " ++ s)
 

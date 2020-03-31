@@ -13,18 +13,24 @@
 #include <complex.h>
 
 
-struct s_2_unsignedS32_arr_unsignedS32
+struct awl_unsignedS32
 {
-  uint32_t member1;
-  struct array * member2;
+  uint32_t * buffer;
+  uint32_t length;
 };
 
-struct s_2_unsignedS32_s_2_unsignedS32_arr_unsignedS32
+struct s_2_unsignedS32_awl_unsignedS32
 {
   uint32_t member1;
-  struct s_2_unsignedS32_arr_unsignedS32 member2;
+  struct awl_unsignedS32 member2;
 };
 
-void arrayInStructInStruct(struct s_2_unsignedS32_s_2_unsignedS32_arr_unsignedS32 * v0, struct s_2_unsignedS32_s_2_unsignedS32_arr_unsignedS32 * out);
+struct s_2_unsignedS32_s_2_unsignedS32_awl_unsignedS32
+{
+  uint32_t member1;
+  struct s_2_unsignedS32_awl_unsignedS32 member2;
+};
+
+void arrayInStructInStruct(struct s_2_unsignedS32_s_2_unsignedS32_awl_unsignedS32 * v0, struct s_2_unsignedS32_s_2_unsignedS32_awl_unsignedS32 * out);
 
 #endif // TESTS_ARRAYINSTRUCTINSTRUCT_H

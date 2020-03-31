@@ -14,7 +14,7 @@ import Feldspar.Compiler.Imperative.Frontend (
 import qualified Data.ByteString.Char8 as B
 import qualified Language.C.Parser as P
 import Language.C.Syntax
-import Data.List (intersperse, mapAccumL)
+import Data.List (intersperse, mapAccumL, isPrefixOf)
 import Data.Loc
 import Data.Maybe
 
@@ -482,6 +482,10 @@ typSpecToType env (Tstruct Nothing mfg attrs _)
 -- Array types are incomplete so fake one. We recover the type elsewhere.
 typSpecToType _ (Tstruct (Just (Id "array" _)) mfg attrs _)
   = ArrayType universal fakeType
+typSpecToType _ (Tstruct (Just (Id s _)) mfg attrs _)
+  | "awl" `isPrefixOf` s
+  , [t] <- decodeType s
+  = t
 -- Ivars are declared externally so just fake a type.
 typSpecToType _ (Tstruct (Just (Id "ivar" _)) Nothing attrs _)
   = IVarType fakeType

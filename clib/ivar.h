@@ -62,8 +62,8 @@ void ivar_put_with_size( struct ivar iv, void *d, int size );
 #define ivar_put(typ,iv,d) ivar_put_with_size(iv,d,sizeof(typ))
 
 /* Specialized version for arrays. */
-void ivar_put_array( struct ivar iv, struct array *d, void* cf );
-void ivar_put_array_shallow( struct ivar iv, struct array *d, int32_t size );
+void ivar_put_array( struct ivar iv, void *d, void* cf );
+void ivar_put_array_shallow( struct ivar iv, void *d, int32_t size );
 
 /* Copies the data of size 'size' of the ivar 'iv' to 'var'. Ivars are
  * allowed to be read any number of times. Reading an empty ivar blocks
@@ -75,8 +75,8 @@ void ivar_get_with_size( void *var, struct ivar iv, int size );
 #define ivar_get(typ,var,iv) ivar_get_with_size(var,iv,sizeof(typ))
 
 /* Specialized version for arrays. */
-struct array * ivar_get_array( struct array *var, struct ivar iv, void* cf );
-struct array * ivar_get_array_shallow( struct array *var, struct ivar iv, int32_t size );
+void ivar_get_array( void *var, struct ivar iv, void* cf );
+void ivar_get_array_shallow( void *var, struct ivar iv, int32_t size );
 
 /* Copies the data of size 'size' of the ivar 'iv' to 'var'. Ivars are
  * allowed to be read any number of times. Reading an empty ivar blocks
@@ -88,7 +88,7 @@ void ivar_get_nontask_with_size( void *var, struct ivar iv, int size );
 #define ivar_get_nontask(typ,var,iv) ivar_get_nontask_with_size(var,iv,sizeof(typ))
 
 /* Specialized version for arrays. */
-struct array * ivar_get_array_nontask( struct array *var, struct ivar iv, void* vcf );
-struct array * ivar_get_array_shallow_nontask( struct array *var, struct ivar iv, int32_t size );
+void ivar_get_array_nontask( void *var, struct ivar iv, void* vcf );
+void ivar_get_array_shallow_nontask( void *var, struct ivar iv, int32_t size );
 
 #endif /* IVAR_H */

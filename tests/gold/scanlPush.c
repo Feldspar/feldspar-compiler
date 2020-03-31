@@ -1,77 +1,79 @@
 #include "scanlPush.h"
 
 
-struct array * initArray_arr_unsignedS32(struct array * dst, uint32_t newLen)
+struct awl_unsignedS32 * initArray_awl_unsignedS32(struct awl_unsignedS32 * dst, uint32_t oldLen, uint32_t newLen)
 {
-  uint32_t oldLen;
-  
-  dst = allocArray(dst);
-  oldLen = getLength(dst);
   if ((oldLen != newLen))
   {
     if ((oldLen < newLen))
     {
-      dst = resizeArray(dst, sizeof(struct array *), newLen);
+      dst = resizeArray(dst, sizeof(struct awl_unsignedS32), newLen);
       for (int32_t i = oldLen; i < newLen; i += 1)
       {
-        struct array * null_arr_0 = NULL;
+        struct awl_unsignedS32 null_arr_0 = { .buffer = NULL, .length = 0 };
         
-        at(struct array *,dst,i) = null_arr_0;
+        dst[i] = null_arr_0;
       }
     }
     else
     {
       for (int32_t i = newLen; i < oldLen; i += 1)
       {
-        freeArray(at(struct array *,dst,i));
+        freeArray((dst[i]).buffer, (dst[i]).length);
       }
-      dst = resizeArray(dst, sizeof(struct array *), newLen);
+      dst = resizeArray(dst, sizeof(struct awl_unsignedS32), newLen);
     }
   }
   return(dst);
 }
 
-void freeArray_arr_unsignedS32(struct array * src)
+void freeArray_awl_unsignedS32(struct awl_unsignedS32 * src, int32_t srcLen)
 {
-  for (int32_t i = 0; i < getLength(src); i += 1)
+  for (int32_t i = 0; i < srcLen; i += 1)
   {
-    freeArray(at(struct array *,src,i));
+    freeArray((src[i]).buffer, (src[i]).length);
   }
-  freeArray(src);
+  freeArray(src, srcLen);
 }
 
-void scanlPush(struct array * v0, struct array * v1, struct array * * out)
+void scanlPush(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * v1, struct awl_awl_unsignedS32 * out)
 {
   uint32_t v9;
   uint32_t v2;
-  struct array * v12 = NULL;
+  struct awl_unsignedS32 v12 = { .buffer = NULL, .length = 0 };
   uint32_t v15;
-  struct array * v23 = NULL;
+  struct awl_unsignedS32 v23 = { .buffer = NULL, .length = 0 };
   uint32_t v24;
-  struct array * e27 = NULL;
+  struct awl_unsignedS32 e27 = { .buffer = NULL, .length = 0 };
   
-  v9 = getLength(v1);
-  *out = initArray_arr_unsignedS32(*out, v9);
-  v2 = getLength(v0);
-  v12 = initArray(v12, sizeof(uint32_t), v2);
+  v9 = (*v1).length;
+  (*out).buffer = initArray_awl_unsignedS32((*out).buffer, (*out).length, v9);
+  (*out).length = v9;
+  v2 = (*v0).length;
+  (v12).buffer = initArray((v12).buffer, (v12).length, sizeof(uint32_t), v2);
+  (v12).length = v2;
   for (uint32_t v4 = 0; v4 < v2; v4 += 1)
   {
-    at(uint32_t,v12,v4) = at(uint32_t,v0,v4);
+    (v12).buffer[v4] = (*v0).buffer[v4];
   }
   for (uint32_t v13 = 0; v13 < v9; v13 += 1)
   {
-    v15 = getLength(v12);
-    v12 = initArray(v12, sizeof(uint32_t), v15);
-    v23 = initCopyArray(v23, sizeof(uint32_t), v12);
-    v24 = getLength(v23);
-    e27 = initArray(e27, sizeof(uint32_t), v24);
+    v15 = (v12).length;
+    (v12).buffer = initArray((v12).buffer, (v12).length, sizeof(uint32_t), v15);
+    (v12).length = v15;
+    (v23).buffer = initCopyArray((v23).buffer, (v23).length, sizeof(uint32_t), (v12).buffer, (v12).length);
+    (v23).length = (v12).length;
+    v24 = (v23).length;
+    (e27).buffer = initArray((e27).buffer, (e27).length, sizeof(uint32_t), v24);
+    (e27).length = v24;
     for (uint32_t v26 = 0; v26 < v24; v26 += 1)
     {
-      at(uint32_t,e27,v26) = at(uint32_t,v23,v26);
+      (e27).buffer[v26] = (v23).buffer[v26];
     }
-    at(struct array *,*out,v13) = initCopyArray(at(struct array *,*out,v13), sizeof(uint32_t), e27);
+    ((*out).buffer[v13]).buffer = initCopyArray(((*out).buffer[v13]).buffer, ((*out).buffer[v13]).length, sizeof(uint32_t), (e27).buffer, (e27).length);
+    ((*out).buffer[v13]).length = (e27).length;
   }
-  freeArray(v12);
-  freeArray(v23);
-  freeArray(e27);
+  freeArray((v12).buffer, (v12).length);
+  freeArray((v23).buffer, (v23).length);
+  freeArray((e27).buffer, (e27).length);
 }

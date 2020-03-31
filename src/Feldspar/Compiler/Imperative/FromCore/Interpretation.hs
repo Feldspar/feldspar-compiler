@@ -95,6 +95,13 @@ mkStructType trs = StructType n trs
   where
     n = "s_" ++ intercalate "_" (show (length trs):map (encodeType . snd) trs)
 
+-- | Construct an array indexing expression
+mkArrayElem :: Expression () -> [Expression ()] -> Expression ()
+mkArrayElem arr ixs
+  | StructType _ [("buffer", ArrayType{}), _] <- typeof arr = ArrayElem (StructField arr "buffer") ixs
+  | NativeArray{}                             <- typeof arr = ArrayElem arr ixs
+  | otherwise = error $ "Interpretation.mkArrayElem: funny array type " ++ show (typeof arr)
+
 -- | Construct a named variable. The 'VarId' is appended to the base name to
 -- allow different variables to have the same base name. Use a negative 'VarId'
 -- to just get the base name without the appendix.

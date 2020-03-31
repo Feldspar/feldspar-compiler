@@ -13,10 +13,22 @@
 #include <complex.h>
 
 
-struct array * initArray_arr_unsignedS32(struct array * dst, uint32_t newLen);
+struct awl_unsignedS32
+{
+  uint32_t * buffer;
+  uint32_t length;
+};
 
-void freeArray_arr_unsignedS32(struct array * src);
+struct awl_awl_unsignedS32
+{
+  struct awl_unsignedS32 * buffer;
+  uint32_t length;
+};
 
-void scanlPush(struct array * v0, struct array * v1, struct array * * out);
+struct awl_unsignedS32 * initArray_awl_unsignedS32(struct awl_unsignedS32 * dst, uint32_t oldLen, uint32_t newLen);
+
+void freeArray_awl_unsignedS32(struct awl_unsignedS32 * src, int32_t srcLen);
+
+void scanlPush(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * v1, struct awl_awl_unsignedS32 * out);
 
 #endif // TESTS_SCANLPUSH_H
