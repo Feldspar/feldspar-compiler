@@ -81,9 +81,9 @@ void divConq3(struct awl_signedS32 * v1, struct awl_signedS32 * out)
     (*out).buffer[v53] = (v49).buffer[v53];
   }
   taskpool_shutdown();
-  freeArray((v24).buffer, (v24).length);
-  freeArray((v49).buffer, (v49).length);
-  freeArray((v28).buffer, (v28).length);
-  freeArray((v31).buffer, (v31).length);
+  freeArray((v24).buffer);
+  freeArray((v49).buffer);
+  freeArray((v28).buffer);
+  freeArray((v31).buffer);
   ivar_destroy(&e56);
 }

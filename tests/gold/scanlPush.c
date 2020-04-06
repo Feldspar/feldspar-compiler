@@ -19,7 +19,7 @@ struct awl_unsignedS32 * initArray_awl_unsignedS32(struct awl_unsignedS32 * dst,
     {
       for (int32_t i = newLen; i < oldLen; i += 1)
       {
-        freeArray((dst[i]).buffer, (dst[i]).length);
+        freeArray((dst[i]).buffer);
       }
       dst = resizeArray(dst, sizeof(struct awl_unsignedS32), newLen);
     }
@@ -31,9 +31,9 @@ void freeArray_awl_unsignedS32(struct awl_unsignedS32 * src, int32_t srcLen)
 {
   for (int32_t i = 0; i < srcLen; i += 1)
   {
-    freeArray((src[i]).buffer, (src[i]).length);
+    freeArray((src[i]).buffer);
   }
-  freeArray(src, srcLen);
+  freeArray(src);
 }
 
 void scanlPush(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * v1, struct awl_awl_unsignedS32 * out)
@@ -73,7 +73,7 @@ void scanlPush(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * v1, struct 
     ((*out).buffer[v13]).buffer = initCopyArray(((*out).buffer[v13]).buffer, ((*out).buffer[v13]).length, sizeof(uint32_t), (e27).buffer, (e27).length);
     ((*out).buffer[v13]).length = (e27).length;
   }
-  freeArray((v12).buffer, (v12).length);
-  freeArray((v23).buffer, (v23).length);
-  freeArray((e27).buffer, (e27).length);
+  freeArray((v12).buffer);
+  freeArray((v23).buffer);
+  freeArray((e27).buffer);
 }

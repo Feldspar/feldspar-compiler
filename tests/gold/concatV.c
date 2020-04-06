@@ -43,7 +43,7 @@ void concatV(struct awl_awl_signedS32 * v1, struct awl_signedS32 * out)
   {
     (*out).buffer[v30] = (v26).buffer[v30];
   }
-  freeArray((v26).buffer, (v26).length);
-  freeArray((v6).buffer, (v6).length);
-  freeArray((v8).buffer, (v8).length);
+  freeArray((v26).buffer);
+  freeArray((v6).buffer);
+  freeArray((v8).buffer);
 }

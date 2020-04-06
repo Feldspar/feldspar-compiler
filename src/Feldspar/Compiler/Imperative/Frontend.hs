@@ -146,8 +146,9 @@ freeArray = freeArrayE . VarExpr
 
 -- | Generate a call to free an array represented as an expression
 freeArrayE :: Expression () -> Program ()
-freeArrayE arr = call (variant "freeArray" t) $ map ValueParameter $ arrayBufLen arr
+freeArrayE arr = call (variant "freeArray" t) $ map ValueParameter $ take n $ arrayBufLen arr
   where StructType _ [("buffer", ArrayType _ t), _] = typeof arr
+        n = if isShallow t then 1 else 2
 
 -- | Generate 'freeArray' calls for all arrays in a list of declarations
 freeArrays :: [Declaration ()] -> [Program ()]

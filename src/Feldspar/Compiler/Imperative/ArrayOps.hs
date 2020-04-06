@@ -143,7 +143,7 @@ mkFreeArray opts t = Proc name False [srcVar, srcLVar] (Left []) (Just body)
         srcLVar = Variable intT "srcLen"
         body = Block [] $ Sequence stms
         stms = [ for Parallel ixVar zero (VarExpr srcLVar) one loopBody
-               , call "freeArray" [ValueParameter $ VarExpr srcVar, ValueParameter $ VarExpr srcLVar]
+               , call "freeArray" [ValueParameter $ VarExpr srcVar]
                ]
         ixVar = Variable intT "i"
         loopBody = toBlock $ Sequence [freeArrayE e | (e,_) <- arrs]

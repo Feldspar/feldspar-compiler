@@ -30,6 +30,6 @@ void arrayInStruct(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * out)
   }
   (*out).buffer = initCopyArray((*out).buffer, (*out).length, sizeof(uint32_t), ((e11).member2).buffer, ((e11).member2).length);
   (*out).length = ((e11).member2).length;
-  freeArray(((e11).member2).buffer, ((e11).member2).length);
-  freeArray(((v6).member2).buffer, ((v6).member2).length);
+  freeArray(((e11).member2).buffer);
+  freeArray(((v6).member2).buffer);
 }

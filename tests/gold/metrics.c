@@ -19,7 +19,7 @@ struct awl_signedS32 * initArray_awl_signedS32(struct awl_signedS32 * dst, uint3
     {
       for (int32_t i = newLen; i < oldLen; i += 1)
       {
-        freeArray((dst[i]).buffer, (dst[i]).length);
+        freeArray((dst[i]).buffer);
       }
       dst = resizeArray(dst, sizeof(struct awl_signedS32), newLen);
     }
@@ -31,9 +31,9 @@ void freeArray_awl_signedS32(struct awl_signedS32 * src, int32_t srcLen)
 {
   for (int32_t i = 0; i < srcLen; i += 1)
   {
-    freeArray((src[i]).buffer, (src[i]).length);
+    freeArray((src[i]).buffer);
   }
-  freeArray(src, srcLen);
+  freeArray(src);
 }
 
 void metrics(struct awl_signedS32 * v1, struct awl_signedS32 * v2, struct awl_awl_s_2_unsignedS32_unsignedS32 * v3, struct awl_awl_signedS32 * out)
@@ -90,9 +90,9 @@ void metrics(struct awl_signedS32 * v1, struct awl_signedS32 * v2, struct awl_aw
       ((*out).buffer[v37]).buffer[v43] = (v39).buffer[v43];
     }
   }
-  freeArray((e44).buffer, (e44).length);
+  freeArray((e44).buffer);
   freeArray_awl_signedS32((v33).buffer, (v33).length);
-  freeArray((v16).buffer, (v16).length);
-  freeArray((st45).buffer, (st45).length);
-  freeArray((v39).buffer, (v39).length);
+  freeArray((v16).buffer);
+  freeArray((st45).buffer);
+  freeArray((v39).buffer);
 }

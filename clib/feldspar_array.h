@@ -81,9 +81,9 @@ static inline void* initArray( void* arr, int32_t arrLen, int32_t size, int32_t 
 
 /// Free a flat array or an array where all the arrays it contains have been free'd already.
 // TODO: Think about arrays escaping from their scope.
-static inline void freeArray( void* arr, int32_t len )
+static inline void freeArray( void* arr )
 {
-  log_2( "freeArray %p with length %d\n", arr, len );
+  log_1( "freeArray %p\n", arr );
   free( arr );
 }
 
