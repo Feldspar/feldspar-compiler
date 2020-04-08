@@ -64,7 +64,7 @@ class CodeGen a
 instance CodeGen (Module ())
   where
     cgen env Module{..} = cgenList env entities
-    cgenList env = sep . map (cgen env)
+    cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Entity ())
   where
@@ -98,11 +98,11 @@ instance CodeGen (StructMember ())
 
 instance CodeGen (Block ())
   where
-    cgen env Block{..} = sep [ cgenList env locals
+    cgen env Block{..} = vcat [ cgenList env locals
                             , if null locals then empty else text ""
                             , cgen env blockBody
                             ]
-    cgenList env = sep . punctuate (text "\n") . map (cgen env)
+    cgenList env = vcat . map (cgen env)
 
 instance CodeGen (Declaration ())
   where
