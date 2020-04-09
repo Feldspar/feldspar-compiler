@@ -70,6 +70,7 @@ import Control.Monad.State
 import Control.Applicative
 
 import Feldspar.Range (upperBound, fullRange)
+import Feldspar.Core.Frontend (reifyFeldM, reifyFeld, Syntactic)
 import Feldspar.Core.Types (BitWidth (..))
 import Feldspar.Core.UntypedRepresentation
          ( VarId(..), UntypedFeld, Term(..), Lit(..)
@@ -79,8 +80,6 @@ import Feldspar.Core.UntypedRepresentation
 import qualified Feldspar.Core.UntypedRepresentation as Ut
 import Feldspar.Core.Middleend.FromTyped
 import Feldspar.Compiler.Backend.C.Platforms (extend, c99)
-import Feldspar.Core.Constructs (SyntacticFeld)
-import Feldspar.Core.Frontend (reifyFeldM, reifyFeld)
 
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
@@ -149,7 +148,7 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
     isTask _          = False
 
 -- | Get the generated core for an 'UntypedFeld' expression.
-fromCore :: SyntacticFeld a
+fromCore :: Syntactic a
     => Options
     -> String   -- ^ Name of the generated function
     -> a        -- ^ Expression to generate code for
@@ -170,7 +169,7 @@ fromCore opt funname prog
 -- * An expression that contains the result
 -- * A list of epilogue programs, for freeing memory, etc.
 fromCoreExp :: (MonadState VarId m)
-            => SyntacticFeld a
+            => Syntactic a
             => Options
             -> Map.Map VarId String
             -> a

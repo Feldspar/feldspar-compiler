@@ -33,12 +33,11 @@
 
 module Feldspar.Compiler.Frontend.Interactive.Interface where
 
+import Feldspar.Core.Frontend (Syntactic, reifyFeld)
 import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
-import Feldspar.Core.Constructs (SyntacticFeld)
+import Feldspar.Core.Types (BitWidth(N32))
 import Feldspar.Core.Middleend.PassManager
 import Feldspar.Core.Middleend.FromTyped (FrontendPass, frontend)
-import Feldspar.Core.Frontend (reifyFeld)
-import Feldspar.Core.Types (BitWidth(N32))
 import Feldspar.Compiler.Compiler
 import Feldspar.Compiler.Imperative.FromCore
 import Feldspar.Compiler.Backend.C.Options
@@ -58,7 +57,7 @@ import System.IO
 --  == Interactive compilation
 -- ================================================================================================
 
-compile :: (SyntacticFeld t) => t -> FilePath -> String -> Options -> IO ()
+compile :: (Syntactic t) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName funName opts = writeFiles compRes fileName (codeGenerator $ platform opts)
   where compRes = compileToCCore funName opts prg
 
@@ -86,13 +85,13 @@ writeFiles prg fileName "c" = do
         toBeChanged = "./\\"
 writeFiles prg fileName _ = writeFile fileName $ sourceCode $ implementation prg
 
-icompile :: (SyntacticFeld t) => t -> IO ()
+icompile :: (Syntactic t) => t -> IO ()
 icompile = icompileWith defaultOptions
 
-icompileWith :: (SyntacticFeld t) => Options -> t -> IO ()
+icompileWith :: (Syntactic t) => Options -> t -> IO ()
 icompileWith opts = icompile' opts "test"
 
-icompile' :: (SyntacticFeld t) => Options -> String -> t -> IO ()
+icompile' :: (Syntactic t) => Options -> String -> t -> IO ()
 icompile' opts functionName prg = do
     let res = compileToCCore functionName opts prg
     when (printHeader opts) $ do
@@ -102,11 +101,11 @@ icompile' opts functionName prg = do
     putStrLn $ sourceCode $ implementation res
 
 -- | Get the generated core for a program.
-getCore :: (SyntacticFeld t) => t -> Module ()
+getCore :: (Syntactic t) => t -> Module ()
 getCore = fromCore defaultOptions "test"
 
 -- | Print the generated core for a program.
-printCore :: (SyntacticFeld t) => t -> IO ()
+printCore :: (Syntactic t) => t -> IO ()
 printCore prog = print $ getCore prog
 
 data ProgOpts =
@@ -139,17 +138,17 @@ targetsFromPlatform pf = tfp $ name pf
          tfp "c99Wool"   = [Wool]
          tfp "ba"        = [BA]
 
-program :: SyntacticFeld a => a -> IO ()
+program :: Syntactic a => a -> IO ()
 program p = programOpts p defaultOptions
 
-programOpts :: SyntacticFeld a => a -> Options -> IO ()
+programOpts :: Syntactic a => a -> Options -> IO ()
 programOpts p opts = do args <- getArgs
                         programOptsArgs p defaultProgOpts{backOpts = opts} args
 
-programOptsArgs :: SyntacticFeld a => a -> ProgOpts -> [String] -> IO ()
+programOptsArgs :: Syntactic a => a -> ProgOpts -> [String] -> IO ()
 programOptsArgs p opts args = programComp (const (return p)) opts args
 
-programComp :: SyntacticFeld a => ([String] -> IO a) -> ProgOpts -> [String] -> IO ()
+programComp :: Syntactic a => ([String] -> IO a) -> ProgOpts -> [String] -> IO ()
 programComp pc opts args = do name <- getProgName
                               let (opts1,nonopts) = decodeOpts (optsFromName opts name) args
                               let header = "Usage: " ++ name ++ " <option>...\n"
@@ -227,7 +226,7 @@ writeFileLB name str = do fh <- openFile name WriteMode
                           hPutStr fh str
                           hClose fh
 
-translate :: SyntacticFeld a => ProgOpts -> a -> ([String], Maybe SplitModule)
+translate :: Syntactic a => ProgOpts -> a -> ([String], Maybe SplitModule)
 translate opts p = (ssf ++ ssb, as)
   where astf = reifyFeld fopts N32 p
         (ssf,ut) = frontend (frontendCtrl opts) fopts astf

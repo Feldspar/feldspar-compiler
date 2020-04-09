@@ -53,7 +53,7 @@ module Feldspar.Compiler.Compiler (
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
 
-import Feldspar.Core.Constructs (SyntacticFeld)
+import Feldspar.Core.Frontend (Syntactic)
 import Feldspar.Core.Interpretation (defaultFeldOpts, FeldOpts(..), Target(..))
 import Feldspar.Core.UntypedRepresentation (UntypedFeld, VarId)
 import Feldspar.Compiler.Backend.C.Library
@@ -113,7 +113,7 @@ compileSplitModule opts (hmdl, cmdl)
 -- | Compiler core.
 -- Everything should call this function and only do a trivial interface adaptation.
 -- Do not duplicate.
-compileToCCore :: SyntacticFeld c => String -> Options -> c -> SplitModule
+compileToCCore :: Syntactic c => String -> Options -> c -> SplitModule
 compileToCCore name opts prg = compileToCCore' opts mod
       where
         mod = fromCore opts (encodeFunctionName name) prg

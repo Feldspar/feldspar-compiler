@@ -309,7 +309,7 @@ writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
 writeGoldFile fun n = compile fun (goldDir <> n) n
 
 -- | Make a golden test for a Feldspar expression
-mkGoldTest :: SyntacticFeld a => a -> Prelude.FilePath -> Options -> TestTree
+mkGoldTest :: Syntactic a => a -> Prelude.FilePath -> Options -> TestTree
 mkGoldTest fun n opts = do
     let ref = goldDir <> n
         new = testDir <> n
@@ -350,7 +350,7 @@ filterEp :: LB.ByteString -> LB.ByteString
 filterEp xs = LB.replace (B.pack "TESTS_EP-") (B.pack "TESTS_") xs'
   where xs' = LB.replace (B.pack "#include \"ep-") (B.pack "#include \"") xs
 
-mkBuildTest :: SyntacticFeld a => a -> Prelude.FilePath -> Options -> TestTree
+mkBuildTest :: Syntactic a => a -> Prelude.FilePath -> Options -> TestTree
 mkBuildTest fun n opts = do
     let new = testDir <> n <> "_build_test"
         cfile = new <> ".c"
