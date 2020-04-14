@@ -10,7 +10,7 @@ struct awl_unsignedS32 * initArray_awl_unsignedS32(struct awl_unsignedS32 * dst,
       dst = resizeArray(dst, sizeof(struct awl_unsignedS32), newLen);
       for (int32_t i = oldLen; i < newLen; i += 1)
       {
-        struct awl_unsignedS32 null_arr_0 = { .buffer = NULL, .length = 0 };
+        struct awl_unsignedS32 null_arr_0 = { 0 };
         
         dst[i] = null_arr_0;
       }
@@ -40,11 +40,11 @@ void scanlPush(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * v1, struct 
 {
   uint32_t v9;
   uint32_t v2;
-  struct awl_unsignedS32 v12 = { .buffer = NULL, .length = 0 };
+  struct awl_unsignedS32 v12 = { 0 };
   uint32_t v15;
-  struct awl_unsignedS32 v23 = { .buffer = NULL, .length = 0 };
+  struct awl_unsignedS32 v23 = { 0 };
   uint32_t v24;
-  struct awl_unsignedS32 e27 = { .buffer = NULL, .length = 0 };
+  struct awl_unsignedS32 e27 = { 0 };
   
   v9 = (*v1).length;
   (*out).buffer = initArray_awl_unsignedS32((*out).buffer, (*out).length, v9);

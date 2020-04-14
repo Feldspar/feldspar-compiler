@@ -5,7 +5,7 @@ void task_core0(uint32_t v8, uint32_t v3, struct awl_signedS32 * v1, struct awl_
 {
   uint32_t v9;
   uint32_t v12;
-  struct awl_signedS32 e54 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 e54 = { 0 };
   
   v9 = (v8 << 10);
   v12 = min(1024, (v3 - v9));
@@ -27,16 +27,16 @@ void divConq3(struct awl_signedS32 * v1, struct awl_signedS32 * out)
 {
   uint32_t v3;
   uint32_t v4;
-  struct awl_i_awl_signedS32 v24 = { .buffer = NULL, .length = 0 };
-  struct awl_signedS32 v49 = { .buffer = NULL, .length = 0 };
+  struct awl_i_awl_signedS32 v24 = { 0 };
+  struct awl_signedS32 v49 = { 0 };
   uint32_t len55;
-  struct awl_signedS32 v28 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 v28 = { 0 };
   uint32_t v34;
-  struct awl_signedS32 v31 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 v31 = { 0 };
   struct ivar e56;
   uint32_t v32;
   uint32_t len57;
-  struct awl_signedS32 e58 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 e58 = { 0 };
   uint32_t v50;
   
   taskpool_init(4, 4, 4);

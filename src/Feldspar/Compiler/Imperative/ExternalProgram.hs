@@ -435,6 +435,9 @@ initializerToExp :: TPEnv -> R.Type -> Initializer -> Maybe (Expression ())
 initializerToExp env _ (ExpInitializer e _)
   = Just $ expToExpression env e
 initializerToExp env t@(StructType _ ts) (CompoundInitializer es _)
+  | isCompoundZero es
+  = Nothing
+  | otherwise
   = Just (ConstExpr (StructConst (zipWith (structInit env) ts es) t))
 initializerToExp _ t e = error $ "initializerToExp: Unexpected argument: " ++ show e ++ " of type " ++ show e
 
@@ -446,6 +449,10 @@ structInit env (_, t) (d, e)
   | otherwise
   = error $ "structInit: Unexpected pattern : " ++ show (d, e)
    where e' = initializerToExp env t e
+
+isCompoundZero :: [(Maybe Designation, Initializer)] -> Bool
+isCompoundZero [(_, ExpInitializer (Const (IntConst _ _ 0 _) _) _)] = True
+isCompoundZero _ = False
 
 unOpToExp :: Expression () -> UnOp -> Expression ()
 unOpToExp e AddrOf = R.AddrOf e

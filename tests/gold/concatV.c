@@ -3,14 +3,14 @@
 
 void concatV(struct awl_awl_signedS32 * v1, struct awl_signedS32 * out)
 {
-  struct awl_signedS32 v26 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 v26 = { 0 };
   uint32_t len31;
-  struct awl_signedS32 v6 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 v6 = { 0 };
   uint32_t v11;
-  struct awl_signedS32 v8 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 v8 = { 0 };
   uint32_t v9;
   uint32_t len32;
-  struct awl_signedS32 e33 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 e33 = { 0 };
   uint32_t v27;
   
   len31 = (*v1).length;

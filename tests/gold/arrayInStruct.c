@@ -3,10 +3,10 @@
 
 void arrayInStruct(struct awl_unsignedS32 * v0, struct awl_unsignedS32 * out)
 {
-  struct s_2_unsignedS32_awl_unsignedS32 e11 = { .member1 = 0, .member2 = { .buffer = NULL, .length = 0 } };
-  struct s_2_unsignedS32_awl_unsignedS32 v6 = { .member1 = 0, .member2 = { .buffer = NULL, .length = 0 } };
+  struct s_2_unsignedS32_awl_unsignedS32 e11 = { 0 };
+  struct s_2_unsignedS32_awl_unsignedS32 v6 = { 0 };
   uint32_t len12;
-  struct awl_unsignedS32 e13 = { .buffer = NULL, .length = 0 };
+  struct awl_unsignedS32 e13 = { 0 };
   bool v3;
   
   (e11).member1 = (*v0).length;

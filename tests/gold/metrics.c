@@ -10,7 +10,7 @@ struct awl_signedS32 * initArray_awl_signedS32(struct awl_signedS32 * dst, uint3
       dst = resizeArray(dst, sizeof(struct awl_signedS32), newLen);
       for (int32_t i = oldLen; i < newLen; i += 1)
       {
-        struct awl_signedS32 null_arr_0 = { .buffer = NULL, .length = 0 };
+        struct awl_signedS32 null_arr_0 = { 0 };
         
         dst[i] = null_arr_0;
       }
@@ -40,14 +40,14 @@ void metrics(struct awl_signedS32 * v1, struct awl_signedS32 * v2, struct awl_aw
 {
   uint32_t v10;
   uint32_t v34;
-  struct awl_unsignedS32 e44 = { .buffer = NULL, .length = 0 };
+  struct awl_unsignedS32 e44 = { 0 };
   uint32_t v9;
-  struct awl_awl_signedS32 v33 = { .buffer = NULL, .length = 0 };
-  struct awl_s_2_unsignedS32_unsignedS32 v16 = { .buffer = NULL, .length = 0 };
+  struct awl_awl_signedS32 v33 = { 0 };
+  struct awl_s_2_unsignedS32_unsignedS32 v16 = { 0 };
   uint32_t v19;
-  struct awl_signedS32 st45 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 st45 = { 0 };
   struct awl_signedS32 * v14 = NULL;
-  struct awl_signedS32 v39 = { .buffer = NULL, .length = 0 };
+  struct awl_signedS32 v39 = { 0 };
   uint32_t v40;
   
   v10 = (*v3).length;

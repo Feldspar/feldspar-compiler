@@ -3,8 +3,8 @@
 
 void complexWhileCond(int32_t v0, struct s_2_signedS32_signedS32 * out)
 {
-  struct s_2_signedS32_signedS32 e10 = { .member1 = 0, .member2 = 0 };
-  struct s_2_signedS32_signedS32 v9 = { .member1 = 0, .member2 = 0 };
+  struct s_2_signedS32_signedS32 e10 = { 0 };
+  struct s_2_signedS32_signedS32 v9 = { 0 };
   int32_t v3;
   int32_t v6;
   bool v2;

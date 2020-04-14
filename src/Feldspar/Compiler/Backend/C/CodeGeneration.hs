@@ -112,7 +112,7 @@ instance CodeGen (Declaration ())
      | otherwise = var <+> nest (nestSize $ options env) init <> semi
       where
         var  = pvar env declVar
-        init = initialize False (varType declVar)
+        init = initialize (varType declVar)
         specialInit t i
           | ConstExpr (StructConst es (StructType _ ts)) <- i
           = printStruct env es ts
@@ -285,23 +285,14 @@ call fn args = fn <> parens (hsep $ punctuate comma args)
 --
 -- First parameter is whether the initialization context is somewhere
 -- inside a compound type.
-initialize :: Bool -> Type -> Doc
+initialize :: Type -> Doc
 -- Compound/Special types.
-initialize _     (1 :# Pointer{})  = equals <+> text "NULL"
-initialize _     ArrayType{}       = equals <+> text "NULL"
-initialize _     (NativeArray _ t) = equals <+> lbrace <+> initialize False t <+> rbrace
-initialize _     (StructType _ fs) = equals <+> lbrace <+> inits <+> rbrace
-  where inits = hsep $ punctuate comma $ map initField fs
-        initField (n, t) = char '.' <> text n <+> initialize True t
+initialize (1 :# Pointer{})  = equals <+> text "NULL"
+initialize ArrayType{}       = equals <+> text "NULL"
+initialize (NativeArray _ t) = equals <+> lbrace <+> text "0" <+> rbrace
+initialize (StructType _ fs) = equals <+> lbrace <+> text "0" <+> rbrace
 -- Simple types.
-initialize False _                 = empty
--- Simple types inside compound types.
-initialize _     (1 :# BoolType{})        = equals <+> text "false"
-initialize _     (1 :# BitType{})         = equals <+> text "0"
-initialize _     (1 :# NumType{})         = equals <+> text "0"
-initialize _     (1 :# FloatType{})       = equals <+> text "0.0f"
-initialize _     (1 :# DoubleType{})      = equals <+> text "0.0"
-initialize b     (1 :# (ComplexType t))   = initialize b t
+initialize _                 = empty
 
 blockComment :: [Doc] -> Doc
 blockComment ds = vcat (zipWith (<+>) (text "/*" : repeat (text " *")) ds)
