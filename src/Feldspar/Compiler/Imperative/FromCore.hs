@@ -680,12 +680,9 @@ compileExpr (In (App (Ut.SourceInfo info) _ [a])) = do
     tellProg [Comment True info]
     compileExpr a
 -- Tuple
-compileExpr (In (App p _ [tup]))
-  | p `elem` [ Ut.Sel1, Ut.Sel2, Ut.Sel3, Ut.Sel4, Ut.Sel5, Ut.Sel6, Ut.Sel7
-             , Ut.Sel8, Ut.Sel9, Ut.Sel10, Ut.Sel11, Ut.Sel12, Ut.Sel13
-             , Ut.Sel14, Ut.Sel15] = do
+compileExpr (In (App (Ut.Sel n) _ [tup])) = do
     tupExpr <- compileExpr tup
-    return $ StructField tupExpr ("member" ++ drop 3 (show p))
+    return $ StructField tupExpr ("member" ++ show (n + 1))
 compileExpr e@(In (App p _ _))
  | p `elem` [ Ut.Parallel, Ut.SetLength, Ut.Sequential, Ut.Condition, Ut.ConditionM
             , Ut.MkFuture, Ut.Await, Ut.Bind, Ut.Then, Ut.Return, Ut.While, Ut.For, Ut.SetArr, Ut.EMaterialize
