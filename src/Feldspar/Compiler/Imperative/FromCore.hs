@@ -70,7 +70,7 @@ import Control.Monad.State
 import Control.Applicative
 
 import Feldspar.Range (upperBound, fullRange)
-import Feldspar.Core.Frontend (reifyFeldM, reifyFeld, Syntactic)
+import Feldspar.Core.Frontend (reifyFeld, Syntactic)
 import Feldspar.Core.Types (BitWidth (..))
 import Feldspar.Core.UntypedRepresentation
          ( VarId(..), UntypedFeld, Term(..), Lit(..)
@@ -175,15 +175,14 @@ fromCoreExp :: (MonadState VarId m)
             -> a
             -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
 fromCoreExp opt aliases prog = do
-    s <- get
-    let (ast, s') = flip runState s $ reifyFeldM (frontendOpts opt) N32 prog
-        uast = untype (frontendOpts opt) ast
+    let uast = untype (frontendOpts opt) $ reifyFeld (frontendOpts opt) N32 prog
         mkAlias (Ut.Var i t _) = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Variable (compileType opt t) n)
         as = mapMaybe mkAlias $ Ut.fv uast
-    let (exp,s'',results) = runRWS (compileExpr uast) (CodeEnv as False opt) s'
-    put s''
+    s <- get
+    let (exp, s', results) = runRWS (compileExpr uast) (CodeEnv as False opt) s
+    put s'
     unless (null (params results)) $ error "fromCoreExp: unexpected params"
     let x = getPlatformRenames opt
         Block ls p = block results
