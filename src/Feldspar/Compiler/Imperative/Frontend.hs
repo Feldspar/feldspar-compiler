@@ -411,6 +411,11 @@ for p n s e i b = ParLoop p n s e i b
 while :: Block () -> Expression () -> Block () -> Program ()
 while p e = SeqLoop e p
 
+-- | Wrap a list of statements in Sequence unless there is only one statement in the list
+mkSequence :: [Program ()] -> Program ()
+mkSequence [p] = p
+mkSequence ps  = Sequence ps
+
 {-
 Encoded format is:
 

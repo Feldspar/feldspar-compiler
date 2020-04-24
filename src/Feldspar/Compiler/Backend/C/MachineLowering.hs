@@ -50,14 +50,6 @@ renameProg :: Options -> M.Map String [(Which, Destination)] -> Program ()
            -> Program ()
 renameProg _    _ e@Empty              = e
 renameProg _    _ c@Comment{}          = c
-renameProg opts m (Assign lhs (FunctionCall Function{funName = "copy"} es))
-  | "tic64x" /= name (platform opts)
-  = case lowerCopy opts (typeof lhs) (renameExp m lhs) (map (renameExp m) es) of
-       []  -> Empty
-       [p] -> p
-       ps  -> Sequence ps
-  | otherwise
-  = renameProg opts m (ProcedureCall "copy" $ map ValueParameter $ es)
 renameProg _    m (Assign lhs rhs)     = Assign (renameExp m lhs) (renameExp m rhs)
 renameProg _    m (ProcedureCall n ps) = ProcedureCall n (map (renameParam m) ps)
 renameProg opts m (Sequence ps)        = Sequence $ map (renameProg opts m) ps

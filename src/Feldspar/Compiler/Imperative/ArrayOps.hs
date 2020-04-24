@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 --
 -- Copyright (c) 2020, ERICSSON AB
 -- All rights reserved.
@@ -31,17 +33,20 @@ module Feldspar.Compiler.Imperative.ArrayOps (arrayOps) where
 
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
-        (litI32, deepCopy, fun, call, for, toBlock, mkIf, isShallow, variant, arrayFun, freeArrayE)
+        (litI32, deepCopy, fun, call, for, toBlock, mkIf, isShallow, variant, arrayFun, freeArrayE,
+         lowerCopy, mkSequence)
 import Feldspar.Range (fullRange)
 import Feldspar.Core.Types(Length)
 import Feldspar.Compiler.Backend.C.Options(Options)
 
 import Data.List (nub, isPrefixOf, concatMap)
+import Control.Monad.Writer(Writer(..), runWriter, tell, censor)
 
 -- | Main interface for adding needed array operations to a module.
 arrayOps :: Options -> Module () -> Module ()
-arrayOps opts (Module ents) = Module $ concatMap mkArrayOps dts ++ ents
-  where dts = filter (not . either isShallow isShallow) (findCopyTypes ents)
+arrayOps opts (Module ents) = Module $ concatMap mkArrayOps dts ++ ents'
+  where dts = filter (not . either isShallow isShallow) lrts
+        (ents',lrts) = lower opts ents
         mkArrayOps (Left  t) = [mkInitArray opts t, mkFreeArray opts t]
         mkArrayOps (Right t) = [mkCopyArrayPos opts t, mkCopyArray opts t, mkInitCopyArray opts t]
 
@@ -162,29 +167,49 @@ arrays e (NativeArray _ t) = [(e,t)]
 arrays e (StructType _ fs) = concat [arrays (StructField e f) t | (f,t) <- fs]
 arrays _ _                 = []
 
--- | Find types that need array management functions
-findCopyTypes :: [Entity ()] -> [Either Type Type]
-findCopyTypes es = nub $ concatMap ctEnt es
-  where ctEnt Proc{procBody = Just b} = ctBlock b
-        ctEnt _                  = []
+-- | Lower copy function and collect array op variants
+lower :: Options -> [Entity ()] -> ([Entity ()], [Either Type Type])
+lower opts es = runWriter $ censor nub $ mapM lcEnt es
+  where lcEnt p@Proc{procBody = Just b} = do b' <- lcBlock b
+                                             return p{procBody = Just b'}
+        lcEnt e                         = return e
 
-        ctBlock b = ctProg $ blockBody b
+        lcBlock block = do body <- lcProg $ blockBody block
+                           return block{blockBody = body}
 
-        ctProg (Assign l e@(FunctionCall (Function "copy" _) _)) = let ts = eTypesL e $ typeof l in map Right ts ++ map Left ts
-        ctProg (Assign l e@(FunctionCall (Function name _) _)) | "initArray" `isPrefixOf` name = map Left $ eTypes e $ typeof l
-        ctProg (Assign _ _) = []
-        ctProg (Sequence ps) = concatMap ctProg ps
-        ctProg (Switch _ alts) = concatMap (ctBlock . snd) alts
-        ctProg (SeqLoop _ calc body) = ctBlock calc ++ ctBlock body
-        ctProg (ParLoop _ _ _ _ _ body) = ctBlock body
-        ctProg (ProcedureCall f args)
+        lcProg (Assign lhs e@(FunctionCall (Function "copy" _) es))
+          = do let t = typeof lhs
+                   ts = eTypesL e t
+               tell $ map Right ts ++ map Left ts
+               return $ mkSequence $ lowerCopy opts t lhs es
+        lcProg (Assign lhs e@(FunctionCall (Function name _) _))
+          | "initArray" `isPrefixOf` name
+          = do tell $ map Left $ eTypes e $ typeof lhs
+               return $ Assign lhs e
+        lcProg (Sequence ps) = do ps' <- mapM lcProg ps
+                                  return $ Sequence ps'
+        lcProg (Switch e alts) = do alts' <- mapM lcAlt alts
+                                    return $ Switch e alts'
+        lcProg (SeqLoop e c b) = do c' <- lcBlock c
+                                    b' <- lcBlock b
+                                    return $ SeqLoop e c' b'
+        lcProg (ParLoop p n s e i b) = do b' <- lcBlock b
+                                          return $ ParLoop p n s e i b'
+        lcProg (ProcedureCall f args)
                | "ivar_get_array" `isPrefixOf` f
                , [ValueParameter e, _, _] <- args
-               = let ts = eTypesL e $ typeof $ Deref e in map Left ts ++ map Right ts
+               = do let ts = eTypesL e $ typeof $ Deref e
+                    tell $ map Left ts ++ map Right ts
+                    return $ ProcedureCall f args
                | "ivar_put_array" `isPrefixOf` f
                , [_, ValueParameter e, _] <- args
-               = let ts = eTypesL e $ typeof $ Deref e in map Left ts ++ map Right ts
-        ctProg _ = []
+               = do let ts = eTypesL e $ typeof $ Deref e
+                    tell $ map Left ts ++ map Right ts
+                    return $ ProcedureCall f args
+        lcProg p = return p
+
+        lcAlt (p, b) = do b' <- lcBlock b
+                          return (p, b')
 
         eTypesL _ (StructType _ [("buffer", ArrayType _ t), _]) = [t]
         eTypesL _ (NativeArray _ t) = [t]
