@@ -65,6 +65,9 @@ copyPushR v = let pv = toPush v in pv ++ pv
 complexWhileCondR :: Data Int32 -> (Data Int32, Data Int32)
 complexWhileCondR y = whileLoop (0,y) (\(a,b) -> ((\a b -> a * a < b * b) a (b-a))) (\(a,b) -> (a+1,b))
 
+deepArrayCopyTest :: Data [[[Length]]] -> (Data [[[Length]]], Data [[[Length]]])
+deepArrayCopyTest xs = (xs, xs)
+
 loadFun ['pairArg]
 loadFun ['pairRes]
 loadFun ['vecId]
@@ -77,6 +80,7 @@ loadFun ['pairParamR]
 loadFun ['pairParam2R]
 loadFun ['copyPushR]
 loadFun ['complexWhileCondR]
+loadFun ['deepArrayCopyTest]
 
 prop_pairArg = eval pairArg ==== c_pairArg
 prop_pairRes = eval pairRes ==== c_pairRes
@@ -91,6 +95,7 @@ prop_vectorInVector (Small l1) (Small l2) =
       eval vectorInVector v ==== c_vectorInVector v
 prop_vectorInPairInVector (Small l) = eval vectorInPairInVector l ==== c_vectorInPairInVector l
 prop_shTest (Positive n) = eval shTest n ==== c_shTest n
+prop_deepArrayCopyTest = eval deepArrayCopyTest ==== c_deepArrayCopyTest
 
 prop_arrayInStruct = eval arrayInStructR ==== c_arrayInStructR
 prop_pairParam = eval pairParamR ==== c_pairParamR
@@ -112,6 +117,7 @@ tests = testGroup "CallingConvention"
     , testProperty "pairParam2" prop_pairParam2
     , testProperty "copyPush" prop_copyPush
     , testProperty "complexWhileCond" prop_complexWhileCond
+    , testProperty "deepArrayCopy" prop_deepArrayCopyTest
     ]
 
 main :: IO ()

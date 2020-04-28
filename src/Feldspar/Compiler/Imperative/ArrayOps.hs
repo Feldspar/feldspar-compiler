@@ -34,7 +34,7 @@ module Feldspar.Compiler.Imperative.ArrayOps (arrayOps) where
 import Feldspar.Compiler.Imperative.Representation
 import Feldspar.Compiler.Imperative.Frontend
         (litI32, deepCopy, fun, call, for, toBlock, mkIf, isShallow, variant, arrayFun, freeArrayE,
-         lowerCopy, mkSequence)
+         lowerCopy, mkSequence, elemTyAwL, isAwLType)
 import Feldspar.Range (fullRange)
 import Feldspar.Core.Types(Length)
 import Feldspar.Compiler.Backend.C.Options(Options)
@@ -68,8 +68,8 @@ mkCopyArrayPos opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar, posVa
                  ]
         loopBody = Block lbDecls (Sequence lbProg)
         lbDecls = []
-        lbProg = unSeq $ deepCopy (ArrayElem (VarExpr dstVar) [fun intT "+" [VarExpr posVar, VarExpr ixVar]])
-                                  [ArrayElem (VarExpr srcVar) [VarExpr ixVar]]
+        lbProg = lowerCopy opts t lhs [lhs, ArrayElem (VarExpr srcVar) [VarExpr ixVar]]
+             where lhs = ArrayElem (VarExpr dstVar) [fun intT "+" [VarExpr posVar, VarExpr ixVar]]
         unSeq (Sequence ps) = ps
         unSeq p             = [p]
 
@@ -167,9 +167,18 @@ arrays e (NativeArray _ t) = [(e,t)]
 arrays e (StructType _ fs) = concat [arrays (StructField e f) t | (f,t) <- fs]
 arrays _ _                 = []
 
+-- | Add types that will also need array operations
+close :: Either Type Type -> [Either Type Type]
+close et
+  | Left  t <- et = map Left  $ t : go t
+  | Right t <- et = map Right $ t : go t
+  where go t | Just et <- elemTyAwL t = t : go et
+        go (StructType _ fs) = concatMap (go . snd) fs
+        go _                 = []
+
 -- | Lower copy function and collect array op variants
 lower :: Options -> [Entity ()] -> ([Entity ()], [Either Type Type])
-lower opts es = runWriter $ censor nub $ mapM lcEnt es
+lower opts es = runWriter $ censor (nub . concatMap close) $ mapM lcEnt es
   where lcEnt p@Proc{procBody = Just b} = do b' <- lcBlock b
                                              return p{procBody = Just b'}
         lcEnt e                         = return e

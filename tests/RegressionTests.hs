@@ -188,6 +188,9 @@ tuples a =
 
 loadFun ['tuples]
 
+deepArrayCopyTest :: Data [[[Length]]] -> (Data [[[Length]]], Data [[[Length]]])
+deepArrayCopyTest xs = (xs, xs)
+
 tests :: TestTree
 tests = testGroup "RegressionTests" [compilerTests, externalProgramTests]
 
@@ -239,6 +242,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest noinline1 "noinline1" defaultOptions
     , mkGoldTestUT foreignEffect "foreignEffect" defaultOptions
     , mkGoldTest tuples "tuples" defaultOptions
+    , mkGoldTest deepArrayCopyTest "deepArrayCopy" defaultOptions
    -- Build tests.
     , mkBuildTest pairParam "pairParam" defaultOptions
     , mkBuildTest pairParam "pairParam_ret" nativeRetOpts
@@ -264,6 +268,7 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkBuildTest issue128_ex3 "issue128_ex3" defaultOptions
     , mkBuildTest noinline1 "noinline1" defaultOptions
     , mkBuildTest tuples "tuples" defaultOptions
+    , mkBuildTest deepArrayCopyTest "deepArrayCopy" defaultOptions
     ]
 
 externalProgramTests :: TestTree
