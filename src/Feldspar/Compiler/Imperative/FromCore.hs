@@ -123,19 +123,19 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
     (outParam,maxVar',results) = runRWS (compileProgTop uast) (initEnv opt) maxVar
 
     decls      = decl results
-    ins        = params results
+    formals    = params results ++ outs
     post       = epilogue results ++ returns
     Block ds p = block results
     outDecl    = Declaration outParam Nothing
-    paramTypes = getTypeDefs $ outDecl:map (`Declaration` Nothing) ins
+    paramTypes = getTypeDefs $ map (`Declaration` Nothing) formals
     defs       = nub (def results ++ paramTypes) ++ topProc
 
-    (outs, ds', returns)
-     | fastRet   = ( Right outParam,  outDecl:ds ++ decls
+    (rtype, outs, ds', returns)
+     | fastRet   = ( typeof outParam, [],  outDecl:ds ++ decls
                    , [call "return" [ValueParameter $ varToExpr outParam]])
-     | otherwise = ( Left [outParam],         ds ++ decls, [])
+     | otherwise = ( VoidType, [outParam],         ds ++ decls, [])
 
-    topProc    = [Proc funname False ins outs $ Just (Block ds' (Sequence mainProg))]
+    topProc    = [Proc funname False formals rtype $ Just (Block ds' (Sequence mainProg))]
 
     mainProg
      | Just _ <- find isTask $ def results
@@ -768,14 +768,14 @@ compileFunction loc (coreName, kind, e) | (bs, e') <- collectBinders e = do
            , Ut.ElementsType{} <- typeof e' -> compileProg (Just loc) e'
            | (ix:_) <- es' -> compileProg (Just $ mkArrayElem loc [ix]) e'
       None -> compileProg (Just loc) e'
-  tellDef [Proc coreName (kind == Loop) args (Left []) $ Just $ Block (decls ++ ds) bl]
+  tellDef [Proc coreName (kind == Loop) args VoidType $ Just $ Block (decls ++ ds) bl]
   -- Task:
   let taskName = "task" ++ drop 9 coreName
       runTask  = Just $ toBlock $ run coreName args
-      outs     = [mkNamedRef "params" VoidType (-1)]
+      formals  = [mkNamedRef "params" VoidType (-1)]
   case kind of
    _ | kind `elem` [None, Loop] -> return ()
-   _    -> tellDef [Proc taskName False [] (Left outs) runTask]
+   _    -> tellDef [Proc taskName False formals VoidType runTask]
 
 -- | Check if an expression is a variable or a literal
 isVariableOrLiteral :: Ut.UntypedFeld -> Bool

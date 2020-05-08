@@ -52,7 +52,7 @@ arrayOps opts (Module ents) = Module $ concatMap mkArrayOps dts ++ ents'
 
 -- | Copying an array to a given position in the destination
 mkCopyArrayPos :: Options -> Type -> Entity ()
-mkCopyArrayPos opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar, posVar] (Right dstVar) (Just body)
+mkCopyArrayPos opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar, posVar] (typeof dstVar) (Just body)
   where name = variant "copyArrayPos" t
         body = Block decls prog
         decls = []
@@ -75,7 +75,7 @@ mkCopyArrayPos opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar, posVa
 
 -- | Copying an array to the beginning of another array
 mkCopyArray :: Options -> Type -> Entity ()
-mkCopyArray opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar] (Right dstVar) (Just body)
+mkCopyArray opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar] (typeof dstVar) (Just body)
   where name = variant "copyArray" t
         srcVar = Variable (ArrayType fullRange t) "src"
         srcLVar = Variable intT "srcLen"
@@ -93,7 +93,7 @@ mkCopyArray opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar] (Right d
 
 -- | Initializing and copying in a single operation
 mkInitCopyArray :: Options -> Type -> Entity ()
-mkInitCopyArray opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar] (Right dstVar) (Just body)
+mkInitCopyArray opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar] (typeof dstVar) (Just body)
   where name = variant "initCopyArray" t
         srcVar = Variable (ArrayType fullRange t) "src"
         srcLVar = Variable intT "srcLen"
@@ -113,7 +113,7 @@ mkInitCopyArray opts t = Proc name False [dstVar, dstLVar, srcVar, srcLVar] (Rig
 
 -- | Initialize an array to a given length
 mkInitArray :: Options -> Type -> Entity ()
-mkInitArray opts t = Proc name False [dstVar, oldLen, newLen] (Right dstVar) (Just body)
+mkInitArray opts t = Proc name False [dstVar, oldLen, newLen] (typeof dstVar) (Just body)
   where name = variant "initArray" t
         dstVar = Variable (ArrayType fullRange t) "dst"
         oldLen = Variable lengthT "oldLen"
@@ -142,7 +142,7 @@ mkInitArray opts t = Proc name False [dstVar, oldLen, newLen] (Right dstVar) (Ju
 
 -- | Free an array
 mkFreeArray :: Options -> Type -> Entity ()
-mkFreeArray opts t = Proc name False [srcVar, srcLVar] (Left []) (Just body)
+mkFreeArray opts t = Proc name False [srcVar, srcLVar] VoidType (Just body)
   where name = variant "freeArray" t
         srcVar = Variable (ArrayType fullRange t) "src"
         srcLVar = Variable intT "srcLen"

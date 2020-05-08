@@ -75,14 +75,12 @@ instance CodeGen (Entity ())
       | otherwise = start <> semi
         where
          start
-           | loopBody  = text ("LOOP_BODY_" ++ show (length inParams + length outs - 1))
+           | loopBody  = text ("LOOP_BODY_" ++ show (length inParams - 1))
                           <> parens (sep $ punctuate comma loopH)
-           | otherwise = rtype <+> text procName <> parens (pvars env $ inParams ++ outs)
-         (outs, rtype)
-           | Left params <- outParams = (params, text "void")
-           | Right param <- outParams = ([], cgen env (typeof param))
+           | otherwise = rtype <+> text procName <> parens (pvars env inParams)
+         rtype = cgen env procType
          loopH = [text procName, text "LARGE_BODY"] ++
-                  concatMap (\v ->  [cgen env (typeof v), cgen env v]) (inParams ++ outs)
+                  concatMap (\v ->  [cgen env (typeof v), cgen env v]) inParams
     cgen env ValueDef{..}
       | isNativeArray $ typeof valVar
       = cgen env (typeof valVar) <+> cgen env valVar <> brackets empty   <+> equals <+> cgen env valValue <> semi
