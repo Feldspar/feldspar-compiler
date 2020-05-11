@@ -27,6 +27,7 @@ import Feldspar.Compiler.ExternalProgram (compileFile)
 import Feldspar.Compiler.Compiler (compileToCCore')
 import Feldspar.Compiler.Frontend.Interactive.Interface (writeFiles)
 import Feldspar.Compiler.Backend.C.Options (Platform(..))
+import Feldspar.Compiler.Backend.C.Platforms (c99OpenMp)
 
 import Control.Applicative hiding (empty)
 import Control.Monad
@@ -231,6 +232,8 @@ compilerTests = testGroup "Compiler-RegressionTests"
     , mkGoldTest ivartest "ivartest" defaultOptions
     , mkGoldTest ivartest2 "ivartest2" defaultOptions
     , mkGoldTest arrayInStruct "arrayInStruct" defaultOptions
+    , mkGoldTest arrayInStruct "arrayInStruct_wool" woolOpts
+    , mkGoldTest arrayInStruct "arrayInStruct_openMP" openMPOpts
     , mkGoldTest arrayInStructInStruct "arrayInStructInStruct" defaultOptions
     , mkGoldTest fut1 "fut1" defaultOptions
     , mkGoldTest fut1 "fut1_ret" nativeRetOpts
@@ -309,6 +312,10 @@ nativeOpts :: Options
 nativeOpts = defaultOptions{useNativeArrays=True}
 nativeRetOpts :: Options
 nativeRetOpts = defaultOptions{useNativeReturns=True}
+woolOpts :: Options
+woolOpts = sicsOptions3
+openMPOpts :: Options
+openMPOpts = c99OpenMpPlatformOptions
 
 writeGoldFile :: Syntax a => a -> Prelude.FilePath -> Options -> IO ()
 writeGoldFile fun n = compile fun (goldDir <> n) n
