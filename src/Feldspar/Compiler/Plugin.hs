@@ -236,16 +236,6 @@ instance Lift Options where
 instance Lift Platform where
     lift (Platform n t vs is vf be) = [| Platform n t vs is vf be |]
 
-instance Lift FeldOpts where
-    lift (FeldOpts ts) = [| FeldOpts ts |]
-
-instance Lift Target where
-    lift RegionInf = [| RegionInf |]
-    lift Wool      = [| Wool |]
-    lift CSE       = [| CSE |]
-    lift SICS      = [| SICS |]
-    lift BA        = [| BA |]
-
 instance Lift ScalarType where
     lift BoolType        = [| BoolType |]
     lift BitType         = [| BitType |]
@@ -261,17 +251,6 @@ instance Lift Type where
     lift (NativeArray l t)    = [| NativeArray l t |]
     lift (StructType s es)    = [| StructType s es |]
     lift (IVarType t)         = [| IVarType t |]
-
-instance Lift Signedness where
-    lift Signed   = [| Signed |]
-    lift Unsigned = [| Unsigned |]
-
-instance Lift Size where
-    lift S8  = [| S8 |]
-    lift S16 = [| S16 |]
-    lift S32 = [| S32 |]
-    lift S40 = [| S40 |]
-    lift S64 = [| S64 |]
 
 instance Lift a => Lift (Range a) where
     lift (Range l u) = [| Range l u |]

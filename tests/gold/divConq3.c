@@ -3,17 +3,17 @@
 
 void task_core0(uint32_t v8, uint32_t v3, struct awl_signedS32 * v1, struct awl_i_awl_signedS32 v24)
 {
-  uint32_t v9;
+  uint32_t v10;
   uint32_t v12;
   struct awl_signedS32 e54 = { 0 };
   
-  v9 = (v8 << 10);
-  v12 = min(1024, (v3 - v9));
+  v10 = (v8 << 10);
+  v12 = min(1024, (v3 - v10));
   (e54).buffer = initArray((e54).buffer, (e54).length, sizeof(int32_t), v12);
   (e54).length = v12;
   for (uint32_t v15 = 0; v15 < v12; v15 += 1)
   {
-    (e54).buffer[v15] = ((*v1).buffer[(v15 + v9)] + 1);
+    (e54).buffer[v15] = ((*v1).buffer[(v15 + v10)] + 1);
   }
   ivar_put_array_shallow((v24).buffer[v8], &e54, sizeof(int32_t));
 }
@@ -26,7 +26,7 @@ void task0(void * params)
 void divConq3(struct awl_signedS32 * v1, struct awl_signedS32 * out)
 {
   uint32_t v3;
-  uint32_t v4;
+  uint32_t v5;
   struct awl_i_awl_signedS32 v24 = { 0 };
   struct awl_signedS32 v49 = { 0 };
   uint32_t len55;
@@ -41,10 +41,10 @@ void divConq3(struct awl_signedS32 * v1, struct awl_signedS32 * out)
   
   taskpool_init(4, 4, 4);
   v3 = (*v1).length;
-  v4 = (v3 >> 10);
-  (v24).buffer = initArray((v24).buffer, (v24).length, sizeof(struct ivar), v4);
-  (v24).length = v4;
-  for (uint32_t v8 = 0; v8 < v4; v8 += 1)
+  v5 = (v3 >> 10);
+  (v24).buffer = initArray((v24).buffer, (v24).length, sizeof(struct ivar), v5);
+  (v24).length = v5;
+  for (uint32_t v8 = 0; v8 < v5; v8 += 1)
   {
     ivar_init(&(v24).buffer[v8]);
     spawn4(task0, uint32_t, v8, uint32_t, v3, struct awl_signedS32 *, v1, struct awl_i_awl_signedS32, v24);
