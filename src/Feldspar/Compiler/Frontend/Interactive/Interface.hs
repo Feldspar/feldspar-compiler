@@ -35,7 +35,6 @@ module Feldspar.Compiler.Frontend.Interactive.Interface where
 
 import Feldspar.Core.Frontend (Syntactic, reifyFeld)
 import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
-import Feldspar.Core.Types (BitWidth(N32))
 import Feldspar.Core.Middleend.PassManager
 import Feldspar.Core.Middleend.FromTyped (FrontendPass, frontend)
 import Feldspar.Compiler.Compiler
@@ -228,8 +227,7 @@ writeFileLB name str = do fh <- openFile name WriteMode
 
 translate :: Syntactic a => ProgOpts -> a -> ([String], Maybe SplitModule)
 translate opts p = (ssf ++ ssb, as)
-  where astf = reifyFeld fopts N32 p
-        (ssf,ut) = frontend (frontendCtrl opts) fopts astf
+  where (ssf,ut) = frontend (frontendCtrl opts) fopts $ reifyFeld p
         (ssb,as) = maybe ([], Nothing) (backend (backendCtrl opts) bopts name) ut
         bopts = backOpts opts
         fopts = frontendOpts bopts

@@ -71,7 +71,6 @@ import Control.Applicative
 
 import Feldspar.Range (upperBound, fullRange)
 import Feldspar.Core.Frontend (reifyFeld, Syntactic)
-import Feldspar.Core.Types (BitWidth (..))
 import Feldspar.Core.UntypedRepresentation
          ( VarId(..), UntypedFeld, Term(..), Lit(..)
          {- , collectLetBinders, collectBinders -}
@@ -157,7 +156,7 @@ fromCore opt funname prog
     = fst
     $ fromCoreUT opt funname
     $ untype (frontendOpts opt)
-    $ reifyFeld (frontendOpts opt) N32
+    $ reifyFeld
     $ prog
 
 -- | Get the generated core for a program and an expression that contains the output. The components
@@ -175,7 +174,7 @@ fromCoreExp :: (MonadState VarId m)
             -> a
             -> m ([Entity ()], [Declaration ()], Program (), Expression (), [Program ()])
 fromCoreExp opt aliases prog = do
-    let uast = untype (frontendOpts opt) $ reifyFeld (frontendOpts opt) N32 prog
+    let uast = untype (frontendOpts opt) $ reifyFeld prog
         mkAlias (Ut.Var i t _) = do
           n <- Map.lookup i aliases
           return (i, varToExpr $ Variable (compileType opt t) n)
