@@ -2,6 +2,7 @@
 
 module Feldspar.Compiler
     ( compile
+    , compileUT
     , icompile
     , icompileWith
     , icompile'

@@ -35,6 +35,7 @@ module Feldspar.Compiler.Frontend.Interactive.Interface where
 
 import Feldspar.Core.Frontend (Syntactic, reifyFeld)
 import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
+import Feldspar.Core.UntypedRepresentation (UntypedFeld)
 import Feldspar.Core.Middleend.PassManager
 import Feldspar.Core.Middleend.FromTyped (FrontendPass, frontend)
 import Feldspar.Compiler.Compiler
@@ -59,6 +60,11 @@ import System.IO
 compile :: (Syntactic t) => t -> FilePath -> String -> Options -> IO ()
 compile prg fileName funName opts = writeFiles compRes fileName (codeGenerator $ platform opts)
   where compRes = compileToCCore funName opts prg
+
+compileUT :: UntypedFeld -> FilePath -> String -> Options -> IO ()
+compileUT prg fileName funName opts = writeFiles compRes fileName (codeGenerator $ platform opts)
+  where compRes = compileToCCore' opts prg'
+        prg'    = fst $ fromCoreUT opts (encodeFunctionName funName) prg
 
 writeFiles :: SplitModule -> FilePath -> String -> IO ()
 writeFiles prg fileName "c" = do
