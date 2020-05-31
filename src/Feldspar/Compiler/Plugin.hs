@@ -65,11 +65,11 @@ import System.IO.Unsafe (unsafePerformIO)
 -- Feldspar specific
 import Feldspar.Core.Types (WordN(..))
 import Feldspar.Range (Range(..))
-import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
-import Feldspar.Core.UntypedRepresentation (Signedness(..), Size(..))
+import Feldspar.Core.Interpretation ()
+import Feldspar.Core.UntypedRepresentation ()
 import Feldspar.Runtime
 import Feldspar.Compiler (compile, defaultOptions)
-import Feldspar.Compiler.Imperative.Representation (Type(..), ScalarType(..), Constant(..))
+import Feldspar.Compiler.Imperative.Representation (Constant)
 import Feldspar.Compiler.Backend.C.Options (Options(..), Platform(..))
 import Feldspar.Compiler.Backend.C.Library (encodeFunctionName)
 import Feldspar.Compiler.Marshal ()
@@ -228,6 +228,7 @@ foreign import ccall safe "lookupSymbol"
 
 
 --- Boring TH instances for Lifting Options -------
+-- TODO: Derive Lift for these.
 
 instance Lift Options where
     lift (Options platform ph una unr frontopts sl ns) =
@@ -235,37 +236,6 @@ instance Lift Options where
 
 instance Lift Platform where
     lift (Platform n t vs is vf be) = [| Platform n t vs is vf be |]
-
-instance Lift ScalarType where
-    lift BoolType        = [| BoolType |]
-    lift BitType         = [| BitType |]
-    lift FloatType       = [| FloatType |]
-    lift DoubleType      = [| DoubleType |]
-    lift (NumType sg sz) = [| NumType sg sz |]
-    lift (ComplexType t) = [| ComplexType t |]
-
-instance Lift Type where
-    lift VoidType             = [| VoidType |]
-    lift (l :# st)            = [| l :# st |]
-    lift (ArrayType r t)      = [| ArrayType r t |]
-    lift (NativeArray l t)    = [| NativeArray l t |]
-    lift (StructType s es)    = [| StructType s es |]
-    lift (IVarType t)         = [| IVarType t |]
-
-instance Lift a => Lift (Range a) where
-    lift (Range l u) = [| Range l u |]
-
-instance Lift WordN where
-    lift (WordN w) = [| WordN w |]
-
-instance Lift t => Lift (Constant t) where
-    lift (IntConst v t)       = [| IntConst v t |]
-    lift (DoubleConst v)      = [| DoubleConst v |]
-    lift (FloatConst v)       = [| FloatConst v |]
-    lift (BoolConst v)        = [| BoolConst v |]
-    lift (ComplexConst r i)   = [| ComplexConst r i |]
-    lift (ArrayConst vs t)    = [| ArrayConst vs t |]
-    lift (StructConst vs t)   = [| StructConst vs t |]
 
 instance Lift (Constant () -> String) where
     lift x = [| error "No TH instance for ShowValue" |]

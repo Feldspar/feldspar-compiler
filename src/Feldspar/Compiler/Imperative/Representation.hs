@@ -26,10 +26,11 @@
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Abstract syntax representation for imperative programs
 module Feldspar.Compiler.Imperative.Representation (
@@ -59,6 +60,7 @@ import Data.Typeable
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import Data.Semigroup (Semigroup(..))
+import Language.Haskell.TH.Syntax (Lift(..))
 
 import Feldspar.Compiler.Error
 
@@ -250,7 +252,7 @@ data Constant t
         { memberValues              :: [(Maybe String, Constant t)]
         , structType                :: Type
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show, Lift)
 
 data Variable t
     = Variable
@@ -284,7 +286,7 @@ data ScalarType =
     | NumType Signedness Size
     | ComplexType Type
     | Pointer Type -- Used for scatter/gather.
-    deriving (Eq,Show)
+    deriving (Eq, Show, Lift)
 
 data Type =
       VoidType
@@ -293,7 +295,14 @@ data Type =
     | NativeArray (Maybe Length) Type
     | StructType String [(String, Type)]
     | IVarType Type
-    deriving (Show)
+    deriving (Show, Lift)
+
+-- TODO: Derive Lift for Range and WordN in feldspar-language.
+instance Lift a => Lift (Range a) where
+    lift (Range l u) = [| Range l u |]
+
+instance Lift WordN where
+    lift (WordN w) = [| WordN w |]
 
 -- | Type equality is just structural equality, except for arrays
 -- where size info is ignored and struct types where the tag is ignored.
