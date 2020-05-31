@@ -48,14 +48,18 @@ module Feldspar.Compiler.Compiler (
   , CompiledModule(..)
   , BackendPass(..)
   , backend
+  , fromCore
+  , ProgOpts(..)
+  , defaultProgOpts
   ) where
 
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
 
-import Feldspar.Core.Frontend (Syntactic)
+import Feldspar.Core.Frontend (Syntactic, reifyFeld)
 import Feldspar.Core.Interpretation (defaultFeldOpts, FeldOpts(..), Target(..))
 import Feldspar.Core.UntypedRepresentation (UntypedFeld, VarId)
+import Feldspar.Core.Middleend.FromTyped (FrontendPass, frontend)
 import Feldspar.Compiler.Backend.C.Library
 import Feldspar.Compiler.Backend.C.Options
 import Feldspar.Compiler.Backend.C.Platforms
@@ -201,3 +205,37 @@ codegen "c"   ctrl opts  = passT ctrl BPCompile  (compileSplitModule opts)
                          . passT ctrl BPSplit    splitModule
                          . passC ctrl BPAdapt    (adaptTic64x opts)
 codegen gen   _    _     = error $ "Compiler.codegen: unknown code generator " ++ gen
+
+-- | Get the generated core for an expression.
+fromCore :: Syntactic a
+    => Options
+    -> String   -- ^ Name of the generated function
+    -> a        -- ^ Expression to generate code for
+    -> Module ()
+fromCore opt funname prog
+  | Just prg <- snd $ frontend ctrl (frontendOpts opt) $ reifyFeld prog
+  = fst $ fromCoreUT opt funname prg
+   where ctrl = frontendCtrl defaultProgOpts
+
+data ProgOpts =
+    ProgOpts
+    { backOpts     :: Options
+    , passFileName :: String
+    , outFileName  :: String
+    , functionName :: String
+    , frontendCtrl :: PassCtrl FrontendPass
+    , backendCtrl  :: PassCtrl BackendPass
+    , printHelp    :: Bool
+    }
+
+defaultProgOpts :: ProgOpts
+defaultProgOpts =
+    ProgOpts
+    { backOpts     = defaultOptions
+    , passFileName = ""
+    , outFileName  = ""
+    , functionName = ""
+    , frontendCtrl = defaultPassCtrl
+    , backendCtrl  = defaultPassCtrl
+    , printHelp    = False
+    }

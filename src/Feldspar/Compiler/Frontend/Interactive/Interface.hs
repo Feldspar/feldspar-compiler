@@ -113,29 +113,6 @@ getCore = fromCore defaultOptions "test"
 printCore :: (Syntactic t) => t -> IO ()
 printCore prog = print $ getCore prog
 
-data ProgOpts =
-    ProgOpts
-    { backOpts     :: Options
-    , passFileName :: String
-    , outFileName  :: String
-    , functionName :: String
-    , frontendCtrl :: PassCtrl FrontendPass
-    , backendCtrl  :: PassCtrl BackendPass
-    , printHelp    :: Bool
-    }
-
-defaultProgOpts :: ProgOpts
-defaultProgOpts =
-    ProgOpts
-    { backOpts     = defaultOptions
-    , passFileName = ""
-    , outFileName  = ""
-    , functionName = ""
-    , frontendCtrl = defaultPassCtrl
-    , backendCtrl  = defaultPassCtrl
-    , printHelp    = False
-    }
-
 targetsFromPlatform :: Platform -> [Target]
 targetsFromPlatform pf = tfp $ name pf
    where tfp "c99"       = []

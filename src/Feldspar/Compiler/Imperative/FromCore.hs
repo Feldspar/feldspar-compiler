@@ -54,9 +54,7 @@
 
 module Feldspar.Compiler.Imperative.FromCore (
     fromCoreUT
-  , fromCore
   , fromCoreExp
-  , compileType
   )
   where
 
@@ -145,19 +143,6 @@ fromCoreUT opt funname uast = (Module defs, maxVar')
 
     isTask (Proc{..}) = isPrefixOf "task_core" procName
     isTask _          = False
-
--- | Get the generated core for an 'UntypedFeld' expression.
-fromCore :: Syntactic a
-    => Options
-    -> String   -- ^ Name of the generated function
-    -> a        -- ^ Expression to generate code for
-    -> Module ()
-fromCore opt funname prog
-    = fst
-    $ fromCoreUT opt funname
-    $ untype (frontendOpts opt)
-    $ reifyFeld
-    $ prog
 
 -- | Get the generated core for a program and an expression that contains the output. The components
 -- of the result are as follows, in order:
