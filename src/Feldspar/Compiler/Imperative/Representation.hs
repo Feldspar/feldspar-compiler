@@ -297,13 +297,6 @@ data Type =
     | IVarType Type
     deriving (Show, Lift)
 
--- TODO: Derive Lift for Range and WordN in feldspar-language.
-instance Lift a => Lift (Range a) where
-    lift (Range l u) = [| Range l u |]
-
-instance Lift WordN where
-    lift (WordN w) = [| WordN w |]
-
 -- | Type equality is just structural equality, except for arrays
 -- where size info is ignored and struct types where the tag is ignored.
 instance Eq Type where

@@ -63,10 +63,6 @@ import System.IO.Unsafe (unsafePerformIO)
 
 
 -- Feldspar specific
-import Feldspar.Core.Types (WordN(..))
-import Feldspar.Range (Range(..))
-import Feldspar.Core.Interpretation ()
-import Feldspar.Core.UntypedRepresentation ()
 import Feldspar.Runtime
 import Feldspar.Compiler (compile, defaultOptions)
 import Feldspar.Compiler.Imperative.Representation (Constant)
