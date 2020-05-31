@@ -56,7 +56,6 @@ module Feldspar.Compiler.Imperative.Representation (
   )
   where
 
-import Data.Typeable
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import Data.Semigroup (Semigroup(..))
@@ -76,7 +75,7 @@ import Feldspar.Core.UntypedRepresentation ( Signedness(..), Size(..)
 data Module t = Module
     { entities                      :: [Entity t]
     }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Entity t
     = StructDef
@@ -99,19 +98,19 @@ data Entity t
         { valVar                    :: Variable t
         , valValue                  :: Constant t
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data StructMember t = StructMember
     { structMemberName              :: String
     , structMemberType              :: Type
     }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Block t = Block
     { locals                        :: [Declaration t]
     , blockBody                     :: Program t
     }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Program t
     = Empty
@@ -152,12 +151,12 @@ data Program t
     | BlockProgram
         { blockProgram              :: Block t
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Pattern t
    = PatDefault
    | Pat (Expression t)
-     deriving (Typeable, Show, Eq)
+     deriving (Eq, Show)
 
 data ParType
    = Sequential
@@ -176,13 +175,13 @@ data ActualParameter t
     | FunParameter
         { funParamName              :: String
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Declaration t = Declaration
     { declVar                       :: Variable t
     , initVal                       :: Maybe (Expression t)
     }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Expression t
     = VarExpr
@@ -216,14 +215,14 @@ data Expression t
     | Deref
         { ptrExpr                   :: Expression t
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Function
     = Function
         { funName                   :: String
         , returnType                :: Type
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 data Constant t
     = IntConst
@@ -259,7 +258,7 @@ data Variable t
         { varType                   :: Type
         , varName                   :: String
         }
-    deriving (Typeable, Show, Eq)
+    deriving (Eq, Show)
 
 instance Semigroup (Program t) where
   Empty         <> p              = p
