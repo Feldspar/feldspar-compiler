@@ -19,13 +19,9 @@ module Feldspar.Compiler.Plugin
   where
 
 import BasicTypes (failed)
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
 import GHCi.ObjLink (initObjLinker,loadObj,resolveObjs)
 #if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 802
 import GHCi.ObjLink (ShouldRetainCAFs(..))
-#endif
-#else
-import ObjLink (initObjLinker,loadObj,resolveObjs)
 #endif
 import GHC.Paths (ghc)
 import System.Plugins.MultiStage
@@ -195,11 +191,7 @@ compileAndLoad name opts = do
 #endif
     _ <- loadObj oname
     res <- resolveObjs
-#if defined(__GLASGOW_HASKELL__) && __GLASGOW_HASKELL__ >= 800
     when (not res) $ error $ "Symbols in " ++ oname ++ " could not be resolved"
-#else
-    when (failed res) $ error $ "Symbols in " ++ oname ++ " could not be resolved"
-#endif
 
 compileC :: String -> String -> [String] -> IO ()
 compileC srcfile objfile opts = do
