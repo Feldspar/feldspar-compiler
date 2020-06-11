@@ -85,9 +85,6 @@ library
     containers,
     process,
     directory >= 1.1,
-    th-orphans <= 0.13.6,
-    -- needed for th-orphans-0.12.2
-    nats < 1.1,
     template-haskell,
     data-default >= 0.5,
     storable-tuple  >= 0.0.2,

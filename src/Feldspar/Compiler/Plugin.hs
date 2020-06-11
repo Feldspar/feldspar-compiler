@@ -49,7 +49,6 @@ import Control.Applicative
 
 import Language.Haskell.TH hiding (Type, Range)
 import Language.Haskell.TH.Syntax (Lift(..))
-import Language.Haskell.TH.Instances ()
 
 import System.Directory (doesFileExist, removeFile, createDirectoryIfMissing)
 import System.Process (readProcessWithExitCode)
