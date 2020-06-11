@@ -13,10 +13,6 @@ module Feldspar.Compiler.Marshal
   )
   where
 
--- For compatibility with older GHC's
--- instance (Storable a, RealFloat a) => Storable (Complex a)
-import Data.Orphans ()
-
 import System.Plugins.MultiStage
 import Feldspar.Core.Types (IntN(..), WordN(..))
 
