@@ -9,7 +9,7 @@ module Feldspar.Compiler
     , programOptsArgs
     , getCore
     , printCore
-    , Options (..)
+    , Options(..)
     , defaultOptions
     , sicsOptions
     , sicsOptions2
@@ -21,6 +21,7 @@ module Feldspar.Compiler
     , tic64xPlatformOptions
     ) where
 
-import Feldspar.Compiler.Internal
+import Feldspar.Compiler.Backend.C.Options
+import Feldspar.Compiler.Compiler
+import Feldspar.Compiler.Frontend.Interactive.Interface
 import Feldspar.Core.Interpretation (FeldOpts(..), Target(..))
-
