@@ -1,6 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -14,7 +16,8 @@ module Feldspar.Compiler.Marshal
   where
 
 import System.Plugins.MultiStage
-import Feldspar.Core.Types (IntN(..), WordN(..))
+import Feldspar.Core.Types (IntN(..), WordN(..), Tuple(..), (:*), TNil)
+import Feldspar.Core.NestedTuples (npair)
 
 import Data.Int (Int32)
 import Data.Word (Word32)
@@ -202,4 +205,9 @@ instance ( Marshal a
       (,,,,,,) <$> to a <*> to b <*> to c <*> to d <*> to e <*> to f <*> to g
     from (a,b,c,d,e,f,g) =
       (,,,,,,) <$> from a <*> from b <*> from c <*> from d <*> from e <*> from f <*> from g
+
+instance (Marshal a, Marshal b) => Marshal (Tuple (a :* b :* TNil)) where
+  type Rep (Tuple (a :* b :* TNil)) = (Rep a, Rep b)
+  to (a :* b :* TNil) = (,) <$> to a <*> to b
+  from (a, b) = npair <$> from a <*> from b
 

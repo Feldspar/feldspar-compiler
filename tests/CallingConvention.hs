@@ -1,4 +1,7 @@
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -16,8 +19,18 @@ import Feldspar hiding (assert)
 import Feldspar.Vector
 import Feldspar.Compiler
 import Feldspar.Compiler.Plugin
+import Feldspar.Core.NestedTuples
 
 import Control.Applicative
+
+-- | Arbitrary instances for nested tuples
+instance Arbitrary (Tuple TNil) where
+  arbitrary = return TNil
+
+instance (Arbitrary a, Arbitrary (Tuple b)) => Arbitrary (Tuple (a :* b)) where
+  arbitrary = do a <- arbitrary
+                 b <- arbitrary
+                 return (a :* b)
 
 vector1D :: Length -> Gen a -> Gen [a]
 vector1D l = vectorOf (Prelude.fromIntegral l)
@@ -88,7 +101,7 @@ prop_vecId (Small l) =
     forAll (vector1D l arbitrary) $ \xs ->
       eval vecId xs ==== c_vecId xs
 prop_vectorInPair (Small l) =
-    forAll ((,) <$> vector1D l arbitrary <*> arbitrary) $ \p ->
+    forAll (npair <$> vector1D l arbitrary <*> arbitrary) $ \p ->
       eval vectorInPair p ==== c_vectorInPair p
 prop_vectorInVector (Small l1) (Small l2) =
     forAll (vector1D l1 (vector1D l2 arbitrary)) $ \v ->

@@ -13,12 +13,6 @@
 #include <complex.h>
 
 
-struct awl_unsignedS32
-{
-  uint32_t * buffer;
-  uint32_t length;
-};
-
 struct awl_signedS32
 {
   int32_t * buffer;
