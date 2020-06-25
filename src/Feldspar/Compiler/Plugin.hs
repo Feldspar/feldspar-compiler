@@ -44,6 +44,7 @@ import Foreign.Marshal.Unsafe (unsafeLocalState)
 import Foreign.Storable (Storable(..))
 import Foreign.C.String (CString, withCString)
 
+import Control.Exception (handle)
 import Control.Monad (join, (>=>), when, unless)
 import Control.Applicative
 
@@ -54,6 +55,7 @@ import System.Directory (doesFileExist, removeFile, createDirectoryIfMissing)
 import System.Process (readProcessWithExitCode)
 import System.Exit (ExitCode(..))
 import System.Info (os)
+import System.IO.Error (IOError)
 import System.IO.Unsafe (unsafePerformIO)
 
 
@@ -148,14 +150,13 @@ getDB = unsafePerformIO $ do
     dirs <- sequence [ sandbox, user, local ]
     putStrLn $ unwords $ "Using feldspar runtime in" : concat dirs
     return $ concat dirs
-
   where
-    sandbox = do
+    sandbox = handle (\(_ :: IOError) -> return []) $ do
       (c,d,_) <- readProcessWithExitCode "cabal" ["sandbox", "hc-pkg","field","feldspar-compiler","include-dirs"] ""
       case c of
         ExitSuccess -> return $ drop 1 $ words d
         _           -> return []
-    user = do
+    user = handle (\(_ :: IOError) -> return []) $ do
       (c,d,_) <- readProcessWithExitCode "ghc-pkg" ["field","feldspar-compiler","include-dirs"] ""
       case c of
         ExitSuccess -> return $ drop 1 $ words d
